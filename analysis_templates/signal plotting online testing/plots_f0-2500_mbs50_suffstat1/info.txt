@@ -1,0 +1,16 @@
+mbs = 50, suff_stat = 1
+37 cells found - one extra cell
+speed: 45.67 frames per second
+
+initially during onacid two warnings but then okay:
+
+New cell detected (4)
+Updating Shapes
+C:\ProgramData\Anaconda3\envs\caiman\lib\site-packages\past\utils\__init__.py:95: RuntimeWarning: invalid value encountered in true_divide
+  return a / b
+C:\Users\intrinsic\caiman\caiman\source_extraction\cnmf\online_cnmf.py:755: RuntimeWarning: invalid value encountered in less
+  fitness_raw < thresh_fitness_raw)
+Updating Shapes
+Updating Shapes
+New cell detected (5)
+

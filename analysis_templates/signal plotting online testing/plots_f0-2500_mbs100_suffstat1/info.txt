@@ -1,0 +1,8 @@
+same output as with suff_stat = 5
+36 cells detected, same shape and traces
+time = 48.16 frames per second, then 46.73 frames per second
+
+- looks that buffer traces also the same
+
+compared to mbs of 50, some cells are different
+seems like maybe more repeats and fewer smaller components detected instead?

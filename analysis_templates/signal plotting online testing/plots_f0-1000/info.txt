@@ -1,0 +1,5 @@
+init K = 3
+
+cells 5-13: missed initial spikes / smaller amplitude of some first spikes
+cell 15: random spikes at the end not present in C_on
+cell 16-19: different singal + amplitude!

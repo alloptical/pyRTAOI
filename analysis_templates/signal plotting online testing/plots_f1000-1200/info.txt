@@ -1,0 +1,6 @@
+loaded init object with 7 cells
+
+cells 7-14 were added during onacid
+
+cells 6-7 look like their previous activity was skipped / cell not detected online yet
+cells 13-14 have very wrong shapes

@@ -1,0 +1,3 @@
+Z:
+cd Python\pyRTAOI
+pyuic5 GUI.ui -o GUI.py 
