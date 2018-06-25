@@ -33,7 +33,8 @@ import os
 
 # Qt
 import GUI
-from PyQt5.QtCore import Qt,QObject, pyqtSignal, QThread, QTimer, QRectF, QUrl,QPoint, QRect, QSize,QPointF,QSizeF, QSettings, QCoreApplication
+from PyQt5.QtCore import (Qt,QObject, pyqtSignal, QThread, QTimer, QRectF, QUrl,QPoint,
+                          QRect, QSize,QPointF,QSizeF, QSettings, QCoreApplication)
 from PyQt5.QtWidgets import (QComboBox, QCheckBox, QLineEdit, QSpinBox, QLabel,
                              QDoubleSpinBox, QFileDialog, QApplication,
                              QDesktopWidget, QMainWindow, QMessageBox, QTableWidgetItem)
@@ -840,11 +841,12 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         self.ref_movie_path = 'U:/simulate_movie/20170823_ref.tif'
         self.movie = np.atleast_3d(self.BlankImage)
         self.movie = np.swapaxes(self.movie,0,2)   # TODO: SWAPPED axes of the movie before. not anymore. should it?
+    
         self.opsin_img_path = 'U:/simulate_movie/20170823_Ch01.tif'
         self.opsin_img = np.array([])
         self.opsin_mask = np.array([])
+        self.A_opsin = np.array([])
         self.opsinMaskOn = False
-        
         
         # ROI selection --not used
         self.drawOn = False
@@ -993,7 +995,9 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         self.ROIcontour_item.clear()
         
     def updateTable(self):
-        self.Thresh_tableWidget.clear()  # added
+        self.Thresh_tableWidget.clear()  # empty the table
+        self.Thresh_tableWidget.setHorizontalHeaderLabels(['X','Y','Threshold','STA'])  # column names disappear with clearing
+        
         NumROIs = self.MaxNumROIs
         self.Thresh_tableWidget.setRowCount(NumROIs)
         self.Thresh_labels = [QTableWidgetItem() for i in range(NumROIs)]
@@ -1636,20 +1640,40 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         if self.ref_movie_path:
             self.refMoviePath_lineEdit.setText(self.ref_movie_path)
             movie_ext = os.path.splitext(p['refMoviePath'])[1]
+            self.updateStatusBar('Initialising...')
             
         K = self.InitNumROIs_spinBox.value()
         ds_factor = self.dsFactor_doubleSpinBox.value()
         self.ds_factor = ds_factor
+        
+        opsin_seeded = self.UseOpsinMask_checkBox.isChecked()
                 
         # process image or load from pkl file directly
         if movie_ext == '.tif':
-            c1v1_seeded = self.UseOpsinMask_checkBox.isChecked
-            
-            if c1v1_seeded:
+            if opsin_seeded:
                 if self.A_opsin.size:
-                    pass
+                    lframe, init_values = initialise(self.ref_movie_path, init_method='seeded', Ain=self.A_opsin,
+                                         ds_factor=ds_factor, initbatch=500, rval_thr=0.85,
+                                         thresh_overlap=0.1, save_init=True, mot_corr=True,
+                                         merge_thresh=0.85)
+                    
+                    # Filter seeded
+                    CNN_filter = True
+                    if CNN_filter:
+                        cnm_init = init_values['cnm_init']
+                        A = cnm_init.A
+                        gSig = cnm_init.gSig
+                        thresh_cnn = 0.1  # threshold for CNN classifier
+                        
+                        predictions, final_crops = evaluate_components_CNN(
+                            A, cnm_init.dims, gSig, model_name=os.path.join(caiman_datadir(), 'model', 'cnn_model'))
+
+                        idx_keep = np.where(predictions[:, 1] >= thresh_cnn)[0].tolist()
+                        init_values['coms_init'] = init_values['coms_init'][idx_keep]
+                        
                 else:
-                    print('No C1V1 mask loaded!')
+                    self.updateStatusBar('No opsin mask created!')
+            
             else:
                 K = self.InitNumROIs_spinBox.value()
     
@@ -1659,15 +1683,25 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                                                  decay_time=0.2, min_SNR=2.5)
                                                  # rval_thr for component quality
                                              
-        if movie_ext == '.pkl': # something was not saved/loaded properly; did not work for actual processing
+        elif movie_ext == '.pkl':
             print('loading initialisation file')
             init_values = load_object(self.ref_movie_path)
 
+
+        # Setting idx_components to select which cells are kept (post filtering)
+        if opsin_seeded: # and CNN_filter:
+            idx_components=idx_keep
+        else:
+            idx_components=None
+            
+            
         # Prepare object for OnACID
         cnm2 = deepcopy(init_values['cnm_init'])
-        cnm2._prepare_object(np.asarray(init_values['Yr']), init_values['T1'], init_values['expected_comps'], idx_components=None,
-                         min_num_trial = 2, N_samples_exceptionality = int(init_values['N_samples']),
-                         path_to_model = init_values['path_to_cnn_residual'])
+        cnm2._prepare_object(np.asarray(init_values['Yr']), init_values['T1'], 
+                             init_values['expected_comps'], idx_components=idx_components,
+                             min_num_trial = 2, N_samples_exceptionality = int(init_values['N_samples']),
+                             path_to_model = init_values['path_to_cnn_residual'])
+        
         
         # Extract number of cells detected
         K = cnm2.N
@@ -1679,6 +1713,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         
         self.c = init_values
         self.c['cnm2'] = cnm2
+        if opsin_seeded: self.c['cnm2'].opsin = [True]*len(idx_keep)
+        
         self.proc_cnm = init_values['cnm_init']
         self.dims = init_values['cnm_init'].dims
         self.InitNumROIs = K
@@ -1698,6 +1734,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                 self.plotOnacidTraces(cnm_struct=cnm2,t=cnm_init.initbatch,img=init_values['Cn_init'])
             except Exception as e:
                 print(e)
+
         
 ############ THIS ALLOWS FOR DRAWING and initialises ROIs -- unnecessary now. unless you want to press reset initially ##############
 #    def drawROI(self, thisROI):
@@ -1804,63 +1841,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             pl.colorbar()
         else:
             self.updateStatusBar('No cells to be shown!')
-            
-    
-    def maskInitialise(self):
-        pass
-    
-#        Ain = self.A_opsin
-#    
-#        ds_factor = 1.5
-#        initbatch = 500
-#            
-#        lframe, seeded_init_values = initialise(ref_movie_path, init_method='seeded', Ain=Ain,
-#                                         ds_factor=ds_factor, initbatch=initbatch, rval_thr=0.85,
-#                                         thresh_overlap=0.2, save_init=False, mot_corr=True,
-#                                         merge_thresh=0.85)
-#        
-#        self.c = seeded_init_values
-#        cnm_init = seeded_init_values['cnm_init']
-#        
-#        # Filter seeded
-#        A, C, b, f, YrA, sn = cnm_init.A, cnm_init.C, cnm_init.b, cnm_init.f, cnm_init.YrA, cnm_init.sn
-#        
-#        # threshold for CNN classifier
-#        thresh_cnn = 0.1 # 0.1
-#        
-#        predictions, final_crops = evaluate_components_CNN(
-#            A, dims, gSig, model_name=os.path.join(caiman_datadir(), 'model', 'cnn_model'))
-#        
-#        A_exclude, C_exclude = A[:, predictions[:, 1] <
-#                                 thresh_cnn], C[predictions[:, 1] < thresh_cnn]  # elements removed from analysis
-#        
-#        ind_rem = np.where(predictions[:,1] < thresh_cnn)[0].tolist()
-#        ind_keep = np.where(predictions[:, 1] >= thresh_cnn)[0].tolist()
-#        
-#        A, C = A[:, predictions[:, 1] >=
-#                 thresh_cnn], C[predictions[:, 1] >= thresh_cnn]
-#        
-##        noisyC = cnm_init.Cin # [cnm_init.gnb:cnm_init.A.shape[-1]+1] #cnm2.noisyC[cnm2.gnb:cnm2.M]
-##        YrA = noisyC[predictions[:, 1] >= thresh_cnn] - C
-#        
-#        # Prepare object for OnACID
-#        
-#        # Setting idx_components to ind_keep to select only cells that passed filtering (None means all kept)
-#        try:
-#            idx_components=ind_keep
-#        except:
-#            idx_components = None
-#        
-#        cnm2 = deepcopy(cnm_init)
-#        cnm2._prepare_object(np.asarray(self.c['Yr']), self.c['T1'], self.c['expected_comps'], idx_components,
-#                                 min_num_trial=2, N_samples_exceptionality=int(c['N_samples']),
-#                                 sniper_mode=False, use_peak_max=False, q=0.5) # default
-#        
-#        # Store info on opsin as object property
-#        cnm2.opsin = opsin
-#        
-#        self.c['cnm2'] = cnm2
-
 
 
     def getROImask(self, thisROIx, thisROIy):

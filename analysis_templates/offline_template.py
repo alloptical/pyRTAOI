@@ -114,9 +114,11 @@ if visualise_init:
 
 #%% Load c1v1 image and create a binary cell mask
 mask_file = r'T:\ForPatrycja\pyRTAOI\samples\example1\20171229_OG245_s-026_Cycle00001_Ch1_000001.ome.tif'
+ds_factor = 1.5
 
 opsin_img = cm.load(mask_file, subindices = slice(0,1,None))
 opsin_img = opsin_img[np.newaxis,:,:].resize(1. / ds_factor, 1. / ds_factor)
+dims = opsin_img.shape[-2:]
 
 pl.figure(); pl.imshow(np.squeeze(opsin_img), cmap='gray')
 
@@ -126,6 +128,7 @@ min_area_size = 100
 gSig_ = 9 #gSig[0]
 
 A_opsin, mr_opsin = extract_binary_masks_from_structural_channel(opsin_img, gSig=gSig_, min_area_size=min_area_size, min_hole_size=15) 
+A_opsin = A_opsin.astype('int')
 opsin_mask = np.reshape(np.array(A_opsin.max(axis=1)), dims, order='F').astype('int')  # changed mean to max because it's binary
 
 pl.figure(); pl.imshow(opsin_mask)
@@ -140,8 +143,6 @@ else:
     A = np.array(A)
 
 
-from cv2 import bitwise_and
-
 onacid_mask = (deepcopy(A)>0).astype('int')  # binarise the onacid output mask
 
 opsin = []
@@ -152,7 +153,7 @@ for cell in range(onacid_mask.shape[-1]):
     mask_inx = np.where(cell_mask==1)
     cell_pix = sum(sum(cell_mask == 1))
     
-    inter = bitwise_and(opsin_mask, cell_mask)
+    inter = cv2.bitwise_and(opsin_mask, cell_mask)
     inter_pix = sum(sum(inter))
     overlap = inter_pix/cell_pix
     overlap_ratio.append(overlap)
@@ -175,9 +176,13 @@ pl.figure();pl.imshow(summed_mask)
 pl.colorbar()
 
 #%% Seeded initialisation
-
 ref_movie_path = r'T:\ForPatrycja\pyRTAOI\samples\example2\20171229_OG245_t-053\20171229_OG245_t-053_Cycle00001_Ch2.tif'
-Ain = A_opsin # or A from OnACID output (as np array)
+
+opsin_seeded = True
+if opsin_seeded:
+    Ain = A_opsin # or A from OnACID output (as np array)
+else:
+    Ain = A
 
 ds_factor = 1.5
 initbatch = 500
@@ -239,12 +244,15 @@ except:
     idx_components = None
 
 cnm2 = deepcopy(cnm_init)
-cnm2._prepare_object(np.asarray(c['Yr']), c['T1'], c['expected_comps'], idx_components,
-                         min_num_trial=2, N_samples_exceptionality=int(c['N_samples']),
-                         sniper_mode=False, use_peak_max=False, q=0.5) # default
+cnm2._prepare_object(np.asarray(c['Yr']), c['T1'], c['expected_comps'], idx_components=idx_components,
+                         min_num_trial=2, N_samples_exceptionality=int(c['N_samples']))#,
+#                         sniper_mode=False, use_peak_max=False, q=0.5) # default
 
 # Store info on opsin as object property
-cnm2.opsin = opsin
+if opsin_seeded:
+    cnm2.opsin = [True]*len(ind_keep)
+else:
+    cnm2.opsin = opsin
 
 #%% Visualise filtering of seeded
 C, f = cnm2.C_on[cnm2.gnb:cnm2.M], cnm2.C_on[:cnm2.gnb]
@@ -386,7 +394,7 @@ for iter in range(epochs):
                     mask_inx = np.where(cell_mask==1)
                     cell_pix = sum(sum(cell_mask == 1))
                     
-                    inter = bitwise_and(opsin_mask, cell_mask)
+                    inter = cv2.bitwise_and(opsin_mask, cell_mask)
                     inter_pix = sum(sum(inter))
                     overlap = inter_pix/cell_pix
                                         
@@ -546,7 +554,7 @@ for cell in range(onacid_mask.shape[-1]):
     mask_inx = np.where(cell_mask==1)
     cell_pix = sum(sum(cell_mask == 1))
     
-    inter = bitwise_and(opsin_mask, cell_mask)
+    inter = cv2.bitwise_and(opsin_mask, cell_mask)
     inter_pix = sum(sum(inter))
     overlap = inter_pix/cell_pix
     overlap_ratio.append(overlap)

@@ -34,7 +34,7 @@ from caiman.paths import caiman_datadir
 
 
 def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1, initbatch=500,
-               T1=20000, mot_corr=True,  save_init=False, expected_comps=100,
+               T1=20000, mot_corr=True,  save_init=False, expected_comps=150,
                rval_thr=0.85, NumROIs=None, thresh_overlap=0.1, decay_time=0.2,
                min_SNR = 2.5, merge_thresh=0.85, minibatch_shape=100):
                #del_duplicates=False):
