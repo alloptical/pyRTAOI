@@ -1,5 +1,21 @@
 ### OFFLINE CNMF ANALYSIS PIPELINE ### 
 
+"""
+    Offline analysis can also be implemented using caiman batch i.e. running
+    CNMF algorithm on the whole recording. It uses memory mapping to
+    efficiently store and access big video files. Motion correction is done in
+    advance and is fairly slow.
+    
+    This generally finds very many components (e.g. >1000), many of which
+    overlap or are not of great quality. Filtering the algorithm output using
+    CNN can be adopted; this should significantly reduce the number of 
+    components (e.g. <50).
+    
+    Simple testing showed that running OnACID multiple times can be more
+    effective at finding most active cells at reasonable numbers.
+    
+"""
+
 from __future__ import division
 from __future__ import print_function
 from builtins import range

@@ -1,11 +1,34 @@
 ### OFFLINE ONACID ANALYSIS PIPELINE ### 
 
+"""
+    For offline purposes, OnACID can be run multiple times (epochs) or 
+    initialised with a mask (seeded initialisatin).
+    
+    Running the algorithm two times (epochs) can find quite many cells which
+    were missed during the first run. Third epoch finds a few extra cells but
+    not as many.
+    
+    The OnACID output cell mask (A) can be used to initialise the algorithm. 
+    This allows for tracking the activity of cells in the mask throughout the 
+    whole recording.
+    
+    Strict offline analysis can be done by running OnACID for two epochs
+    followed by seeded init + another OnACID run.
+    
+    C1V1 mask can also be used to initialise the algorithm with cells 
+    expressing the opsin. This should be followed by filtering of the 
+    initialisation output with the CNN filter as the mask does not separate
+    cells well.
+
+"""
+
+
 import os
 import numpy as np
 from copy import deepcopy
 import time
 import sys
-sys.path.append(r'C:\Users\intrinsic\Desktop\pyRTAOI20180530') # for caiman_func access
+sys.path.append(r'C:\Users\intrinsic\Desktop\pyRTAOI2018') # for caiman_func access
 
 if sys.platform == 'win32':
     time_ = time.clock
@@ -25,8 +48,9 @@ from caiman_func.initialisation import initialise
 from caiman.motion_correction import motion_correct_iteration_fast
 from caiman.paths import caiman_datadir
 from caiman.components_evaluation import evaluate_components_CNN
+from caiman.base.rois import extract_binary_masks_from_structural_channel
 
-#%% Select reference movie, init parameters and initialise the algorithm or load an init file
+#%% Select reference movie, init parameters and initialise the algorithm or load an init .pkl file
 
 #ref_movie_path = r'C:\Users\intrinsic\caiman_data\sample_vid\stimulated_test\20170329_OG151_t-008_Substack (1-3000)--(1-500).tif'
 #ref_movie_path = r'C:\Users\intrinsic\caiman_data\sample_vid\stimulated_test\20170329_OG151_t-008_Substack (1-3000)--(1-500)_init_cnmf_DS_1.5.pkl'
@@ -43,12 +67,13 @@ if movie_ext  == '.tif':
     ds_factor = 1.5
     initbatch = 500
     minibatch_shape = 100
+    min_SNR = 2.5
     
     lframe, init_values = initialise(ref_movie_path, init_method='cnmf', K=K, 
                                      ds_factor=ds_factor, initbatch=initbatch, rval_thr=0.85, #0.85,
                                      thresh_overlap=0.2, save_init=False, mot_corr=True,
                                      merge_thresh=0.85, minibatch_shape=minibatch_shape,
-                                     min_SNR = 10)
+                                     min_SNR=min_SNR, T1=20000)
     
 elif movie_ext == '.pkl':
     init_values = load_object(ref_movie_path)
@@ -75,11 +100,6 @@ K = c['K']
 coms_init = c['coms_init']
 Yr = c['Yr']
 
-# Prepare object for OnACID
-cnm2._prepare_object(np.asarray(init_values['Yr']), init_values['T1'], init_values['expected_comps'], idx_components=None,
-                         min_num_trial=2, N_samples_exceptionality=int(init_values['N_samples']),
-                         sniper_mode=False, use_peak_max=False, q=0.5) # these are default
-
 
 #%% Visualise the results of initialisation
 visualise_init = True
@@ -92,7 +112,26 @@ if visualise_init:
     view_patches_bar([], scipy.sparse.coo_matrix(
     A.tocsc()[:, :]), C[:, :], b, f, dims[0], dims[1], YrA=YrA[:, :], img=Cn_init)
 
+#%% Load c1v1 image and create a binary cell mask
+mask_file = r'T:\ForPatrycja\pyRTAOI\samples\example1\20171229_OG245_s-026_Cycle00001_Ch1_000001.ome.tif'
+
+opsin_img = cm.load(mask_file, subindices = slice(0,1,None))
+opsin_img = opsin_img[np.newaxis,:,:].resize(1. / ds_factor, 1. / ds_factor)
+
+pl.figure(); pl.imshow(np.squeeze(opsin_img), cmap='gray')
+
+
+# specify cell extraction parameters
+min_area_size = 100
+gSig_ = 9 #gSig[0]
+
+A_opsin, mr_opsin = extract_binary_masks_from_structural_channel(opsin_img, gSig=gSig_, min_area_size=min_area_size, min_hole_size=15) 
+opsin_mask = np.reshape(np.array(A_opsin.max(axis=1)), dims, order='F').astype('int')  # changed mean to max because it's binary
+
+pl.figure(); pl.imshow(opsin_mask)
+
 #%% Compare detected cells with the c1v1 mask
+A = cnm_init.A
 
 # Convert A to numpy array
 if issparse(A):
@@ -104,9 +143,8 @@ else:
 from cv2 import bitwise_and
 
 onacid_mask = (deepcopy(A)>0).astype('int')  # binarise the onacid output mask
-opsin_mask = mask1
 
-cell_ok = []
+opsin = []
 overlap_ratio = []
 
 for cell in range(onacid_mask.shape[-1]):
@@ -119,29 +157,27 @@ for cell in range(onacid_mask.shape[-1]):
     overlap = inter_pix/cell_pix
     overlap_ratio.append(overlap)
     
-    thresh = 0.7
+    thresh = 0.5
     if overlap <= thresh:
         onacid_mask[:,cell][onacid_mask[:,cell] == 1] = -3
+    else:
+        onacid_mask[:,cell][onacid_mask[:,cell] == 1] = 3
         
-    cell_ok.append(overlap > thresh)
-    
-#    cell_mask[cell_mask > 1e-10] = 1  # binarise the masks
-#    check = cell_mask in mask1
-    print('cell ' + str(cell) + ' : ' + str(overlap>thresh))
+    opsin.append(overlap > thresh)
+    print('cell ' + str(cell) + ': ' + str(overlap > thresh))
 
-no_opsin = cnm2.N - sum(cell_ok)
+no_opsin = A.shape[-1] - sum(opsin)
 
 # visualise all comps
-summed_A = np.hstack((A1, onacid_mask))
+summed_A = np.hstack((A_opsin, onacid_mask))
 summed_mask = np.reshape(np.array(summed_A.sum(axis=1)), dims, order='F')
 pl.figure();pl.imshow(summed_mask)
 pl.colorbar()
 
 #%% Seeded initialisation
-#Ain = np.array(A.todense())
 
 ref_movie_path = r'T:\ForPatrycja\pyRTAOI\samples\example2\20171229_OG245_t-053\20171229_OG245_t-053_Cycle00001_Ch2.tif'
-Ain = A1 #A1
+Ain = A_opsin # or A from OnACID output (as np array)
 
 ds_factor = 1.5
 initbatch = 500
@@ -162,7 +198,7 @@ T1 =  c['T1']
 ds_factor =  c['ds_factor']
 Cn_init =  c['Cn_init']
 cnm_init =  c['cnm_init']
-cnm2 = c['cnm2']
+#cnm2 = c['cnm2']
 gnb =  c['cnm_init'].gnb
 gSig = c['cnm_init'].gSig # changes to (7,7) on its own?
 dims =  c['cnm_init'].dims
@@ -194,16 +230,25 @@ A, C = A[:, predictions[:, 1] >=
 noisyC = cnm_init.Cin # [cnm_init.gnb:cnm_init.A.shape[-1]+1] #cnm2.noisyC[cnm2.gnb:cnm2.M]
 YrA = noisyC[predictions[:, 1] >= thresh_cnn] - C
 
-#%% Setting idx_components to ind_keep to select only cells that passed filtering (None means all kept)
+#%% Prepare object for OnACID
+
+# Setting idx_components to ind_keep to select only cells that passed filtering (None means all kept)
+try:
+    idx_components=ind_keep
+except:
+    idx_components = None
+
 cnm2 = deepcopy(cnm_init)
-cnm2._prepare_object(np.asarray(c['Yr']), c['T1'], c['expected_comps'], idx_components=ind_keep,
+cnm2._prepare_object(np.asarray(c['Yr']), c['T1'], c['expected_comps'], idx_components,
                          min_num_trial=2, N_samples_exceptionality=int(c['N_samples']),
-                         sniper_mode=False, use_peak_max=False, q=0.5)
+                         sniper_mode=False, use_peak_max=False, q=0.5) # default
+
+# Store info on opsin as object property
+cnm2.opsin = opsin
 
 #%% Visualise filtering of seeded
 C, f = cnm2.C_on[cnm2.gnb:cnm2.M], cnm2.C_on[:cnm2.gnb]
 A, b = cnm2.Ab[:, cnm2.gnb:cnm2.M], cnm2.Ab[:, :cnm2.gnb]
-
 
 noisyC = cnm2.noisyC[cnm2.gnb:cnm2.M]
 YrA = noisyC - C
@@ -248,7 +293,6 @@ cnm2.remove_components(inx)
 NumROIs = cnm2.expected_comps # temp
 
 max_shift = np.ceil(10./ds_factor).astype('int')  # max shift allowed
-#cnm2 = deepcopy(cnm_init)
 t = cnm2.initbatch
 tottime = []
 Cn = Cn_init.copy()
@@ -256,7 +300,7 @@ shifts = []
 coms = coms_init.copy()
 com_count = cnm2.N
 
-BufferLength = 2500
+BufferLength = 200
 BufferPointer = 0
 RoiBuffer = np.zeros([NumROIs,BufferLength]).astype('float32')
 ROIlist_threshold = np.zeros(NumROIs)
@@ -272,7 +316,7 @@ removed = []
 
 
 # cnn classifier for removal of unfit cells
-remove_flag = False    # flag for removing components with bad shapes
+remove_flag = False    # flag for removing components with bad shapes during onacid
 T_rm = 650    # remove bad components every T_rm frames
 rm_thr = 0.1  # CNN classifier removal threshold
 cnm2.thresh_CNN_noisy = 0.5
@@ -280,18 +324,18 @@ cnm2.thresh_CNN_noisy = 0.5
 epochs = 1
 cnm2.Ab_epoch = []                       # save the shapes at the end of each epoch
 
-
-#%% Run OnACID multiple times (echos)
+#%% Run OnACID multiple times (epochs)
 #movie_path = r'C:\Users\intrinsic\caiman_data\sample_vid\stimulated_test\20170329_OG151_t-008_Substack (1-3000)--(500-3000).tif'
 #movie_path = r'C:\Users\Patrycja\CaImAn\sample_vid\spontaneous_test\20170329_OG151_t-006_2_Substack_(1000-3000).tif'
+movie_path = ref_movie_path
 
 print('Loading video')
-Y_ = cm.load(ref_movie_path, subindices=slice(500,2500,None)) # 0,T1,None
+Y_ = cm.load(movie_path, subindices=slice(500,1500,None)) # 0,T1,None
 print('Video loaded')
           
 for iter in range(epochs):  
     for frame_count, frame in enumerate(Y_):        # now process each file
-        t1 = time.clock()
+        t1 = time_()
         
         if np.isnan(np.sum(frame)):
             raise Exception('Frame ' + str(frame_count) + ' contains nan')
@@ -335,6 +379,20 @@ for iter in range(epochs):
                     com_count += 1
                     accepted.append(cnm2.N)
                     print('New cell detected (' + str(cnm2.N-rejected) + ')')
+
+#                    tt = time_()
+                    cell_A = np.array(cnm2.Ab[:,-1].todense())
+                    cell_mask = (np.reshape(cell_A, dims, order='F') > 0).astype('int')
+                    mask_inx = np.where(cell_mask==1)
+                    cell_pix = sum(sum(cell_mask == 1))
+                    
+                    inter = bitwise_and(opsin_mask, cell_mask)
+                    inter_pix = sum(sum(inter))
+                    overlap = inter_pix/cell_pix
+                                        
+                    cnm2.opsin.append(overlap > thresh)
+                    print(overlap>thresh)
+#                    print(time_()-tt)
                     
                     if com_count == NumROIs:
                         expect_components = False
@@ -362,7 +420,6 @@ for iter in range(epochs):
             print(RoiBuffer[:com_count,:])
         
         t += 1
-#        print(t)
         
         if BufferPointer==BufferLength-1:
             BufferPointer = 0
@@ -376,7 +433,7 @@ for iter in range(epochs):
             cnm2.remove_components(ind_rem)
             print('Removing '+str(len(ind_rem))+' components')
         
-        tottime.append(time.clock() - t1)                             # store time
+        tottime.append(time_() - t1)                             # store time
 
     
     print('Cumulative processing speed is ' + str(t/np.sum(tottime))[:5] + ' frames per second.')
@@ -384,45 +441,17 @@ for iter in range(epochs):
     # save the shapes at the end of each epoch
     cnm2.Ab_epoch.append(cnm2.Ab.copy())
 
-#%% Testing RoiBuffer
-folder = r'C:\Users\intrinsic\Desktop\pyRTAOI20180530\analysis templates\signal plotting online testing\plots_f0-2500_mbs100_suffstat1_simultaneouslyFalse'
 
-save_plots = 0
+#%% Extract results from object
+# Can pass through the CNN classifier with a low threshold (keeps clearer neuron shapes and excludes processes)
 
-spotted = deepcopy(new_spotted)
-spotted.reverse()
-
-for cell in range(cnm2.N):
-#cell = 3
-    pl.figure()
-    
-    pl.subplot(311); pl.plot(cnm2.noisyC[cell+1,500:t]); pl.ylabel('noisyC') # t-1
-    pl.title('cell ' + str(cell));
-    pl.subplot(312); pl.plot(cnm2.C_on[cell+1,500:t]); pl.ylabel('C_on')
-    pl.subplot(313); pl.plot(RoiBuffer[cell,:]); pl.ylabel('RoiBuffer')
-    if cell >= K:
-        fr = spotted.pop()
-        pl.plot([fr, fr], pl.ylim(), 'r')
-        
-    if save_plots:
-        pl.savefig(folder + '\cell_' + str(cell))
-        pl.close()
-        
-
-#%% Plot deconvolved signal for checking
-pl.figure();pl.plot(deconvolved[cell][initbatch:])
-
-#%% Pass through the CNN classifier with a low threshold (keeps clearer neuron shapes and excludes processes)
-#   Extract results from objects
-
-#C, f = cnm2.C_on[cnm2.gnb:cnm2.M], cnm2.C_on[:cnm2.gnb]
-#A, b = cnm2.Ab[:, cnm2.gnb:cnm2.M], cnm2.Ab[:, :cnm2.gnb]
-#print(('Number of components:' + str(A.shape[-1])))
-
-use_CNN = False
+use_CNN = 0
 if use_CNN:
+    A, b = cnm2.Ab[:, cnm2.gnb:cnm2.M], cnm2.Ab[:, :cnm2.gnb]
+    C, f = cnm2.C_on[cnm2.gnb:cnm2.M], cnm2.C_on[:cnm2.gnb]
+
     # threshold for CNN classifier
-    thresh_cnn = 0.05 # 0.1
+    thresh_cnn = 0.1 # 0.1
     from caiman.components_evaluation import evaluate_components_CNN
     predictions, final_crops = evaluate_components_CNN(
         A, dims, gSig, model_name=os.path.join(caiman_datadir(), 'model', 'cnn_model'))
@@ -449,6 +478,7 @@ else:
     noisyC = cnm2.noisyC[:, t - t // epochs:t]
     YrA = noisyC[cnm2.gnb:cnm2.M] - C
     
+print(('Number of components:' + str(A.shape[-1])))
 
 # Convert A to numpy array
 if issparse(A):
@@ -463,24 +493,28 @@ deconvolved = [osi.s for osi in cnm2.OASISinstances]
 
 coms_post = com(A, *dims)
 
+#%% Plot deconvolved signal for checking
+pl.figure();pl.plot(deconvolved[cell][initbatch:])
 
-#%% Save results - test this to see how the data should be saved
-save_results = False
+#%% Save results
+save_results = True
+folder = os.path.dirname(ref_movie_path)
+
+# can't save Ab or cnm2 (can't access the inside of it) directly
 
 if save_results:        
-    saved_data = folder + '\_offline_DS_ ' + str(ds_factor) + '.npz' ##movie_path[:-4]
+    saved_data = folder + '\_offline_DS_ ' + str(ds_factor) + '.npz'
     
-    np.savez(saved_data,#movie_path[:-4] + '_offline_DS_ ' + str(ds_factor) + '.npz',
+    np.savez(saved_data,
              Cn=Cn,
-             # cnm2=cnm2,  # can't save it all - later can't access the inside of cnm2
-             # Ab=cnm2.Ab, # can't access it
-             Cf=cnm2.C_on, 
-             A=A, # works if converted to dense numpy array
+             Cf=cnm2.C_on,
+             A=A, # can be fully saved if converted to dense numpy array; for sparse would have to save 
              b=b, C=C, f=f, noisyC=noisyC, b_trace=b_trace,
-             OASISinstances = cnm2.OASISinstances, # can be saved like this too! no need for b_trace or deconvolved, but may be easier
+             OASISinstances = cnm2.OASISinstances, # can be saved; no need for b_trace or deconvolved but may be easier
              deconvolved = deconvolved,
-             coms=coms,
+             coms=coms, opsin=cnm2.opsin,
              dims=cnm2.dims, ds_factor=ds_factor,
+             min_SNR=min_SNR, thresh_overlap=cnm2.thresh_overlap,
              tottime=tottime,
              shifts=shifts)
 
@@ -501,6 +535,68 @@ view_patches_bar([], A, # scipy.sparse.coo_matrix(A.tocsc()[:, :]),
                  dims[0], dims[1], YrA=YrA[:,:t], img=Cn)
 
 
+#%% Check and plot opsin overlap offline
+onacid_mask = (deepcopy(A)>0).astype('int')  # binarise the onacid output mask
+
+opsin = []
+overlap_ratio = []
+
+for cell in range(onacid_mask.shape[-1]):
+    cell_mask = (np.reshape(onacid_mask[:,cell], dims, order='F'))
+    mask_inx = np.where(cell_mask==1)
+    cell_pix = sum(sum(cell_mask == 1))
+    
+    inter = bitwise_and(opsin_mask, cell_mask)
+    inter_pix = sum(sum(inter))
+    overlap = inter_pix/cell_pix
+    overlap_ratio.append(overlap)
+    
+    thresh = 0.5
+    if overlap <= thresh:
+        onacid_mask[:,cell][onacid_mask[:,cell] == 1] = -3
+    else:
+        onacid_mask[:,cell][onacid_mask[:,cell] == 1] = 3
+        
+    opsin.append(overlap > thresh)
+    print('cell ' + str(cell) + ' : ' + str(overlap > thresh))
+
+no_opsin = cnm2.N - sum(opsin)
+
+# visualise all comps
+summed_A = np.hstack((A_opsin, onacid_mask))
+summed_mask = np.reshape(np.array(summed_A.sum(axis=1)), dims, order='F')
+pl.figure();pl.imshow(summed_mask)
+pl.colorbar()
+
+
+# Check offline == online
+print(opsin == cnm2.opsin)
+
+#%% Testing RoiBuffer
+folder = r'C:\Users\intrinsic\Desktop\pyRTAOI20180530\analysis templates\signal plotting online testing\plots_f0-2500_mbs100_suffstat1_simultaneouslyFalse'
+
+save_plots = 0
+
+spotted = deepcopy(new_spotted)
+spotted.reverse()
+
+for cell in range(cnm2.N):
+#cell = 3
+    pl.figure()
+    
+    pl.subplot(311); pl.plot(cnm2.noisyC[cell+1,500:t]); pl.ylabel('noisyC') # t-1
+    pl.title('cell ' + str(cell));
+    pl.subplot(312); pl.plot(cnm2.C_on[cell+1,500:t]); pl.ylabel('C_on')
+    pl.subplot(313); pl.plot(RoiBuffer[cell,:]); pl.ylabel('RoiBuffer')
+    if cell >= K:
+        fr = spotted.pop()
+        pl.plot([fr, fr], pl.ylim(), 'r')
+        
+    if save_plots:
+        pl.savefig(folder + '\cell_' + str(cell))
+        pl.close()
+
+        
 #%% Plot time of each frame to see the delay introduced by various functionalities
 tottime = np.array(tottime)
 

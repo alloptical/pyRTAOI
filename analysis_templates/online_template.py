@@ -1,4 +1,12 @@
 ### ONLINE ONACID ANALYSIS PIPELINE ### 
+"""
+    Basic OnACID pipeline for online purposes.
+    
+    Additional functionalities such as seeded initialisation or c1v1 masking
+    shown in offline_template.py.
+    
+"""
+
 
 import os
 import numpy as np
@@ -199,15 +207,14 @@ if issparse(A):
 else:
     A_ = np.array(A)
 
-C, f = cnm2.C_on[cnm2.gnb:cnm2.M, t - t //
-                 epochs:t], cnm2.C_on[:cnm2.gnb, t - t // epochs:t]
-noisyC = cnm2.noisyC[:, t - t // epochs:t]
+C, f = cnm2.C_on[cnm2.gnb:cnm2.M, :], cnm2.C_on[:cnm2.gnb, :]
+noisyC = cnm2.noisyC
 b_trace = [osi.b for osi in cnm2.OASISinstances] if hasattr(
     cnm2, 'OASISinstances') else [0] * C.shape[0]
 
 deconvolved = [osi.s for osi in cnm2.OASISinstances]
 
-#%% Save results - test this to see how the data should be saved
+#%% Save results
 save_results = False
 
 if save_results:        
@@ -215,12 +222,9 @@ if save_results:
     
     np.savez(movie_path[:-4] + '_offline_DS_ ' + str(ds_factor) + '.npz',
              Cn=Cn,
-             # cnm2=cnm2,  # can't save it all - later can't access the inside of cnm2
-             
-             Ab=cnm2.Ab, # can't access it either now
+#             Ab=cnm2.Ab, # can't access it either now
              Cf=cnm2.C_on, 
              A=A_, # seems to work now
-             
              b=b, C=C, f=f, noisyC=noisyC, b_trace=b_trace,
              OASISinstances = cnm2.OASISinstances, # can be saved like this too! no need for b_trace or deconvolved, but may be easier
              deconvolved = deconvolved,
