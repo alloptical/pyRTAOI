@@ -34,7 +34,7 @@ from caiman.paths import caiman_datadir
 
 
 def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1, initbatch=500,
-               T1=10000, mot_corr=True,  save_init=False, expected_comps=100,
+               T1=20000, mot_corr=True,  save_init=False, expected_comps=100,
                rval_thr=0.85, NumROIs=None, thresh_overlap=0.1, decay_time=0.2,
                min_SNR = 2.5, merge_thresh=0.85, minibatch_shape=100):
                #del_duplicates=False):
@@ -223,6 +223,7 @@ def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1, initba
         
         
     cnm2 = deepcopy(cnm_init)
+    cnm2.opsin = None
     
     # Prepare object for OnACID
 #    cnm_init._prepare_object(np.asarray(Yr), T1, expected_comps, idx_components=None,
@@ -248,6 +249,8 @@ def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1, initba
     init_values['coms_init'] = coms_init
     init_values['Yr'] = Yr
     init_values['path_to_cnn_residual'] = path_to_cnn_residual
+    init_values['opsin_mask'] = None
+    init_values['overlap_ratio'] = None
     
     if save_init:
         cnm_init.dview = None

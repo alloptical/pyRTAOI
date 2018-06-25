@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1213</width>
-    <height>915</height>
+    <width>1219</width>
+    <height>988</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -20,7 +20,7 @@
       <x>0</x>
       <y>0</y>
       <width>1211</width>
-      <height>891</height>
+      <height>941</height>
      </rect>
     </property>
     <property name="currentIndex">
@@ -172,7 +172,7 @@
       <property name="geometry">
        <rect>
         <x>550</x>
-        <y>450</y>
+        <y>570</y>
         <width>341</width>
         <height>91</height>
        </rect>
@@ -226,7 +226,7 @@
        <rect>
         <x>900</x>
         <y>120</y>
-        <width>261</width>
+        <width>271</width>
         <height>141</height>
        </rect>
       </property>
@@ -390,11 +390,11 @@
        </layout>
       </widget>
      </widget>
-     <widget class="QGroupBox" name="StimOptiions_groupBox">
+     <widget class="QGroupBox" name="StimOptions_groupBox">
       <property name="geometry">
        <rect>
         <x>550</x>
-        <y>270</y>
+        <y>390</y>
         <width>341</width>
         <height>171</height>
        </rect>
@@ -613,7 +613,7 @@
        <rect>
         <x>550</x>
         <y>120</y>
-        <width>341</width>
+        <width>351</width>
         <height>141</height>
        </rect>
       </property>
@@ -625,8 +625,8 @@
         <rect>
          <x>10</x>
          <y>20</y>
-         <width>321</width>
-         <height>74</height>
+         <width>328</width>
+         <height>97</height>
         </rect>
        </property>
        <layout class="QGridLayout" name="gridLayout_2">
@@ -644,14 +644,7 @@
           </property>
          </widget>
         </item>
-        <item row="1" column="0">
-         <widget class="QCheckBox" name="UseONACID_checkBox">
-          <property name="text">
-           <string>Enable ONACID</string>
-          </property>
-         </widget>
-        </item>
-        <item row="1" column="4">
+        <item row="3" column="4">
          <spacer name="horizontalSpacer_2">
           <property name="orientation">
            <enum>Qt::Horizontal</enum>
@@ -707,13 +700,27 @@
           </property>
          </widget>
         </item>
+        <item row="1" column="0">
+         <widget class="QCheckBox" name="UseONACID_checkBox">
+          <property name="text">
+           <string>Enable ONACID</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="0">
+         <widget class="QCheckBox" name="UseOpsinMask_checkBox">
+          <property name="text">
+           <string>Use C1V1 mask</string>
+          </property>
+         </widget>
+        </item>
        </layout>
       </widget>
       <widget class="QWidget" name="gridLayoutWidget_2">
        <property name="geometry">
         <rect>
          <x>10</x>
-         <y>100</y>
+         <y>110</y>
          <width>321</width>
          <height>31</height>
         </rect>
@@ -747,7 +754,7 @@
       <property name="geometry">
        <rect>
         <x>30</x>
-        <y>670</y>
+        <y>720</y>
         <width>651</width>
         <height>171</height>
        </rect>
@@ -757,7 +764,7 @@
       <property name="geometry">
        <rect>
         <x>700</x>
-        <y>670</y>
+        <y>720</y>
         <width>461</width>
         <height>171</height>
        </rect>
@@ -783,7 +790,7 @@
        <rect>
         <x>900</x>
         <y>-1</y>
-        <width>261</width>
+        <width>271</width>
         <height>111</height>
        </rect>
       </property>
@@ -863,7 +870,7 @@
        <rect>
         <x>900</x>
         <y>270</y>
-        <width>261</width>
+        <width>271</width>
         <height>171</height>
        </rect>
       </property>
@@ -1209,7 +1216,7 @@
       <property name="geometry">
        <rect>
         <x>560</x>
-        <y>550</y>
+        <y>670</y>
         <width>321</width>
         <height>31</height>
        </rect>
@@ -1260,7 +1267,7 @@
        <rect>
         <x>900</x>
         <y>450</y>
-        <width>261</width>
+        <width>271</width>
         <height>121</height>
        </rect>
       </property>
@@ -1323,6 +1330,140 @@
        </layout>
       </widget>
      </widget>
+     <widget class="QGroupBox" name="opsinMask_groupBox">
+      <property name="geometry">
+       <rect>
+        <x>550</x>
+        <y>270</y>
+        <width>341</width>
+        <height>121</height>
+       </rect>
+      </property>
+      <property name="title">
+       <string>C1V1 mask</string>
+      </property>
+      <layout class="QGridLayout" name="gridLayout_16">
+       <item row="1" column="0">
+        <layout class="QHBoxLayout" name="horizontalLayout_6">
+         <item>
+          <widget class="QLabel" name="label_27">
+           <property name="text">
+            <string>Min area</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QSpinBox" name="minArea_spinBox">
+           <property name="minimum">
+            <number>1</number>
+           </property>
+           <property name="maximum">
+            <number>200</number>
+           </property>
+           <property name="singleStep">
+            <number>10</number>
+           </property>
+           <property name="value">
+            <number>100</number>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="label_29">
+           <property name="text">
+            <string>Cell radius</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QSpinBox" name="cellRadius_spinBox">
+           <property name="minimum">
+            <number>1</number>
+           </property>
+           <property name="maximum">
+            <number>20</number>
+           </property>
+           <property name="singleStep">
+            <number>1</number>
+           </property>
+           <property name="value">
+            <number>9</number>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="label_28">
+           <property name="text">
+            <string>Overlap</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QDoubleSpinBox" name="overlapRatio_doubleSpinBox">
+           <property name="decimals">
+            <number>2</number>
+           </property>
+           <property name="minimum">
+            <double>0.000000000000000</double>
+           </property>
+           <property name="maximum">
+            <double>1.000000000000000</double>
+           </property>
+           <property name="singleStep">
+            <double>0.100000000000000</double>
+           </property>
+           <property name="value">
+            <double>0.600000000000000</double>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item row="2" column="0">
+        <layout class="QHBoxLayout" name="horizontalLayout_7">
+         <item>
+          <widget class="QPushButton" name="createMask_pushButton">
+           <property name="text">
+            <string>Create mask</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="showCellsOnMask_pushButton">
+           <property name="text">
+            <string>Show cells on mask</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item row="0" column="0">
+        <layout class="QGridLayout" name="gridLayout_18">
+         <item row="0" column="2">
+          <widget class="QPushButton" name="loadOpsinImgPath_pushButton">
+           <property name="text">
+            <string>Browse</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="0">
+          <widget class="QLabel" name="label_26">
+           <property name="text">
+            <string>Image Path</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <widget class="QLineEdit" name="opsinImgPath_lineEdit">
+           <property name="text">
+            <string>U:/simulate_movie/20170823_Ch01.tif</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </widget>
     </widget>
     <widget class="QWidget" name="tab_2">
      <attribute name="title">
@@ -1347,7 +1488,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1213</width>
+     <width>1219</width>
      <height>21</height>
     </rect>
    </property>

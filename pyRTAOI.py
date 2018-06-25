@@ -80,6 +80,9 @@ from caiman_func.initialisation import initialise
 from caiman.motion_correction import motion_correct_iteration_fast
 from caiman.base.rois import com
 from caiman.utils.utils import load_object
+from caiman.base.rois import extract_binary_masks_from_structural_channel as extract_mask
+from caiman.paths import caiman_datadir
+from caiman.components_evaluation import evaluate_components_CNN
 
 # plot libs
 import matplotlib
@@ -207,7 +210,7 @@ class Worker(QObject):
             T1 = self.c['T1']
             ds_factor = self.c['ds_factor']
             Cn_init = self.c['Cn_init']
-            cnm_init = self.c['cnm_init']
+#            cnm_init = self.c['cnm_init']
             cnm2 = self.c['cnm2']
             #gnb =  self.c['cnm_init'].gnb
             dims =  self.c['cnm_init'].dims
@@ -216,6 +219,10 @@ class Worker(QObject):
             K = self.c['K']
             coms_init = self.c['coms_init']
 
+            # opsin mask from c1v1 image
+            opsin_mask = self.c['opsin_mask']
+            opsin_overlap_ratio = self.c['opsin_overlap_ratio']
+            
             # Define OnACID parameters
             max_shift = np.ceil(10./ds_factor).astype('int')  # max shift allowed
 #            cnm2 = deepcopy(cnm_init)
@@ -570,6 +577,21 @@ class Worker(QObject):
                             com_count += 1
                             accepted.append(cnm2.N)
                             print('New cell detected (' + str(cnm2.N-rejected) + ')')
+                            
+#                            t = time_()
+                            
+                            # check cell for c1v1 on the go
+                            cell_A = np.array(cnm2.Ab[:,-1].todense())
+                            cell_mask = (np.reshape(cell_A, dims, order='F') > 0).astype('int')
+#                            mask_inx = np.where(cell_mask==1)
+                            cell_pix = sum(sum(cell_mask == 1))
+                            
+                            inter = cv2.bitwise_and(opsin_mask, cell_mask)
+                            inter_pix = sum(sum(inter))
+                            overlap = inter_pix/cell_pix
+                                                
+                            cnm2.opsin.append(overlap > opsin_overlap_ratio)
+#                            print(time_()-tt)
                                                         
                             # add new ROI to photostim target, if required
                             if p['FLAG_BLINK_CONNECTED'] and p['FLAG_AUTO_ADD_TARGETS']:
@@ -679,7 +701,6 @@ class Worker(QObject):
             self.showROIIdx_signal.emit()
             
             # show traces in plot tab
-            # now issue: only integer scalar arrays can be converted to a scalar index
             try:
                 show_traces = True
                 if show_traces:
@@ -819,6 +840,10 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         self.ref_movie_path = 'U:/simulate_movie/20170823_ref.tif'
         self.movie = np.atleast_3d(self.BlankImage)
         self.movie = np.swapaxes(self.movie,0,2)   # TODO: SWAPPED axes of the movie before. not anymore. should it?
+        self.opsin_img_path = 'U:/simulate_movie/20170823_Ch01.tif'
+        self.opsin_img = np.array([])
+        self.opsin_mask = np.array([])
+        self.opsinMaskOn = False
         
         
         # ROI selection --not used
@@ -1019,6 +1044,12 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         self.xPos_label.setText(str(x))
         self.yPos_label.setText(str(y))
         
+#        if self.opsinMaskOn:
+#            self.updateImage(cv2.resize(np.squeeze(self.opsin_img), (512, 512), interpolation=cv2.INTER_CUBIC))
+            
+#                self.updateImage(cv2.resize(np.squeeze(self.opsin_mask).astype('u1'), (512, 512), interpolation=cv2.INTER_CUBIC))
+
+            
     def tempTest(self):
         print('button clicked')
         self.plotSTAonMasks()       
@@ -1027,6 +1058,10 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         # load and save
         self.loadMoviePath_pushButton.clicked.connect(self.loadMoviePath)
         self.loadRefMoviePath_pushButton.clicked.connect(self.loadRefMoviePath)
+        self.loadOpsinImgPath_pushButton.clicked.connect(self.loadOpsinImg)
+        self.createMask_pushButton.clicked.connect(self.createOpsinMask)
+#        self.maskInitialise_pushButton.clicked.connect(self.maskInitialise)
+        self.showCellsOnMask_pushButton.clicked.connect(self.showCellsOnMask)
         self.saveConfig_pushButton.clicked.connect(self.saveConfig)
         self.loadConfig_pushButton.clicked.connect(self.loadConfig)
         # start worker
@@ -1113,7 +1148,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         p['FLAG_PV_CONNECTED'] = self.FLAG_PV_CONNECTED
         p['FLAG_OFFLINE'] = self.IsOffline
         p['photoProtoInx'] = self.photoProtoInx
-        
  
         self.MaxNumROIs = p['MaxNumROIs']
         self.flipRowChanged()
@@ -1457,8 +1491,11 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         except Exception as e:
             print(e)
         
-    def plotOnacidResults(self, cnm_struct, t, img=None):
-        self.plotOnacidTraces(cnm_struct, t, img, offline=True)
+    def showOnacidResults(self, cnm_struct, t, img=None, plot=True): # for offline now
+        if plot:
+            self.plotOnacidTraces(cnm_struct, t, img, offline=True)
+        self.c['cnm2'] = cnm_struct
+        self.checkOpsin()
         
     def plotOnacidTraces(self, cnm_struct, t, img=None, offline=False):   # TODO: refreshing plot/replotting/resetting
         # currently doesn't work properly for offline
@@ -1601,25 +1638,31 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             movie_ext = os.path.splitext(p['refMoviePath'])[1]
             
         K = self.InitNumROIs_spinBox.value()
-        print('Number of components to initialise: ' + str(K))
         ds_factor = self.dsFactor_doubleSpinBox.value()
         self.ds_factor = ds_factor
-        
+                
         # process image or load from pkl file directly
         if movie_ext == '.tif':
-            K = self.InitNumROIs_spinBox.value()
-
-            print('Starting initialisation with tiff file')
-            lframe, init_values = initialise(self.ref_movie_path, init_method='cnmf', K=K, initbatch=500, ds_factor=ds_factor,
-                                             rval_thr=0.85, thresh_overlap=0, save_init=True, mot_corr=True, merge_thresh=0.85,
-                                             decay_time=0.2, min_SNR=2.5)
-                                             # rval_thr for component quality
+            c1v1_seeded = self.UseOpsinMask_checkBox.isChecked
+            
+            if c1v1_seeded:
+                if self.A_opsin.size:
+                    pass
+                else:
+                    print('No C1V1 mask loaded!')
+            else:
+                K = self.InitNumROIs_spinBox.value()
+    
+                print('Starting initialisation with tiff file')
+                lframe, init_values = initialise(self.ref_movie_path, init_method='cnmf', K=K, initbatch=500, ds_factor=ds_factor,
+                                                 rval_thr=0.85, thresh_overlap=0, save_init=True, mot_corr=True, merge_thresh=0.85,
+                                                 decay_time=0.2, min_SNR=2.5)
+                                                 # rval_thr for component quality
                                              
         if movie_ext == '.pkl': # something was not saved/loaded properly; did not work for actual processing
             print('loading initialisation file')
             init_values = load_object(self.ref_movie_path)
 
-            
         # Prepare object for OnACID
         cnm2 = deepcopy(init_values['cnm_init'])
         cnm2._prepare_object(np.asarray(init_values['Yr']), init_values['T1'], init_values['expected_comps'], idx_components=None,
@@ -1629,6 +1672,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         # Extract number of cells detected
         K = cnm2.N
         self.InitNumROIs_spinBox.setValue(K)
+        print('Number of components initialised: ' + str(K))
         
         if self.MaxNumROIs_spinBox.value() < K+5:
             self.MaxNumROIs_spinBox.setValue(K+10)
@@ -1636,6 +1680,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         self.c = init_values
         self.c['cnm2'] = cnm2
         self.proc_cnm = init_values['cnm_init']
+        self.dims = init_values['cnm_init'].dims
         self.InitNumROIs = K
         self.imageItem.setImage(cv2.resize(self.c['img_norm'],(512,512),interpolation=cv2.INTER_CUBIC)) # display last frame of the initiialisation movie
 
@@ -1663,6 +1708,159 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 #        #self.drawOn = not self.drawOn
 #        if self.drawOn:
 #            addROI(self)
+
+    def loadOpsinImg(self):
+        opsin_img_path = str(QFileDialog.getOpenFileName(self, 'Load a C1V1 image', '', 'MPTIFF (*.tif)')[0])
+        self.opsin_img_path = opsin_img_path
+        
+        if self.opsin_img_path:
+            self.opsinImgPath_lineEdit.setText(self.opsin_img_path)
+            opsin_img = cm.load(opsin_img_path, subindices = slice(0,1,None))
+            self.updateImage(opsin_img)
+            
+            opsin_img = opsin_img[np.newaxis,:,:].resize(1./self.ds_factor,1./self.ds_factor)
+            self.opsin_img = opsin_img
+        
+        
+    def createOpsinMask(self):
+        if self.opsin_img.size:
+            min_area = self.minArea_spinBox.value()
+            radius = self.cellRadius_spinBox.value()
+            dims = self.opsin_img.shape[-2:]
+
+            A_opsin, mr_opsin = extract_mask(self.opsin_img, gSig=radius, min_area_size=min_area, min_hole_size=15)
+            self.A_opsin = A_opsin.astype('int')
+            self.opsin_mask = np.reshape(np.array(self.A_opsin.max(axis=1)), dims, order='F').astype('int')  # max because it's a binary mask
+            self.updateImage(cv2.resize(np.squeeze(self.opsin_mask).astype('u1'), (512, 512), interpolation=cv2.INTER_CUBIC))
+            
+            self.opsinMaskOn = True
+            
+            # screen current components for c1v1
+            if self.c != {}:
+                self.checkOpsin()
+
+        else:
+            self.updateStatusBar('No opsin image loaded!')
+
+
+    def checkOpsin(self): # , cnm_struct=None):
+        cnm_struct = self.c['cnm2']
+#        if cnm_struct == None:
+#            try:
+#                cnm_struct = self.c['cnm2']
+#            except:
+#                self.updateStatusBar('No cell struct provided!')
+#                return
+            
+        A = cnm_struct.Ab[:, cnm_struct.gnb:cnm_struct.M]
+            
+        dims = self.dims
+        overlap = []
+        opsin = []
+        self.opsin_overlap_ratio = self.overlapRatio_doubleSpinBox.value()
+        
+        # Convert A to numpy array
+        if issparse(A):
+            A = np.array(A.todense())
+        else:
+            A = np.array(A)
+        
+        onacid_mask = (deepcopy(A)>0).astype('int')  # binarise the onacid output mask
+        
+        for cell in range(onacid_mask.shape[-1]):
+            cell_mask = (np.reshape(onacid_mask[:,cell], dims, order='F'))
+            cell_pix = sum(sum(cell_mask == 1))
+            
+            inter = cv2.bitwise_and(self.opsin_mask, cell_mask)
+            inter_pix = sum(sum(inter))
+            cell_overlap = inter_pix/cell_pix
+            overlap.append(cell_overlap)
+            
+            if cell_overlap <= self.opsin_overlap_ratio:
+                onacid_mask[:,cell][onacid_mask[:,cell] == 1] = -3
+            else:
+                onacid_mask[:,cell][onacid_mask[:,cell] == 1] = 3
+                
+            opsin.append(cell_overlap > self.opsin_overlap_ratio)
+        
+        # store info on opsin
+        self.c['cnm2'].opsin = opsin
+        self.c['overlap'] = overlap
+        self.c['opsin_mask'] = self.opsin_mask
+        self.c['opsin_overlap_ratio'] = self.opsin_overlap_ratio
+        self.onacid_mask = onacid_mask
+        
+            
+    def showCellsOnMask(self):
+        if self.c != {}:
+            self.checkOpsin()  # for overlap update
+
+            # visualise all comps
+            dims = self.dims
+            
+            summed_A = np.hstack((self.A_opsin, self.onacid_mask))
+            summed_mask = np.reshape(np.array(summed_A.sum(axis=1)), dims, order='F')
+            pl.figure();pl.imshow(summed_mask)
+            pl.colorbar()
+        else:
+            self.updateStatusBar('No cells to be shown!')
+            
+    
+    def maskInitialise(self):
+        pass
+    
+#        Ain = self.A_opsin
+#    
+#        ds_factor = 1.5
+#        initbatch = 500
+#            
+#        lframe, seeded_init_values = initialise(ref_movie_path, init_method='seeded', Ain=Ain,
+#                                         ds_factor=ds_factor, initbatch=initbatch, rval_thr=0.85,
+#                                         thresh_overlap=0.2, save_init=False, mot_corr=True,
+#                                         merge_thresh=0.85)
+#        
+#        self.c = seeded_init_values
+#        cnm_init = seeded_init_values['cnm_init']
+#        
+#        # Filter seeded
+#        A, C, b, f, YrA, sn = cnm_init.A, cnm_init.C, cnm_init.b, cnm_init.f, cnm_init.YrA, cnm_init.sn
+#        
+#        # threshold for CNN classifier
+#        thresh_cnn = 0.1 # 0.1
+#        
+#        predictions, final_crops = evaluate_components_CNN(
+#            A, dims, gSig, model_name=os.path.join(caiman_datadir(), 'model', 'cnn_model'))
+#        
+#        A_exclude, C_exclude = A[:, predictions[:, 1] <
+#                                 thresh_cnn], C[predictions[:, 1] < thresh_cnn]  # elements removed from analysis
+#        
+#        ind_rem = np.where(predictions[:,1] < thresh_cnn)[0].tolist()
+#        ind_keep = np.where(predictions[:, 1] >= thresh_cnn)[0].tolist()
+#        
+#        A, C = A[:, predictions[:, 1] >=
+#                 thresh_cnn], C[predictions[:, 1] >= thresh_cnn]
+#        
+##        noisyC = cnm_init.Cin # [cnm_init.gnb:cnm_init.A.shape[-1]+1] #cnm2.noisyC[cnm2.gnb:cnm2.M]
+##        YrA = noisyC[predictions[:, 1] >= thresh_cnn] - C
+#        
+#        # Prepare object for OnACID
+#        
+#        # Setting idx_components to ind_keep to select only cells that passed filtering (None means all kept)
+#        try:
+#            idx_components=ind_keep
+#        except:
+#            idx_components = None
+#        
+#        cnm2 = deepcopy(cnm_init)
+#        cnm2._prepare_object(np.asarray(self.c['Yr']), self.c['T1'], self.c['expected_comps'], idx_components,
+#                                 min_num_trial=2, N_samples_exceptionality=int(c['N_samples']),
+#                                 sniper_mode=False, use_peak_max=False, q=0.5) # default
+#        
+#        # Store info on opsin as object property
+#        cnm2.opsin = opsin
+#        
+#        self.c['cnm2'] = cnm2
+
 
 
     def getROImask(self, thisROIx, thisROIy):
@@ -1768,7 +1966,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         self.workerObject.showROIIdx_signal.connect(self.showROIIdx)
         self.workerObject.getROImask_signal.connect(self.getROImask)
         self.workerObject.updateTargetROIs_signal.connect(self.updateTargetROIs)
-        self.workerObject.sendTraces_signal.connect(self.plotOnacidResults)  # ADDED
+        self.workerObject.sendTraces_signal.connect(self.showOnacidResults)  # ADDED
         
         # start and finish
         self.workerObject.transDataToMain_signal.connect(self.transDataToMain)
