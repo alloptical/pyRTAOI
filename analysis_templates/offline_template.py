@@ -531,6 +531,18 @@ if save_results:
 npz_datafile = np.load(saved_data)
 locals().update(npz_datafile)
 
+#%% Load pkl object
+saved_pkl = r'T:\ForPatrycja\pyRTAOI\samples\example1\20171229_OG245_t-052_Cycle00001_Ch2_substack1-2700_init_cnmf_DS_1.5.pkl'
+pkl_datafile = load_object(saved_pkl)
+
+mask = pkl_datafile['cnm_init'].A # access mask
+
+#%% Load npz object
+saved_npz = r'T:\ForPatrycja\pyRTAOI\samples\example1\_offline_DS_ 1.5.npz'
+npz_datafile = np.load(saved_npz)
+
+mask = npz_datafile['A']
+
 #%% Visualise OnACID output
 pl.figure()
 crd = cm.utils.visualization.plot_contours(A, Cn, thr=0.9)

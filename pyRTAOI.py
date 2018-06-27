@@ -33,12 +33,12 @@ import os
 
 # Qt
 import GUI
-from PyQt5.QtCore import (Qt,QObject, pyqtSignal, QThread, QTimer, QRectF, QUrl,QPoint,
+from PyQt5.QtCore import (Qt,QObject, pyqtSignal, QThread, QTimer, QRectF, QUrl, QPoint,
                           QRect, QSize,QPointF,QSizeF, QSettings, QCoreApplication)
 from PyQt5.QtWidgets import (QComboBox, QCheckBox, QLineEdit, QSpinBox, QLabel,
                              QDoubleSpinBox, QFileDialog, QApplication,
                              QDesktopWidget, QMainWindow, QMessageBox, QTableWidgetItem)
-from PyQt5.QtGui import QFont, QColor, QIcon, QPalette, QDesktopServices, QImage, QPixmap, QPainter,QPen,QBrush
+from PyQt5.QtGui import QFont, QColor, QIcon, QPalette, QDesktopServices, QImage, QPixmap, QPainter, QPen, QBrush
 
 
 # utilities
@@ -202,7 +202,7 @@ class Worker(QObject):
 #%% load onACID pre-settings
         if self.UseONACID:
             self.status_signal.emit('Using OnACID')
-
+            
             # Extract initialisation parameters
             # mot_corr = self.c['mot_corr']
             mot_corr = True # hard coded now; using motion correction from on acid
@@ -220,9 +220,13 @@ class Worker(QObject):
             K = self.c['K']
             coms_init = self.c['coms_init']
 
+            try:
             # opsin mask from c1v1 image
-            opsin_mask = self.c['opsin_mask']
-            opsin_overlap_ratio = self.c['opsin_overlap_ratio']
+                opsin_mask = self.c['opsin_mask']
+                opsin_overlap_ratio = self.c['opsin_overlap_ratio']
+            except Exception as e:
+                opsin_mask = np.array([])
+                print(e)
             
             # Define OnACID parameters
             max_shift = np.ceil(10./ds_factor).astype('int')  # max shift allowed
@@ -238,6 +242,7 @@ class Worker(QObject):
             expect_components = True
             dist_thresh = 21
             display_shift = False  # option to display motion correction shift
+
             
         
 #%% movie streaming from prairie
@@ -582,16 +587,24 @@ class Worker(QObject):
 #                            t = time_()
                             
                             # check cell for c1v1 on the go
-                            cell_A = np.array(cnm2.Ab[:,-1].todense())
-                            cell_mask = (np.reshape(cell_A, dims, order='F') > 0).astype('int')
-#                            mask_inx = np.where(cell_mask==1)
-                            cell_pix = sum(sum(cell_mask == 1))
-                            
-                            inter = cv2.bitwise_and(opsin_mask, cell_mask)
-                            inter_pix = sum(sum(inter))
-                            overlap = inter_pix/cell_pix
-                                                
-                            cnm2.opsin.append(overlap > opsin_overlap_ratio)
+#                            try:
+                            if opsin_mask.size:
+                                cell_A = np.array(cnm2.Ab[:,-1].todense())
+                                cell_mask = (np.reshape(cell_A, dims, order='F') > 0).astype('int')
+                                # error here now
+# C:\ci\opencv_1512688052760\work\modules\core\src\arithm.cpp:225: error: (-209) The operation is neither 'array op array' 
+# (where arrays have the same size and type), nor 'array op scalar', nor 'scalar op array' in function cv::binary_op
+                                
+    #                            mask_inx = np.where(cell_mask==1)
+                                cell_pix = sum(sum(cell_mask == 1))
+                                
+                                inter = cv2.bitwise_and(opsin_mask, cell_mask)
+                                inter_pix = sum(sum(inter))
+                                overlap = inter_pix/cell_pix
+                                                    
+                                cnm2.opsin.append(overlap > opsin_overlap_ratio)
+#                            except Exception as e:
+#                                print(e)
 #                            print(time_()-tt)
                                                         
                             # add new ROI to photostim target, if required
@@ -838,7 +851,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         self.BlankImage = np.zeros(shape = (512,512))
         self.imageItem.setImage(self.BlankImage)
         self.movie_path = 'U:/simulate_movie/20170823.tif'
-        self.ref_movie_path = 'U:/simulate_movie/20170823_ref.tif'
+        self.ref_movie_path = ''  # 'U:/simulate_movie/20170823_ref.tif'
         self.movie = np.atleast_3d(self.BlankImage)
         self.movie = np.swapaxes(self.movie,0,2)   # TODO: SWAPPED axes of the movie before. not anymore. should it?
     
@@ -847,6 +860,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         self.opsin_mask = np.array([])
         self.A_opsin = np.array([])
         self.opsinMaskOn = False
+        self.A_loaded = np.array([])
+        self.mask_path = ''
         
         # ROI selection --not used
         self.drawOn = False
@@ -1048,12 +1063,29 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         self.xPos_label.setText(str(x))
         self.yPos_label.setText(str(y))
         
+#        pg.GraphicsScene
+#        mousePressEvent
+#        mouseReleaseEvent
+        #leaveEvent(self, ev):  ## inform items that mouse is gone
+        
+        # this doesnt do anything
+        from PyQt5 import QtCore
+        #dir(PyQt5.QtCore.Qt) for keys
+        if event.key() == QtCore.Qt.Key_Up:
+            self.updateImage(cv2.resize(np.squeeze(self.opsin_img), (512, 512), interpolation=cv2.INTER_CUBIC))
+        
 #        if self.opsinMaskOn:
 #            self.updateImage(cv2.resize(np.squeeze(self.opsin_img), (512, 512), interpolation=cv2.INTER_CUBIC))
-            
-#                self.updateImage(cv2.resize(np.squeeze(self.opsin_mask).astype('u1'), (512, 512), interpolation=cv2.INTER_CUBIC))
+#            self.opsinMaskOn = False
+#            time.sleep(1)
+#        elif not self.opsinMaskOn:
+#            self.updateImage(cv2.resize(np.squeeze(self.opsin_mask).astype('u1'), (512, 512), interpolation=cv2.INTER_CUBIC))
+#            self.opsinMaskOn = True
+#            time.sleep(1)
 
-            
+#    def exampleDrop(self):
+#        print('hi')
+        
     def tempTest(self):
         print('button clicked')
         self.plotSTAonMasks()       
@@ -1066,6 +1098,9 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         self.createMask_pushButton.clicked.connect(self.createOpsinMask)
 #        self.maskInitialise_pushButton.clicked.connect(self.maskInitialise)
         self.showCellsOnMask_pushButton.clicked.connect(self.showCellsOnMask)
+        self.loadMask_pushButton.clicked.connect(self.loadMask)
+        self.initialise_pushButton.clicked.connect(self.initialiseCaiman)
+        
         self.saveConfig_pushButton.clicked.connect(self.saveConfig)
         self.loadConfig_pushButton.clicked.connect(self.loadConfig)
         # start worker
@@ -1086,6 +1121,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         
         # running mode
         self.IsOffline_radioButton.toggled.connect(self.switch_IsOffline)
+        self.UseOpsinMask_radioButton.toggled.connect(self.switch_useOpsinMask) # addded
+        self.UseOnacidMask_radioButton.toggled.connect(self.switch_useOnacidMask) # added
         self.photoProto_comboBox.currentIndexChanged.connect(self.photoProtoChanged)
         
         # connections
@@ -1102,6 +1139,10 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         # mouse events
         self.graphicsView.scene().sigMouseClicked.connect(self.getMousePosition) 
         self.graphicsView.scene().sigMouseMoved.connect(self.showMousePosition)
+        
+        # dir(pg.GraphicsScene) for all possible methods of scene
+#        self.graphicsView.scene().dragEnterEvent.connect(self.exampleDrop)
+        # error: 'builtin_function_or_method' object has no attribute 'connect'
         
         # prairie
         
@@ -1478,17 +1519,28 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
     def resetFigure(self):  # TODO: does not free memory. easy to go too high
         try:
-            self.fig.clear()
-            plt.close(self.fig)
-#            plt.close('all')
-#            del self.fig
-#            del self.figCanvas
-            
 #            self.fig.clear()
+#            plt.close(self.fig)
+##            plt.close('all')
+##            del self.fig
+##            del self.figCanvas
+#            
+##            self.fig.clear()
+#            
+#            self.fig = Figure()
+#            self.figCanvas = FigureCanvas(self.fig)
+#            self.staPlot_gridLayout.addWidget(self.figCanvas)
             
-            self.fig = Figure()
-            self.figCanvas = FigureCanvas(self.fig)
-            self.staPlot_gridLayout.addWidget(self.figCanvas)
+            
+            
+#            self.ax1.cla()
+#            self.ax2.cla()
+#            self.ax3.cla()
+#            self.axcomp.cla()
+            
+            self.fig.clear() # doesnt work
+            self.figCanvas.draw()
+            self.figCanvas.flush_events()
             
             gc.collect()
 
@@ -1505,7 +1557,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         # currently doesn't work properly for offline
 
         try:
-            #self.resetFigure()
+#            self.resetFigure()
             
             C, f = cnm_struct.C_on[cnm_struct.gnb:cnm_struct.M], cnm_struct.C_on[:cnm_struct.gnb]
             A, b = cnm_struct.Ab[:, cnm_struct.gnb:cnm_struct.M], cnm_struct.Ab[:, :cnm_struct.gnb]
@@ -1540,7 +1592,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
             if offline==False:
                 self.fig = Figure(figsize=(10, 10))
-                
                 self.figCanvas = FigureCanvas(self.fig)
                 self.axcomp = self.fig.add_axes([0.05, 0.05, 0.9, 0.03])
                 
@@ -1551,12 +1602,16 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             else:
 #                pass
                 # reset the plot
-#                self.fig.clear() # doesnt work
+#                self.fig.clear() # doesnt work?
+#                self.figCanvas.draw()
+#                self.figCanvas.flush_events()
                 
                 self.ax1.cla()
                 self.ax2.cla()
                 self.ax3.cla()
-                self.s_comp.reset()
+                self.axcomp.cla()
+                self.s_comp = Slider(self.axcomp, 'Component', 0, nr + nb - 1, valinit=0)
+#                self.s_comp.reset()
             
             vmax = np.percentile(img, 95)
             
@@ -1599,7 +1654,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                     self.ax2.plot(np.arange(T), np.squeeze(np.array(f[i - nr, :])))
                     self.ax2.set_title('Temporal background ' + str(i + 1 - nr))
         
-            def arrow_key_image_control(self, event):  # this doesn't work now
+            def arrow_key_image_control(self, event):  # this doesn't work now 
                 if event.key == 'left':
                     new_val = np.round(self.s_comp.val - 1)
                     if new_val < 0:
@@ -1632,60 +1687,141 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         
 
     def loadRefMoviePath(self):
-        ref_movie_path = str(QFileDialog.getOpenFileName(self, 'Load reference', '', 'PKL(*.pkl);;MPTIFF (*.tif);;All files (*.*)')[0])
+        if self.UseOpsinMask_radioButton.isChecked() or self.UseOnacidMask_radioButton.isChecked():
+            ref_movie_path = str(QFileDialog.getOpenFileName(self, 'Load reference', '', 'MPTIFF (*.tif);;All files (*.*)')[0])
+        else:
+            ref_movie_path = str(QFileDialog.getOpenFileName(self, 'Load reference', '', 'PKL(*.pkl);;MPTIFF (*.tif);;All files (*.*)')[0])
+        
         self.ref_movie_path = ref_movie_path
-        self.initialiseCaiman()
+        self.refMoviePath_lineEdit.setText(self.ref_movie_path)
+        print('Reference movie selected')
+        #self.initialiseCaiman()
+        
+    
+    def loadMask(self):
+        mask_path = str(QFileDialog.getOpenFileName(self, 'Load reference', '', 'NPZ (*.npz);;PKL (*.pkl);;MPTIFF (*.tif);;All files (*.*)')[0])
+        
+        self.mask_path = mask_path
+        if self.mask_path:
+            loaded_mask_ext = os.path.splitext(self.mask_path)[1]
+        
+        if loaded_mask_ext == '.tif' or loaded_mask_ext == '.pkl':
+            print('Correct file with a mask selected')
+        
+        if loaded_mask_ext == '.npz': # faster than pkl for loading mask
+            data_loaded = np.load(self.mask_path)
+            self.A_loaded = data_loaded['A']
+            dims = data_loaded['dims']
+            
+        elif loaded_mask_ext == '.pkl':
+            data_loaded = load_object(self.mask_path)
+            A_loaded = data_loaded['cnm_init'].A
+            self.A_loaded = np.array(A_loaded.todense())
+            dims = data_loaded['cnm_init'].dims
+
+
+        if self.A_loaded.size:
+#            self.UseOnacidMask_radioButton.setChecked(True)
+#            self.UseOpsinMask_radioButton.setChecked(False)
+            try:
+                loaded_mask = np.reshape(np.array(self.A_loaded.mean(axis=1)), dims, order='F')
+                self.updateImage(cv2.resize(np.squeeze(loaded_mask), (512, 512), interpolation=cv2.INTER_CUBIC))
+                self.updateStatusBar('Mask with ' + str(self.A_loaded.shape[-1]) + ' cells was loaded')    
+                self.UseOnacidMask_radioButton.setEnabled(True)
+                self.UseOnacidMask_radioButton.setChecked(True)
+            except Exception as e:
+                print(e)
+        else:
+            self.updateStatusBar('No mask was not found in the file selected')
+            self.UseOnacidMask_radioButton.setChecked(False)
+    
     
     def initialiseCaiman(self):
         if self.ref_movie_path:
-            self.refMoviePath_lineEdit.setText(self.ref_movie_path)
             movie_ext = os.path.splitext(p['refMoviePath'])[1]
             self.updateStatusBar('Initialising...')
+        else:
+            self.updateStatusBar('No reference movie selected!')
+            return
             
         K = self.InitNumROIs_spinBox.value()
         ds_factor = self.dsFactor_doubleSpinBox.value()
         self.ds_factor = ds_factor
         
-        opsin_seeded = self.UseOpsinMask_checkBox.isChecked()
+        # init method to be used
+        opsin_seeded = self.UseOpsinMask_radioButton.isChecked()
+        mask_seeded = self.UseOnacidMask_radioButton.isChecked()
+#        if opsin_seeded and mask_seeded: # temp
+#            self.updateStatusBar('Conflict! Select only one mask option!')
+#            return
+        cnmf_init = not (opsin_seeded or mask_seeded)
+        print(opsin_seeded)
+        print(cnmf_init)
+        
+#        if mask_seeded and (not self.A_loaded.size): # not needed if button disabled until mask loaded
+#            self.UseOnacidMask_radioButton.setChecked(False)
+#            mask_seeded = False
+#            cnmf_init = True
+#            self.updateStatusBar('No mask provided; using standard CNMF to initialise...')
                 
         # process image or load from pkl file directly
-        if movie_ext == '.tif':
-            if opsin_seeded:
-                if self.A_opsin.size:
-                    lframe, init_values = initialise(self.ref_movie_path, init_method='seeded', Ain=self.A_opsin,
-                                         ds_factor=ds_factor, initbatch=500, rval_thr=0.85,
-                                         thresh_overlap=0.1, save_init=True, mot_corr=True,
-                                         merge_thresh=0.85)
-                    
-                    # Filter seeded
-                    CNN_filter = True
-                    if CNN_filter:
-                        cnm_init = init_values['cnm_init']
-                        A = cnm_init.A
-                        gSig = cnm_init.gSig
-                        thresh_cnn = 0.1  # threshold for CNN classifier
-                        
-                        predictions, final_crops = evaluate_components_CNN(
-                            A, cnm_init.dims, gSig, model_name=os.path.join(caiman_datadir(), 'model', 'cnn_model'))
-
-                        idx_keep = np.where(predictions[:, 1] >= thresh_cnn)[0].tolist()
-                        init_values['coms_init'] = init_values['coms_init'][idx_keep]
-                        
-                else:
-                    self.updateStatusBar('No opsin mask created!')
-            
-            else:
+        if cnmf_init:
+            if movie_ext == '.tif':
                 K = self.InitNumROIs_spinBox.value()
     
-                print('Starting initialisation with tiff file')
+                print('Starting CNMF initialisation with tiff file')
                 lframe, init_values = initialise(self.ref_movie_path, init_method='cnmf', K=K, initbatch=500, ds_factor=ds_factor,
                                                  rval_thr=0.85, thresh_overlap=0, save_init=True, mot_corr=True, merge_thresh=0.85,
-                                                 decay_time=0.2, min_SNR=2.5)
-                                                 # rval_thr for component quality
-                                             
-        elif movie_ext == '.pkl':
-            print('loading initialisation file')
-            init_values = load_object(self.ref_movie_path)
+                                                     decay_time=0.2, min_SNR=2.5)
+                                                     # rval_thr for component quality
+                                                 
+            elif movie_ext == '.pkl':
+                print('Loading initialisation file')
+                init_values = load_object(self.ref_movie_path)
+                
+        
+        elif opsin_seeded:
+            if self.A_opsin.size:
+                try:
+                    if movie_ext == '.tif':
+                        print('Starting seeded initialisation using the opsin mask')
+                        lframe, init_values = initialise(self.ref_movie_path, init_method='seeded', Ain=self.A_opsin,
+                                             ds_factor=ds_factor, initbatch=500, rval_thr=0.85,
+                                             thresh_overlap=0.1, save_init=True, mot_corr=True,
+                                             merge_thresh=0.85)
+                        
+                        # Filter seeded - move inside initialise?
+                        CNN_filter = True
+                        if CNN_filter:
+                            print('Filtering the components')
+                            A = init_values['cnm_init'].A
+                            gSig = init_values['cnm_init'].gSig
+                            thresh_cnn = 0.1  # threshold for CNN classifier
+                            
+                            predictions, final_crops = evaluate_components_CNN(
+                                A, init_values['cnm_init'].dims, gSig, model_name=os.path.join(caiman_datadir(), 'model', 'cnn_model'))
+        
+                            idx_keep = np.where(predictions[:, 1] >= thresh_cnn)[0].tolist()
+                            init_values['coms_init'] = init_values['coms_init'][idx_keep]
+                    else:
+                        self.updateStatusBar('A non-tif file was provided - select a tif movie to initialise with a mask')
+                        return
+                        
+                except Exception as e:
+                    print(e)
+            else:
+                self.updateStatusBar('No opsin mask created!')
+        
+        elif mask_seeded:
+            if movie_ext == '.tif':
+                print('Starting seeded initialisation using the mask provided')
+                lframe, init_values = initialise(self.ref_movie_path, init_method='seeded', Ain=self.A_loaded,
+                     ds_factor=ds_factor, initbatch=500, rval_thr=0.85,
+                     thresh_overlap=0.1, save_init=True, mot_corr=True,
+                     merge_thresh=0.85)
+            else:
+                self.updateStatusBar('A non-tif file was provided - select a tif movie to initialise with a mask')
+                return
 
 
         # Setting idx_components to select which cells are kept (post filtering)
@@ -1699,8 +1835,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         cnm2 = deepcopy(init_values['cnm_init'])
         cnm2._prepare_object(np.asarray(init_values['Yr']), init_values['T1'], 
                              init_values['expected_comps'], idx_components=idx_components,
-                             min_num_trial = 2, N_samples_exceptionality = int(init_values['N_samples']),
-                             path_to_model = init_values['path_to_cnn_residual'])
+                             min_num_trial=2, N_samples_exceptionality=int(init_values['N_samples']),
+                             path_to_model=init_values['path_to_cnn_residual'])
         
         
         # Extract number of cells detected
@@ -1720,8 +1856,11 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         self.InitNumROIs = K
         self.imageItem.setImage(cv2.resize(self.c['img_norm'],(512,512),interpolation=cv2.INTER_CUBIC)) # display last frame of the initiialisation movie
 
+        if self.A_opsin.size:
+            self.checkOpsin()
 
         ### add a step to discard unwanted components from initialisation?
+        
         self.initialiseROI()
         for i in range(K):
             y, x = init_values['coms_init'][i]  # reversed
@@ -1771,6 +1910,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             self.updateImage(cv2.resize(np.squeeze(self.opsin_mask).astype('u1'), (512, 512), interpolation=cv2.INTER_CUBIC))
             
             self.opsinMaskOn = True
+            self.UseOpsinMask_radioButton.setEnabled(True)
             
             # screen current components for c1v1
             if self.c != {}:
@@ -1839,6 +1979,44 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             summed_mask = np.reshape(np.array(summed_A.sum(axis=1)), dims, order='F')
             pl.figure();pl.imshow(summed_mask)
             pl.colorbar()
+            
+        elif self.A_loaded.size:  # temp
+            dims = self.opsin_mask.shape
+            print(dims)
+            overlap = []
+            opsin = []
+            self.opsin_overlap_ratio = self.overlapRatio_doubleSpinBox.value()
+            
+            # Convert A to numpy array
+            A = self.A_loaded
+            if issparse(A):
+                A = np.array(A.todense())
+            else:
+                A = np.array(A)
+            
+            onacid_mask = (deepcopy(A)>0).astype('int')  # binarise the onacid output mask
+            
+            for cell in range(onacid_mask.shape[-1]):
+                cell_mask = (np.reshape(onacid_mask[:,cell], dims, order='F'))
+                cell_pix = sum(sum(cell_mask == 1))
+                
+                inter = cv2.bitwise_and(self.opsin_mask, cell_mask)
+                inter_pix = sum(sum(inter))
+                cell_overlap = inter_pix/cell_pix
+                overlap.append(cell_overlap)
+                
+                if cell_overlap <= self.opsin_overlap_ratio:
+                    onacid_mask[:,cell][onacid_mask[:,cell] == 1] = -3
+                else:
+                    onacid_mask[:,cell][onacid_mask[:,cell] == 1] = 3
+                    
+                opsin.append(cell_overlap > self.opsin_overlap_ratio)
+            
+            summed_A = np.hstack((self.A_opsin, onacid_mask))
+            summed_mask = np.reshape(np.array(summed_A.sum(axis=1)), dims, order='F')
+            pl.figure();pl.imshow(summed_mask)
+            pl.colorbar()
+            
         else:
             self.updateStatusBar('No cells to be shown!')
 
@@ -1990,7 +2168,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
     def updateSTA(self, sta_arr):
         for i in range(0,len(sta_arr)):
             print('updating sta value')
-#            self.STA_labels[i].setForeground(QBrush(self.ROIlist[i]["ROIcolor"]))
+            self.STA_labels[i].setForeground(QBrush(self.ROIlist[i]["ROIcolor"]))
             self.STA_labels[i].setText(str('{0:.1f}'.format(sta_arr[i])))
             self.Thresh_tableWidget.setItem(i,3,self.STA_labels[i]) 
 
@@ -2010,6 +2188,20 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         print('offline button')
         self.IsOffline = self.IsOffline_radioButton.isChecked()
         self.updateStatusBar('Flag offline = '+str(self.IsOffline))
+        
+    def switch_useOnacidMask(self):  # toggle the two buttons
+        self.usesOnacidMask = self.UseOnacidMask_radioButton.isChecked()
+        self.usesOpsinMask = self.UseOpsinMask_radioButton.isChecked()
+        if self.usesOpsinMask and self.usesOnacidMask:
+            self.UseOpsinMask_radioButton.setChecked(False)
+                        
+            
+    def switch_useOpsinMask(self):
+        self.usesOpsinMask = self.UseOpsinMask_radioButton.isChecked()
+        self.usesOnacidMask = self.UseOnacidMask_radioButton.isChecked()
+        if self.usesOpsinMask and self.usesOnacidMask:
+            self.UseOnacidMask_radioButton.setChecked(False)
+        
         
     def enableStimTrigger(self):
         p['FLAG_STIM_TRIG_ENABLED'] = self.enableStimTrigger_checkBox.isChecked

@@ -249,8 +249,8 @@ def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1, initba
     init_values['coms_init'] = coms_init
     init_values['Yr'] = Yr
     init_values['path_to_cnn_residual'] = path_to_cnn_residual
-    init_values['opsin_mask'] = None
-    init_values['overlap_ratio'] = None
+    init_values['opsin_mask'] = np.array([])
+    init_values['opsin_overlap_ratio'] = None
     
     if save_init:
         cnm_init.dview = None
