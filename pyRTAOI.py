@@ -25,10 +25,15 @@ CAREFUL WHEN USING 'REPLACE ALL' - IT WILL QUIT, WITHOUT SAVING!!
  
 2. deal with zoom - check
 3. mark point setting for changing photostim power; if not fast enough use dummy targets in zero blocker, or feed voltage to pockels directly
+    control voltage = (outMax/displayMax)*PV value; where outMax and displayMax are defined in prairie view configuration.xml
+    need to map power to voltage - done
+    send volt to pockels via ni card
+    
+    
  
 4. Plot STA dF/F - send triggers - check
 5. threshold sometimes becomes Inf - check
-6. auto initialisation - take reference movie and load 
+6. auto initialisation - take reference movie and load
 7. photostim protocol 
 8. delete target by right clicking 
 
@@ -98,6 +103,9 @@ from nidaqmx import stream_writers
 
 # buffer queue
 from queue import Queue
+
+# power control voltage
+from loadPowerFile import get_power_params
 
 
 # configure logging
@@ -844,7 +852,9 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         # flag reading/streaming data
         p['FLAG_END_LOADING'] = False
         
-
+        # power control
+        p['power_polyfit_p'] = get_power_params()
+        
         # signal/slot connections
         self.setConnects()
         
