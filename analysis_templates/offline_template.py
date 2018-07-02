@@ -99,6 +99,7 @@ N_samples = c['N_samples']
 K = c['K']
 coms_init = c['coms_init']
 Yr = c['Yr']
+coms_init = c['coms_init']
 
 
 #%% Visualise the results of initialisation
@@ -107,13 +108,14 @@ visualise_init = True
 if visualise_init:
     pl.figure()
     crd = plot_contours(cnm_init.A.tocsc(), Cn_init, thr=0.9)
+    pl.plot(coms_init[:,1], coms_init[:,0], '.r')
     A, C, b, f, YrA, sn = cnm_init.A, cnm_init.C, cnm_init.b, cnm_init.f, cnm_init.YrA, cnm_init.sn
     
     view_patches_bar([], scipy.sparse.coo_matrix(
     A.tocsc()[:, :]), C[:, :], b, f, dims[0], dims[1], YrA=YrA[:, :], img=Cn_init)
 
 #%% Load c1v1 image and create a binary cell mask
-mask_file = r'T:\ForPatrycja\pyRTAOI\samples\example1\20171229_OG245_s-026_Cycle00001_Ch1_000001.ome.tif'
+mask_file = r'C:\Users\intrinsic\Desktop\pyRTAOI2018\samples\example1\20171229_OG245_s-026_Cycle00001_Ch1_000001.ome.tif'
 ds_factor = 1.5
 
 opsin_img = cm.load(mask_file, subindices = slice(0,1,None))
@@ -176,7 +178,8 @@ pl.figure();pl.imshow(summed_mask)
 pl.colorbar()
 
 #%% Seeded initialisation
-ref_movie_path = r'T:\ForPatrycja\pyRTAOI\samples\example2\20171229_OG245_t-053\20171229_OG245_t-053_Cycle00001_Ch2.tif'
+#ref_movie_path = r'T:\ForPatrycja\pyRTAOI\samples\example2\20171229_OG245_t-053\20171229_OG245_t-053_Cycle00001_Ch2.tif'
+ref_movie_path = r'C:\Users\intrinsic\Desktop\pyRTAOI2018\samples\example1\20171229_OG245_t-052_Cycle00001_Ch2_substack1-2700.tif'
 
 opsin_seeded = True
 if opsin_seeded:
@@ -213,7 +216,7 @@ N_samples = c['N_samples']
 K = c['K']
 coms_init = c['coms_init']
 Yr = c['Yr']
-
+coms_init = c['coms_init']
 
 #%% Filter seeded
 A, C, b, f, YrA, sn = cnm_init.A, cnm_init.C, cnm_init.b, cnm_init.f, cnm_init.YrA, cnm_init.sn
@@ -240,12 +243,16 @@ YrA = noisyC[predictions[:, 1] >= thresh_cnn] - C
 # Setting idx_components to ind_keep to select only cells that passed filtering (None means all kept)
 try:
     idx_components=ind_keep
+    coms_init = coms_init[idx_components]
 except:
     idx_components = None
 
 cnm2 = deepcopy(cnm_init)
+path_to_cnn_residual = os.path.join(caiman_datadir(), 'model', 'cnn_model_online.h5')
+
 cnm2._prepare_object(np.asarray(c['Yr']), c['T1'], c['expected_comps'], idx_components=idx_components,
-                         min_num_trial=2, N_samples_exceptionality=int(c['N_samples']))#,
+                         min_num_trial=2, N_samples_exceptionality=int(c['N_samples']),
+                         path_to_model=path_to_cnn_residual)#,
 #                         sniper_mode=False, use_peak_max=False, q=0.5) # default
 
 # Store info on opsin as object property
@@ -253,6 +260,7 @@ if opsin_seeded:
     cnm2.opsin = [True]*len(ind_keep)
 else:
     cnm2.opsin = opsin
+
 
 #%% Visualise filtering of seeded
 C, f = cnm2.C_on[cnm2.gnb:cnm2.M], cnm2.C_on[:cnm2.gnb]
@@ -266,6 +274,8 @@ visualise_init = True
 if visualise_init:
     pl.figure()
     crd = plot_contours(A, Cn_init, thr=0.9)
+    coms = c['coms_init']
+    pl.plot(coms[:,1], coms[:,0], '.r')
     #b, f, YrA, sn = cnm_init.b, cnm_init.f, cnm_init.YrA, cnm_init.sn
     
     view_patches_bar([], scipy.sparse.coo_matrix(

@@ -21,7 +21,8 @@
 4. Plot STA dF/F - send triggers - check
 5. threshold sometimes becomes Inf - check
 6. auto initialisation - take reference movie and load 
-7. delete target by right clicking 
+
+7. some memory leak - every use of the interface increases memory usage by ~3-4% which can't be reset
 
 '''
 
@@ -33,7 +34,7 @@ import os
 
 # Qt
 import GUI
-from PyQt5.QtCore import (Qt,QObject, pyqtSignal, QThread, QTimer, QRectF, QUrl, QPoint,
+from PyQt5.QtCore import (Qt, QObject, pyqtSignal, QThread, QTimer, QRectF, QUrl, QPoint,
                           QRect, QSize,QPointF,QSizeF, QSettings, QCoreApplication)
 from PyQt5.QtWidgets import (QComboBox, QCheckBox, QLineEdit, QSpinBox, QLabel,
                              QDoubleSpinBox, QFileDialog, QApplication,
@@ -83,7 +84,7 @@ from caiman.base.rois import com
 from caiman.utils.utils import load_object
 from caiman.base.rois import extract_binary_masks_from_structural_channel as extract_mask
 from caiman.paths import caiman_datadir
-from caiman.components_evaluation import evaluate_components_CNN
+#from caiman.components_evaluation import evaluate_components_CNN
 
 # plot libs
 import matplotlib
@@ -146,7 +147,6 @@ class Worker(QObject):
     transDataToMain_signal   = pyqtSignal(object,object,name = 'transDataToMain')
     updateTargetROIs_signal  = pyqtSignal()
     finished_signal          = pyqtSignal()
-    
     sendTraces_signal = pyqtSignal(object,object,object,name = 'sendTraces')
 
 
@@ -163,7 +163,7 @@ class Worker(QObject):
         self.sta_traces.fill(np.nan)
         p['stimStopFrame'] = p['stimStartFrame']+p['numberStims']*p['interStimInterval']+p['staPreFrame']
         self.stim_frames = np.arange(p['stimStartFrame'],p['stimStopFrame']+1,p['interStimInterval'])
-#
+
 
     def work(self):     
         self.STOP_JOB_FLAG = None
@@ -208,7 +208,7 @@ class Worker(QObject):
             mot_corr = True # hard coded now; using motion correction from on acid
             img_norm = self.c['img_norm'].copy().astype(np.float32)
             img_min = self.c['img_min'].copy().astype(np.float32)
-            T1 = self.c['T1']
+#            T1 = self.c['T1']
             ds_factor = self.c['ds_factor']
             Cn_init = self.c['Cn_init']
 #            cnm_init = self.c['cnm_init']
@@ -217,7 +217,7 @@ class Worker(QObject):
             dims =  self.c['cnm_init'].dims
 
             # cells detected during initialisation
-            K = self.c['K']
+#            K = self.c['K']
             coms_init = self.c['coms_init']
 
             try:
@@ -525,7 +525,7 @@ class Worker(QObject):
 
             # load movie
             print('Loading video')                
-            Y_ = cm.load(p['moviePath'], subindices=slice(0,1000,None))  # T1
+            Y_ = cm.load(p['moviePath'], subindices=slice(0,500,None))  # T1
             print('Video loaded')
             
             self.status_signal.emit('Running OnACID')
@@ -537,8 +537,7 @@ class Worker(QObject):
                 t0 = time_()
                 
                 if self.STOP_JOB_FLAG:
-                    Y_ = []
-                    print('cleared video')
+                    #Y_ = []
                     self.STOP_JOB_FLAG  = False # self?
                     break
 
@@ -587,14 +586,9 @@ class Worker(QObject):
 #                            t = time_()
                             
                             # check cell for c1v1 on the go
-#                            try:
                             if opsin_mask.size:
                                 cell_A = np.array(cnm2.Ab[:,-1].todense())
                                 cell_mask = (np.reshape(cell_A, dims, order='F') > 0).astype('int')
-                                # error here now
-# C:\ci\opencv_1512688052760\work\modules\core\src\arithm.cpp:225: error: (-209) The operation is neither 'array op array' 
-# (where arrays have the same size and type), nor 'array op scalar', nor 'scalar op array' in function cv::binary_op
-                                
     #                            mask_inx = np.where(cell_mask==1)
                                 cell_pix = sum(sum(cell_mask == 1))
                                 
@@ -603,8 +597,6 @@ class Worker(QObject):
                                 overlap = inter_pix/cell_pix
                                                     
                                 cnm2.opsin.append(overlap > opsin_overlap_ratio)
-#                            except Exception as e:
-#                                print(e)
 #                            print(time_()-tt)
                                                         
                             # add new ROI to photostim target, if required
@@ -625,7 +617,6 @@ class Worker(QObject):
                         else:
                             print('Repeated component found')
                             rejected += 1
-                            
                 
                 # display current frame
                 if p['denoiseOn']:
@@ -715,14 +706,10 @@ class Worker(QObject):
             self.showROIIdx_signal.emit()
             
             # show traces in plot tab
-            try:
-                show_traces = True
-                if show_traces:
-                    img = Cn_init
-                    self.sendTraces_signal.emit(cnm2, t, img)
-            except Exception as e:
-                print(e)
-                
+            show_traces = 1
+            if show_traces:
+                img = Cn_init
+                self.sendTraces_signal.emit(cnm2, t, img)
             
             #% Extract and save results
             epochs = 1 # temp here
@@ -774,7 +761,9 @@ class Worker(QObject):
 
             BufferPointer = 0
             frame_count = 0
-            Y_ = []
+#            Y_ = []
+#            o = objgraph.count('MainWindow', objgraph.get_leaking_objects())
+#            print(o)
             self.finished_signal.emit()
             
 #%% FINISHING WORK
@@ -984,8 +973,10 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         # signal/slot connections
         self.setConnects()
         
+        self.ImageWindow.enterEvent = self.displayOpsinImg.__get__(self.ImageWindow)
+        self.ImageWindow.leaveEvent = self.displayOpsinMask.__get__(self.ImageWindow)
 
-        
+
     def random_color(self):
         r = random.randrange(0, 255)
         g = random.randrange(0, 255)
@@ -1057,34 +1048,27 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             print('selected x = ' + str(x))
             print('selected y = ' + str(y))
 
+    # temp
+    def keyPressEvent(self,event):
+        print(event.key)
+        if self.opsinMaskOn:
+            if event.key() == Qt.Key_Escape:
+                self.updateImage(cv2.resize(np.squeeze(self.opsin_img), (512, 512), interpolation=cv2.INTER_CUBIC))
+    
+    
+    def displayOpsinImg(self,event):
+        if self.opsinMaskOn:
+            self.updateImage(cv2.resize(np.squeeze(self.opsin_img), (512, 512), interpolation=cv2.INTER_CUBIC))
+            
+    def displayOpsinMask(self,event):
+        if self.opsinMaskOn:
+            self.updateImage(cv2.resize(np.squeeze(self.opsin_mask).astype('u1'), (512, 512), interpolation=cv2.INTER_CUBIC))
+    
     def showMousePosition(self,event):
         x = event.x()
         y = event.y()  
         self.xPos_label.setText(str(x))
         self.yPos_label.setText(str(y))
-        
-#        pg.GraphicsScene
-#        mousePressEvent
-#        mouseReleaseEvent
-        #leaveEvent(self, ev):  ## inform items that mouse is gone
-        
-        # this doesnt do anything
-        from PyQt5 import QtCore
-        #dir(PyQt5.QtCore.Qt) for keys
-        if event.key() == QtCore.Qt.Key_Up:
-            self.updateImage(cv2.resize(np.squeeze(self.opsin_img), (512, 512), interpolation=cv2.INTER_CUBIC))
-        
-#        if self.opsinMaskOn:
-#            self.updateImage(cv2.resize(np.squeeze(self.opsin_img), (512, 512), interpolation=cv2.INTER_CUBIC))
-#            self.opsinMaskOn = False
-#            time.sleep(1)
-#        elif not self.opsinMaskOn:
-#            self.updateImage(cv2.resize(np.squeeze(self.opsin_mask).astype('u1'), (512, 512), interpolation=cv2.INTER_CUBIC))
-#            self.opsinMaskOn = True
-#            time.sleep(1)
-
-#    def exampleDrop(self):
-#        print('hi')
         
     def tempTest(self):
         print('button clicked')
@@ -1096,7 +1080,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         self.loadRefMoviePath_pushButton.clicked.connect(self.loadRefMoviePath)
         self.loadOpsinImgPath_pushButton.clicked.connect(self.loadOpsinImg)
         self.createMask_pushButton.clicked.connect(self.createOpsinMask)
-#        self.maskInitialise_pushButton.clicked.connect(self.maskInitialise)
         self.showCellsOnMask_pushButton.clicked.connect(self.showCellsOnMask)
         self.loadMask_pushButton.clicked.connect(self.loadMask)
         self.initialise_pushButton.clicked.connect(self.initialiseCaiman)
@@ -1121,8 +1104,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         
         # running mode
         self.IsOffline_radioButton.toggled.connect(self.switch_IsOffline)
-        self.UseOpsinMask_radioButton.toggled.connect(self.switch_useOpsinMask) # addded
-        self.UseOnacidMask_radioButton.toggled.connect(self.switch_useOnacidMask) # added
+        self.UseOpsinMask_radioButton.toggled.connect(self.switch_useOpsinMask)
+        self.UseOnacidMask_radioButton.toggled.connect(self.switch_useOnacidMask)
         self.photoProto_comboBox.currentIndexChanged.connect(self.photoProtoChanged)
         
         # connections
@@ -1139,10 +1122,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         # mouse events
         self.graphicsView.scene().sigMouseClicked.connect(self.getMousePosition) 
         self.graphicsView.scene().sigMouseMoved.connect(self.showMousePosition)
-        
-        # dir(pg.GraphicsScene) for all possible methods of scene
-#        self.graphicsView.scene().dragEnterEvent.connect(self.exampleDrop)
-        # error: 'builtin_function_or_method' object has no attribute 'connect'
         
         # prairie
         
@@ -1296,14 +1275,14 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             
             # clear table   
             self.updateTable()
-            self.plotItem.clear() # added
+            self.plotItem.clear()
             
-            self.updateFrameInfo(0) # added
+            self.updateFrameInfo(0)
             self.xPos_label.setText(' ')
             self.yPos_label.setText(' ')
             self.updateStatusBar('')
             
-#            self.resetFigure()
+            self.resetFigure()
             
             
         msg.setText("RESET CAIMAN??") 
@@ -1417,44 +1396,48 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
     def plotSTAonMasks(self,sta_amp):
         # show cells detected by caiman
         # make a image with sta levels
-        cnm = self.proc_cnm
+        self.opsinMaskOn = False
         
-        A, b = cnm.Ab[:, cnm.gnb:], cnm.Ab[:, :cnm.gnb].toarray()
-
-        if issparse(A):
-            A = np.array(A.todense())
-        else:
-            A = np.array(A)
- 
-        d, nr = np.shape(A)
-        
-        # use sta value, otherwise use one
-        if sta_amp is None: # will show scaled amplitude of A
-            sta_amp = np.ones((nr,))*255           
-        else: # normalise within component before multiply with sta
-            for i in range(nr):
-                A[:,i] = A[:,i]/sum(A[:,i])
-
-        # put value into mask
-        cellMask = np.zeros((cnm.dims[1]*cnm.dims[0],))
-
-        for i in range(np.minimum(len(sta_amp),nr)):
-            if not np.isnan(sta_amp[i]):
-                cellMask+=A[:,i].flatten()*sta_amp[i]
-                print(max(A[:,i]))
-                print('sum =' + str(sum(A[:,i])))
-
-        cellMask2D = np.reshape(cellMask,cnm.dims,order='F')
-        cellMask2D = cellMask2D/max(cellMask)*255
-
-        norm = plt.Normalize(0,1)
-        im = plt.imshow(norm(cellMask2D),aspect = 'equal',cmap = 'Greys')
-        plt.colorbar(im, orientation='horizontal')
-        plt.show()
-        
-        cellMask2D =  np.repeat(cellMask2D[:,:,None],3,axis=-1)
-        self.imageItem.setImage(cv2.resize(cellMask2D, (512, 512), interpolation=cv2.INTER_CUBIC))
-        
+        try:
+            cnm = self.proc_cnm
+            
+            A, b = cnm.Ab[:, cnm.gnb:], cnm.Ab[:, :cnm.gnb].toarray()
+    
+            if issparse(A):
+                A = np.array(A.todense())
+            else:
+                A = np.array(A)
+     
+            d, nr = np.shape(A)
+            
+            # use sta value, otherwise use one
+            if sta_amp is None: # will show scaled amplitude of A
+                sta_amp = np.ones((nr,))*255           
+            else: # normalise within component before multiply with sta
+                for i in range(nr):
+                    A[:,i] = A[:,i]/sum(A[:,i])
+    
+            # put value into mask
+            cellMask = np.zeros((cnm.dims[1]*cnm.dims[0],))
+    
+            for i in range(np.minimum(len(sta_amp),nr)):
+                if not np.isnan(sta_amp[i]):
+                    cellMask+=A[:,i].flatten()*sta_amp[i]
+                    print(max(A[:,i]))
+                    print('sum =' + str(sum(A[:,i])))
+    
+            cellMask2D = np.reshape(cellMask,cnm.dims,order='F')
+            cellMask2D = cellMask2D/max(cellMask)*255
+    
+            norm = plt.Normalize(0,1)
+            im = plt.imshow(norm(cellMask2D),aspect = 'equal',cmap = 'Greys')
+            plt.colorbar(im, orientation='horizontal')
+            plt.show()
+            
+            cellMask2D =  np.repeat(cellMask2D[:,:,None],3,axis=-1)
+            self.imageItem.setImage(cv2.resize(cellMask2D, (512, 512), interpolation=cv2.INTER_CUBIC))
+        except Exception as e:
+            print(e)
     
     def plotSTA(self):
         # load file in Temp folder
@@ -1517,174 +1500,141 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             print(e)
 
 
-    def resetFigure(self):  # TODO: does not free memory. easy to go too high
-        try:
-#            self.fig.clear()
-#            plt.close(self.fig)
-##            plt.close('all')
-##            del self.fig
-##            del self.figCanvas
-#            
-##            self.fig.clear()
-#            
-#            self.fig = Figure()
-#            self.figCanvas = FigureCanvas(self.fig)
-#            self.staPlot_gridLayout.addWidget(self.figCanvas)
-            
-            
-            
-#            self.ax1.cla()
-#            self.ax2.cla()
-#            self.ax3.cla()
-#            self.axcomp.cla()
-            
-            self.fig.clear() # doesnt work
-            self.figCanvas.draw()
-            self.figCanvas.flush_events()
-            
-            gc.collect()
-
-        except Exception as e:
-            print(e)
+    def resetFigure(self):
+        plt.close('all')
         
-    def showOnacidResults(self, cnm_struct, t, img=None, plot=True): # for offline now
+        self.ax1.cla()
+        self.ax2.cla()
+        self.ax3.cla()
+        self.axcomp.cla()
+        
+#            self.fig.clear()
+        self.figCanvas.draw()
+#            self.figCanvas.update()
+        self.figCanvas.flush_events()
+        
+        g = gc.collect()
+        print('gc: ', g)
+
+        
+    def showOnacidResults(self, cnm_struct, t, img=None, plot=True):
         if plot:
-            self.plotOnacidTraces(cnm_struct, t, img, offline=True)
+            self.plotOnacidTraces(cnm_struct, t, img)
         self.c['cnm2'] = cnm_struct
         self.checkOpsin()
         
-    def plotOnacidTraces(self, cnm_struct, t, img=None, offline=False):   # TODO: refreshing plot/replotting/resetting
-        # currently doesn't work properly for offline
+        
+    def plotOnacidTraces(self, cnm_struct, t, img=None):
 
         try:
-#            self.resetFigure()
+            self.resetFigure()
+        except:
+            pass
             
-            C, f = cnm_struct.C_on[cnm_struct.gnb:cnm_struct.M], cnm_struct.C_on[:cnm_struct.gnb]
-            A, b = cnm_struct.Ab[:, cnm_struct.gnb:cnm_struct.M], cnm_struct.Ab[:, :cnm_struct.gnb]
-            
-            # Convert A to numpy array
-            if issparse(A):
-                A = np.array(A.todense())
-            else:
-                A = np.array(A)
-            
-            # Trim longer arrays
-            f = f[:,:t]
-            C = C[:,:t]
-            
-            noisyC = cnm_struct.noisyC[:, t - t // 1:t]
-            YrA = noisyC[cnm_struct.gnb:cnm_struct.M,:t] - C
-            
-            plt.ion()
-            if 'csc_matrix' not in str(type(A)):
-                A = csc_matrix(A)
-            if 'array' not in str(type(b)):
-                b = b.toarray()
+        C, f = cnm_struct.C_on[cnm_struct.gnb:cnm_struct.M], cnm_struct.C_on[:cnm_struct.gnb]
+        A, b = cnm_struct.Ab[:, cnm_struct.gnb:cnm_struct.M], cnm_struct.Ab[:, :cnm_struct.gnb]
         
-            nr, T = C.shape
-            nb = f.shape[0]
+        # Convert A to numpy array
+        if issparse(A):
+            A = np.array(A.todense())
+        else:
+            A = np.array(A)
         
-            Y_r = YrA + C
-            d1, d2 = cnm_struct.dims
+        # Trim longer arrays
+        f = f[:,:t]
+        C = C[:,:t]
         
-            if img is None:
-                img = np.reshape(np.array(A.mean(axis=1)), (d1, d2), order='F')
-
-            if offline==False:
-                self.fig = Figure(figsize=(10, 10))
-                self.figCanvas = FigureCanvas(self.fig)
-                self.axcomp = self.fig.add_axes([0.05, 0.05, 0.9, 0.03])
-                
-                self.ax1 = self.fig.add_axes([0.05, 0.55, 0.4, 0.4])
-                self.ax3 = self.fig.add_axes([0.55, 0.55, 0.4, 0.4])
-                self.ax2 = self.fig.add_axes([0.05, 0.1, 0.9, 0.4])
-                self.s_comp = Slider(self.axcomp, 'Component', 0, nr + nb - 1, valinit=0)
-            else:
-#                pass
-                # reset the plot
-#                self.fig.clear() # doesnt work?
-#                self.figCanvas.draw()
-#                self.figCanvas.flush_events()
-                
+        noisyC = cnm_struct.noisyC[:, t - t // 1:t]
+        YrA = noisyC[cnm_struct.gnb:cnm_struct.M,:t] - C
+        
+        plt.ion()
+        if 'csc_matrix' not in str(type(A)):
+            A = csc_matrix(A)
+        if 'array' not in str(type(b)):
+            b = b.toarray()
+    
+        nr, T = C.shape
+        nb = f.shape[0]
+    
+        Y_r = YrA + C
+        d1, d2 = cnm_struct.dims
+    
+        if img is None:
+            img = np.reshape(np.array(A.mean(axis=1)), (d1, d2), order='F')
+        
+        self.axcomp = self.fig.add_axes([0.05, 0.05, 0.9, 0.03])
+        self.ax1 = self.fig.add_axes([0.05, 0.55, 0.4, 0.4])
+        self.ax3 = self.fig.add_axes([0.55, 0.55, 0.4, 0.4])
+        self.ax2 = self.fig.add_axes([0.05, 0.1, 0.9, 0.4])
+        self.s_comp = Slider(self.axcomp, 'Component', 0, nr + nb - 1, valinit=0)
+        
+        vmax = np.percentile(img, 95)
+        
+        def update(val):
+            i = np.int(np.round(self.s_comp.val))
+            print(('Component:' + str(i)))
+    
+            if i < nr:
+    
                 self.ax1.cla()
+                imgtmp = np.reshape(A[:, i].toarray(), (d1, d2), order='F')
+                self.ax1.imshow(imgtmp, interpolation='None', cmap=pl.cm.gray, vmax=np.max(imgtmp)*0.5)
+                self.ax1.set_title('Spatial component ' + str(i + 1))
+                self.ax1.axis('off')
+    
+    
                 self.ax2.cla()
+                self.ax2.plot(np.arange(T), Y_r[i], 'c', linewidth=3)
+                self.ax2.plot(np.arange(T), C[i], 'r', linewidth=2)
+                self.ax2.set_title('Temporal component ' + str(i + 1))
+                self.ax2.legend(labels=['Filtered raw data', 'Inferred trace'])
+
+    
                 self.ax3.cla()
-                self.axcomp.cla()
-                self.s_comp = Slider(self.axcomp, 'Component', 0, nr + nb - 1, valinit=0)
-#                self.s_comp.reset()
-            
-            vmax = np.percentile(img, 95)
-            
-            def update(val):
-                i = np.int(np.round(self.s_comp.val))
-                print(('Component:' + str(i)))
-        
-                if i < nr:
-        
-                    self.ax1.cla()
-                    imgtmp = np.reshape(A[:, i].toarray(), (d1, d2), order='F')
-                    self.ax1.imshow(imgtmp, interpolation='None', cmap=pl.cm.gray, vmax=np.max(imgtmp)*0.5)
-                    self.ax1.set_title('Spatial component ' + str(i + 1))
-                    self.ax1.axis('off')
-        
-        
-                    self.ax2.cla()
-                    self.ax2.plot(np.arange(T), Y_r[i], 'c', linewidth=3)
-                    self.ax2.plot(np.arange(T), C[i], 'r', linewidth=2)
-                    self.ax2.set_title('Temporal component ' + str(i + 1))
-                    self.ax2.legend(labels=['Filtered raw data', 'Inferred trace'])
-    
-        
-                    self.ax3.cla()
-                    self.ax3.imshow(img, interpolation='None', cmap=pl.cm.gray, vmax=vmax)
-                    imgtmp2 = imgtmp.copy()
-                    imgtmp2[imgtmp2 == 0] = np.nan
-                    self.ax3.imshow(imgtmp2, interpolation='None',
-                               alpha=0.5, cmap=pl.cm.hot)
-                    self.ax3.axis('off')
-    
-                else:
-                    self.ax1.cla()
-                    bkgrnd = np.reshape(b[:, i - nr], (d1, d2), order='F')
-                    self.ax1.imshow(bkgrnd, interpolation='None')
-                    self.ax1.set_title('Spatial background ' + str(i + 1 - nr))
-                    self.ax1.axis('off')
-        
-                    self.ax2.cla()
-                    self.ax2.plot(np.arange(T), np.squeeze(np.array(f[i - nr, :])))
-                    self.ax2.set_title('Temporal background ' + str(i + 1 - nr))
-        
-            def arrow_key_image_control(self, event):  # this doesn't work now 
-                if event.key == 'left':
-                    new_val = np.round(self.s_comp.val - 1)
-                    if new_val < 0:
-                        new_val = 0
-                    self.s_comp.set_val(new_val)
-        
-                elif event.key == 'right':
-                    new_val = np.round(self.s_comp.val + 1)
-                    if new_val > nr + nb:
-                        new_val = nr + nb
-                    self.s_comp.set_val(new_val)
-                else:
-                    pass
-                
-            
-            self.s_comp.on_changed(update)
-            self.s_comp.set_val(0)
-            self.figCanvas.mpl_connect('key_release_event', arrow_key_image_control)  # TODO: implement this. event should be input to function
-            
-            if not offline:
-                self.staPlot_gridLayout.addWidget(self.figCanvas)
+                self.ax3.imshow(img, interpolation='None', cmap=pl.cm.gray, vmax=vmax)
+                imgtmp2 = imgtmp.copy()
+                imgtmp2[imgtmp2 == 0] = np.nan
+                self.ax3.imshow(imgtmp2, interpolation='None',
+                           alpha=0.5, cmap=pl.cm.hot)
+                self.ax3.axis('off')
+
             else:
-                self.figCanvas.draw()
-                self.figCanvas.flush_events()
+                self.ax1.cla()
+                bkgrnd = np.reshape(b[:, i - nr], (d1, d2), order='F')
+                self.ax1.imshow(bkgrnd, interpolation='None')
+                self.ax1.set_title('Spatial background ' + str(i + 1 - nr))
+                self.ax1.axis('off')
+    
+                self.ax2.cla()
+                self.ax2.plot(np.arange(T), np.squeeze(np.array(f[i - nr, :])))
+                self.ax2.set_title('Temporal background ' + str(i + 1 - nr))
                 
-            self.updateStatusBar('OnACID traces plotted in plot tab')
+                
+        def arrow_key_image_control(self, event):  # this doesn't work now
+#            print(event.key())
+            if event.key() == Qt.Key_Left: # event.key == 'left':
+                new_val = np.round(self.s_comp.val - 1)
+                if new_val < 0:
+                    new_val = 0
+                self.s_comp.set_val(new_val)
+    
+            elif event.key() == Qt.Key_Right: # event.key == 'right':
+                new_val = np.round(self.s_comp.val + 1)
+                if new_val > nr + nb:
+                    new_val = nr + nb
+                self.s_comp.set_val(new_val)
+            else:
+                pass
             
-        except Exception as e:
-            print(e)
         
+        self.s_comp.on_changed(update)
+        self.s_comp.set_val(0)
+        self.figCanvas.mpl_connect('key_release_event', arrow_key_image_control)  # TODO: implement this. event should be input to function
+        self.figCanvas.draw()
+#            self.figCanvas.update()
+        self.figCanvas.flush_events()
+        self.updateStatusBar('OnACID traces plotted in plot tab')
+
 
     def loadRefMoviePath(self):
         if self.UseOpsinMask_radioButton.isChecked() or self.UseOnacidMask_radioButton.isChecked():
@@ -1719,18 +1669,23 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             self.A_loaded = np.array(A_loaded.todense())
             dims = data_loaded['cnm_init'].dims
 
-
+        
         if self.A_loaded.size:
-#            self.UseOnacidMask_radioButton.setChecked(True)
-#            self.UseOpsinMask_radioButton.setChecked(False)
-            try:
-                loaded_mask = np.reshape(np.array(self.A_loaded.mean(axis=1)), dims, order='F')
-                self.updateImage(cv2.resize(np.squeeze(loaded_mask), (512, 512), interpolation=cv2.INTER_CUBIC))
-                self.updateStatusBar('Mask with ' + str(self.A_loaded.shape[-1]) + ' cells was loaded')    
-                self.UseOnacidMask_radioButton.setEnabled(True)
-                self.UseOnacidMask_radioButton.setChecked(True)
-            except Exception as e:
-                print(e)
+            ds_factor = self.dsFactor_doubleSpinBox.value()
+            expected_dim = int(512/ds_factor)
+            equal_size = list(dims) == [expected_dim for i in range(2)]
+            if not equal_size:
+                self.updateStatusBar('Mask dimension mismatch. Change downsampling to ' + str(512/dims[0])[:4] +
+                                     ' or select a different mask')
+                return
+                
+            self.opsinMaskOn = False
+            self.dims = dims
+            loaded_mask = np.reshape(np.array(self.A_loaded.mean(axis=1)), dims, order='F')
+            self.updateImage(cv2.resize(np.squeeze(loaded_mask), (512, 512), interpolation=cv2.INTER_CUBIC))
+            self.updateStatusBar('Mask with ' + str(self.A_loaded.shape[-1]) + ' cells was loaded')    
+            self.UseOnacidMask_radioButton.setEnabled(True)
+            self.UseOnacidMask_radioButton.setChecked(True)
         else:
             self.updateStatusBar('No mask was not found in the file selected')
             self.UseOnacidMask_radioButton.setChecked(False)
@@ -1746,23 +1701,11 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             
         K = self.InitNumROIs_spinBox.value()
         ds_factor = self.dsFactor_doubleSpinBox.value()
-        self.ds_factor = ds_factor
         
         # init method to be used
         opsin_seeded = self.UseOpsinMask_radioButton.isChecked()
         mask_seeded = self.UseOnacidMask_radioButton.isChecked()
-#        if opsin_seeded and mask_seeded: # temp
-#            self.updateStatusBar('Conflict! Select only one mask option!')
-#            return
         cnmf_init = not (opsin_seeded or mask_seeded)
-        print(opsin_seeded)
-        print(cnmf_init)
-        
-#        if mask_seeded and (not self.A_loaded.size): # not needed if button disabled until mask loaded
-#            self.UseOnacidMask_radioButton.setChecked(False)
-#            mask_seeded = False
-#            cnmf_init = True
-#            self.updateStatusBar('No mask provided; using standard CNMF to initialise...')
                 
         # process image or load from pkl file directly
         if cnmf_init:
@@ -1772,72 +1715,70 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                 print('Starting CNMF initialisation with tiff file')
                 lframe, init_values = initialise(self.ref_movie_path, init_method='cnmf', K=K, initbatch=500, ds_factor=ds_factor,
                                                  rval_thr=0.85, thresh_overlap=0, save_init=True, mot_corr=True, merge_thresh=0.85,
-                                                     decay_time=0.2, min_SNR=2.5)
+                                                 decay_time=0.2, min_SNR=2.5)
                                                      # rval_thr for component quality
                                                  
             elif movie_ext == '.pkl':
                 print('Loading initialisation file')
                 init_values = load_object(self.ref_movie_path)
-                
+                ds_factor = init_values['ds_factor']
+                self.dsFactor_doubleSpinBox.setValue(ds_factor)
+        
         
         elif opsin_seeded:
             if self.A_opsin.size:
-                try:
-                    if movie_ext == '.tif':
-                        print('Starting seeded initialisation using the opsin mask')
-                        lframe, init_values = initialise(self.ref_movie_path, init_method='seeded', Ain=self.A_opsin,
-                                             ds_factor=ds_factor, initbatch=500, rval_thr=0.85,
-                                             thresh_overlap=0.1, save_init=True, mot_corr=True,
-                                             merge_thresh=0.85)
-                        
-                        # Filter seeded - move inside initialise?
-                        CNN_filter = True
-                        if CNN_filter:
-                            print('Filtering the components')
-                            A = init_values['cnm_init'].A
-                            gSig = init_values['cnm_init'].gSig
-                            thresh_cnn = 0.1  # threshold for CNN classifier
-                            
-                            predictions, final_crops = evaluate_components_CNN(
-                                A, init_values['cnm_init'].dims, gSig, model_name=os.path.join(caiman_datadir(), 'model', 'cnn_model'))
-        
-                            idx_keep = np.where(predictions[:, 1] >= thresh_cnn)[0].tolist()
-                            init_values['coms_init'] = init_values['coms_init'][idx_keep]
-                    else:
-                        self.updateStatusBar('A non-tif file was provided - select a tif movie to initialise with a mask')
-                        return
-                        
-                except Exception as e:
-                    print(e)
+                if movie_ext == '.tif':
+                    expected_dim = int(512/ds_factor)
+                    mask_dim = int(np.sqrt(self.A_opsin.shape[0]))
+                    equal_size = mask_dim == expected_dim
+                    if not equal_size:
+                        print('Change of donwsampling detected; resizing opsin mask')
+                        self.createOpsinMask()
+                    
+                    print('Starting seeded initialisation using the opsin mask')
+                    lframe, init_values = initialise(self.ref_movie_path, init_method='seeded', Ain=self.A_opsin,
+                                                     ds_factor=ds_factor, initbatch=500, rval_thr=0.85,
+                                                     thresh_overlap=0.1, save_init=True, mot_corr=True,
+                                                     merge_thresh=0.85, CNN_filter=True)
+                    
+                else:
+                    self.updateStatusBar('A non-tif file was provided - select a tif movie to initialise with a mask')
+                    return
             else:
                 self.updateStatusBar('No opsin mask created!')
         
+        
         elif mask_seeded:
             if movie_ext == '.tif':
+                expected_dim = int(512/ds_factor)
+                mask_dim = int(np.sqrt(self.A_loaded.shape[0]))
+                equal_size = mask_dim == expected_dim
+                if not equal_size:
+                    self.updateStatusBar('Mask dimension mismatch. Change downsampling back to ' + str(512/mask_dim)[:4] +
+                                         ' or select a different mask')
+                    return
+                    
                 print('Starting seeded initialisation using the mask provided')
                 lframe, init_values = initialise(self.ref_movie_path, init_method='seeded', Ain=self.A_loaded,
-                     ds_factor=ds_factor, initbatch=500, rval_thr=0.85,
-                     thresh_overlap=0.1, save_init=True, mot_corr=True,
-                     merge_thresh=0.85)
+                                                 ds_factor=ds_factor, initbatch=500, rval_thr=0.85,
+                                                 thresh_overlap=0.1, save_init=True, mot_corr=True,
+                                                 merge_thresh=0.85)
+
             else:
                 self.updateStatusBar('A non-tif file was provided - select a tif movie to initialise with a mask')
                 return
-
-
-        # Setting idx_components to select which cells are kept (post filtering)
-        if opsin_seeded: # and CNN_filter:
-            idx_components=idx_keep
-        else:
-            idx_components=None
             
             
         # Prepare object for OnACID
+        idx_components = init_values['idx_components']
+        path_to_cnn_residual = os.path.join(caiman_datadir(), 'model', 'cnn_model_online.h5')
+
         cnm2 = deepcopy(init_values['cnm_init'])
         cnm2._prepare_object(np.asarray(init_values['Yr']), init_values['T1'], 
                              init_values['expected_comps'], idx_components=idx_components,
                              min_num_trial=2, N_samples_exceptionality=int(init_values['N_samples']),
-                             path_to_model=init_values['path_to_cnn_residual'])
-        
+                             path_to_model=path_to_cnn_residual)
+        cnm2.opsin = None
         
         # Extract number of cells detected
         K = cnm2.N
@@ -1847,18 +1788,27 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         if self.MaxNumROIs_spinBox.value() < K+5:
             self.MaxNumROIs_spinBox.setValue(K+10)
         
+        print(cnm2.N)
+        self.ds_factor = ds_factor
         self.c = init_values
         self.c['cnm2'] = cnm2
-        if opsin_seeded: self.c['cnm2'].opsin = [True]*len(idx_keep)
         
-        self.proc_cnm = init_values['cnm_init']
+        if idx_components is not None:
+            coms = self.c['coms_init']
+            self.c['coms_init'] = coms[idx_components]
+            
+#        if opsin_seeded: self.c['cnm2'].opsin = [True]*len(init_values['idx_components'])
+        
+        self.proc_cnm = init_values['cnm2'] #['cnm_init']
         self.dims = init_values['cnm_init'].dims
         self.InitNumROIs = K
+        self.opsinMaskOn = False
         self.imageItem.setImage(cv2.resize(self.c['img_norm'],(512,512),interpolation=cv2.INTER_CUBIC)) # display last frame of the initiialisation movie
 
         if self.A_opsin.size:
+            print('Checking opsin overlap')
             self.checkOpsin()
-
+        
         ### add a step to discard unwanted components from initialisation?
         
         self.initialiseROI()
@@ -1866,6 +1816,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             y, x = init_values['coms_init'][i]  # reversed
             self.getROImask(thisROIx = x, thisROIy = y)
     
+        self.updateStatusBar('Initialision completed')
         show_traces = 1
         if show_traces:
             try:
@@ -1893,24 +1844,27 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             self.opsinImgPath_lineEdit.setText(self.opsin_img_path)
             opsin_img = cm.load(opsin_img_path, subindices = slice(0,1,None))
             self.updateImage(opsin_img)
-            
-            opsin_img = opsin_img[np.newaxis,:,:].resize(1./self.ds_factor,1./self.ds_factor)
             self.opsin_img = opsin_img
         
         
     def createOpsinMask(self):
         if self.opsin_img.size:
+            ds_factor = self.dsFactor_doubleSpinBox.value()
+            
+            opsin_img = self.opsin_img[np.newaxis,:,:].resize(1./ds_factor,1./ds_factor) # moved here for init recreating
+
             min_area = self.minArea_spinBox.value()
             radius = self.cellRadius_spinBox.value()
-            dims = self.opsin_img.shape[-2:]
-
-            A_opsin, mr_opsin = extract_mask(self.opsin_img, gSig=radius, min_area_size=min_area, min_hole_size=15)
+            dims = opsin_img.shape[-2:]
+            
+            A_opsin, mr_opsin = extract_mask(opsin_img, gSig=radius, min_area_size=min_area, min_hole_size=15)
             self.A_opsin = A_opsin.astype('int')
             self.opsin_mask = np.reshape(np.array(self.A_opsin.max(axis=1)), dims, order='F').astype('int')  # max because it's a binary mask
             self.updateImage(cv2.resize(np.squeeze(self.opsin_mask).astype('u1'), (512, 512), interpolation=cv2.INTER_CUBIC))
             
             self.opsinMaskOn = True
             self.UseOpsinMask_radioButton.setEnabled(True)
+            self.updateStatusBar('Opsin mask created')
             
             # screen current components for c1v1
             if self.c != {}:
@@ -1920,21 +1874,19 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             self.updateStatusBar('No opsin image loaded!')
 
 
-    def checkOpsin(self): # , cnm_struct=None):
-        cnm_struct = self.c['cnm2']
-#        if cnm_struct == None:
-#            try:
-#                cnm_struct = self.c['cnm2']
-#            except:
-#                self.updateStatusBar('No cell struct provided!')
-#                return
+    def checkOpsin(self, Ain=None):
+        
+        if Ain is None:
+            cnm_struct = self.c['cnm2']
+            A = cnm_struct.Ab[:, cnm_struct.gnb:cnm_struct.M]
+        else:
+            A = Ain
             
-        A = cnm_struct.Ab[:, cnm_struct.gnb:cnm_struct.M]
-            
-        dims = self.dims
+        dims = self.dims # tuple([np.sqrt(A.shape[0])]*2)
         overlap = []
         opsin = []
         self.opsin_overlap_ratio = self.overlapRatio_doubleSpinBox.value()
+        print(self.opsin_overlap_ratio)
         
         # Convert A to numpy array
         if issparse(A):
@@ -1960,12 +1912,14 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                 
             opsin.append(cell_overlap > self.opsin_overlap_ratio)
         
-        # store info on opsin
-        self.c['cnm2'].opsin = opsin
-        self.c['overlap'] = overlap
-        self.c['opsin_mask'] = self.opsin_mask
-        self.c['opsin_overlap_ratio'] = self.opsin_overlap_ratio
-        self.onacid_mask = onacid_mask
+        if Ain is None:
+            # store info on opsin
+            self.c['cnm2'].opsin = opsin
+            self.c['overlap'] = overlap
+            self.c['opsin_mask'] = self.opsin_mask
+            self.c['opsin_overlap_ratio'] = self.opsin_overlap_ratio
+            self.onacid_mask = onacid_mask
+        return onacid_mask
         
             
     def showCellsOnMask(self):
@@ -1973,47 +1927,19 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             self.checkOpsin()  # for overlap update
 
             # visualise all comps
-            dims = self.dims
+            try:
+                summed_A = np.hstack((self.A_opsin, self.onacid_mask))
+                summed_mask = np.reshape(np.array(summed_A.sum(axis=1)), self.dims, order='F')
+                pl.figure();pl.imshow(summed_mask)
+                pl.colorbar()
+            except Exception as e:
+                print(e)
             
-            summed_A = np.hstack((self.A_opsin, self.onacid_mask))
-            summed_mask = np.reshape(np.array(summed_A.sum(axis=1)), dims, order='F')
-            pl.figure();pl.imshow(summed_mask)
-            pl.colorbar()
+        elif self.A_loaded.size:
+            loaded_mask = self.checkOpsin(self.A_loaded)
             
-        elif self.A_loaded.size:  # temp
-            dims = self.opsin_mask.shape
-            print(dims)
-            overlap = []
-            opsin = []
-            self.opsin_overlap_ratio = self.overlapRatio_doubleSpinBox.value()
-            
-            # Convert A to numpy array
-            A = self.A_loaded
-            if issparse(A):
-                A = np.array(A.todense())
-            else:
-                A = np.array(A)
-            
-            onacid_mask = (deepcopy(A)>0).astype('int')  # binarise the onacid output mask
-            
-            for cell in range(onacid_mask.shape[-1]):
-                cell_mask = (np.reshape(onacid_mask[:,cell], dims, order='F'))
-                cell_pix = sum(sum(cell_mask == 1))
-                
-                inter = cv2.bitwise_and(self.opsin_mask, cell_mask)
-                inter_pix = sum(sum(inter))
-                cell_overlap = inter_pix/cell_pix
-                overlap.append(cell_overlap)
-                
-                if cell_overlap <= self.opsin_overlap_ratio:
-                    onacid_mask[:,cell][onacid_mask[:,cell] == 1] = -3
-                else:
-                    onacid_mask[:,cell][onacid_mask[:,cell] == 1] = 3
-                    
-                opsin.append(cell_overlap > self.opsin_overlap_ratio)
-            
-            summed_A = np.hstack((self.A_opsin, onacid_mask))
-            summed_mask = np.reshape(np.array(summed_A.sum(axis=1)), dims, order='F')
+            summed_A = np.hstack((self.A_opsin, loaded_mask))
+            summed_mask = np.reshape(np.array(summed_A.sum(axis=1)), self.dims, order='F')
             pl.figure();pl.imshow(summed_mask)
             pl.colorbar()
             
@@ -2068,15 +1994,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                                            pen = [pg.mkPen(ROI["ROIcolor"], width=2) for ROI in self.ROIlist[:self.thisROIIdx]],
                                            size = self.RoiRadius*2)
         
-        # this works too:
-#        for i in range(self.thisROIIdx):
-#                # TODO: uses Qpoints so bear the radius/pos offset in mind
-#            self.ROIcontour_item.addPoints(x = [self.ROIlist[i]["ROIx"] + shift[0]],
-#                                           y = [self.ROIlist[i]["ROIy"] + shift[1]],
-#                                           pen = pg.mkPen(self.ROIlist[i]["ROIcolor"], width=2),
-#                                           size = self.RoiRadius*2) #self.ROIlist[i]["ROIradius"][0]*2)
-
-        
     def showROIIdx(self):
         print('show num rois = '+str(self.thisROIIdx))
         font = QFont("Arial", 12, QFont.Bold)
@@ -2099,12 +2016,12 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
     def autoAddClicked(self):
         p['FLAG_AUTO_ADD_TARGETS'] = self.addNewROIsToTarget_checkBox.isChecked
         print('FLAG_AUTO_ADD_TARGETS ='+str(p['FLAG_AUTO_ADD_TARGETS']))
+        
     def enterEvent(self,event):
         self.graphicsView.setCursor(Qt.CrossCursor)
-        
 
     def clickRun(self):
-#        self.resetFigure()
+        self.resetFigure()
         
         self.getValues()
         kwargs = {"caiman": self.c,"prairie": self.pl}
@@ -2143,7 +2060,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
     def refreshPlot(self,arr):
         self.plotItem.clear()
         for i in range(self.thisROIIdx):
-            self.plotItem.plot(arr[i,:], antialias=True, pen=pg.mkPen(self.ROIlist[i]["ROIcolor"], width=1))#self.ROIpen)   #roipen width for this as well?
+            self.plotItem.plot(arr[i,:], antialias=True, pen=pg.mkPen(self.ROIlist[i]["ROIcolor"], width=1)) #self.ROIpen)
         try:
             self.plotItem.setYRange(np.round(arr.min())-1,np.round(arr.max())+1)
             
@@ -2163,7 +2080,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                 self.Thresh_labels[i].setText(str('{0:.1f}'.format(thresh_arr[i])))
         except Exception as e:
             print(e)
-        #self.Thresh_labels[ROIIdx].setText(str('{0:.1f}'.format(thresh))) #OLD
         
     def updateSTA(self, sta_arr):
         for i in range(0,len(sta_arr)):
@@ -2194,7 +2110,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         self.usesOpsinMask = self.UseOpsinMask_radioButton.isChecked()
         if self.usesOpsinMask and self.usesOnacidMask:
             self.UseOpsinMask_radioButton.setChecked(False)
-                        
             
     def switch_useOpsinMask(self):
         self.usesOpsinMask = self.UseOpsinMask_radioButton.isChecked()
@@ -2219,6 +2134,62 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         
     def closeEvent(self,event):
         # override closeEvent method in Qt
+        
+        #############
+        # reset everything - helps only if closed after init, not onacid
+        self.getValues()
+    
+        # clear stim targets      
+#        self.clearTargets()
+        self.Targetcontour_item.clear()
+        self.TargetIdx = np.array([],dtype ='uint16')# indices in ROIlist
+        self.TargetX = np.array([]) # all target coords
+        self.TargetY = np.array([])
+        p['ExtraTargetX'] = np.array([]) #selected targets (not in the ROIlist) -- TODO
+        p['ExtraTargetY'] = np.array([])
+        p['CurrentTargetX'] = np.array([])
+        p['CurrentTargetY'] = np.array([])
+        self.numTargets = 0
+        
+        # detected ROIs  
+        self.ROIcontour_item.clear()
+        self.thisROIIdx = 0
+        self.resetROIlist()
+        self.deleteTextItems()
+           
+        # buffer for sta traces
+        self.sta_traces = np.array([])
+        
+        # clear table   
+        self.updateTable()
+        self.plotItem.clear() # added
+        
+        self.updateFrameInfo(0) # added
+        self.xPos_label.setText(' ')
+        self.yPos_label.setText(' ')
+        self.updateStatusBar('')
+        
+        self.resetFigure()
+        self.figCanvas.close()
+#        self.figCanvas.deleteLater()
+        del self.figCanvas
+        
+        del self.c
+        self.imageItem.close()
+        del self.imageItem
+        
+        
+#        self.c = {}
+#        self.imageItem.setImage(self.BlankImage)
+
+        if self.workerObject:
+            self.workObject.stop()
+        if self.workerThread.isAlive:
+            self.workerThread.wait(1)
+            self.workerThread.quit()
+        ##############
+        
+        
         print('form closing, PV connection = ' + str(self.FLAG_PV_CONNECTED))
         if self.FLAG_PV_CONNECTED:
             del self.pl
@@ -2229,12 +2200,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             print('blink disconnected')
             
 #        self.resetFigure()
-
-        if self.workerObject:
-            self.workObject.stop()
-        if self.workerThread.isAlive:
-            self.workerThread.wait(1)
-            self.workerThread.quit()
+#        self.figCanvas.close()
+#        self.figCanvas.deleteLater()
         
         # reset AO to zero
         self.niStimWriter.write_one_sample(0,10.0)

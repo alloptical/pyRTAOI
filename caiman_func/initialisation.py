@@ -30,13 +30,15 @@ from caiman.utils.utils import load_object, save_object
 from caiman.source_extraction.cnmf.online_cnmf import bare_initialization, seeded_initialization
 from caiman.base.rois import com
 from caiman.paths import caiman_datadir
+from caiman.components_evaluation import evaluate_components_CNN
 
 
 
 def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1, initbatch=500,
                T1=20000, mot_corr=True,  save_init=False, expected_comps=150,
                rval_thr=0.85, NumROIs=None, thresh_overlap=0.1, decay_time=0.2,
-               min_SNR = 2.5, merge_thresh=0.85, minibatch_shape=100):
+               min_SNR=2.5, merge_thresh=0.85, minibatch_shape=100,
+               CNN_filter=False):
                #del_duplicates=False):
     """
     Inputs:
@@ -83,7 +85,7 @@ def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1, initba
                             allowed overlap between detected cells; set to 0 for online analysis (0.5 default)
                             
     decay time              float
-                            approximate length of transient event in seconds
+                            approximate length of transient event in seconds (0.5 default)
                             
     min_SNR                 float
                             minimum SNR for accepting new components
@@ -94,19 +96,17 @@ def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1, initba
                             
     """
     
+    
+    # set up some additional supporting parameters needed for the algorithm (these are default values but change according to dataset characteristics)
     t1 = time_()
     fr = 30                                                             # frame rate (Hz)
-#    decay_time = 0.2 #0.5                                                    # approximate length of transient event in seconds
     gSig = (10,10)                                                      # expected half size of neurons
     p = 1                                                               # order of AR indicator dynamics
-#    min_SNR = 2.5                                                       # minimum SNR for accepting new components
     gnb = 1                                                             # number of background components
     gSig = tuple(np.ceil(np.array(gSig)/ds_factor).astype('int'))       # recompute gSig if downsampling is involved
     max_shift = np.ceil(10./ds_factor).astype('int')                    # maximum allowed shift during motion correction
-    
-    path_to_cnn_residual = os.path.join(caiman_datadir(), 'model', 'cnn_model_online.h5')
-    
-    # set up some additional supporting parameters needed for the algorithm (these are default values but change according to dataset characteristics)
+    thresh_cnn = 0.1                                                    # threshold for CNN classifier
+        
     
     # not necessary but useful
     if NumROIs == None:
@@ -164,8 +164,8 @@ def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1, initba
         images = np.reshape(Yr.T, [T] + list(dims), order='F')
     
         cnm_init = cnmf.CNMF(n_processes, k=K, gSig=gSig,
-                         merge_thresh=merge_thresh, p=p, 
-                         #rf=patch_size//2, 
+                         merge_thresh=merge_thresh, p=p,
+                         #rf=patch_size//2,
                          stride=stride,
                          simultaneously=False, # True: slower but more accurate (doesn't seem slower actually)
                          del_duplicates=True, 
@@ -213,7 +213,23 @@ def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1, initba
 
     # Find centre and radius for cells detected
     coms_init = com(cnm_init.A, d1, d2)
+    
+    if CNN_filter:
+        print('Filtering the components')
+        A = cnm_init.A
+        
+        predictions, final_crops = evaluate_components_CNN(
+            A, dims, gSig, model_name=os.path.join(caiman_datadir(), 'model', 'cnn_model'))
 
+        idx_keep = np.where(predictions[:, 1] >= thresh_cnn)[0].tolist()
+#        coms_init = coms_init[idx_keep]
+
+
+    # Setting idx_components to select which cells are kept
+    if CNN_filter:
+        idx_components=idx_keep
+    else:
+        idx_components=None
 
     if ds_factor == 1:
         last_frame = Y[-1]
@@ -222,14 +238,8 @@ def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1, initba
         #last_frame = cm.load(ref_movie, subindices = slice(initbatch-1,initbatch,None)).astype(np.float32)
         
         
-    cnm2 = deepcopy(cnm_init)
-    cnm2.opsin = None
-    
-    # Prepare object for OnACID
-#    cnm_init._prepare_object(np.asarray(Yr), T1, expected_comps, idx_components=None,
-#                             min_num_trial = 2, N_samples_exceptionality = int(N_samples),
-#                             path_to_model = path_to_cnn_residual)
-#                             sniper_mode = False, use_peak_max=False, q=0.5)
+#    cnm2 = deepcopy(cnm_init)
+#    cnm2.opsin = None
     
     
     # Store all relevant intialisation values
@@ -245,17 +255,19 @@ def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1, initba
     init_values['img_norm'] = img_norm
     init_values['Cn_init'] = Cn_init
     init_values['cnm_init'] = cnm_init
-    init_values['cnm2'] = cnm2
+#    init_values['cnm2'] = cnm2
     init_values['coms_init'] = coms_init
     init_values['Yr'] = Yr
-    init_values['path_to_cnn_residual'] = path_to_cnn_residual
     init_values['opsin_mask'] = np.array([])
     init_values['opsin_overlap_ratio'] = None
+    init_values['idx_components'] = idx_components
+    if CNN_filter:
+        init_values['thresh_cnn'] = thresh_cnn
     
     if save_init:
         cnm_init.dview = None
         filename = ref_movie[:-4] + '_init_' + init_method + '_DS_' + str(ds_factor) + '.pkl'
-        save_object(init_values, filename) #ref_movie[:-4] + '_init_' + init_method + '_DS_' + str(ds_factor) + '.pkl')
+        save_object(init_values, filename)
         print('Init file saved as ' + filename)
 #        init_values = load_object(ref_movie[:-4] + '_DS_' + str(ds_factor) + '.pkl')
     
@@ -263,11 +275,9 @@ def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1, initba
     t2 = time_()
     print('Initialisation time: ' + str(t2-t1)[:6] + ' s')
     
-    return last_frame, init_values # , cnm2
-
+    return last_frame, init_values
 
 
 if __name__ == '__main__':
-    #ref_movie = 'C:\\Users\\Patrycja\\CaImAn\\sample_vid\\stimulated_trimmed\\20170329_OG151_t-008_Substack (1-3000)--(1-500).tif'
     ref_movie = r'C:\Users\Patrycja\caiman_data\sample_vid\20170728_A329_t001Substack (195-540).tif'
     lframe, initv = initialise(ref_movie, ds_factor=1.5, initbatch=500)
