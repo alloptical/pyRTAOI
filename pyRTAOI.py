@@ -170,7 +170,7 @@ class DataStream(QObject):
         print('this is stream func')
         p['FLAG_END_LOADING'] = False
  #%% streaming data from PV
-        if self.FLAG_PV_CONNECTED: 
+        if self.FLAG_PV_CONNECTED:
             # PYCUDA
             import pycuda.driver as cuda
             from pycuda.tools import make_default_context
@@ -294,6 +294,7 @@ class DataStream(QObject):
                 self.stream_finished_signal.emit()
                 print('stopped scanning')
                 p['FLAG_END_LOADING'] = True
+                
 #%% offline, read frames from tiff                
         else:
             # load movie
@@ -344,7 +345,7 @@ class Worker(QObject):
         print('worker pl empty? ' + str(self.pl == []))
         
         # sta traces
-        self.sta_traces = np.empty([p['MaxNumROIs'],p['numberStims'],p['staPreFrame']+p['staPostFrame']])
+        self.sta_traces = np.zeros([p['MaxNumROIs'],p['numberStims'],p['staPreFrame']+p['staPostFrame']])
         self.sta_traces.fill(np.nan)
         p['stimStopFrame'] = p['stimStartFrame']+p['numberStims']*p['interStimInterval']+p['staPreFrame']
         self.stim_frames = np.arange(p['stimStartFrame'],p['stimStopFrame']+1,p['interStimInterval'])
@@ -390,7 +391,7 @@ class Worker(QObject):
         self.shifts = []
         
         # caiman related 
-        self.com_count =  self.c['K']
+        self.com_count =  self.c['cnm2'].N
         
         # make Temp folder 
         self.save_dir = p['temp_save_dir']
@@ -416,10 +417,10 @@ class Worker(QObject):
         
         # local record of all roi coords
         print('number of initial rois '+str(self.com_count))
-        ROIx = np.asarray([item.get("ROIx") for item in self.ROIlist[:self.com_count]]) 
+        ROIx = np.asarray([item.get("ROIx") for item in self.ROIlist[:self.com_count]])
         ROIy = np.asarray([item.get("ROIy") for item in self.ROIlist[:self.com_count]])
-        print(ROIx)
-        print(ROIy)
+        print('roix', ROIx)
+        print('roiy',ROIy)
 
         if FLAG_USE_ONACID:
         # use locally scoped variables to speed up
@@ -432,19 +433,28 @@ class Worker(QObject):
             ds_factor = self.c['ds_factor']
             dims =  self.c['cnm_init'].dims
     
+            # Opsin mask from c1v1 image
+            try:
+                opsin_mask = self.c['opsin_mask']
+                opsin_overlap_ratio = self.c['opsin_overlap_ratio']
+            except Exception as e:
+                opsin_mask = np.array([])
+                print(e)
+                
             # Define OnACID parameters
             max_shift = np.ceil(10./ds_factor).astype('int')  # max shift allowed
-            cnm_init = self.c['cnm_init']
-            cnm2 = deepcopy( cnm_init)
+#            cnm_init = self.c['cnm_init']
+            cnm2 = self.c['cnm2'] #deepcopy( cnm_init)
             t_cnm = cnm2.initbatch
             Cn_init = self.c['Cn_init']
             coms_init = self.c['coms_init']
             self.Cn = Cn_init.copy()
             coms = coms_init.copy()
-            com_count = self.c['K']
+            com_count = cnm2.N
             rejected = 0
-            accepted = list(range(1,self.c['K']+1))
+            accepted = list(range(1,com_count+1))
             expect_components = True
+
 
         # keep processing frames in qbuffer
         while ((not p['FLAG_END_LOADING']) or (not qbuffer.empty())) and not self.STOP_JOB_FLAG:
@@ -472,8 +482,8 @@ class Worker(QObject):
                     templ = cnm2.Ab.dot(cnm2.C_on[:cnm2.M, t_cnm - 1]).reshape(cnm2.dims, order='F') * img_norm
                     frame_cor, shift = motion_correct_iteration_fast(frame_in, templ, max_shift, max_shift)
                     self.shifts.append(shift)
-                    print(shift)                    
-                    print('caiman motion correction time:' + str("%.4f"%(time.time()-mot_corr_start)))
+#                    print(shift)                    
+#                    print('caiman motion correction time:' + str("%.4f"%(time.time()-mot_corr_start)))
                 else:
                     frame_cor = frame_in
     
@@ -500,6 +510,21 @@ class Worker(QObject):
                             accepted.append(cnm2.N)
                             print('New cell detected (' + str(cnm2.N-rejected) + ')')
                             
+                            # Check cell for c1v1
+#                            tt = time_()
+                            if opsin_mask.size:
+                                cell_A = np.array(cnm2.Ab[:,-1].todense())
+                                cell_mask = (np.reshape(cell_A, dims, order='F') > 0).astype('int')
+    #                            mask_inx = np.where(cell_mask==1)
+                                cell_pix = sum(sum(cell_mask == 1))
+                                
+                                inter = cv2.bitwise_and(opsin_mask, cell_mask)
+                                inter_pix = sum(sum(inter))
+                                overlap = inter_pix/cell_pix
+                                                    
+                                cnm2.opsin.append(overlap > opsin_overlap_ratio)
+#                            print(time_()-tt)
+                            
                             # add new ROI to photostim target, if required
                             if p['FLAG_BLINK_CONNECTED'] and p['FLAG_AUTO_ADD_TARGETS']:
                                 p['currentTargetX'] = np.append(p['currentTargetX'],x*ds_factor)
@@ -509,11 +534,12 @@ class Worker(QObject):
                             
                             self.getROImask_signal.emit(x,y) # add roi coords to list in main
                             print('add new component time:' + str("%.4f"%(time.time()-update_comp_time)))
+                            
                             if com_count == p['MaxNumROIs']:
                                 expect_components = False
                                 print('Not accepting more components')
                         else:
-                            print('Repeated component found')
+                            print('Repeated component found!')
                             rejected += 1
                           
                 
@@ -573,7 +599,7 @@ class Worker(QObject):
                         if p['plotOn']:
                             plot_time = time.time()
                             self.refreshPlot_signal.emit(self.RoiBuffer[:com_count,:])
-                            print('update plot time = ' +str(time.time()-plot_time))
+#                            print('update plot time = ' +str(time.time()-plot_time))
                         LastPlot = 0
                             
                     elif LastPlot == refreshFrame-1:        
@@ -594,7 +620,7 @@ class Worker(QObject):
                                 else:
                                     res_denoised_frame = cv2.resize(denoised_frame, (512, 512), interpolation=cv2.INTER_CUBIC)
                                     self.roi_signal.emit(res_denoised_frame)
-                                print('generate denoise frame time:' + str("%.4f"%(time.time()-denoise_time)))
+#                                print('generate denoise frame time:' + str("%.4f"%(time.time()-denoise_time)))
                             else:
                                 if ds_factor == 1:
                                     self.roi_signal.emit(frame_cor)
@@ -620,11 +646,11 @@ class Worker(QObject):
             else: 
                 temp_time = time.time()
                 self.roi_signal.emit(frame_in)
-                print('display time'+str("%.4f"%(time.time()-temp_time)))
+                print('display time'+str("%.4f"%(time.time()-temp_time))[:6])
     
             self.tottime.append(time.time() - t0)                             # store time for each frame
-            print('process frame time:' + str("%.4f"%(time.time()- t0)))
-            print('frames proc =' + str(framesProc))
+#            print('process frame time: ' + str("%.4f"%(time.time()- t0)))
+#            print('frames proc = ' + str(framesProc))
             self.frame_signal.emit(framesProc)
 
             qbuffer.task_done()
@@ -640,6 +666,11 @@ class Worker(QObject):
             # show indices on viewbox
             self.showROIIdx_signal.emit()
             
+            # show traces in plot tab
+            show_traces = 1
+            if show_traces:
+                img = self.Cn
+                self.sendTraces_signal.emit(self.cnm2, t_cnm, img)
             
             # save results to Temp folder 
             if self.FLAG_PV_CONNECTED:
@@ -871,7 +902,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         p['FLAG_END_LOADING'] = False
         
         # power control
-        p['power_polyfit_p'] = get_power_params()
+#        p['power_polyfit_p'] = get_power_params()  # comment out if BRUKER1_DROPBOX_PATH not set on the machine
         
         # signal/slot connections
         self.setConnects()
@@ -1102,7 +1133,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             save_dict['t_cnm'] = self.t_cnm
             save_object(save_dict, p['saveResultPath'])
         except Exception as e:
-            self.updateStatusBar('save results error:'+str(e))
+            self.updateStatusBar('Save results error: '+str(e))
             
     def browseResultPath(self):
         saveResultsPath = QFileDialog.getSaveFileName (self, 'Select save path', p['saveResultPath'], '.pkl')
@@ -1311,8 +1342,10 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
     def plotSTAonMasks(self,sta_amp):
         # show cells detected by caiman
         # make a image with sta levels
+        self.opsinMaskOn = False
+        
         cnm = self.proc_cnm
-        print(cnm.gnb)
+
         A, b = cnm.Ab[:, cnm.gnb:], cnm.Ab[:, :cnm.gnb].toarray()
 
         if issparse(A):
@@ -1490,8 +1523,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                 self.ax3.imshow(img, interpolation='None', cmap=pl.cm.gray, vmax=vmax)
                 imgtmp2 = imgtmp.copy()
                 imgtmp2[imgtmp2 == 0] = np.nan
-                self.ax3.imshow(imgtmp2, interpolation='None',
-                           alpha=0.5, cmap=pl.cm.hot)
+                self.ax3.imshow(imgtmp2, interpolation='None', alpha=0.5, cmap=pl.cm.hot)
                 self.ax3.axis('off')
 
             else:
@@ -1695,7 +1727,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             
 #        if opsin_seeded: self.c['cnm2'].opsin = [True]*len(init_values['idx_components'])
         
-        self.proc_cnm = init_values['cnm2'] #['cnm_init']
+        self.proc_cnm = init_values['cnm2']
         self.dims = init_values['cnm_init'].dims
         self.InitNumROIs = K
         self.opsinMaskOn = False
@@ -1917,6 +1949,9 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
     def clickRun(self):
         self.resetFigure()
+        if self.opsinMaskOn:
+            self.opsinMaskOn = False
+            self.updateImage(cv2.resize(self.c['img_norm'],(512,512),interpolation=cv2.INTER_CUBIC))
         
         self.getValues()
         kwargs = {"caiman": self.c,"prairie": self.pl,"ROIlist":self.ROIlist}
