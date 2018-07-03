@@ -18,7 +18,7 @@ CAREFUL WHEN USING 'REPLACE ALL' - IT WILL QUIT, WITHOUT SAVING!!
         - saved in pyRTAOI-20180620_2; < 20 ms when running offline; need to test on rig
     0.3 use gpu for motion correction? - caiman motion correction is below 10 ms 
 	
-	- down sample by 2 kept up with 30Hz image stream
+	- down sample by 2 kept up with 30Hz image stream 
     
 1. log data for offline anaysis - photostimulation targets and frame idx; save online analysis result
     offline analysis - convert cnmf results to .mat file - done
@@ -27,15 +27,19 @@ CAREFUL WHEN USING 'REPLACE ALL' - IT WILL QUIT, WITHOUT SAVING!!
 3. mark point setting for changing photostim power; if not fast enough use dummy targets in zero blocker, or feed voltage to pockels directly
     control voltage = (outMax/displayMax)*PV value; where outMax and displayMax are defined in prairie view configuration.xml
     need to map power to voltage - done
-    send volt to pockels via ni card
+    send volt to pockels via ni card - done, need to test on rig. consider outsource it to holoblink
     
     
  
 4. Plot STA dF/F - send triggers - check
 5. threshold sometimes becomes Inf - check
 6. auto initialisation - take reference movie and load
-7. photostim protocol 
+7. photostim protocol - done, need to test on rig
 8. delete target by right clicking 
+
+
+# other notes:
+numpy.append is slower than list.append, so avoid using it in loops but there's not much difference if just appending a single value
 
 '''
 
@@ -407,6 +411,9 @@ class Worker(QObject):
         sta_start_frames = self.sta_start_frames
         photo_stim_frames = self.photo_stim_frames
         stim_frames = self.stim_frames # stim at fixed intervals
+        power_polyfit_p = p['power_polyfit_p']
+        photoPowerPerCell = p['photoPowerPerCell']
+        NI_UNIT_POWER_ARRAY = p['NI_UNIT_POWER_ARRAY']
         
         # local record of all roi coords
         print('number of initial rois '+str(self.com_count))
@@ -498,6 +505,7 @@ class Worker(QObject):
                             if p['FLAG_BLINK_CONNECTED'] and p['FLAG_AUTO_ADD_TARGETS']:
                                 p['currentTargetX'] = np.append(p['currentTargetX'],x*ds_factor)
                                 p['currentTargetY'] = np.append(p['currentTargetY'],y*ds_factor)
+                                p['NI_2D_ARRAY'][1,:] = NI_UNIT_POWER_ARRAY *np.polyval(power_polyfit_p,photoPowerPerCell*len(p['currentTargetY']))
                                 self.sendCoords_signal.emit()
                                 self.updateTargetROIs_signal.emit()
                             
@@ -521,28 +529,30 @@ class Worker(QObject):
                     print(self.RoiMeanBuffer[:com_count,:])
                 
                 # trigger photostim
-
                 if p['photoProtoInx'] == CONSTANTS.PHOTO_ABOVE_THRESH:
                     photostim_idx = self.RoiMeanBuffer[:com_count, BufferPointer]-self.ROIlist_threshold[:com_count]
                     print(photostim_idx)
                     p['currentTargetX'] = ROIx[photostim_idx>0]
-                    p['currentTargetY'] = ROIy[photostim_idx>0] 
-                    print(p['currentTargetX'])
-                    print(p['currentTargetX'])
-                    self.sendCoords_signal.emit()
-                    self.sendPhotoStimTrig_signal.emit()
-                    self.updateTargetROIs_signal.emit() 
+                    p['currentTargetY'] = ROIy[photostim_idx>0]
+#                    print(p['currentTargetX'])
+#                    print(p['currentTargety'])
+                    num_stim_targets = len(p['currentTargetX'] )
+                    if(num_stim_targets>0):
+                        p['NI_2D_ARRAY'][1,:] = NI_UNIT_POWER_ARRAY*np.polyval(power_polyfit_p,photoPowerPerCell*num_stim_targets)
+                        self.sendCoords_signal.emit()
+                        self.sendPhotoStimTrig_signal.emit()
+                        self.updateTargetROIs_signal.emit() 
                     
                 elif p['photoProtoInx'] == CONSTANTS.PHOTO_BELOW_THRESH:
                     photostim_idx = self.ROIlist_threshold[:com_count] - self.RoiMeanBuffer[:com_count, BufferPointer]
                     p['currentTargetX'] = ROIx[photostim_idx>0]
-                    p['currentTargetY'] = ROIy[photostim_idx>0]                 
-                    self.sendCoords_signal.emit()
-                    self.sendPhotoStimTrig_signal.emit()
-                    self.updateTargetROIs_signal.emit() 
-                    
-                
-                
+                    p['currentTargetY'] = ROIy[photostim_idx>0]  
+                    num_stim_targets = len(p['currentTargetX'] )
+                    if(num_stim_targets>0):
+                        p['NI_2D_ARRAY'][1,:] = NI_UNIT_POWER_ARRAY *np.polyval(power_polyfit_p,photoPowerPerCell*num_stim_targets)
+                        self.sendCoords_signal.emit()
+                        self.sendPhotoStimTrig_signal.emit()
+                        self.updateTargetROIs_signal.emit() 
                     
                 # trigger sta recording 
                 if sta_stim_idx <self.num_stims:
@@ -818,13 +828,28 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         
         # configuration in GUI
         self.trial_config = {}
+
+
+
+        # photostim power control
+        p['power_polyfit_p'] = get_power_params()
+        p['power_volts'] = np.polyval( p['power_polyfit_p'], p['photoPowerPerCell']) # initialise with one cell
         
         # daq config
-        self.daq_array = np.ones((99), dtype = np.float)*5
+        NI_SAMPLE_RATE = 20000
+        NI_TTL_NUM_SAMPLES = int(0.01*NI_SAMPLE_RATE)
+        NI_STIM_NUM_SAMPLES = int(p['photoDuration']*0.001*NI_SAMPLE_RATE)
+        p['NI_SAMPLE_RATE'] = NI_SAMPLE_RATE
+        
+        
+        self.daq_array = np.ones((NI_TTL_NUM_SAMPLES-1), dtype = np.float)*5 # to write to single output channel
         self.daq_array = np.append(self.daq_array,0)
         self.niStimTask = daqtask.Task()
-        self.niPhotoStimTask = daqtask.Task()
+        self.niPhotoStimTask = daqtask.Task() #  TTL trigger only
+        self.niPhotoStimFullTask = daqtask.Task() # TTL trigger plus power control
         
+        p['NI_1D_ARRAY'] = self.daq_array
+
         try: # sensory stim
             self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
             self.niStimWriter = stream_writers.AnalogSingleChannelWriter(self.niStimTask.out_stream,True)
@@ -836,9 +861,27 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             time.sleep(2)
             
         try: # photo stim
-            self.niPhotoStimTask.ao_channels.add_ao_voltage_chan(p['photostimDaqDevice'])
+            # single-channel writer - only send triggers
+            self.niPhotoStimTask.ao_channels.add_ao_voltage_chan(p['photostimDaqDevice'],'photostim_trig')
             self.niPhotoStimWriter= stream_writers.AnalogSingleChannelWriter(self.niPhotoStimTask.out_stream,True)
             self.niPhotoStimWriter.write_one_sample(0,10.0)
+            
+            # multi-channel writer - send triggers and voltage to power control device  - need test
+            self.niPhotoStimFullTask.ao_channels.add_ao_voltage_chan(p['photostimDaqDevice'],'photostim_trig')
+            self.niPhotoStimFullTask.ao_channels.add_ao_voltage_chan(p['powerDaqDevice'],'photostim_power')
+            self.niPhotostimFullWriter = stream_writers.AnalogMultChannelWriter(self.niPhotoStimFullTask.out_stream,True)
+            self.niPhotoStimFullTask.timing.cfg_samp_clk_timing(NI_SAMPLE_RATE)
+            
+            
+            init_output = np.zeros([2, max(NI_TTL_NUM_SAMPLES+1,NI_STIM_NUM_SAMPLES+1)])
+            init_output.ravel()[:len(self.daq_array)] = self.daq_array  # use ravel to data between array (fastest way)
+            init_output[1,:-1] = 1 
+            p['NI_2D_ARRAY'] = init_output
+            p['NI_UNIT_POWER_ARRAY'] = init_output[1,:]
+            self.niPhotostimFullWriter.write_many_sample(init_output)
+
+
+            
         except Exception as e:
             print(str(e))
             self.updateStatusBar(str(e))
@@ -852,8 +895,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         # flag reading/streaming data
         p['FLAG_END_LOADING'] = False
         
-        # power control
-        p['power_polyfit_p'] = get_power_params()
         
         # signal/slot connections
         self.setConnects()
@@ -956,6 +997,10 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         self.graphicsView.scene().sigMouseClicked.connect(self.getMousePosition) 
         self.graphicsView.scene().sigMouseMoved.connect(self.showMousePosition)
         
+        # enable power control (send out voltage with photstim trigger)
+        self.SendPowerVolt_checkBox.clicked.connect(self.setupPowerControl)
+        self.testPower_pushButton.clicked.connect(self.testPowerControl)
+        
         # prairie
         
         # others
@@ -976,7 +1021,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             if isinstance(obj, QDoubleSpinBox):
                 obj.valueChanged.connect(self.getValues)
 
-    def getValues(self):
+    def getValues(self): 
         # extract gui values store in self.p
         widgets = (QComboBox, QCheckBox, QLineEdit, QSpinBox, QDoubleSpinBox)
 
@@ -1069,7 +1114,10 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
     
     def sendPhotoStimTrigger(self):
         try:
-            self.niPhotoStimWriter.write_many_sample(self.daq_array,10.0)
+            if p['SendPowerVolt']:
+               self.niPhotoStimWriter.write_many_sample( p['NI_1D_ARRAY'],10.0)              
+            else:
+               self.niPhotostimFullWriter.write_many_sample( p['NI_2D_ARRAY'],10.0)                    
             print('photostim trigger sent')
         except Exception as e:
             print(e)
@@ -1552,6 +1600,24 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         
     def enableStimTrigger(self):
         p['FLAG_STIM_TRIG_ENABLED'] = self.enableStimTrigger_checkBox.isChecked
+        
+    def setupPowerControl(self):
+        self.getValues()
+        NI_TTL_NUM_SAMPLES = p['NI_TTL_NUM_SAMPLES']
+        NI_STIM_NUM_SAMPLES = p['NI_STIM_NUM_SAMPLES']
+        p['SendPowerVolt'] = self.SendPowerVolt_checkBox.isChecked
+        init_output = np.zeros([2, max(NI_TTL_NUM_SAMPLES+1,NI_STIM_NUM_SAMPLES+1)])
+        init_output.ravel()[:len(self.daq_array)] = self.daq_array  # use ravel to data between array (fastest way)
+        init_output[1,:-1] = 1 
+        p['NI_2D_ARRAY'] = init_output
+        p['NI_UNIT_POWER_ARRAY'] = init_output[1,:]
+        self.niPhotostimFullWriter.write_many_sample(init_output)
+
+    def testPowerControl(self):
+        self.getValues()
+        p['NI_2D_ARRAY'][1,:] = p['NI_UNIT_POWER_ARRAY'] *np.polyval(p['power_polyfit_p'],p['photoPowerPerCell'])
+        self.niPhotostimFullWriter.write_many_sample(p['NI_2D_ARRAY'])
+        print('TTL with power volt sent')
         
     def stop_thread(self):
         self.workerObject.stop()

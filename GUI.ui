@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1253</width>
+    <width>1265</width>
     <height>915</height>
    </rect>
   </property>
@@ -19,7 +19,7 @@
      <rect>
       <x>0</x>
       <y>0</y>
-      <width>1241</width>
+      <width>1251</width>
       <height>891</height>
      </rect>
     </property>
@@ -226,7 +226,7 @@
        <rect>
         <x>900</x>
         <y>120</y>
-        <width>331</width>
+        <width>341</width>
         <height>141</height>
        </rect>
       </property>
@@ -238,7 +238,7 @@
         <rect>
          <x>10</x>
          <y>20</y>
-         <width>311</width>
+         <width>321</width>
          <height>116</height>
         </rect>
        </property>
@@ -783,7 +783,7 @@
        <rect>
         <x>900</x>
         <y>-1</y>
-        <width>331</width>
+        <width>341</width>
         <height>111</height>
        </rect>
       </property>
@@ -795,7 +795,7 @@
         <rect>
          <x>10</x>
          <y>20</y>
-         <width>311</width>
+         <width>321</width>
          <height>81</height>
         </rect>
        </property>
@@ -863,7 +863,7 @@
        <rect>
         <x>900</x>
         <y>270</y>
-        <width>331</width>
+        <width>341</width>
         <height>171</height>
        </rect>
       </property>
@@ -875,7 +875,7 @@
         <rect>
          <x>10</x>
          <y>20</y>
-         <width>311</width>
+         <width>318</width>
          <height>142</height>
         </rect>
        </property>
@@ -1090,6 +1090,13 @@
            </spacer>
           </item>
          </layout>
+        </item>
+        <item row="0" column="2">
+         <widget class="QCheckBox" name="SendPowerVolt_checkBox">
+          <property name="text">
+           <string>Control power</string>
+          </property>
+         </widget>
         </item>
        </layout>
       </widget>
@@ -1348,7 +1355,7 @@
        <rect>
         <x>900</x>
         <y>450</y>
-        <width>331</width>
+        <width>341</width>
         <height>121</height>
        </rect>
       </property>
@@ -1360,7 +1367,7 @@
         <rect>
          <x>10</x>
          <y>20</y>
-         <width>311</width>
+         <width>321</width>
          <height>91</height>
         </rect>
        </property>
@@ -1435,7 +1442,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1253</width>
+     <width>1265</width>
      <height>21</height>
     </rect>
    </property>
