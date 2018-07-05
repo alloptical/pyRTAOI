@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1271</width>
-    <height>1005</height>
+    <height>1030</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -325,19 +325,6 @@
             </property>
            </widget>
           </item>
-          <item row="5" column="1">
-           <spacer name="verticalSpacer_3">
-            <property name="orientation">
-             <enum>Qt::Vertical</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>20</width>
-              <height>40</height>
-             </size>
-            </property>
-           </spacer>
-          </item>
           <item row="3" column="0">
            <spacer name="horizontalSpacer_7">
             <property name="orientation">
@@ -347,6 +334,19 @@
              <size>
               <width>40</width>
               <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+          <item row="5" column="1">
+           <spacer name="verticalSpacer_3">
+            <property name="orientation">
+             <enum>Qt::Vertical</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>20</width>
+              <height>40</height>
              </size>
             </property>
            </spacer>
@@ -941,8 +941,6 @@
         </item>
        </layout>
       </widget>
-      <zorder>gridLayoutWidget_6</zorder>
-      <zorder>verticalSpacer_4</zorder>
      </widget>
      <widget class="QWidget" name="gridLayoutWidget_8">
       <property name="geometry">
@@ -1029,8 +1027,8 @@
        <rect>
         <x>910</x>
         <y>680</y>
-        <width>311</width>
-        <height>41</height>
+        <width>320</width>
+        <height>48</height>
        </rect>
       </property>
       <layout class="QGridLayout" name="gridLayout_10">
@@ -1655,6 +1653,22 @@
        </layout>
       </widget>
      </widget>
+     <zorder>ImageWindow</zorder>
+     <zorder>Prairie_groupBox</zorder>
+     <zorder>OfflineAnalysis_groupBox</zorder>
+     <zorder>DisplayOptions_groupBox</zorder>
+     <zorder>StimOptions_groupBox</zorder>
+     <zorder>caiman_groupBox</zorder>
+     <zorder>plotArea_graphicsLayoutWidget</zorder>
+     <zorder>Thresh_tableWidget</zorder>
+     <zorder>Blink_groupBox</zorder>
+     <zorder>gridLayoutWidget_8</zorder>
+     <zorder>gridLayoutWidget_9</zorder>
+     <zorder>groupBox</zorder>
+     <zorder>opsinMask_groupBox</zorder>
+     <zorder>config_groupBox</zorder>
+     <zorder>photostim_groupBox</zorder>
+     <zorder>verticalSpacer_4</zorder>
     </widget>
     <widget class="QWidget" name="tab_2">
      <attribute name="title">
