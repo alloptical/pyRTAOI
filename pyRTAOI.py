@@ -17,8 +17,8 @@ CAREFUL WHEN USING 'REPLACE ALL' - IT WILL QUIT, WITHOUT SAVING!!
     0.2 use queue to communicate between worker and streamer
         - saved in pyRTAOI-20180620_2; < 20 ms when running offline; need to test on rig
     0.3 use gpu for motion correction? - caiman motion correction is below 10 ms 
-	
-	- down sample by 2 kept up with 30Hz image stream 
+    
+    - down sample by 2 kept up with 30Hz image stream 
     
 1. log data for offline anaysis - photostimulation targets and frame idx; save online analysis result
     offline analysis - convert cnmf results to .mat file - done
@@ -291,7 +291,7 @@ class DataStream(QObject):
                     
                 if incorrectCount>incorrectLimit: 
                     print('too many incorrect frames, quit loop')
-                    self.FLAG_SCANNING   = False
+                    self.FLAG_SCANNING = False
     
             if not self.FLAG_SCANNING:   # - need a flag outside of this thread to stop it
                 self.context.pop()
@@ -345,8 +345,6 @@ class Worker(QObject):
     transDataToMain_signal   = pyqtSignal(object,object,object,name = 'transDataToMain')
     updateTargetROIs_signal  = pyqtSignal()
     finished_signal          = pyqtSignal()
-#    sendTraces_signal = pyqtSignal(object,object,object,name = 'sendTraces')
-
 
 
     def __init__(self, **kwargs ):
@@ -378,6 +376,9 @@ class Worker(QObject):
         if self.c == {}:
             self.UseONACID = False
             print('No reference movie provided')
+        else:
+            self.com_count = self.c['cnm2'].N    # caiman related 
+         
         if self.pl == []:
             print('No Prairie object provided')
         
@@ -404,12 +405,8 @@ class Worker(QObject):
         # lateral motion
         self.shifts = []
         
-        # caiman related 
-        self.com_count =  self.c['cnm2'].N
-        
         # make Temp folder 
         self.save_dir = p['temp_save_dir']
-        
 
 
 #%% process frame
@@ -419,7 +416,6 @@ class Worker(QObject):
         sta_frame_idx = 0
         LastPlot = 0
         framesProc = self.framesProc
-        com_count = self.com_count
         refreshFrame = p['refreshFrame']
 
         # local param
@@ -434,13 +430,6 @@ class Worker(QObject):
             NI_UNIT_POWER_ARRAY = p['NI_UNIT_POWER_ARRAY']
         except:
             pass
-        
-        # local record of all roi coords
-        print('number of initial rois '+str(self.com_count))
-        ROIx = np.asarray([item.get("ROIx") for item in self.ROIlist[:self.com_count]])
-        ROIy = np.asarray([item.get("ROIy") for item in self.ROIlist[:self.com_count]])
-        print('roix', ROIx)
-        print('roiy',ROIy)
 
         if FLAG_USE_ONACID:
         # use locally scoped variables to speed up
@@ -448,6 +437,15 @@ class Worker(QObject):
     
             # Extract initialisation parameters  
             mot_corr = True # hard coded now; using motion correction from onacid
+            com_count = self.com_count
+            
+            # local record of all roi coords
+            print('number of initial rois '+str(self.com_count))
+            ROIx = np.asarray([item.get("ROIx") for item in self.ROIlist[:self.com_count]])
+            ROIy = np.asarray([item.get("ROIy") for item in self.ROIlist[:self.com_count]])
+            print('roix', ROIx)
+            print('roiy',ROIy)
+        
             img_norm = self.c['img_norm'].copy().astype(np.float32)
             img_min = self.c['img_min'].copy().astype(np.float32)
             ds_factor = self.c['ds_factor']
@@ -478,7 +476,6 @@ class Worker(QObject):
 
         # keep processing frames in qbuffer
         while ((not p['FLAG_END_LOADING']) or (not qbuffer.empty())) and not self.STOP_JOB_FLAG:
-            
             # get data from queue
             frame_in = qbuffer.get() 
             t0 = time.time()
@@ -535,7 +532,6 @@ class Worker(QObject):
                             if opsin_mask.size:
                                 cell_A = np.array(cnm2.Ab[:,-1].todense())
                                 cell_mask = (np.reshape(cell_A, dims, order='F') > 0).astype('int')
-    #                            mask_inx = np.where(cell_mask==1)
                                 cell_pix = sum(sum(cell_mask == 1))
                                 
                                 inter = cv2.bitwise_and(opsin_mask, cell_mask)
@@ -664,12 +660,14 @@ class Worker(QObject):
                     else:
                         LastPlot += 1
     
-                t_cnm +=1  
+                t_cnm +=1
+                
             # else not using onACID        
-            else: 
+            else:
                 temp_time = time.time()
                 self.roi_signal.emit(frame_in)
-                print('display time '+str("%.4f%"(time.time()-temp_time)))
+                print('display time '+str("%.4f"%(time.time()-temp_time)))
+
     
             self.tottime.append(time.time() - t0)                             # store time for each frame
 #            print('process frame time: ' + str("%.4f"%(time.time()- t0)))
@@ -965,6 +963,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             print(str(e))
             self.updateStatusBar(str(e))
             time.sleep(2)
+            print('daq config error')
             
         # make threads
         self.workerThread = MyThread()
@@ -2117,7 +2116,9 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         
 
     def clickRun(self):
-        self.resetFigure()
+        try: self.resetFigure()
+        except: pass
+    
         self.deleteTextItems()
         
         if self.opsinMaskOn:
@@ -2141,7 +2142,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         self.workerObject.showROIIdx_signal.connect(self.showROIIdx)
         self.workerObject.getROImask_signal.connect(self.getROImask)
         self.workerObject.updateTargetROIs_signal.connect(self.updateTargetROIs)
-#        self.workerObject.sendTraces_signal.connect(self.showOnacidResults)
         
         # start and finish
         self.workerObject.transDataToMain_signal.connect(self.transDataToMain)
@@ -2155,7 +2155,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         self.stop_pushButton.clicked.connect(self.stop_thread)
         self.workerThread.start()
         self.updateStatusBar('Worker started')
-        
         
         # start stream thread
         kwargs = {"prairie": self.pl}

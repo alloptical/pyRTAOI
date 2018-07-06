@@ -29,7 +29,7 @@ from caiman.source_extraction import cnmf as cnmf
 from caiman.utils.utils import load_object, save_object
 from caiman.source_extraction.cnmf.online_cnmf import bare_initialization, seeded_initialization
 from caiman.base.rois import com
-from caiman.paths import caiman_datadir
+#from caiman.paths import caiman_datadir
 from caiman.components_evaluation import evaluate_components_CNN
 
 
