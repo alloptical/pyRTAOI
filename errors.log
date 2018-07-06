@@ -6732,23 +6732,3 @@ Device Specified: Dev9
 Task Name: _unnamedTask<0>
 
 Status Code: -200220
-2018-07-04 16:02:59,044 - __main__ - INFO - Started application
-2018-07-04 16:02:59,250 - __main__ - ERROR - Device identifier is invalid.
-Device Specified: Dev9
-
-Task Name: _unnamedTask<0>
-
-Status Code: -200220
-Traceback (most recent call last):
-  File "C:/Users/intrinsic/Desktop/pyRTAOI-rig/pyRTAOI.py", line 933, in __init__
-    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
-  File "C:\ProgramData\Anaconda3\envs\caiman\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
-    check_for_error(error_code)
-  File "C:\ProgramData\Anaconda3\envs\caiman\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
-    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
-nidaqmx.errors.DaqError: Device identifier is invalid.
-Device Specified: Dev9
-
-Task Name: _unnamedTask<0>
-
-Status Code: -200220

@@ -124,6 +124,7 @@ def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1, initba
     else:
         Y = cm.load(ref_movie, subindices = slice(0,initbatch,None)).astype(np.float32)
         
+    initbatch = Y.shape[0] # ensure the correct initbatch info is stored given the file used
 
     if mot_corr:                                        # perform motion correction on the first initbatch frames
         mc = Y.motion_correct(max_shift, max_shift)
@@ -255,12 +256,11 @@ def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1, initba
     init_values['img_norm'] = img_norm
     init_values['Cn_init'] = Cn_init
     init_values['cnm_init'] = cnm_init
-#    init_values['cnm2'] = cnm2
     init_values['coms_init'] = coms_init
     init_values['Yr'] = Yr
-    init_values['opsin_mask'] = np.array([])
-    init_values['opsin_overlap_ratio'] = None
     init_values['idx_components'] = idx_components
+    #    init_values['cnm2'] = cnm2
+
     if CNN_filter:
         init_values['thresh_cnn'] = thresh_cnn
     
