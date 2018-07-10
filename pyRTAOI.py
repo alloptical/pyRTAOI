@@ -44,6 +44,8 @@ CAREFUL WHEN USING 'REPLACE ALL' - IT WILL QUIT, WITHOUT SAVING!!
 
 # other notes:
 - numpy.append is slower than list.append, so avoid using it in loops but there's not much difference if just appending a single value
+    --> could change np arrays to lists, at least targets
+    
 - pkl files are slower to load than npz
 
 
@@ -483,6 +485,7 @@ class Worker(QObject):
             framesProc = framesProc+1
             
             if FLAG_USE_ONACID:
+#                try:
                 # move trace buffer pointer
                 if BufferPointer==self.BufferLength-1:
                     BufferPointer = 0
@@ -545,15 +548,18 @@ class Worker(QObject):
 #                            print(time_()-tt)
                             
                             # add new ROI to photostim target, if required
-                            if p['FLAG_BLINK_CONNECTED'] and p['FLAG_AUTO_ADD_TARGETS']:
-                                p['currentTargetX'] = np.append(p['currentTargetX'],x*ds_factor)
-                                p['currentTargetY'] = np.append(p['currentTargetY'],y*ds_factor)
-                                p['NI_2D_ARRAY'][1,:] = NI_UNIT_POWER_ARRAY *np.polyval(power_polyfit_p,photoPowerPerCell*len(p['currentTargetY']))
-                                self.sendCoords_signal.emit()
-                                self.updateTargetROIs_signal.emit()
-                            
-                            self.getROImask_signal.emit(x,y) # add roi coords to list in main
-                            print('add new component time:' + str("%.4f"%(time.time()-update_comp_time)))
+                            try:  # some issue here
+                                if p['FLAG_BLINK_CONNECTED'] and p['FLAG_AUTO_ADD_TARGETS']:
+                                    p['currentTargetX'] = np.append(p['currentTargetX'],x*ds_factor)
+                                    p['currentTargetY'] = np.append(p['currentTargetY'],y*ds_factor)
+                                    p['NI_2D_ARRAY'][1,:] = NI_UNIT_POWER_ARRAY *np.polyval(power_polyfit_p,photoPowerPerCell*len(p['currentTargetY']))
+                                    self.sendCoords_signal.emit()
+                                    self.updateTargetROIs_signal.emit()
+                                
+                                self.getROImask_signal.emit(x,y) # add roi coords to list in main
+                                print('add new component time:' + str("%.4f"%(time.time()-update_comp_time)))
+                            except Exception as e:
+                                print(e)
                             
                             if com_count == p['MaxNumROIs']:
                                 expect_components = False
@@ -664,6 +670,8 @@ class Worker(QObject):
                         LastPlot += 1
     
                 t_cnm +=1
+#                except Exception as e:
+#                    print(e)
                 
             # else not using onACID        
             else:
@@ -685,7 +693,8 @@ class Worker(QObject):
         self.BufferPointer = BufferPointer
         accepted = [idx-1 for idx in accepted] # count from 0
         cnm2.accepted = accepted # for easier access in MainWindow
-        cnm2.opsin = opsin
+        if opsin_mask.size:
+            cnm2.opsin = opsin
         self.cnm2 = cnm2
         
         self.status_signal.emit('Mean processing time is ' + str(np.nanmean(self.tottime))[:6] + ' sec.')
@@ -812,11 +821,11 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         self.A_loaded = np.array([])
         self.mask_path = ''
         
-        # ROI selection --not used
+        # ROI drawing
 #        self.drawOn = False
-#        self.RoiCenter = QPoint(244,244)
-#        self.RoiRadius = 10
-#        self.thisROI = pg.CircleROI(self.RoiCenter,self.RoiRadius*2)
+        self.RoiCenter = QPoint(244,244)
+        self.RoiRadius = 10
+        self.thisROI = pg.CircleROI(self.RoiCenter,self.RoiRadius*2)
 
         # initialise ROI list
         self.InitNumROIs = 3
@@ -959,7 +968,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             # multi-channel writer - send triggers and voltage to power control device  - need test
             self.niPhotoStimFullTask.ao_channels.add_ao_voltage_chan(p['photostimDaqDevice'],'photostim_trig')
             self.niPhotoStimFullTask.ao_channels.add_ao_voltage_chan(p['powerDaqDevice'],'photostim_power')
-            self.niPhotostimFullWriter = stream_writers.AnalogMultChannelWriter(self.niPhotoStimFullTask.out_stream,True)
+            self.niPhotostimFullWriter = stream_writers.AnalogMultiChannelWriter(self.niPhotoStimFullTask.out_stream,True)
             self.niPhotoStimFullTask.timing.cfg_samp_clk_timing(NI_SAMPLE_RATE)
             
             
@@ -1054,10 +1063,17 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             detected += abs(x - target[0]) <= det_dist and abs(y - target[1]) <= det_dist
             if detected:
                 index = np.argwhere(selected==target)[0][0]
+                print('index', index)
                 self.Targetcontour_item.clear()
                 del selected_x[index]
                 del selected_y[index]
                 self.Targetcontour_item.addPoints(x = selected_x, y = selected_y, pen = self.Targetpen, size = pointSize)
+                
+                # remove items from ExtraTargets
+#                index = np.argwhere(x==3)
+#                y = np.delete(x, index)
+#                
+#                p['ExtraTargetX'] = 
                 
                 #   works too but potentially less efficient:
 #                    points = list(range(len(selected_x)))
@@ -1380,7 +1396,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                     
     def selectAllROIs(self):
         # add all ROIlist to the targetlist        
-        self.TargetIdx =np.append(self.TargetIdx, range(0,self.thisROIIdx))
+        self.TargetIdx = np.append(self.TargetIdx, range(0,self.thisROIIdx))
         self.TargetIdx = np.unique(self.TargetIdx)
         self.TargetX = np.append(self.TargetX, [self.ROIlist[i]["ROIx"] for i in self.TargetIdx])
         self.TargetY = np.append(self.TargetY, [self.ROIlist[i]["ROIy"] for i in self.TargetIdx])
@@ -1397,7 +1413,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
     def updateTargetROIs(self):
         # redraw targeted rois in imaging window - to do: draw what is saved in p
         self.Targetcontour_item.clear()
-        self.Targetcontour_item.addPoints(x = p['currentTargetX'], y = p['currentTargetY'], pen= self.Targetpen, size = self.RoiRadius*2+5)   
+        self.Targetcontour_item.addPoints(x = p['currentTargetX'], y = p['currentTargetY'], pen = self.Targetpen, size = self.RoiRadius*2+5)   
         
     def connectPV(self):
         self.updateStatusBar('connecting PV')
@@ -1892,6 +1908,9 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                 y, x = init_values['coms_init'][i]  # reversed
                 self.getROImask(thisROIx = x, thisROIy = y)
         
+            self.UseONACID_checkBox.setEnabled(True)
+            self.UseONACID_checkBox.setChecked(True)
+            
             self.updateStatusBar('Initialision completed')
             show_traces = 1
             if show_traces:
@@ -2080,11 +2099,11 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         self.updateImage(img)
         
     def selectAllROIsClicked(self):
-        if(self.selectAll_checkBox.isChecked):
+        if (self.selectAll_checkBox.isChecked):
             self.selectAllROIs()
             
     def autoAddClicked(self):
-        p['FLAG_AUTO_ADD_TARGETS'] = self.addNewROIsToTarget_checkBox.isChecked
+        p['FLAG_AUTO_ADD_TARGETS'] = self.addNewROIsToTarget_checkBox.isChecked()
         print('FLAG_AUTO_ADD_TARGETS ='+str(p['FLAG_AUTO_ADD_TARGETS']))
         
     def enterEvent(self,event):
@@ -2092,57 +2111,65 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         
 
     def clickRun(self):
-        try: self.resetFigure()
-        except: pass
-    
-        self.deleteTextItems()
-        
-        if self.opsinMaskOn:
-            self.opsinMaskOn = False
-            self.updateImage(cv2.resize(self.c['img_norm'],(512,512),interpolation=cv2.INTER_CUBIC))
-        
-        # ensure correct ds_factor value following init is displayed
-        self.dsFactor_doubleSpinBox.setValue(self.ds_factor)
-        
-        self.getValues()
-        kwargs = {"caiman": self.c,"prairie": self.pl,"ROIlist":self.ROIlist}
-        self.workerObject = Worker(**kwargs)
-        self.updateStatusBar('Worker created')        
-        self.workerObject.moveToThread(self.workerThread)
-        
-        # update display signals
-        self.workerObject.status_signal.connect(self.updateStatusBar)
-        self.workerObject.roi_signal.connect(self.updateROI)
-        self.workerObject.refreshPlot_signal.connect(self.refreshPlot)
-        self.workerObject.frame_signal.connect(self.updateFrameInfo)
-        self.workerObject.thresh_signal.connect(self.updateThresh)
-        self.workerObject.sta_amp_signal.connect(self.updateSTA)
-        self.workerObject.refreshScatter_signal.connect(self.addScatterROI)
-        self.workerObject.showROIIdx_signal.connect(self.showROIIdx)
-        self.workerObject.getROImask_signal.connect(self.getROImask)
-        self.workerObject.updateTargetROIs_signal.connect(self.updateTargetROIs)
-        
-        # start and finish
-        self.workerObject.transDataToMain_signal.connect(self.transDataToMain)
-        self.workerThread.started.connect(self.workerObject.work)
-        self.workerObject.finished_signal.connect(self.workerThread.exit)
-        
-        # triggers
-        self.workerObject.sendTTLTrigger_signal.connect(self.sendTTLTrigger)
-        self.workerObject.sendCoords_signal.connect(self.sendCoords)
-        self.workerObject.sendPhotoStimTrig_signal.connect(self.sendPhotoStimTrigger)
-        self.stop_pushButton.clicked.connect(self.stop_thread)
-        self.workerThread.start()
-        self.updateStatusBar('Worker started')
-        
-        # start stream thread
-        kwargs = {"prairie": self.pl}
-        self.streamObject = DataStream(**kwargs)
-        self.streamObject.moveToThread(self.streamThread)
-        self.streamThread.started.connect(self.streamObject.stream)
-        self.streamObject.stream_finished_signal.connect(self.streamThread.exit)
-        self.streamThread.start()
-        self.updateStatusBar('stream started')
+        if p['UseONACID'] or self.FLAG_PV_CONNECTED:
+            try: self.resetFigure()
+            except: pass
+            
+#            try:
+            self.deleteTextItems()
+            
+            if self.opsinMaskOn:
+                self.opsinMaskOn = False
+                self.updateImage(cv2.resize(self.c['img_norm'],(512,512),interpolation=cv2.INTER_CUBIC))
+            
+            # ensure correct ds_factor value following init is displayed
+            self.dsFactor_doubleSpinBox.setValue(self.ds_factor)
+            
+            self.getValues()
+            kwargs = {"caiman": self.c,"prairie": self.pl,"ROIlist":self.ROIlist}
+            self.workerObject = Worker(**kwargs)
+            self.updateStatusBar('Worker created')        
+            self.workerObject.moveToThread(self.workerThread)
+            
+            # update display signals
+            self.workerObject.status_signal.connect(self.updateStatusBar)
+            self.workerObject.roi_signal.connect(self.updateROI)
+            self.workerObject.refreshPlot_signal.connect(self.refreshPlot)
+            self.workerObject.frame_signal.connect(self.updateFrameInfo)
+            self.workerObject.thresh_signal.connect(self.updateThresh)
+            self.workerObject.sta_amp_signal.connect(self.updateSTA)
+            self.workerObject.refreshScatter_signal.connect(self.addScatterROI)
+            self.workerObject.showROIIdx_signal.connect(self.showROIIdx)
+            self.workerObject.getROImask_signal.connect(self.getROImask)
+            self.workerObject.updateTargetROIs_signal.connect(self.updateTargetROIs)
+            
+            # start and finish
+            self.workerObject.transDataToMain_signal.connect(self.transDataToMain)
+            self.workerThread.started.connect(self.workerObject.work)
+            self.workerObject.finished_signal.connect(self.workerThread.exit)
+            
+            # triggers
+            self.workerObject.sendTTLTrigger_signal.connect(self.sendTTLTrigger)
+            self.workerObject.sendCoords_signal.connect(self.sendCoords)
+            self.workerObject.sendPhotoStimTrig_signal.connect(self.sendPhotoStimTrigger)
+            self.stop_pushButton.clicked.connect(self.stop_thread)
+            self.workerThread.start()
+            self.updateStatusBar('Worker started')
+            
+            # start stream thread
+            kwargs = {"prairie": self.pl}
+            self.streamObject = DataStream(**kwargs)
+            self.streamObject.moveToThread(self.streamThread)
+            self.streamThread.started.connect(self.streamObject.stream)
+            self.streamObject.stream_finished_signal.connect(self.streamThread.exit)
+            self.streamThread.start()
+            self.updateStatusBar('stream started')
+            
+#            except Exception as e:
+#            print(e)
+        else:
+            self.updateStatusBar('No initialisation provided and PV not connected')
+            return
 
 
     def refreshPlot(self,arr):
@@ -2179,13 +2206,15 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         self.CurrentFrameIdx_label.setText(str(FrameIdx))
 
     def switch_plotOn(self):
-        p['plotOn'] = self.plotOn_checkBox.isChecked
+        p['plotOn'] = self.plotOn_checkBox.isChecked()
+        print(p['plotOn'])
 
     def switch_displayOn(self):
-        p['displayOn'] = self.displayOn_checkBox.isChecked
+        p['displayOn'] = self.displayOn_checkBox.isChecked()
+        print(p['displayOn'])
 
     def switch_denoiseOn(self):
-        p['denoiseOn'] = self.denoiseOn_checkBox.isChecked
+        p['denoiseOn'] = self.denoiseOn_checkBox.isChecked()
         
     def switch_IsOffline(self):
         print('offline button')
@@ -2233,6 +2262,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         self.workerThread.quit()
         # self.workerThread.wait()
         
+#        self.pl.send_done(self.ABORT)
+        
 
     def closeEvent(self,event):  
         # override closeEvent method in Qt
@@ -2273,7 +2304,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         # delete big structs to free memory
         del self.c
 #        del self.proc_cnm
-#            del self.pl
 #            p = {}
         plt.close('all')
 

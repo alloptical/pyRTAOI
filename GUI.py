@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'GUI.ui'
 #
-# Created by: PyQt5 UI code generator 5.9.2
+# Created by: PyQt5 UI code generator 5.6
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -251,8 +251,9 @@ class Ui_MainWindow(object):
         self.caiman_groupBox.setGeometry(QtCore.QRect(560, 150, 331, 161))
         self.caiman_groupBox.setObjectName("caiman_groupBox")
         self.UseONACID_checkBox = QtWidgets.QCheckBox(self.caiman_groupBox)
+        self.UseONACID_checkBox.setEnabled(False)
         self.UseONACID_checkBox.setGeometry(QtCore.QRect(230, 0, 98, 17))
-        self.UseONACID_checkBox.setChecked(True)
+        self.UseONACID_checkBox.setChecked(False)
         self.UseONACID_checkBox.setObjectName("UseONACID_checkBox")
         self.gridLayoutWidget_13 = QtWidgets.QWidget(self.caiman_groupBox)
         self.gridLayoutWidget_13.setGeometry(QtCore.QRect(10, 20, 311, 129))
@@ -674,21 +675,6 @@ class Ui_MainWindow(object):
         self.SendPowerVolt_checkBox = QtWidgets.QCheckBox(self.gridLayoutWidget_10)
         self.SendPowerVolt_checkBox.setObjectName("SendPowerVolt_checkBox")
         self.gridLayout_11.addWidget(self.SendPowerVolt_checkBox, 0, 2, 1, 1)
-        self.ImageWindow.raise_()
-        self.Prairie_groupBox.raise_()
-        self.OfflineAnalysis_groupBox.raise_()
-        self.DisplayOptions_groupBox.raise_()
-        self.StimOptions_groupBox.raise_()
-        self.caiman_groupBox.raise_()
-        self.plotArea_graphicsLayoutWidget.raise_()
-        self.Thresh_tableWidget.raise_()
-        self.Blink_groupBox.raise_()
-        self.gridLayoutWidget_8.raise_()
-        self.gridLayoutWidget_9.raise_()
-        self.groupBox.raise_()
-        self.opsinMask_groupBox.raise_()
-        self.config_groupBox.raise_()
-        self.photostim_groupBox.raise_()
         self.tabWidget.addTab(self.tab, "")
         self.tab_2 = QtWidgets.QWidget()
         self.tab_2.setObjectName("tab_2")
@@ -722,6 +708,7 @@ class Ui_MainWindow(object):
         self.flipRow_comboBox.setItemText(0, _translate("MainWindow", "Even"))
         self.flipRow_comboBox.setItemText(1, _translate("MainWindow", "Odd"))
         self.label_24.setText(_translate("MainWindow", "Current zoom"))
+        self.currentZoom_comboBox.setCurrentText(_translate("MainWindow", "2"))
         self.currentZoom_comboBox.setItemText(0, _translate("MainWindow", "1.14"))
         self.currentZoom_comboBox.setItemText(1, _translate("MainWindow", "2"))
         self.currentZoom_comboBox.setItemText(2, _translate("MainWindow", "4"))

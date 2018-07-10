@@ -29,7 +29,7 @@ from caiman.source_extraction import cnmf as cnmf
 from caiman.utils.utils import load_object, save_object
 from caiman.source_extraction.cnmf.online_cnmf import bare_initialization, seeded_initialization
 from caiman.base.rois import com
-#from caiman.paths import caiman_datadir
+from caiman.paths import caiman_datadir
 from caiman.components_evaluation import evaluate_components_CNN
 
 
@@ -124,7 +124,7 @@ def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1, initba
     else:
         Y = cm.load(ref_movie, subindices = slice(0,initbatch,None)).astype(np.float32)
         
-    initbatch = Y.shape[0] # ensure the correct initbatch info is stored given the file used
+    initbatch = Y.shape[0] # ensure the correct initbatch info is stored given the file used (in case of shorter video)
 
     if mot_corr:                                        # perform motion correction on the first initbatch frames
         mc = Y.motion_correct(max_shift, max_shift)
@@ -160,9 +160,10 @@ def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1, initba
     
     elif init_method == 'cnmf':
         stride = None
-        T = Y.shape[0]  # initbatch
+        T = initbatch
         n_processes = np.maximum(np.int(psutil.cpu_count()),1)
         images = np.reshape(Yr.T, [T] + list(dims), order='F')
+        print(images.shape)
     
         cnm_init = cnmf.CNMF(n_processes, k=K, gSig=gSig,
                          merge_thresh=merge_thresh, p=p,
@@ -186,7 +187,7 @@ def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1, initba
         
     elif init_method == 'seeded':
         stride = None
-        T = Y.shape[0]  # initbatch
+        T = initbatch
         n_processes = np.maximum(np.int(psutil.cpu_count()),1)
         images = np.reshape(Yr.T, [T] + list(dims), order='F')
         
@@ -279,5 +280,5 @@ def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1, initba
 
 
 if __name__ == '__main__':
-    ref_movie = r'C:\Users\Patrycja\caiman_data\sample_vid\20170728_A329_t001Substack (195-540).tif'
+    ref_movie = r'X:\pdzialecka\pyRTAOI20180530\samples\example1\20171229_OG245_t-052_Cycle00001_Ch2_substack1-2700.tif'
     lframe, initv = initialise(ref_movie, ds_factor=1.5, initbatch=500)

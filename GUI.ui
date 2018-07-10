@@ -138,6 +138,9 @@
         </item>
         <item row="2" column="1">
          <widget class="QComboBox" name="currentZoom_comboBox">
+          <property name="currentText">
+           <string>2</string>
+          </property>
           <item>
            <property name="text">
             <string>1.14</string>
@@ -634,6 +637,9 @@
        <string>Initialisation options</string>
       </property>
       <widget class="QCheckBox" name="UseONACID_checkBox">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
        <property name="geometry">
         <rect>
          <x>230</x>
@@ -646,7 +652,7 @@
         <string>Enable ONACID</string>
        </property>
        <property name="checked">
-        <bool>true</bool>
+        <bool>false</bool>
        </property>
       </widget>
       <widget class="QWidget" name="gridLayoutWidget_13">
@@ -1653,22 +1659,6 @@
        </layout>
       </widget>
      </widget>
-     <zorder>ImageWindow</zorder>
-     <zorder>Prairie_groupBox</zorder>
-     <zorder>OfflineAnalysis_groupBox</zorder>
-     <zorder>DisplayOptions_groupBox</zorder>
-     <zorder>StimOptions_groupBox</zorder>
-     <zorder>caiman_groupBox</zorder>
-     <zorder>plotArea_graphicsLayoutWidget</zorder>
-     <zorder>Thresh_tableWidget</zorder>
-     <zorder>Blink_groupBox</zorder>
-     <zorder>gridLayoutWidget_8</zorder>
-     <zorder>gridLayoutWidget_9</zorder>
-     <zorder>groupBox</zorder>
-     <zorder>opsinMask_groupBox</zorder>
-     <zorder>config_groupBox</zorder>
-     <zorder>photostim_groupBox</zorder>
-     <zorder>verticalSpacer_4</zorder>
     </widget>
     <widget class="QWidget" name="tab_2">
      <attribute name="title">
