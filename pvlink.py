@@ -48,7 +48,7 @@ class pvlink(socket):
         self._spp = make_command('-spp')
         self._ss = make_command('-ss')
         self._lv = make_command('-lv')
-#        self.ABORT = make_command('-stop')
+        self._abort = make_command('-stop')
 
         # parameters for aquisition
         self.SCAN_SETTINGS = [ ('-sam','Resonant Galvo'),

@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1271</width>
-    <height>1030</height>
+    <height>1003</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -20,7 +20,7 @@
       <x>0</x>
       <y>0</y>
       <width>1261</width>
-      <height>981</height>
+      <height>961</height>
      </rect>
     </property>
     <property name="currentIndex">
@@ -140,6 +140,9 @@
          <widget class="QComboBox" name="currentZoom_comboBox">
           <property name="currentText">
            <string>2</string>
+          </property>
+          <property name="currentIndex">
+           <number>1</number>
           </property>
           <item>
            <property name="text">

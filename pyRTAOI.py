@@ -322,6 +322,7 @@ class DataStream(QObject):
                 qbuffer.put(frame.copy().astype(np.float32))
                 self.framesRecv += 1
                 
+            self.stream_finished_signal.emit()
             p['FLAG_END_LOADING'] = True   
                 
     def stop(self):
@@ -376,8 +377,8 @@ class Worker(QObject):
         if self.c == {}:
             self.UseONACID = False
             print('No reference movie provided')
-        else:
-            self.com_count = self.c['cnm2'].N    # caiman related 
+#        else:
+#            self.com_count = self.c['cnm2'].N    # caiman related 
          
         if self.pl == []:
             print('No Prairie object provided')
@@ -437,12 +438,14 @@ class Worker(QObject):
     
             # Extract initialisation parameters  
             mot_corr = True # hard coded now; using motion correction from onacid
+            
+            self.com_count = self.c['cnm2'].N  # moved inside
             com_count = self.com_count
             
             # local record of all roi coords
-            print('number of initial rois '+str(self.com_count))
-            ROIx = np.asarray([item.get("ROIx") for item in self.ROIlist[:self.com_count]])
-            ROIy = np.asarray([item.get("ROIy") for item in self.ROIlist[:self.com_count]])
+            print('number of initial rois '+str(com_count))
+            ROIx = np.asarray([item.get("ROIx") for item in self.ROIlist[:com_count]])
+            ROIy = np.asarray([item.get("ROIy") for item in self.ROIlist[:com_count]])
             print('roix', ROIx)
             print('roiy',ROIy)
         
@@ -480,7 +483,7 @@ class Worker(QObject):
         # keep processing frames in qbuffer
         while ((not p['FLAG_END_LOADING']) or (not qbuffer.empty())) and not self.STOP_JOB_FLAG:
             # get data from queue
-            frame_in = qbuffer.get() 
+            frame_in = qbuffer.get()
             t0 = time.time()
             framesProc = framesProc+1
             
@@ -513,7 +516,7 @@ class Worker(QObject):
                 
                 # detect new compunents 
                 if expect_components:
-                    update_comp_time = time.time()    
+                    update_comp_time = time.time()
                     if cnm2.N - (com_count+rejected) == 1:
                         self.new_coms = com(cnm2.Ab[:, -1], dims[0], dims[1])[0]
     
@@ -689,20 +692,21 @@ class Worker(QObject):
 
 #%% post-loop finishing   
         print('finishing work')
-        self.com_count = com_count
         self.BufferPointer = BufferPointer
-        accepted = [idx-1 for idx in accepted] # count from 0
-        cnm2.accepted = accepted # for easier access in MainWindow
-        if opsin_mask.size:
-            cnm2.opsin = opsin
-        self.cnm2 = cnm2
-        
         self.status_signal.emit('Mean processing time is ' + str(np.nanmean(self.tottime))[:6] + ' sec.')
         
         if self.UseONACID:
             self.BufferPointer = 0
             # show indices on viewbox
             self.showROIIdx_signal.emit()
+            
+            self.com_count = com_count
+            accepted = [idx-1 for idx in accepted] # count from 0
+            cnm2.accepted = accepted # for easier access in MainWindow
+            if opsin_mask.size:
+                cnm2.opsin = opsin
+
+            self.cnm2 = cnm2
             
             # save results to Temp folder 
             if self.FLAG_PV_CONNECTED:
@@ -748,8 +752,9 @@ class Worker(QObject):
             del self.cnm2
 #            del self.pl
 
-            # finishing          
-            self.finished_signal.emit()
+        # finishing          
+        self.finished_signal.emit()
+        print('workerThread finished')
 
 #    def photostimTargets(self, coords):
         
@@ -811,7 +816,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         self.movie_path = 'U:/simulate_movie/20170823.tif'
         self.ref_movie_path = 'U:/simulate_movie/20170823_ref.tif'
         self.movie = np.atleast_3d(self.BlankImage)
-        self.movie = np.swapaxes(self.movie,0,2)   # TODO: SWAPPED axes of the movie before. not anymore. should it?
+        self.movie = np.swapaxes(self.movie,0,2)   # SWAPPED axes of the movie before. not anymore. should it?
         
         self.opsin_img_path = 'U:/simulate_movie/20170823_Ch01.tif'
         self.opsin_img = np.array([])
@@ -888,7 +893,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         # photostim target list
         self.numTargets = 0
         self.bl = []
-        self.TargetIdx = np.array([],dtype ='uint16')# indices in ROIlist
+        # TODO: change np arrays to lists here
+        self.TargetIdx = np.array([],dtype ='uint16') # indices in ROIlist
         self.TargetX = np.array([]) # all target coords
         self.TargetY = np.array([])
         p['ExtraTargetX'] = np.array([]) #selected targets (not in the ROIlist) -- TODO
@@ -994,7 +1000,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         # flag reading/streaming data
         p['FLAG_END_LOADING'] = False
         
-
         # signal/slot connections
         self.setConnects()
         
@@ -1014,7 +1019,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
     def initialiseROI(self):
         self.ALL_ROI_SELECTED = False
         self.thisROIIdx = 0
-#        self.MaxNumROIs = self.MaxNumROIs_spinBox.value()  # TODO: move elsewhere?
+#        self.MaxNumROIs = self.MaxNumROIs_spinBox.value()
         NumROIs = p['MaxNumROIs']
         print('Number of ROIs to be tracked: ' + str(NumROIs))
         self.RoiBuffer = np.zeros([NumROIs,self.BufferLength])
@@ -1287,7 +1292,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         retval = msg.exec_()
         if(retval==QMessageBox.Ok):
             self.Targetcontour_item.clear()
-            self.TargetIdx = np.array([],dtype ='uint16')# indices in ROIlist
+            # TODO: same
+            self.TargetIdx = np.array([],dtype ='uint16') # indices in ROIlist
             self.TargetX = np.array([]) # all target coords
             self.TargetY = np.array([])
             p['ExtraTargetX'] = np.array([]) #selected targets (not in the ROIlist) -- TODO
@@ -1370,12 +1376,12 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         if p['FLAG_BLINK_CONNECTED']:
 #            print('sending coords, bl connected = '+ str(self.bl.CONNECTED))
             # scale targets coordinates (to refZoom with which the SLM transform matrix was computed)
-            currentTargetX = (p['currentTargetX']-255.0)*p['targetScaleFactor']+255.0
+            currentTargetX = (p['currentTargetX']-255.0)*p['targetScaleFactor']+255.0  # TODO: here np useful for subtraction/addition. scale factor=const so okay
             currentTargetY = (p['currentTargetY']-255.0)*p['targetScaleFactor']+255.0
         
             if(self.bl.CONNECTED):                
                             
-                if not self.bl.send_coords(currentTargetX.astype(int).tolist(), currentTargetY.astype(int).tolist() ):
+                if not self.bl.send_coords(currentTargetX.astype(int).tolist(), currentTargetY.astype(int).tolist() ): # again, converted to list. also why float above?
 
                     self.updateStatusBar('Phase mask updated')
                 else:
@@ -1389,7 +1395,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         # called by worker
         if p['FLAG_BLINK_CONNECTED']:
             if(self.bl.CONNECTED):
-                if not self.bl.send_coords(p['currentTargetX'].tolist(), p['currentTargetY'].tolist() ):
+                if not self.bl.send_coords(p['currentTargetX'].tolist(), p['currentTargetY'].tolist() ):   # TODO. currentTarget later converted to list anyway!
                     self.updateStatusBar('Phase mask updated')
                 else:
                     self.updateStatusBar('Update phase mask ERROR!')
@@ -1489,7 +1495,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         # put value into mask
         cellMask = np.zeros((cnm.dims[1]*cnm.dims[0],))
 
-        j = 0 # separate incrementer for sta_amp (all accepted)
+        j = 0 # separate incrementer for sta_amp (all sta_amp traces are accepted)
         
         for i in accepted: # range(np.minimum(len(sta_amp),nr)):
             if not np.isnan(sta_amp[j]):
@@ -1574,7 +1580,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         print('gc: ', g)
 
         
-    def transDataToMain(self, cnm_struct, sta_amp, t, plot=True): # to do - 
+    def transDataToMain(self, cnm_struct, sta_amp, t, plot=True):
         self.c['cnm2'] = cnm_struct
         self.sta_amp = sta_amp
         
@@ -1592,6 +1598,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         except: pass
             
         cnm_struct = self.c['cnm2']
+        img = self.c['Cn_init']
 
         C, f = cnm_struct.C_on[cnm_struct.gnb:cnm_struct.M], cnm_struct.C_on[:cnm_struct.gnb]
         A, b = cnm_struct.Ab[:, cnm_struct.gnb:cnm_struct.M], cnm_struct.Ab[:, :cnm_struct.gnb]
@@ -1608,9 +1615,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         
         noisyC = cnm_struct.noisyC[:, t - t // 1:t]
         YrA = noisyC[cnm_struct.gnb:cnm_struct.M,:t] - C
-        
-        
-        img = self.c['Cn_init']
         
                 
         if 'csc_matrix' not in str(type(A)):
@@ -1661,7 +1665,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                     self.ax1.set_title('Rejected spatial component ' + str(i-len(accepted)+1))
                 self.ax1.axis('off')
     
-    
+
                 self.ax2.cla()
                 self.ax2.plot(np.arange(T), Y_r[j], 'c', linewidth=3)
                 self.ax2.plot(np.arange(T), C[j], 'r', linewidth=2)
@@ -2111,7 +2115,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         
 
     def clickRun(self):
-        if p['UseONACID'] or self.FLAG_PV_CONNECTED:
+        if p['UseONACID'] or self.FLAG_PV_CONNECTED:  # TODO: if no c but useonacid selected.. or disable onacid and turn it off after reset. maybe? useonacid and self.c != {})
             try: self.resetFigure()
             except: pass
             
@@ -2256,13 +2260,26 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         self.niPhotostimFullWriter.write_many_sample(p['NI_2D_ARRAY'])
         print('TTL with power volt sent')
         
-    def stop_thread(self):
-        self.workerObject.stop()
-        self.workerThread.wait(1)
-        self.workerThread.quit()
-        # self.workerThread.wait()
-        
-#        self.pl.send_done(self.ABORT)
+    def stop_thread(self):  # TODO: test
+        try:
+            self.workerObject.stop()
+            self.workerThread.wait(1)
+            self.workerThread.quit()
+            self.workerThread.wait() # ensures worker finished before next run can be started
+            
+            self.streamObject.stop()
+            self.streamThread.wait(1)
+            self.streamThread.quit()
+            self.streamThread.wait()
+            
+            print('FLAG PV', p['FLAG_PV_CONNECTED'])
+            if p['FLAG_PV_CONNECTED']:
+                if not self.pl.send_done(self.pl._abort):
+                    print('Prairie aborted')
+
+        except Exception as e:
+            print(e)
+            
         
 
     def closeEvent(self,event):  
