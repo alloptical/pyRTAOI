@@ -443,8 +443,8 @@ class Worker(QObject):
             com_count = self.com_count
             
             # local record of all roi coords
-            print('number of initial rois '+str(com_count))
-            ROIx = np.asarray([item.get("ROIx") for item in self.ROIlist[:com_count]])
+            print('number of initial rois '+str(com_count))            
+            ROIx = np.asarray([item.get("ROIx") for item in self.ROIlist[:com_count]])   # could also predefine ROIx/y as arrays of bigger size (e.g. 100) and fill them in instad of append
             ROIy = np.asarray([item.get("ROIy") for item in self.ROIlist[:com_count]])
             print('roix', ROIx)
             print('roiy',ROIy)
@@ -527,7 +527,7 @@ class Worker(QObject):
                         if repeated == False: # add component to ROI
                             coms = np.vstack((coms, self.new_coms))
                             y, x = self.new_coms   # reversed
-                            ROIx = np.append(ROIx,x*ds_factor)
+                            ROIx = np.append(ROIx,x*ds_factor)  # ~0.11 ms // filling in empty array: ~0.07 ms
                             ROIy = np.append(ROIy,y*ds_factor)
     
                             com_count += 1
@@ -553,8 +553,8 @@ class Worker(QObject):
                             # add new ROI to photostim target, if required
                             try:  # some issue here
                                 if p['FLAG_BLINK_CONNECTED'] and p['FLAG_AUTO_ADD_TARGETS']:
-                                    p['currentTargetX'] = np.append(p['currentTargetX'],x*ds_factor)
-                                    p['currentTargetY'] = np.append(p['currentTargetY'],y*ds_factor)
+                                    p['currentTargetX'].append(x*ds_factor) # = np.append(p['currentTargetX'],x*ds_factor)
+                                    p['currentTargetY'].append(y*ds_factor) # = np.append(p['currentTargetY'],y*ds_factor)
                                     p['NI_2D_ARRAY'][1,:] = NI_UNIT_POWER_ARRAY *np.polyval(power_polyfit_p,photoPowerPerCell*len(p['currentTargetY']))
                                     self.sendCoords_signal.emit()
                                     self.updateTargetROIs_signal.emit()
@@ -580,6 +580,7 @@ class Worker(QObject):
                     print(e)
                     logger.exception(e)
                     print(self.RoiBuffer[:com_count,:])
+                
                 
                 # trigger photostim
                 if p['photoProtoInx'] == CONSTANTS.PHOTO_ABOVE_THRESH:
@@ -754,7 +755,6 @@ class Worker(QObject):
 
         # finishing          
         self.finished_signal.emit()
-        print('workerThread finished')
 
 #    def photostimTargets(self, coords):
         
@@ -884,7 +884,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
         # caiman values
         self.c = {}
-        self.proc_cnm = {}
+        self.cnm2 = {}
+#        self.proc_cnm = {}
         
         # buffer for sta traces
         self.sta_traces = np.array([])
@@ -893,14 +894,13 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         # photostim target list
         self.numTargets = 0
         self.bl = []
-        # TODO: change np arrays to lists here
-        self.TargetIdx = np.array([],dtype ='uint16') # indices in ROIlist
-        self.TargetX = np.array([]) # all target coords
-        self.TargetY = np.array([])
-        p['ExtraTargetX'] = np.array([]) #selected targets (not in the ROIlist) -- TODO
-        p['ExtraTargetY'] = np.array([])
-        p['currentTargetX'] = np.array([]) # keep track of what is currently on SLM
-        p['currentTargetY'] = np.array([])
+        self.TargetIdx = [] #np.array([],dtype ='uint16') # indices in ROIlist
+        self.TargetX = [] #np.array([]) # all target coords
+        self.TargetY = [] # np.array([])
+        p['ExtraTargetX'] = [] # np.array([]) #selected targets (not in the ROIlist) -- TODO
+        p['ExtraTargetY'] = []  # np.array([])
+        p['currentTargetX'] = [] # np.array([]) # keep track of what is currently on SLM
+        p['currentTargetY'] = [] # np.array([])
         p['FLAG_AUTO_ADD_TARGETS'] = False
         p['FLAG_BLINK_CONNECTED'] = False
         p['targetScaleFactor']  = 1 # currentZoom/refZoom
@@ -1068,29 +1068,18 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             detected += abs(x - target[0]) <= det_dist and abs(y - target[1]) <= det_dist
             if detected:
                 index = np.argwhere(selected==target)[0][0]
-                print('index', index)
                 self.Targetcontour_item.clear()
                 del selected_x[index]
                 del selected_y[index]
-                self.Targetcontour_item.addPoints(x = selected_x, y = selected_y, pen = self.Targetpen, size = pointSize)
-                
-                # remove items from ExtraTargets
-#                index = np.argwhere(x==3)
-#                y = np.delete(x, index)
-#                
-#                p['ExtraTargetX'] = 
-                
-                #   works too but potentially less efficient:
-#                    points = list(range(len(selected_x)))
-#                    points.remove(index)
-#                    for point in points:
-#                        self.Targetcontour_item.addPoints(x = [selected_x[point]], y = [selected_y[point]], pen = self.Targetpen, size = pointSize)
+                del p['ExtraTargetX'][index]
+                del p['ExtraTargetY'][index]
+                self.Targetcontour_item.addPoints(x = selected_x, y = selected_y, pen = self.Targetpen, size = pointSize)  # selected_x, selected_y
                 break
 
         if not detected:
             self.Targetcontour_item.addPoints(x = [x], y = [y], pen = self.Targetpen, size = pointSize)
-            p['ExtraTargetX'] = np.append(p['ExtraTargetX'],x)
-            p['ExtraTargetY'] = np.append(p['ExtraTargetY'],y)
+            p['ExtraTargetX'].append(x) # = np.append(p['ExtraTargetX'],x)
+            p['ExtraTargetY'].append(y) # = np.append(p['ExtraTargetY'],y)
             print('selected x = ' + str(x))
             print('selected y = ' + str(y))
     
@@ -1292,15 +1281,24 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         retval = msg.exec_()
         if(retval==QMessageBox.Ok):
             self.Targetcontour_item.clear()
-            # TODO: same
-            self.TargetIdx = np.array([],dtype ='uint16') # indices in ROIlist
-            self.TargetX = np.array([]) # all target coords
-            self.TargetY = np.array([])
-            p['ExtraTargetX'] = np.array([]) #selected targets (not in the ROIlist) -- TODO
-            p['ExtraTargetY'] = np.array([])
-            p['CurrentTargetX'] = np.array([])
-            p['CurrentTargetY'] = np.array([])
+            self.TargetIdx = [] #np.array([],dtype ='uint16') # indices in ROIlist
+            self.TargetX = [] #np.array([]) # all target coords
+            self.TargetY = [] # np.array([])
+            p['ExtraTargetX'] = [] # np.array([]) #selected targets (not in the ROIlist) -- TODO
+            p['ExtraTargetY'] = []  # np.array([])
+            p['currentTargetX'] = [] # np.array([]) # keep track of what is currently on SLM
+            p['currentTargetY'] = []
+            
+#            self.TargetIdx = np.array([],dtype ='uint16') # indices in ROIlist
+#            self.TargetX = np.array([]) # all target coords
+#            self.TargetY = np.array([])
+#            p['ExtraTargetX'] = np.array([]) #selected targets (not in the ROIlist) -- TODO
+#            p['ExtraTargetY'] = np.array([])
+#            p['CurrentTargetX'] = np.array([])
+#            p['CurrentTargetY'] = np.array([])
+            
             self.numTargets = 0
+            self.selectAll_checkBox.setChecked(False)
             
     def deleteTextItems(self):
         for obj in self.graphicsView.addedItems[:]:
@@ -1314,7 +1312,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             self.ROIlist[ROIIdx]["ROIx"]= list()
             self.ROIlist[ROIIdx]["ROIy"] = list()
             self.ROIlist[ROIIdx]["ROIcolor"] = self.random_color()
-            self.ROIlist[ROIIdx]["threshold"] = list()   # ADDED THRESHOLD
+            self.ROIlist[ROIIdx]["threshold"] = list()
             self.ROIlist[ROIIdx]["STA"] = list()
         print( self.ROIlist[ROIIdx]["ROIcolor"] )
         
@@ -1375,14 +1373,19 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         print('sending coords')
         if p['FLAG_BLINK_CONNECTED']:
 #            print('sending coords, bl connected = '+ str(self.bl.CONNECTED))
+            
             # scale targets coordinates (to refZoom with which the SLM transform matrix was computed)
-            currentTargetX = (p['currentTargetX']-255.0)*p['targetScaleFactor']+255.0  # TODO: here np useful for subtraction/addition. scale factor=const so okay
-            currentTargetY = (p['currentTargetY']-255.0)*p['targetScaleFactor']+255.0
+            currentTargetX = [int((item-255.0)*p['targetScaleFactor']+255.0) for item in p['currentTargetX']]
+            currentTargetY = [int((item-255.0)*p['targetScaleFactor']+255.0) for item in p['currentTargetY']]
+            
+#            currentTargetX = (p['currentTargetX']-255.0)*p['targetScaleFactor']+255.0
+#            currentTargetY = (p['currentTargetY']-255.0)*p['targetScaleFactor']+255.0
         
             if(self.bl.CONNECTED):                
                             
-                if not self.bl.send_coords(currentTargetX.astype(int).tolist(), currentTargetY.astype(int).tolist() ): # again, converted to list. also why float above?
-
+#                if not self.bl.send_coords(currentTargetX.astype(int).tolist(), currentTargetY.astype(int).tolist() ): # converted to list anyway
+               
+                if not self.bl.send_coords(currentTargetX, currentTargetY):
                     self.updateStatusBar('Phase mask updated')
                 else:
                     self.updateStatusBar('Update phase mask ERROR!')
@@ -1395,25 +1398,34 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         # called by worker
         if p['FLAG_BLINK_CONNECTED']:
             if(self.bl.CONNECTED):
-                if not self.bl.send_coords(p['currentTargetX'].tolist(), p['currentTargetY'].tolist() ):   # TODO. currentTarget later converted to list anyway!
+                if not self.bl.send_coords(p['currentTargetX'], p['currentTargetY']):
+#                if not self.bl.send_coords(p['currentTargetX'].tolist(), p['currentTargetY'].tolist() ):
                     self.updateStatusBar('Phase mask updated')
                 else:
                     self.updateStatusBar('Update phase mask ERROR!')
                     
     def selectAllROIs(self):
-        # add all ROIlist to the targetlist        
-        self.TargetIdx = np.append(self.TargetIdx, range(0,self.thisROIIdx))
-        self.TargetIdx = np.unique(self.TargetIdx)
-        self.TargetX = np.append(self.TargetX, [self.ROIlist[i]["ROIx"] for i in self.TargetIdx])
-        self.TargetY = np.append(self.TargetY, [self.ROIlist[i]["ROIy"] for i in self.TargetIdx])
-        self.numTargets = self.TargetX.shape[0]+p['ExtraTargetX'].shape[0] 
-        self.updateTargets()    
-        self.updateTargetROIs()
+        if self.selectAll_checkBox.isChecked():
+            # add all ROIlist to the targetlist
+            self.TargetIdx = self.TargetIdx + list(range(0,self.thisROIIdx)) # self.TargetIdx = s np.append(self.TargetIdx, range(0,self.thisROIIdx))
+            self.TargetIdx = list(sorted(set(self.TargetIdx))) #np.unique(self.TargetIdx)
+            self.TargetX = [self.ROIlist[i]["ROIx"] for i in self.TargetIdx] # self.TargetX +  # np.append(self.TargetX, [self.ROIlist[i]["ROIx"] for i in self.TargetIdx])
+            self.TargetY = [self.ROIlist[i]["ROIy"] for i in self.TargetIdx] # self.TargetY +  # = np.append(self.TargetY, [self.ROIlist[i]["ROIy"] for i in self.TargetIdx])
+            self.numTargets = len(self.TargetX) + len(p['ExtraTargetX']) # self.TargetX.shape[0]+p['ExtraTargetX'].shape[0]
+            self.updateTargets()
+#            self.updateTargetROIs()
+        else:
+            self.TargetIdx = []
+            self.TargetX = []
+            self.TargetY = []
+            self.numTargets = len(p['ExtraTargetX'])
+            self.updateTargets()
+#            self.updateTargetROIs()
     
     def updateTargets(self):
         # save current targets to p
-        p['currentTargetX']  = np.append(self.TargetX,p['ExtraTargetX'])
-        p['currentTargetY']  = np.append(self.TargetY,p['ExtraTargetY'])   
+        p['currentTargetX'] = self.TargetX + p['ExtraTargetX'] # = np.append(self.TargetX,p['ExtraTargetX'])
+        p['currentTargetY'] = self.TargetY + p['ExtraTargetY'] # = np.append(self.TargetY,p['ExtraTargetY'])
         self.updateTargetROIs()
             
     def updateTargetROIs(self):
@@ -1667,7 +1679,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
     
 
                 self.ax2.cla()
-                self.ax2.plot(np.arange(T), Y_r[j], 'c', linewidth=3)
+                self.ax2.plot(np.arange(T), Y_r[j], 'c', linewidth=2)
                 self.ax2.plot(np.arange(T), C[j], 'r', linewidth=2)
                 if not rej:
                     self.ax2.set_title('Temporal component ' + str(i+1))
@@ -2108,7 +2120,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             
     def autoAddClicked(self):
         p['FLAG_AUTO_ADD_TARGETS'] = self.addNewROIsToTarget_checkBox.isChecked()
-        print('FLAG_AUTO_ADD_TARGETS ='+str(p['FLAG_AUTO_ADD_TARGETS']))
+        print('FLAG_AUTO_ADD_TARGETS = '+str(p['FLAG_AUTO_ADD_TARGETS']))
         
     def enterEvent(self,event):
         self.graphicsView.setCursor(Qt.CrossCursor)
@@ -2119,7 +2131,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             try: self.resetFigure()
             except: pass
             
-#            try:
             self.deleteTextItems()
             
             if self.opsinMaskOn:
@@ -2169,8 +2180,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             self.streamThread.start()
             self.updateStatusBar('stream started')
             
-#            except Exception as e:
-#            print(e)
         else:
             self.updateStatusBar('No initialisation provided and PV not connected')
             return
