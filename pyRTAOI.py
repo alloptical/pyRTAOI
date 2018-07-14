@@ -44,7 +44,7 @@ CAREFUL WHEN USING 'REPLACE ALL' - IT WILL QUIT, WITHOUT SAVING!!
 
 # other notes:
 - numpy.append is slower than list.append, so avoid using it in loops but there's not much difference if just appending a single value
-    --> could change np arrays to lists, at least targets
+    --> changed np arrays to lists for target info
     
 - pkl files are slower to load than npz
 
@@ -1156,7 +1156,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         
         # others
         self.test_pushButton.clicked.connect(self.tempTest)
-        self.reset_pushButton.clicked.connect(self.resetAll)  # can be implemented in the future
+        self.reset_pushButton.clicked.connect(self.resetAll)
 
         # auto add connects to update p and trial config plot whenever anything changes
         widgets = (QComboBox, QCheckBox, QLineEdit, QSpinBox, QDoubleSpinBox)
@@ -1357,6 +1357,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         retval = msg.exec_()
         if(retval==QMessageBox.Ok):
             self.c = {}
+            self.UseONACID_checkBox.setEnabled(False)
+            self.UseONACID_checkBox.setChecked(False)
             self.imageItem.setImage(self.BlankImage)
             
          
@@ -1593,7 +1595,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
         
     def transDataToMain(self, cnm_struct, sta_amp, t, plot=True):
-        self.c['cnm2'] = cnm_struct
+        self.cnm2 = cnm_struct
         self.sta_amp = sta_amp
         
         if self.A_opsin.size:
@@ -2127,6 +2129,17 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         
 
     def clickRun(self):
+        if self.cnm2:
+            msg = QMessageBox()
+            msg.setText("Run again?") 
+            msg.setWindowTitle('pyRTAOI Message')
+            msg.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)       
+            retval = msg.exec_()
+            if(retval==QMessageBox.Ok):
+                pass
+            else:
+                return
+            
         if p['UseONACID'] or self.FLAG_PV_CONNECTED:  # TODO: if no c but useonacid selected.. or disable onacid and turn it off after reset. maybe? useonacid and self.c != {})
             try: self.resetFigure()
             except: pass
@@ -2329,6 +2342,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
     
         # delete big structs to free memory
         del self.c
+        del self.cnm2
 #        del self.proc_cnm
 #            p = {}
         plt.close('all')
