@@ -35,7 +35,7 @@ try:
         print("Running under iPython")
         # this is used for debugging purposes only. allows to reload classes
         # when changed
-        get_ipython().magic('load_ext autoreload')
+        get_ipython().magic('reload_ext autoreload')
         get_ipython().magic('autoreload 2')
 except NameError:
     pass
@@ -45,7 +45,6 @@ import numpy as np
 import time
 import matplotlib.pyplot as plt
 
-from caiman.utils.utils import download_demo
 from caiman.utils.visualization import plot_contours, view_patches_bar
 from caiman.source_extraction.cnmf import cnmf as cnmf
 from caiman.motion_correction import MotionCorrect
@@ -53,7 +52,12 @@ from caiman.source_extraction.cnmf.utilities import detrend_df_f
 from caiman.components_evaluation import estimate_components_quality_auto
 
 #%% First setup some parameters
-fname = [r'C:\Users\intrinsic\caiman_data\sample_vid\stimulated_test\20170329_OG151_t-008_Substack (1-3000)--(1-500).tif'] # filename to be processed
+#fname = [r'C:\Users\intrinsic\caiman_data\sample_vid\stimulated_test\20170329_OG151_t-008_Substack (1-3000)--(1-500).tif'] # filename to be processed
+
+fname = [r'C:\Users\intrinsic\Desktop\pyRTAOI2018\samples\example1\20171229_OG245_t-052_Cycle00001_Ch2.tif']
+#fname = [r'C:\Users\intrinsic\Desktop\pyRTAOI2018\samples\example2\20171229_OG245_t-053\20171229_OG245_t-053_Cycle00001_Ch2.tif']
+#fname = [r'C:\Users\intrinsic\Desktop\pyRTAOI2018\samples\example3\20171130_OG235_t-002_Cycle00001_Ch2.tif']
+#fname = [r'C:\Users\intrinsic\Desktop\pyRTAOI2018\samples\example1\20171229_OG245_t-052_Cycle00001_Ch2_substack1-2700.tif']
 
 # dataset dependent parameters
 display_images = False              # Set this to true to show movies and plots
@@ -61,32 +65,34 @@ display_images = False              # Set this to true to show movies and plots
 #fname = ['Sue_2x_3000_40_-46.tif'] 
 
 fr = 30                             # imaging rate in frames per second
-decay_time = 0.4                    # length of a typical transient in seconds
+decay_time = 0.2                    # length of a typical transient in seconds
 
-# motion correction parameters
+
+######## motion correction parameters
 niter_rig = 1               # number of iterations for rigid motion correction
-max_shifts = (6, 6)         # maximum allow rigid shift
+max_shifts = (10, 10)   # (6, 6)      # maximum allow rigid shift
 # for parallelization split the movies in  num_splits chuncks across time
-splits_rig = 56
+splits_rig = 100 # 56
 # start a new patch for pw-rigid motion correction every x pixels
-strides = (48, 48)
+strides = (144, 144) #(146, 146) # (48, 48)
 # overlap between pathes (size of patch strides+overlaps)
-overlaps = (24, 24)
+overlaps = (24, 24) # (73, 73) # (24, 24)
 # for parallelization split the movies in  num_splits chuncks across time
-splits_els = 56
+splits_els = 100 # 56
 upsample_factor_grid = 4    # upsample factor to avoid smearing when merging patches
 # maximum deviation allowed for patch with respect to rigid shifts
 max_deviation_rigid = 3
 
-# parameters for source extraction and deconvolution
+
+######## parameters for source extraction and deconvolution
 p = 1                       # order of the autoregressive system
-gnb = 2                     # number of global background components
+gnb = 1                     # number of global background components
 merge_thresh = 0.8          # merging threshold, max correlation allowed
 # half-size of the patches in pixels. e.g., if rf=25, patches are 50x50
-rf = 15
-stride_cnmf = 6             # amount of overlap between the patches in pixels
-K = 4                       # number of components per patch
-gSig = [4, 4]               # expected half size of neurons
+rf = 25 #15
+stride_cnmf = 5 #6             # amount of overlap between the patches in pixels
+K = 7 #3                       # number of components per patch
+gSig = [10, 10]               # expected half size of neurons
 # initialization method (if analyzing dendritic data using 'sparse_nmf')
 init_method = 'greedy_roi'
 is_dendrites = False        # flag for analyzing dendritic data
@@ -95,21 +101,32 @@ alpha_snmf = None
 
 # parameters for component evaluation
 min_SNR = 2.5               # signal to noise ratio for accepting a component
-rval_thr = 0.8              # space correlation threshold for accepting a component
-cnn_thr = 0.8               # threshold for CNN based classifier
+rval_thr = 0.85              # space correlation threshold for accepting a component
+cnn_thr = 0.9 # 0.8               # threshold for CNN based classifier
+
+#%%
+#import tifffile
+#M = tifffile.TiffFile(fname[0])
+#print(M.is_imagej)
 
 #%% play the movie
 # playing the movie using opencv. It requires loading the movie in memory. To
 # close the video press q
 
-m_orig = cm.load_movie_chain(fname[:1])
-downsample_ratio = 0.2
-offset_mov = -np.min(m_orig[:100])
-moviehandle = m_orig.resize(1, 1, downsample_ratio)
 if display_images:
+    m_orig = cm.load_movie_chain(fname[:1])
+    downsample_ratio = 0.2
+    offset_mov = -np.min(m_orig[:100])
+    moviehandle = m_orig.resize(1, 1, downsample_ratio)
     moviehandle.play(gain=10, offset=offset_mov, fr=30, magnification=2)
 
 #%% start a cluster for parallel processing
+try:
+    dview.terminate()
+#     cm.stop_server(dview=dview)
+except:
+    print('OK')    
+
 c, dview, n_processes = cm.cluster.setup_cluster(
     backend='local', n_processes=None, single_thread=False)
 
@@ -120,35 +137,56 @@ min_mov = cm.load(fname[0], subindices=range(200)).min()
 # this will be subtracted from the movie to make it non-negative
 
 mc = MotionCorrect(fname[0], min_mov,
-                   dview=dview, max_shifts=max_shifts, niter_rig=niter_rig,
+                   dview=dview,  # None for now - then it runs
+                   max_shifts=max_shifts, niter_rig=niter_rig,
                    splits_rig=splits_rig,
                    strides=strides, overlaps=overlaps, splits_els=splits_els,
-                   upsample_factor_grid=upsample_factor_grid,
+                   upsample_factor_grid=upsample_factor_grid,#
                    max_deviation_rigid=max_deviation_rigid,
-                   shifts_opencv=True, nonneg_movie=True)
+                   shifts_opencv=True, nonneg_movie=True, use_cuda=False)
 # note that the file is not loaded in memory
 
-#%% Run piecewise-rigid motion correction using NoRMCorre
-mc.motion_correct_pwrigid(save_movie=True)
+
+# currently error below when use_cuda=True:
+#  File "C:\ProgramData\Anaconda3\envs\caiman\lib\multiprocessing\pool.py", line 644, in get
+#    raise self._value
+#
+#CompileError: nvcc preprocessing of C:\Users\INTRIN~1\AppData\Local\Temp\tmpwan_5_ki.cu failed
+#%% Run piecewise-rigid motion correction using NoRMCorre  -- now timeout error here too even when use_cuda = False
+
+#mc.motion_correct_rigid(save_movie=True)
+
+mc.motion_correct_pwrigid(save_movie=True)   # try mc.motion_correct_rigid instead?
+
+#memmaped_name = [r'C:\Users\intrinsic\Desktop\pyRTAOI2018\samples\example1\20171229_OG245_t-052_Cycle00001_Ch2_els__d1_512_d2_512_d3_1_order_F_frames_5400_.mmap']
+#m_els = cm.load(memmaped_name)
+
 m_els = cm.load(mc.fname_tot_els)
+
 bord_px_els = np.ceil(np.maximum(np.max(np.abs(mc.x_shifts_els)),
                                  np.max(np.abs(mc.y_shifts_els)))).astype(np.int)
+
 # maximum shift to be used for trimming against NaNs
+
 #%% compare with original movie
-moviehandle = cm.concatenate([m_orig.resize(1, 1, downsample_ratio) + offset_mov,
-                m_els.resize(1, 1, downsample_ratio)],
-               axis=2)
 display_images = False
 if display_images:
+    moviehandle = cm.concatenate([m_orig.resize(1, 1, downsample_ratio) + offset_mov,
+                m_els.resize(1, 1, downsample_ratio)],
+               axis=2)
     moviehandle.play(fr=60, q_max=99.5, magnification=2, offset=0)  # press q to exit
 
-# memory map the file in order 'C'
+#%% memory map the file in order 'C'
 fnames = mc.fname_tot_els   # name of the pw-rigidly corrected file.
 border_to_0 = bord_px_els     # number of pixels to exclude
-fname_new = cm.save_memmap(fnames, base_name='memmap_', order='C',
-                           border_to_0=bord_px_els)  # exclude borders
+fname_new = cm.save_memmap(fnames, base_name='memmap_', order='C')#,
+#                           border_to_0=bord_px_els)  # exclude borders
 
-# now load the file
+#loading in memory -- slows everything + full memory
+#mmap
+#SAVING WITH numpy.tofile()
+
+#%% now load the file
 Yr, dims, T = cm.load_memmap(fname_new)
 d1, d2 = dims
 images = np.reshape(Yr.T, [T] + list(dims), order='F')
@@ -165,7 +203,7 @@ c, dview, n_processes = cm.cluster.setup_cluster(
 # for this step deconvolution is turned off (p=0)
 t1 = time.time()
 
-cnm = cnmf.CNMF(n_processes, #=1, 
+cnm = cnmf.CNMF(n_processes=1, 
                 k=K, 
                 gSig=gSig, merge_thresh=merge_thresh,
                 p=0, 
@@ -202,7 +240,7 @@ idx_components, idx_components_bad, SNR_comp, r_values, cnn_preds = \
 # good: 25
 #%% PLOT COMPONENTS
 
-if display_images:
+if 1: #display_images:
     plt.figure()
     plt.subplot(121)
     crd_good = cm.utils.visualization.plot_contours(
@@ -247,6 +285,17 @@ cm.stop_server(dview=dview)
 log_files = glob.glob('*_LOG_*')
 for log_file in log_files:
     os.remove(log_file)
+    
+#%% Save results
+from caiman.utils.utils import save_object
+
+save_dict = dict()
+save_dict['cnm2'] = cnm2
+
+folder = os.path.join(os.path.dirname(fname[0]), 'results')
+saveResultPath = os.path.join(folder, 'onacid_results_ds_' + str(fname[0]) + '.pkl')
+
+save_object(save_dict, saveResultPath)
 
 #%% reconstruct denoised movie
 denoised = cm.movie(cnm2.A.dot(cnm2.C) +

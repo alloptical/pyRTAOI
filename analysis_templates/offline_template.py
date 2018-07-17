@@ -19,7 +19,7 @@
     expressing the opsin. This should be followed by filtering of the 
     initialisation output with the CNN filter as the mask does not separate
     cells well.
-
+    
 """
 
 
@@ -39,7 +39,7 @@ import numpy as np
 from copy import deepcopy
 import time
 import sys
-sys.path.append(r'C:\Users\intrinsic\Desktop\pyRTAOI2018') # for caiman_func access
+sys.path.append(r'C:\Users\intrinsic\Desktop\pyRTAOI-rig') # for caiman_func access
 
 if sys.platform == 'win32':
     time_ = time.clock
@@ -52,7 +52,7 @@ import scipy
 from scipy.sparse import issparse
 
 import caiman as cm
-from caiman.utils.utils import load_object
+from caiman.utils.utils import load_object, save_object
 from caiman.base.rois import com
 from caiman.utils.visualization import view_patches_bar, plot_contours
 from caiman_func.initialisation import initialise
@@ -65,16 +65,17 @@ from caiman.base.rois import extract_binary_masks_from_structural_channel
 
 #ref_movie_path = r'C:\Users\intrinsic\caiman_data\sample_vid\stimulated_test\20170329_OG151_t-008_Substack (1-3000)--(1-500).tif'
 #ref_movie_path = r'C:\Users\intrinsic\caiman_data\sample_vid\stimulated_test\20170329_OG151_t-008_Substack (1-3000)--(1-500)_init_cnmf_DS_1.5.pkl'
-# ref_movie_path = r'T:\ForPatrycja\pyRTAOI\samples\example2\20171229_OG245_t-053\20171229_OG245_t-053_Cycle00001_Ch2.tif'
 
-ref_movie_path = r'T:\ForPatrycja\pyRTAOI\samples\example1\20171229_OG245_t-052_Cycle00001_Ch2.tif'
+# example movies
+#ref_movie_path = r'C:\Users\intrinsic\Desktop\pyRTAOI2018\samples\example1\20171229_OG245_t-052_Cycle00001_Ch2.tif'
+#ref_movie_path = r'C:\Users\intrinsic\Desktop\pyRTAOI2018\samples\example2\20171229_OG245_t-053\20171229_OG245_t-053_Cycle00001_Ch2.tif'
+ref_movie_path = r'C:\Users\intrinsic\Desktop\pyRTAOI2018\samples\example3\20171130_OG235_t-002_Cycle00001_Ch2.tif'
 
 movie_ext = ref_movie_path[-4:]
-#path_to_cnn_residual = os.path.join(caiman_datadir(), 'model', 'cnn_model_online.h5')
 
 
 if movie_ext  == '.tif':
-    K = 30
+    K = 25
     ds_factor = 1.5
     initbatch = 500
     minibatch_shape = 100
@@ -82,9 +83,9 @@ if movie_ext  == '.tif':
     
     lframe, init_values = initialise(ref_movie_path, init_method='cnmf', K=K, 
                                      ds_factor=ds_factor, initbatch=initbatch, rval_thr=0.85, #0.85,
-                                     thresh_overlap=0.2, save_init=False, mot_corr=True,
-                                     merge_thresh=0.85, minibatch_shape=minibatch_shape,
-                                     min_SNR=min_SNR, T1=20000)
+                                     thresh_overlap=0.2, save_init=False, mot_corr=True, # thresh_overlap = 0.5 as default
+                                     merge_thresh=0.9, minibatch_shape=minibatch_shape,
+                                     min_SNR=min_SNR, T1=10000)
     
 elif movie_ext == '.pkl':
     init_values = load_object(ref_movie_path)
@@ -100,9 +101,8 @@ T1 =  c['T1']
 ds_factor =  c['ds_factor']
 Cn_init =  c['Cn_init']
 cnm_init =  c['cnm_init']
-cnm2 = c['cnm2']
 gnb =  c['cnm_init'].gnb
-gSig = c['cnm_init'].gSig # changes to (7,7) on its own?
+gSig = c['cnm_init'].gSig
 dims =  c['cnm_init'].dims
 initbatch = cnm_init.initbatch
 NumROIs = c['expected_comps'] # as set in the interface OR c['expected_comps']
@@ -255,10 +255,13 @@ YrA = noisyC[predictions[:, 1] >= thresh_cnn] - C
 
 # Setting idx_components to ind_keep to select only cells that passed filtering (None means all kept)
 try:
-    idx_components=ind_keep
+    idx_components = ind_keep
     coms_init = coms_init[idx_components]
 except:
     idx_components = None
+    
+try: opsin_seeded
+except: check_opsin = False
 
 cnm2 = deepcopy(cnm_init)
 path_to_cnn_residual = os.path.join(caiman_datadir(), 'model', 'cnn_model_online.h5')
@@ -268,7 +271,8 @@ cnm2._prepare_object(np.asarray(c['Yr']), c['T1'], c['expected_comps'], idx_comp
                          path_to_model=path_to_cnn_residual)#,
 #                         sniper_mode=False, use_peak_max=False, q=0.5) # default
 
-# Store info on opsin as object property
+
+#%% Store info on opsin as object property
 if opsin_seeded:
     cnm2.opsin = [True]*len(ind_keep)
 else:
@@ -357,11 +361,10 @@ cnm2.Ab_epoch = []                       # save the shapes at the end of each ep
 
 #%% Run OnACID multiple times (epochs)
 #movie_path = r'C:\Users\intrinsic\caiman_data\sample_vid\stimulated_test\20170329_OG151_t-008_Substack (1-3000)--(500-3000).tif'
-#movie_path = r'C:\Users\Patrycja\CaImAn\sample_vid\spontaneous_test\20170329_OG151_t-006_2_Substack_(1000-3000).tif'
 movie_path = ref_movie_path
 
 print('Loading video')
-Y_ = cm.load(movie_path, subindices=slice(500,1500,None)) # 0,T1,None
+Y_ = cm.load(movie_path, subindices=slice(0,T1,None)) # 0,T1,None
 print('Video loaded')
           
 for iter in range(epochs):  
@@ -412,17 +415,18 @@ for iter in range(epochs):
                     print('New cell detected (' + str(cnm2.N-rejected) + ')')
 
 #                    tt = time_()
-                    cell_A = np.array(cnm2.Ab[:,-1].todense())
-                    cell_mask = (np.reshape(cell_A, dims, order='F') > 0).astype('int')
-                    mask_inx = np.where(cell_mask==1)
-                    cell_pix = sum(sum(cell_mask == 1))
-                    
-                    inter = cv2.bitwise_and(opsin_mask, cell_mask)
-                    inter_pix = sum(sum(inter))
-                    overlap = inter_pix/cell_pix
-                                        
-                    cnm2.opsin.append(overlap > thresh)
-                    print(overlap>thresh)
+                    if check_opsin:
+                        cell_A = np.array(cnm2.Ab[:,-1].todense())
+                        cell_mask = (np.reshape(cell_A, dims, order='F') > 0).astype('int')
+                        mask_inx = np.where(cell_mask==1)
+                        cell_pix = sum(sum(cell_mask == 1))
+                        
+                        inter = cv2.bitwise_and(opsin_mask, cell_mask)
+                        inter_pix = sum(sum(inter))
+                        overlap = inter_pix/cell_pix
+                                   
+                        cnm2.opsin.append(overlap > thresh)
+                        print(overlap>thresh)
 #                    print(time_()-tt)
                     
                     if com_count == NumROIs:
@@ -439,10 +443,7 @@ for iter in range(epochs):
             shift_ = [round(shift[0]), round(shift[1])]
         
         try:
-#            print(cnm2.C_on[1,t])
-#            print(cnm2.C_on[accepted,t])
             RoiBuffer[:com_count, BufferPointer] = cnm2.C_on[accepted,t] # -1
-#            print(RoiBuffer[:com_count, BufferPointer])
 #            time.sleep(1)
             
             ROIlist_threshold[:com_count] = np.nanmean(RoiBuffer[:com_count,:], axis=1) + 3*np.nanstd(RoiBuffer[:com_count,:], axis=1)
@@ -476,7 +477,7 @@ for iter in range(epochs):
 #%% Extract results from object
 # Can pass through the CNN classifier with a low threshold (keeps clearer neuron shapes and excludes processes)
 
-use_CNN = 0
+use_CNN = 1
 if use_CNN:
     A, b = cnm2.Ab[:, cnm2.gnb:cnm2.M], cnm2.Ab[:, :cnm2.gnb]
     C, f = cnm2.C_on[cnm2.gnb:cnm2.M], cnm2.C_on[:cnm2.gnb]
@@ -488,10 +489,14 @@ if use_CNN:
         A, dims, gSig, model_name=os.path.join(caiman_datadir(), 'model', 'cnn_model'))
     A_exclude, C_exclude = A[:, predictions[:, 1] <
                              thresh_cnn], C[predictions[:, 1] < thresh_cnn]  # elements removed from analysis
+
     A, C = A[:, predictions[:, 1] >=
              thresh_cnn], C[predictions[:, 1] >= thresh_cnn]
     noisyC = cnm2.noisyC[cnm2.gnb:cnm2.M]
     YrA = noisyC[predictions[:, 1] >= thresh_cnn] - C
+    
+    ind_rem_CNN = np.where(predictions[:,1] < thresh_cnn)[0].tolist()
+    ind_keep_CNN = np.where(predictions[:, 1] >= thresh_cnn)[0].tolist()
     
     # trim long files
     C = C[:,:t]
@@ -524,10 +529,22 @@ deconvolved = [osi.s for osi in cnm2.OASISinstances]
 
 coms_post = com(A, *dims)
 
+#%% Visualise OnACID output
+pl.figure()
+crd = cm.utils.visualization.plot_contours(A, Cn, thr=0.9)
+show_coms = False
+if show_coms:
+    pl.plot(coms_post[:,1], coms_post[:,0], '.r') # reverse if swap_dim = False above
+
+view_patches_bar([], A, # scipy.sparse.coo_matrix(A.tocsc()[:, :]),
+                 C[:, :t], b, f[:,:t],
+                 dims[0], dims[1], YrA=YrA[:,:t], img=Cn)
+
+
 #%% Plot deconvolved signal for checking
 pl.figure();pl.plot(deconvolved[cell][initbatch:])
 
-#%% Save results
+#%% Save results individually, as npz
 save_results = True
 folder = os.path.dirname(ref_movie_path)
 
@@ -553,47 +570,62 @@ if save_results:
 npz_datafile = np.load(saved_data)
 locals().update(npz_datafile)
 
-#%% Save results (whole cnm object) as pkl - doesn't seem to work?
-from caiman.utils.utils import save_object
+#%% Save results (whole cnm object) as pkl - works?
 
 save_dict = dict()
-save_dict['cnm2'] = cnm2
-#save_dict['accepted'] = accepted
+save_dict['accepted'] = accepted
 save_dict['t_cnm'] = t
 
-saveResultPath = folder + '\\results_ds_.pkl'
+folder = os.path.join(os.path.dirname(ref_movie_path), 'results')
+if use_CNN:
+    saveResultPath = os.path.join(folder, 'onacid_results_ds_' + str(ds_factor) + '_CNN_' + str(thresh_cnn) + '.pkl')
+    
+    cnm3 = deepcopy(cnm2)
+    cnm3.remove_components(ind_rem_CNN)  # remove cells rejected by CNN
+    
+    save_dict['cnm2'] = cnm3
+    save_dict['coms'] = coms[ind_keep_CNN]
+
+else:
+    saveResultPath = os.path.join(folder, 'onacid_results_ds_' + str(ds_factor) + '.pkl')
+    save_dict['cnm2'] = cnm2
+    save_dict['coms'] = coms
 
 save_object(save_dict, saveResultPath)
 
-# error if new methods/objects added to cnm2? not adding opsin still produced the error
-# Can't pickle <class 'caiman.source_extraction.cnmf.cnmf.CNMF'>: it's not the same object as caiman.source_extraction.cnmf.cnmf.CNMF
+save_mat = True # additionally save the mat file
+if save_mat:
+    from pkl2mat import convert2mat
+
+    convert2mat(file_full_name = saveResultPath)
 
 #%% Load pkl-ed cnm object
-pkl_results = load_object(saveResultPath)
+saveResultPath = r'C:\Users\intrinsic\Desktop\pyRTAOI2018\samples\example1\results\onacid_results_ds_1.5.pkl'
+cnm_object = load_object(saveResultPath)
 
 #%% Load pkl object
-saved_pkl = r'T:\ForPatrycja\pyRTAOI\samples\example1\20171229_OG245_t-052_Cycle00001_Ch2_substack1-2700_init_cnmf_DS_1.5.pkl'
+#saved_pkl = r'C:\Users\intrinsic\Desktop\pyRTAOI2018\samples\example1\20171229_OG245_t-052_Cycle00001_Ch2_substack1-1000_DS_1.5_OnlineProc.pkl' #20171229_OG245_t-052_Cycle00001_Ch2_substack1-2700_init_cnmf_DS_1.5.pkl'
+saved_pkl = r'C:/Users/intrinsic/Desktop/pyRTAOI2018/samples/example1/20171229_OG245_t-052_Cycle00001_Ch2_substack1-200_init_seeded_DS_1.5.pkl'
 pkl_datafile = load_object(saved_pkl)
 
-mask = pkl_datafile['cnm_init'].A # access mask
+#mask = pkl_datafile['cnm_init'].A # access mask
+
+#%%
+init_values = pkl_datafile
+idx_components = init_values['idx_components']
+path_to_cnn_residual = os.path.join(caiman_datadir(), 'model', 'cnn_model_online.h5')
+
+cnm2 = deepcopy(init_values['cnm_init'])
+cnm2._prepare_object(np.asarray(init_values['Yr']), init_values['T1'], 
+                     init_values['expected_comps'], idx_components=idx_components,
+                     min_num_trial=2, N_samples_exceptionality=int(init_values['N_samples']),
+                     path_to_model=path_to_cnn_residual)
 
 #%% Load npz object
 saved_npz = r'T:\ForPatrycja\pyRTAOI\samples\example1\_offline_DS_ 1.5.npz'
 npz_datafile = np.load(saved_npz)
 
 mask = npz_datafile['A']
-
-#%% Visualise OnACID output
-pl.figure()
-crd = cm.utils.visualization.plot_contours(A, Cn, thr=0.9)
-show_coms = False
-if show_coms:
-    pl.plot(coms_post[:,1], coms_post[:,0], '.r') # reverse if swap_dim = False above
-
-view_patches_bar([], A, # scipy.sparse.coo_matrix(A.tocsc()[:, :]),
-                 C[:, :t], b, f[:,:t],
-                 dims[0], dims[1], YrA=YrA[:,:t], img=Cn)
-
 
 #%% Check and plot opsin overlap offline
 onacid_mask = (deepcopy(A)>0).astype('int')  # binarise the onacid output mask

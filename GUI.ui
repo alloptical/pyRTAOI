@@ -1292,14 +1292,20 @@
            </item>
            <item>
             <widget class="QSpinBox" name="cellRadius_spinBox">
+             <property name="enabled">
+              <bool>true</bool>
+             </property>
+             <property name="acceptDrops">
+              <bool>false</bool>
+             </property>
              <property name="minimum">
-              <number>1</number>
+              <number>3</number>
              </property>
              <property name="maximum">
-              <number>20</number>
+              <number>19</number>
              </property>
              <property name="singleStep">
-              <number>1</number>
+              <number>2</number>
              </property>
              <property name="value">
               <number>9</number>

@@ -29,17 +29,19 @@ def convert2mat(file_full_name = '',save_full_name = ''):
     
     save_dict['accepted'] = file_data['accepted']
     save_dict['t_cnm'] = file_data['t_cnm']
-    
+    save_dict['coms'] = file_data['coms']
     
     # parse cnmf object
     cnm = file_data['cnm2']
     A, b = cnm.Ab[:, cnm.gnb:], cnm.Ab[:, :cnm.gnb].toarray()
+    C, f = cnm.C_on[cnm.gnb:cnm.M], cnm.C_on[:cnm.gnb]
+    
     if issparse(A):
         A = np.array(A.todense())
     save_dict['cnm_A'] = A
     save_dict['cnm_b'] = b
-    save_dict['cnm_C'] = cnm.C
-    save_dict['cnm_f'] = cnm.f
+    save_dict['cnm_C'] = C #cnm.C
+    save_dict['cnm_f'] = f #cnm.f
     save_dict['cnm_N'] = cnm.N
     save_dict['cnm_gnb'] = cnm.gnb
     save_dict['num_frames_init'] = cnm.initbatch
@@ -47,14 +49,14 @@ def convert2mat(file_full_name = '',save_full_name = ''):
 
     # cell traces
     save_dict['noisyC'] = cnm.noisyC
-    save_dict['deconvC'] = cnm.C_on
+#    save_dict['deconvC'] = cnm.C_on
     save_dict['cnm_dims'] = cnm.dims
  
         
         
         
     print('saved as '+save_full_name)
-    scipy.io.savemat(save_full_name, mdict= save_dict)
+    scipy.io.savemat(save_full_name, mdict = save_dict)
 
     
 if __name__ == '__main__':

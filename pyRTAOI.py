@@ -518,15 +518,15 @@ class Worker(QObject):
                 if expect_components:
                     update_comp_time = time.time()
                     if cnm2.N - (com_count+rejected) == 1:
-                        self.new_coms = com(cnm2.Ab[:, -1], dims[0], dims[1])[0]
+                        new_coms = com(cnm2.Ab[:, -1], dims[0], dims[1])[0]
     
                         # Check for repeated components
-                        close = abs(coms - self.new_coms) < self.dist_thresh/ds_factor
+                        close = abs(coms - new_coms) < self.dist_thresh/ds_factor
                         repeated = any(np.all(close,axis=1))
     
                         if repeated == False: # add component to ROI
-                            coms = np.vstack((coms, self.new_coms))
-                            y, x = self.new_coms   # reversed
+                            coms = np.vstack((coms, new_coms))
+                            y, x = new_coms   # reversed
                             ROIx = np.append(ROIx,x*ds_factor)  # ~0.11 ms // filling in empty array: ~0.07 ms
                             ROIy = np.append(ROIy,y*ds_factor)
     
@@ -719,6 +719,7 @@ class Worker(QObject):
             save_dict['cnm2'] = self.cnm2
             save_dict['accepted'] = accepted  # accepted currently stored inside cnm2 as well
             save_dict['t_cnm'] = t_cnm
+            save_dict['coms'] = coms
             
             try:
                 save_dict['opsin_thresh'] = opsin_thresh
@@ -755,6 +756,7 @@ class Worker(QObject):
 
         # finishing          
         self.finished_signal.emit()
+        print('worker finished')
 
 #    def photostimTargets(self, coords):
         
@@ -1357,6 +1359,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         retval = msg.exec_()
         if(retval==QMessageBox.Ok):
             self.c = {}
+            self.cnm2 = {}
             self.UseONACID_checkBox.setEnabled(False)
             self.UseONACID_checkBox.setChecked(False)
             self.imageItem.setImage(self.BlankImage)
@@ -1801,6 +1804,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
     
     
     def initialiseCaiman(self):
+        self.deleteTextItems()
+
         if self.ref_movie_path and self.ref_movie_path != 'U:/simulate_movie/20170823_ref.tif':
             movie_ext = os.path.splitext(p['refMoviePath'])[1]
             self.updateStatusBar('Initialising...')
@@ -1956,7 +1961,12 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             opsin_img = self.opsin_img[np.newaxis,:,:].resize(1./ds_factor,1./ds_factor) # moved here for init recreating
 
             min_area = self.minArea_spinBox.value()
-            radius = self.cellRadius_spinBox.value()
+            radius = self.cellRadius_spinBox.value() # must be radius % 2 == 1 and > 1
+            
+            if radius % 2 == 0:
+                radius += 1
+            self.cellRadius_spinBox.setValue(radius)    
+            
             dims = opsin_img.shape[-2:]
             
             A_opsin, mr_opsin = extract_mask(opsin_img, gSig=radius, min_area_size=min_area, min_hole_size=15)
@@ -1977,7 +1987,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 
     def checkOpsin(self, Ain=None):
-        
         if Ain is None:
             cnm_struct = self.c['cnm2']
             A = cnm_struct.Ab[:, cnm_struct.gnb:cnm_struct.M]
