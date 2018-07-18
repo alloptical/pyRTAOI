@@ -269,10 +269,22 @@ def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1, initba
     
     if save_init:
         cnm_init.dview = None
-        filename = ref_movie[:-4] + '_init_' + init_method + '_DS_' + str(ds_factor) + '.pkl'
-        save_object(init_values, filename)
-        print('Init file saved as ' + filename)
-#        init_values = load_object(ref_movie[:-4] + '_DS_' + str(ds_factor) + '.pkl')
+        save_separately = True # temp flag to save in a folder inside movie folder
+        
+        if save_separately:
+            filename = os.path.basename(ref_movie)[:-4] + '_init_' + init_method + '_DS_' + str(ds_factor) + '.pkl'
+            movie_folder = os.path.dirname(ref_movie)            
+            init_folder = os.path.join(movie_folder, 'init_results')  # save init results in a separate folder
+            
+            if not os.path.exists(init_folder):
+                os.makedirs(init_folder)
+                
+            save_path = os.path.join(init_folder, filename)
+        else:
+            save_path  = ref_movie[:-4] + '_init_' + init_method + '_DS_' + str(ds_factor) + '.pkl'
+        
+        save_object(init_values, save_path)
+        print('Init file saved as ' + save_path)
     
 
     t2 = time_()
@@ -282,5 +294,5 @@ def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1, initba
 
 
 if __name__ == '__main__':
-    ref_movie = r'X:\pdzialecka\pyRTAOI20180530\samples\example1\20171229_OG245_t-052_Cycle00001_Ch2_substack1-2700.tif'
-    lframe, initv = initialise(ref_movie, ds_factor=1.5, initbatch=500)
+    ref_movie = r'C:\Users\intrinsic\Desktop\pyRTAOI2018\samples\example1\20171229_OG245_t-052_Cycle00001_Ch2_substack1-2700.tif'
+    lframe, initv = initialise(ref_movie, ds_factor=1.5, initbatch=100, save_init=True)

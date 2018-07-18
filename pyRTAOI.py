@@ -343,7 +343,7 @@ class Worker(QObject):
     sendCoords_signal        = pyqtSignal(name = 'sendCoordsSignal')
     sendPhotoStimTrig_signal = pyqtSignal()
     getROImask_signal        = pyqtSignal(object, object, name = 'getROImaskSignal')
-    transDataToMain_signal   = pyqtSignal(object,object,object,name = 'transDataToMain')
+    transDataToMain_signal   = pyqtSignal(object,object,object,object,name = 'transDataToMain')
     updateTargetROIs_signal  = pyqtSignal()
     finished_signal          = pyqtSignal()
 
@@ -468,7 +468,7 @@ class Worker(QObject):
                 
             # Define OnACID parameters
             max_shift = np.ceil(10./ds_factor).astype('int')  # max shift allowed
-            cnm2 = self.c['cnm2'] #deepcopy( cnm_init)
+            cnm2 = (self.c['cnm2']) #deepcopy( cnm_init)
             t_cnm = cnm2.initbatch
             coms_init = self.c['coms_init']
 #            Cn_init = self.c['Cn_init']
@@ -707,7 +707,7 @@ class Worker(QObject):
             if opsin_mask.size:
                 cnm2.opsin = opsin
 
-            self.cnm2 = cnm2
+#            self.cnm2 = cnm2
             
             # save results to Temp folder 
             if self.FLAG_PV_CONNECTED:
@@ -716,7 +716,7 @@ class Worker(QObject):
                 self.movie_name = os.path.splitext(p['moviePath'])[0]
             
             save_dict = dict()
-            save_dict['cnm2'] = self.cnm2
+            save_dict['cnm2'] = cnm2  # opsin info a part of cnm struct for now
             save_dict['accepted'] = accepted  # accepted currently stored inside cnm2 as well
             save_dict['t_cnm'] = t_cnm
             save_dict['coms'] = coms
@@ -730,7 +730,20 @@ class Worker(QObject):
             
             try:
                 print('Saving onacid output')
-                save_object(save_dict, self.movie_name + '_DS_' + str(ds_factor) + '_OnlineProc.pkl')
+                save_separately = True # temp flag to save in a new folder inside movie folder
+                
+                if save_separately:  # TODO: what if pv connected? -- test
+                    filename = os.path.basename(self.movie_name) + '_DS_' + str(ds_factor) + '_OnlineProc.pkl'
+                    movie_folder = os.path.dirname(p['moviePath'])
+                    save_folder = os.path.join(movie_folder, 'pyrtaoi_results')  # save init result in a separate folder
+                    if not os.path.exists(save_folder):
+                        os.makedirs(save_folder)
+                    
+                    save_path = os.path.join(save_folder, filename)
+                else:
+                    save_path = self.movie_name + '_DS_' + str(ds_factor) + '_OnlineProc.pkl'   # save results in the same folder
+                    
+                save_object(save_dict, save_path)
             except Exception as e:
                 print(e)
 
@@ -747,11 +760,12 @@ class Worker(QObject):
             
             
             # transfer data to main and show traces in plot tab
-            self.transDataToMain_signal.emit(self.cnm2, sta_trial_avg, t_cnm)  #(sta_trial_avg, self.cnm2)
+#            self.c['test'] = 1
+            self.transDataToMain_signal.emit(cnm2, accepted, t_cnm, sta_trial_avg) # cnm doesn
             
             # delete big variables
             del self.c
-            del self.cnm2
+#            del self.cnm2
 #            del self.pl
 
         # finishing          
@@ -1225,10 +1239,10 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         except Exception as e:
             print(e)
             
-    def saveResults(self):
+    def saveResults(self):  # TODO: add coms?
         try:
             save_dict = dict()
-            save_dict['cnm2'] = self.cnm2
+            save_dict['cnm2'] = self.c['cnm2'] #self.cnm2
             save_dict['accepted'] = self.accepted
             save_dict['t_cnm'] = self.t_cnm
             save_object(save_dict, p['saveResultPath'])
@@ -1359,7 +1373,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         retval = msg.exec_()
         if(retval==QMessageBox.Ok):
             self.c = {}
-            self.cnm2 = {}
+#            self.cnm2 = {}
             self.UseONACID_checkBox.setEnabled(False)
             self.UseONACID_checkBox.setChecked(False)
             self.imageItem.setImage(self.BlankImage)
@@ -1412,7 +1426,14 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
     def selectAllROIs(self):
         if self.selectAll_checkBox.isChecked():
             # add all ROIlist to the targetlist
+#            if self.A_opsin.size:
+#                if self.cnm2:
+#                    pass
+#                elif self.c:
+#                    pass
+#            else:
             self.TargetIdx = self.TargetIdx + list(range(0,self.thisROIIdx)) # self.TargetIdx = s np.append(self.TargetIdx, range(0,self.thisROIIdx))
+                
             self.TargetIdx = list(sorted(set(self.TargetIdx))) #np.unique(self.TargetIdx)
             self.TargetX = [self.ROIlist[i]["ROIx"] for i in self.TargetIdx] # self.TargetX +  # np.append(self.TargetX, [self.ROIlist[i]["ROIx"] for i in self.TargetIdx])
             self.TargetY = [self.ROIlist[i]["ROIy"] for i in self.TargetIdx] # self.TargetY +  # = np.append(self.TargetY, [self.ROIlist[i]["ROIy"] for i in self.TargetIdx])
@@ -1469,7 +1490,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         p['photoProtoInx'] = self.photoProtoInx
           
     def loadMoviePath(self):
-        movie_path = str(QFileDialog.getOpenFileName(self, 'Load movie', '', 'MPTIFF (*.tif);;All files (*.*)')[0])
+        movie_folder = os.path.dirname(os.path.dirname(self.ref_movie_path))
+        movie_path = str(QFileDialog.getOpenFileName(self, 'Load movie', movie_folder, 'MPTIFF (*.tif);;All files (*.*)')[0])  # changed '' (default) to movie_folder
         self.movie_path = movie_path
         p['moviePath'] = movie_path
         if movie_path:
@@ -1597,8 +1619,13 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         print('gc: ', g)
 
         
-    def transDataToMain(self, cnm_struct, sta_amp, t, plot=True):
+    def transDataToMain(self, cnm_struct, accepted, t, sta_amp, plot=True):
+#        print('test')  # TODO: changing c inside worker automatically changes it inside mainwindow -- this is sent/shared somehow
+#        print(self.c['test'])
         self.cnm2 = cnm_struct
+#        self.c['cnm2'] = cnm_struct
+        self.accepted = accepted
+        self.t_cnm = t
         self.sta_amp = sta_amp
         
         if self.A_opsin.size:
@@ -1990,7 +2017,9 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         if Ain is None:
             cnm_struct = self.c['cnm2']
             A = cnm_struct.Ab[:, cnm_struct.gnb:cnm_struct.M]
+#            print('a shape', A.shape)
             accepted = self.c['cnm2'].accepted
+
         else:
             A = Ain
             accepted = range(list(0, A.shape[-1]))
@@ -2351,7 +2380,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
     
         # delete big structs to free memory
         del self.c
-        del self.cnm2
+#        del self.cnm2
 #        del self.proc_cnm
 #            p = {}
         plt.close('all')
@@ -2445,11 +2474,11 @@ if __name__ == '__main__':
     # setup diractories
     config_directory = 'Configs'
     if not os.path.exists(config_directory):
-        os.makedirs(config_directory)   
+        os.makedirs(config_directory)
         
     results_directory = 'Results'
     if not os.path.exists(results_directory):
-        os.makedirs(results_directory)        
+        os.makedirs(results_directory)
         
     # initialise parameters
     global p
