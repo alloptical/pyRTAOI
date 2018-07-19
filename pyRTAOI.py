@@ -76,6 +76,7 @@ from scipy.sparse import issparse, spdiags, coo_matrix, csc_matrix
 import pickle
 import logging
 import json
+from itertools import compress
 
 # prairie link
 import pvlink
@@ -546,18 +547,20 @@ class Worker(QObject):
                                 cell_overlap = inter_pix/cell_pix
                                                     
                                 overlap.append(cell_overlap)
-                                opsin.append(cell_overlap > opsin_thresh)
+                                opsin_positive = cell_overlap > opsin_thresh
+                                opsin.append(opsin_positive)
 #                                cnm2.opsin.append(cell_overlap > opsin_thresh)
 #                            print(time_()-tt)
                             
                             # add new ROI to photostim target, if required
-                            try:  # some issue here
+                            try:
                                 if p['FLAG_BLINK_CONNECTED'] and p['FLAG_AUTO_ADD_TARGETS']:
-                                    p['currentTargetX'].append(x*ds_factor) # = np.append(p['currentTargetX'],x*ds_factor)
-                                    p['currentTargetY'].append(y*ds_factor) # = np.append(p['currentTargetY'],y*ds_factor)
-                                    p['NI_2D_ARRAY'][1,:] = NI_UNIT_POWER_ARRAY *np.polyval(power_polyfit_p,photoPowerPerCell*len(p['currentTargetY']))
-                                    self.sendCoords_signal.emit()
-                                    self.updateTargetROIs_signal.emit()
+                                    if opsin_positive:  # add target only if opsin present
+                                        p['currentTargetX'].append(x*ds_factor) # = np.append(p['currentTargetX'],x*ds_factor)
+                                        p['currentTargetY'].append(y*ds_factor) # = np.append(p['currentTargetY'],y*ds_factor)
+                                        p['NI_2D_ARRAY'][1,:] = NI_UNIT_POWER_ARRAY *np.polyval(power_polyfit_p,photoPowerPerCell*len(p['currentTargetY']))
+                                        self.sendCoords_signal.emit()
+                                        self.updateTargetROIs_signal.emit()
                                 
                                 self.getROImask_signal.emit(x,y) # add roi coords to list in main
                                 print('add new component time:' + str("%.4f"%(time.time()-update_comp_time)))
@@ -1426,15 +1429,14 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
     def selectAllROIs(self):
         if self.selectAll_checkBox.isChecked():
             # add all ROIlist to the targetlist
-#            if self.A_opsin.size:
-#                if self.cnm2:
-#                    pass
-#                elif self.c:
-#                    pass
-#            else:
+            opsin_only = True  # select only opsin expressing ROIs
+
             self.TargetIdx = self.TargetIdx + list(range(0,self.thisROIIdx)) # self.TargetIdx = s np.append(self.TargetIdx, range(0,self.thisROIIdx))
-                
             self.TargetIdx = list(sorted(set(self.TargetIdx))) #np.unique(self.TargetIdx)
+            
+            if opsin_only and self.A_opsin.size:
+                self.TargetIdx = list(compress(self.TargetIdx, self.c['cnm2'].opsin))
+            
             self.TargetX = [self.ROIlist[i]["ROIx"] for i in self.TargetIdx] # self.TargetX +  # np.append(self.TargetX, [self.ROIlist[i]["ROIx"] for i in self.TargetIdx])
             self.TargetY = [self.ROIlist[i]["ROIy"] for i in self.TargetIdx] # self.TargetY +  # = np.append(self.TargetY, [self.ROIlist[i]["ROIy"] for i in self.TargetIdx])
             self.numTargets = len(self.TargetX) + len(p['ExtraTargetX']) # self.TargetX.shape[0]+p['ExtraTargetX'].shape[0]
@@ -2052,7 +2054,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                 onacid_mask[:,cell][onacid_mask[:,cell] == 1] = 3
                 
             opsin.append(cell_overlap > self.opsin_thresh)
-        
+                    
         if Ain is None:
             # store info on opsin
             self.c['cnm2'].opsin = opsin  # True/False based on threshold
@@ -2060,6 +2062,9 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             self.c['opsin_mask'] = self.opsin_mask
             self.c['opsin_thresh'] = self.opsin_thresh
             self.onacid_mask = onacid_mask
+
+        if self.selectAll_checkBox.isChecked():
+            self.selectAllROIs()  # update ROIs selected
 
         return onacid_mask
         
@@ -2070,13 +2075,11 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                 self.checkOpsin()  # for overlap update
     
                 # visualise all comps
-                try:
-                    summed_A = np.hstack((self.A_opsin, self.onacid_mask))
-                    summed_mask = np.reshape(np.array(summed_A.sum(axis=1)), self.dims, order='F')
-                    pl.figure();pl.imshow(summed_mask)
-                    pl.colorbar()
-                except Exception as e:
-                    print(e)
+                summed_A = np.hstack((self.A_opsin, self.onacid_mask))
+                summed_mask = np.reshape(np.array(summed_A.sum(axis=1)), self.dims, order='F')
+                pl.figure();pl.imshow(summed_mask)
+                pl.colorbar()
+
                 
             elif self.A_opsin.size and self.A_loaded.size:
                 loaded_mask = self.checkOpsin(self.A_loaded)
