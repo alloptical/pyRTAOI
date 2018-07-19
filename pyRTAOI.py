@@ -832,10 +832,11 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         
         self.BlankImage = np.zeros(shape = (512,512))
         self.imageItem.setImage(self.BlankImage)
-        self.movie_path = 'U:/simulate_movie/20170823.tif'
-        self.ref_movie_path = 'U:/simulate_movie/20170823_ref.tif'
+        self.movie_path = '' #'U:/simulate_movie/20170823.tif'
+        self.ref_movie_path = '' #'U:/simulate_movie/20170823_ref.tif'
         self.movie = np.atleast_3d(self.BlankImage)
         self.movie = np.swapaxes(self.movie,0,2)   # SWAPPED axes of the movie before. not anymore. should it?
+        self.movie_folder = ''
         
         self.opsin_img_path = 'U:/simulate_movie/20170823_Ch01.tif'
         self.opsin_img = np.array([])
@@ -845,11 +846,12 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         self.A_loaded = np.array([])
         self.mask_path = ''
         
-        # ROI drawing
+        # ROI selection
 #        self.drawOn = False
         self.RoiCenter = QPoint(244,244)
         self.RoiRadius = 10
         self.thisROI = pg.CircleROI(self.RoiCenter,self.RoiRadius*2)
+        self.removeModeOn = False
 
         # initialise ROI list
         self.InitNumROIs = 3
@@ -871,7 +873,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         self.ROIcontour_item.setBrush(self.scatterbrush)  # this gives open circles
         self.graphicsView.addItem(self.ROIcontour_item)
         
-        self.Targetpen = pg.mkPen(color = (255,112,75), width = 3, style = Qt.DotLine)
+        self.TargetPen = pg.mkPen(color = (255,112,75), width = 3, style = Qt.DotLine)
+        self.RemovePen = pg.mkPen(color = (255,255,0), width = 3, style = Qt.DashDotLine)
         self.Targetcontour_item = pg.ScatterPlotItem()
         self.Targetcontour_item.setBrush(self.scatterbrush)
         self.graphicsView.addItem(self.Targetcontour_item)
@@ -899,7 +902,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         self.figCanvas = FigureCanvas(self.fig)
         self.figCanvas.setFocusPolicy(Qt.ClickFocus) # to enable key press detection
         self.figCanvas.setFocus() # to enable key press detection
-        self.staPlot_gridLayout.addWidget(self.figCanvas)
+        self.plot_gridLayout.addWidget(self.figCanvas)
 
         # caiman values
         self.c = {}
@@ -1075,32 +1078,42 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         y = event.pos().y()
         print(str(x)+' '+str(y))
         
-        selected = self.Targetcontour_item.data
-        selected_x = [value[0] for value in selected]
-        selected_y = [value[1] for value in selected]
-        
         det_dist = 20  # detection distance
-        detected = 0
-        
-        # unselect a target if distance to other target <= det_dist
-        for target in selected:
-            detected += abs(x - target[0]) <= det_dist and abs(y - target[1]) <= det_dist
-            if detected:
-                index = np.argwhere(selected==target)[0][0]
-                self.Targetcontour_item.clear()
-                del selected_x[index]
-                del selected_y[index]
-                del p['ExtraTargetX'][index]
-                del p['ExtraTargetY'][index]
-                self.Targetcontour_item.addPoints(x = selected_x, y = selected_y, pen = self.Targetpen, size = pointSize)  # selected_x, selected_y
-                break
-
-        if not detected:
-            self.Targetcontour_item.addPoints(x = [x], y = [y], pen = self.Targetpen, size = pointSize)
-            p['ExtraTargetX'].append(x) # = np.append(p['ExtraTargetX'],x)
-            p['ExtraTargetY'].append(y) # = np.append(p['ExtraTargetY'],y)
-            print('selected x = ' + str(x))
-            print('selected y = ' + str(y))
+            
+        if self.removeModeOn:
+#            self.Targetcontour_item.addPoints(x = [x], y = [y], pen = self.RemovePen, size = pointSize)
+#            self.removeIdx = []
+            pass
+        else:
+            detected = 0
+            
+            # check caiman ROIs - if select all, can deselect some and keep the rest
+            if self.selectAll_checkBox.isChecked():
+                for idx in range(len(self.TargetIdx)):
+                    detected = abs(x - self.TargetX[idx]) <= det_dist and abs(y - self.TargetY[idx]) <= det_dist
+                    if detected:
+                        del self.TargetIdx[idx]
+                        del self.TargetX[idx]
+                        del self.TargetY[idx]
+                        self.updateTargets()
+                        return
+                        
+            # check extra targets
+            for idx in range(len(p['ExtraTargetX'])):
+                detected = abs(x - p['ExtraTargetX'][idx]) <= det_dist and abs(y - p['ExtraTargetY'][idx]) <= det_dist
+                if detected:
+                    del p['ExtraTargetX'][idx]
+                    del p['ExtraTargetY'][idx]
+                    self.updateTargets()
+                    return
+                
+            
+            if not detected:
+                p['ExtraTargetX'].append(x) # = np.append(p['ExtraTargetX'],x)
+                p['ExtraTargetY'].append(y) # = np.append(p['ExtraTargetY'],y)
+                print('selected x = ' + str(x))
+                print('selected y = ' + str(y))
+                self.updateTargets()
     
     def displayOpsinImg(self,event):
         if self.opsinMaskOn:
@@ -1129,6 +1142,9 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         self.loadConfig_pushButton.clicked.connect(self.loadConfig)
         self.saveResult_pushButton.clicked.connect(self.saveResults)
         self.browseResultPath_pushButton.clicked.connect(self.browseResultPath)
+        
+        self.removeMode_pushButton.clicked.connect(self.removeModeController)
+#        self.exitRemoveMode_pushButton.clicked.connect(self.exitRemoveMode)
         
         # start worker
         self.run_pushButton.clicked.connect(self.clickRun)
@@ -1429,41 +1445,79 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
     def selectAllROIs(self):
         if self.selectAll_checkBox.isChecked():
             # add all ROIlist to the targetlist
-            opsin_only = True  # select only opsin expressing ROIs
-
             self.TargetIdx = self.TargetIdx + list(range(0,self.thisROIIdx)) # self.TargetIdx = s np.append(self.TargetIdx, range(0,self.thisROIIdx))
             self.TargetIdx = list(sorted(set(self.TargetIdx))) #np.unique(self.TargetIdx)
             
+            opsin_only = True  # select only opsin expressing ROIs
             if opsin_only and self.A_opsin.size:
                 self.TargetIdx = list(compress(self.TargetIdx, self.c['cnm2'].opsin))
             
             self.TargetX = [self.ROIlist[i]["ROIx"] for i in self.TargetIdx] # self.TargetX +  # np.append(self.TargetX, [self.ROIlist[i]["ROIx"] for i in self.TargetIdx])
             self.TargetY = [self.ROIlist[i]["ROIy"] for i in self.TargetIdx] # self.TargetY +  # = np.append(self.TargetY, [self.ROIlist[i]["ROIy"] for i in self.TargetIdx])
-            self.numTargets = len(self.TargetX) + len(p['ExtraTargetX']) # self.TargetX.shape[0]+p['ExtraTargetX'].shape[0]
+            
+            # check for existing extra targets
+            det_dist = 10 # remove extra targets only if ROI very close (otherwise manual)
+            idx_remove = []
+            for roi_idx in range(len(self.TargetX)):
+                for extra_idx in range(len(p['ExtraTargetX'])):
+                    x = p['ExtraTargetX'][extra_idx]
+                    y = p['ExtraTargetY'][extra_idx]
+                    detected = abs(x - self.TargetX[roi_idx]) <= det_dist and abs(y - self.TargetY[roi_idx]) <= det_dist
+                    print(abs(x - self.TargetX[roi_idx]))
+                    print(abs(y - self.TargetY[roi_idx]))
+                    print(detected)
+                    if detected:
+                        print('A ROI overlaps with an extra target. Removing the extra duplicate.')
+                        idx_remove.append(extra_idx)
+                        
+            for idx in sorted(idx_remove, reverse=True):
+                del p['ExtraTargetX'][idx]
+                del p['ExtraTargetY'][idx]
+
             self.updateTargets()
-#            self.updateTargetROIs()
+            
         else:
             self.TargetIdx = []
             self.TargetX = []
             self.TargetY = []
-            self.numTargets = len(p['ExtraTargetX'])
             self.updateTargets()
-#            self.updateTargetROIs()
     
     def updateTargets(self):
         # save current targets to p
         p['currentTargetX'] = self.TargetX + p['ExtraTargetX'] # = np.append(self.TargetX,p['ExtraTargetX'])
         p['currentTargetY'] = self.TargetY + p['ExtraTargetY'] # = np.append(self.TargetY,p['ExtraTargetY'])
+        self.numTargets = len(self.TargetX) + len(p['ExtraTargetX']) # self.TargetX.shape[0]+p['ExtraTargetX'].shape[0]
+        print('Number of current targets: ', self.numTargets)
+
         self.updateTargetROIs()
             
     def updateTargetROIs(self):
         # redraw targeted rois in imaging window - to do: draw what is saved in p
         self.Targetcontour_item.clear()
-        self.Targetcontour_item.addPoints(x = p['currentTargetX'], y = p['currentTargetY'], pen = self.Targetpen, size = self.RoiRadius*2+5)   
+        self.Targetcontour_item.addPoints(x = p['currentTargetX'], y = p['currentTargetY'], pen = self.TargetPen, size = self.RoiRadius*2+5)
+        
+    def removeModeController(self):
+        self.removeModeOn = not self.removeModeOn
+        
+        if self.removeModeOn:
+            print('Remove mode on!')
+            self.removeMode_pushButton.setText('End')
+            self.startRemoveMode()
+        else:
+            self.removeMode_pushButton.setText('Start')
+            self.exitRemoveMode()
+            print('Remove mode off')
+            
+    
+    def startRemoveMode(self):
+        pass        
+        
+    def exitRemoveMode(self):
+        pass
         
     def connectPV(self):
         self.updateStatusBar('connecting PV')
-        self.pl = pvlink(self.PV_IP,self.PV_PORT) 
+        self.pl = pvlink(self.PV_IP,self.PV_PORT)
         print('pl created')
         ERROR = self.pl.send_done('-sam','Resonant Galvo')
         if(not ERROR):
@@ -1492,8 +1546,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         p['photoProtoInx'] = self.photoProtoInx
           
     def loadMoviePath(self):
-        movie_folder = os.path.dirname(os.path.dirname(self.ref_movie_path))
-        movie_path = str(QFileDialog.getOpenFileName(self, 'Load movie', movie_folder, 'MPTIFF (*.tif);;All files (*.*)')[0])  # changed '' (default) to movie_folder
+#        movie_folder = os.path.dirname(os.path.dirname(self.ref_movie_path))
+        movie_path = str(QFileDialog.getOpenFileName(self, 'Load movie', self.movie_folder, 'MPTIFF (*.tif);;All files (*.*)')[0])  # changed '' (default) to movie_folder
         self.movie_path = movie_path
         p['moviePath'] = movie_path
         if movie_path:
@@ -1600,7 +1654,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         #  add figure to layout
         self.staTracesFig = fig
         self.staTracesCanvas = FigureCanvas(self.staTracesFig)
-        self.staPlot_gridLayout.addWidget(self.staTracesCanvas)
+        self.plot_gridLayout.addWidget(self.staTracesCanvas)
         self.updateStatusBar('STA traces plotted on plot tab')
     
     
@@ -1775,6 +1829,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             ref_movie_path = str(QFileDialog.getOpenFileName(self, 'Load reference', '', 'PKL(*.pkl);;MPTIFF (*.tif);;All files (*.*)')[0])
         
         self.ref_movie_path = ref_movie_path
+        self.movie_folder = os.path.dirname(os.path.dirname(self.ref_movie_path))  # added
+
         self.refMoviePath_lineEdit.setText(self.ref_movie_path)
         print('Reference movie selected')
         #self.initialiseCaiman()
@@ -1835,7 +1891,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
     def initialiseCaiman(self):
         self.deleteTextItems()
 
-        if self.ref_movie_path and self.ref_movie_path != 'U:/simulate_movie/20170823_ref.tif':
+        if self.ref_movie_path: # and self.ref_movie_path != 'U:/simulate_movie/20170823_ref.tif':
             movie_ext = os.path.splitext(p['refMoviePath'])[1]
             self.updateStatusBar('Initialising...')
         else:
@@ -1973,7 +2029,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             print(e)
     
     def loadOpsinImg(self):
-        opsin_img_path = str(QFileDialog.getOpenFileName(self, 'Load a C1V1 image', '', 'MPTIFF (*.tif)')[0])
+        opsin_img_path = str(QFileDialog.getOpenFileName(self, 'Load a C1V1 image', self.movie_folder, 'MPTIFF (*.tif)')[0])
+            
         self.opsin_img_path = opsin_img_path
         
         if self.opsin_img_path:
@@ -2167,7 +2224,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         
     def enterEvent(self,event):
         self.graphicsView.setCursor(Qt.CrossCursor)
-        
 
     def clickRun(self):
         if self.cnm2:
