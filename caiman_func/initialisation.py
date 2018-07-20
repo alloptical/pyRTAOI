@@ -35,7 +35,7 @@ from caiman.components_evaluation import evaluate_components_CNN
 
 
 def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1, initbatch=500,
-               T1=20000, gSig=(10,10), mot_corr=True, expected_comps=150,
+               T1=20000, gSig=(9,9), mot_corr=True, expected_comps=150,
                rval_thr=0.85, NumROIs=None, thresh_overlap=0.1, decay_time=0.2,
                min_SNR=2.5, merge_thresh=0.85, minibatch_shape=100,
                CNN_filter=False,  save_init=False):
@@ -68,7 +68,7 @@ def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1, initba
     mot_corr                Boolean
                             flag for online motion correction
                             
-    expected_compts         int
+    expected_comps         int
                             maximum number of expected components used for memory pre-allocation (exaggerate here)
                             
     rval_thr                float
@@ -240,10 +240,6 @@ def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1, initba
     else:
         last_frame = cv2.resize(Y[-1], (512, 512), interpolation=cv2.INTER_CUBIC)
         #last_frame = cm.load(ref_movie, subindices = slice(initbatch-1,initbatch,None)).astype(np.float32)
-        
-        
-#    cnm2 = deepcopy(cnm_init)
-#    cnm2.opsin = None
     
     
     # Store all relevant intialisation values
@@ -262,7 +258,7 @@ def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1, initba
     init_values['coms_init'] = coms_init
     init_values['Yr'] = Yr
     init_values['idx_components'] = idx_components
-    #    init_values['cnm2'] = cnm2
+
 
     if CNN_filter:
         init_values['thresh_cnn'] = thresh_cnn

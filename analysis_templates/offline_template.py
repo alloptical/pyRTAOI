@@ -69,23 +69,26 @@ from caiman.base.rois import extract_binary_masks_from_structural_channel
 # example movies
 #ref_movie_path = r'C:\Users\intrinsic\Desktop\pyRTAOI2018\samples\example1\20171229_OG245_t-052_Cycle00001_Ch2.tif'
 #ref_movie_path = r'C:\Users\intrinsic\Desktop\pyRTAOI2018\samples\example2\20171229_OG245_t-053\20171229_OG245_t-053_Cycle00001_Ch2.tif'
-ref_movie_path = r'C:\Users\intrinsic\Desktop\pyRTAOI2018\samples\example3\20171130_OG235_t-002_Cycle00001_Ch2.tif'
+#ref_movie_path = r'C:\Users\intrinsic\Desktop\pyRTAOI2018\samples\example3\20171130_OG235_t-002_Cycle00001_Ch2.tif'
+
+ref_movie_path = r'C:\Users\intrinsic\Desktop\pyRTAOI2018\samples\example1\init_results\20171229_OG245_t-052_Cycle00001_Ch2_substack1-200_init_seeded_DS_1.5.pkl'
 
 movie_ext = ref_movie_path[-4:]
 
 
 if movie_ext  == '.tif':
-    K = 25
+    K = 30
     ds_factor = 1.5
     initbatch = 500
     minibatch_shape = 100
     min_SNR = 2.5
+    gSig = (10,10)  # maybe use 9 instead
     
     lframe, init_values = initialise(ref_movie_path, init_method='cnmf', K=K, 
                                      ds_factor=ds_factor, initbatch=initbatch, rval_thr=0.85, #0.85,
                                      thresh_overlap=0.2, save_init=False, mot_corr=True, # thresh_overlap = 0.5 as default
                                      merge_thresh=0.9, minibatch_shape=minibatch_shape,
-                                     min_SNR=min_SNR, T1=10000)
+                                     min_SNR=min_SNR, T1=10000, gSig=gSig)
     
 elif movie_ext == '.pkl':
     init_values = load_object(ref_movie_path)
@@ -194,7 +197,7 @@ ref_movie_path = r'C:\Users\intrinsic\Desktop\pyRTAOI2018\samples\example1\20171
 
 opsin_seeded = True
 if opsin_seeded:
-    Ain = A_opsin # or A from OnACID output (as np array)
+    Ain = A_opsin # or A from OnACID output (as np array) for seeded init
 else:
     Ain = A
 
@@ -603,7 +606,7 @@ if save_mat:
 saveResultPath = r'C:\Users\intrinsic\Desktop\pyRTAOI2018\samples\example1\results\onacid_results_ds_1.5.pkl'
 cnm_object = load_object(saveResultPath)
 
-#%% Load pkl object
+#%% Load pkl init object
 #saved_pkl = r'C:\Users\intrinsic\Desktop\pyRTAOI2018\samples\example1\20171229_OG245_t-052_Cycle00001_Ch2_substack1-1000_DS_1.5_OnlineProc.pkl' #20171229_OG245_t-052_Cycle00001_Ch2_substack1-2700_init_cnmf_DS_1.5.pkl'
 saved_pkl = r'C:/Users/intrinsic/Desktop/pyRTAOI2018/samples/example1/20171229_OG245_t-052_Cycle00001_Ch2_substack1-200_init_seeded_DS_1.5.pkl'
 pkl_datafile = load_object(saved_pkl)

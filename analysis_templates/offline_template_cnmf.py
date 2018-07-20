@@ -54,8 +54,8 @@ from caiman.components_evaluation import estimate_components_quality_auto
 #%% First setup some parameters
 #fname = [r'C:\Users\intrinsic\caiman_data\sample_vid\stimulated_test\20170329_OG151_t-008_Substack (1-3000)--(1-500).tif'] # filename to be processed
 
-fname = [r'C:\Users\intrinsic\Desktop\pyRTAOI2018\samples\example1\20171229_OG245_t-052_Cycle00001_Ch2.tif']
-#fname = [r'C:\Users\intrinsic\Desktop\pyRTAOI2018\samples\example2\20171229_OG245_t-053\20171229_OG245_t-053_Cycle00001_Ch2.tif']
+#fname = [r'C:\Users\intrinsic\Desktop\pyRTAOI2018\samples\example1\20171229_OG245_t-052_Cycle00001_Ch2.tif']
+fname = [r'C:\Users\intrinsic\Desktop\pyRTAOI2018\samples\example2\20171229_OG245_t-053\20171229_OG245_t-053_Cycle00001_Ch2.tif']
 #fname = [r'C:\Users\intrinsic\Desktop\pyRTAOI2018\samples\example3\20171130_OG235_t-002_Cycle00001_Ch2.tif']
 #fname = [r'C:\Users\intrinsic\Desktop\pyRTAOI2018\samples\example1\20171229_OG245_t-052_Cycle00001_Ch2_substack1-2700.tif']
 
@@ -89,9 +89,9 @@ p = 1                       # order of the autoregressive system
 gnb = 1                     # number of global background components
 merge_thresh = 0.8          # merging threshold, max correlation allowed
 # half-size of the patches in pixels. e.g., if rf=25, patches are 50x50
-rf = 25 #15
+rf = 50 #15
 stride_cnmf = 5 #6             # amount of overlap between the patches in pixels
-K = 7 #3                       # number of components per patch
+K = 10 #3                       # number of components per patch
 gSig = [10, 10]               # expected half size of neurons
 # initialization method (if analyzing dendritic data using 'sparse_nmf')
 init_method = 'greedy_roi'
@@ -141,28 +141,22 @@ mc = MotionCorrect(fname[0], min_mov,
                    max_shifts=max_shifts, niter_rig=niter_rig,
                    splits_rig=splits_rig,
                    strides=strides, overlaps=overlaps, splits_els=splits_els,
-                   upsample_factor_grid=upsample_factor_grid,#
+                   upsample_factor_grid=upsample_factor_grid,
                    max_deviation_rigid=max_deviation_rigid,
-                   shifts_opencv=True, nonneg_movie=True, use_cuda=False)
-# note that the file is not loaded in memory
+                   shifts_opencv=True, nonneg_movie=True, use_cuda=False,
+                   border_nan='copy')
 
+# note that the file is not loaded in memory
 
 # currently error below when use_cuda=True:
 #  File "C:\ProgramData\Anaconda3\envs\caiman\lib\multiprocessing\pool.py", line 644, in get
 #    raise self._value
 #
 #CompileError: nvcc preprocessing of C:\Users\INTRIN~1\AppData\Local\Temp\tmpwan_5_ki.cu failed
-#%% Run piecewise-rigid motion correction using NoRMCorre  -- now timeout error here too even when use_cuda = False
-
+#%% Run piecewise-rigid motion correction using NoRMCorre
 #mc.motion_correct_rigid(save_movie=True)
-
-mc.motion_correct_pwrigid(save_movie=True)   # try mc.motion_correct_rigid instead?
-
-#memmaped_name = [r'C:\Users\intrinsic\Desktop\pyRTAOI2018\samples\example1\20171229_OG245_t-052_Cycle00001_Ch2_els__d1_512_d2_512_d3_1_order_F_frames_5400_.mmap']
-#m_els = cm.load(memmaped_name)
-
+mc.motion_correct_pwrigid(save_movie=True)
 m_els = cm.load(mc.fname_tot_els)
-
 bord_px_els = np.ceil(np.maximum(np.max(np.abs(mc.x_shifts_els)),
                                  np.max(np.abs(mc.y_shifts_els)))).astype(np.int)
 
@@ -179,14 +173,11 @@ if display_images:
 #%% memory map the file in order 'C'
 fnames = mc.fname_tot_els   # name of the pw-rigidly corrected file.
 border_to_0 = bord_px_els     # number of pixels to exclude
-fname_new = cm.save_memmap(fnames, base_name='memmap_', order='C')#,
-#                           border_to_0=bord_px_els)  # exclude borders
-
-#loading in memory -- slows everything + full memory
-#mmap
-#SAVING WITH numpy.tofile()
+fname_new = cm.save_memmap(fnames, base_name='memmap_', order='C',
+                           border_to_0=bord_px_els)  # exclude borders
 
 #%% now load the file
+#fname_new = r'C:\\Users\\intrinsic\\Desktop\\pyRTAOI2018\\samples\\example1\\memmap__d1_512_d2_512_d3_1_order_C_frames_5400_.mmap'
 Yr, dims, T = cm.load_memmap(fname_new)
 d1, d2 = dims
 images = np.reshape(Yr.T, [T] + list(dims), order='F')
@@ -209,13 +200,13 @@ cnm = cnmf.CNMF(n_processes=1,
                 p=0, 
                 dview=dview, 
                 rf=rf, 
-                stride=stride_cnmf, 
+                stride=stride_cnmf,
                 memory_fact=0.5,
                 method_init=init_method, alpha_snmf=alpha_snmf,
                 only_init_patch=False, gnb=gnb, border_pix=bord_px_els)
 cnm = cnm.fit(images)
 
-#%% plot contours of found components - 1548 found
+#%% plot contours of found components
 Cn = cm.local_correlations(images.transpose(1, 2, 0))
 Cn[np.isnan(Cn)] = 0
 plt.figure()
@@ -236,11 +227,14 @@ idx_components, idx_components_bad, SNR_comp, r_values, cnn_preds = \
                                      r_values_min=rval_thr, use_cnn=False,
                                      thresh_cnn_min=cnn_thr)
 
-# bad: 1523
-# good: 25
 #%% PLOT COMPONENTS
+try:
+    Cn
+except:
+    Cn = cm.local_correlations(images[:100,:,:].transpose(1, 2, 0))   # approx img of first frames for quicker display
+    Cn[np.isnan(Cn)] = 0
 
-if 1: #display_images:
+if display_images:
     plt.figure()
     plt.subplot(121)
     crd_good = cm.utils.visualization.plot_contours(
@@ -258,9 +252,9 @@ if display_images:
                      cnm.b, cnm.f, dims[0], dims[1], YrA=cnm.YrA[idx_components],
                      img=Cn)
 
-    view_patches_bar(Yr, cnm.A.tocsc()[:, idx_components_bad], cnm.C[idx_components_bad],
-                     cnm.b, cnm.f, dims[0], dims[1], YrA=cnm.YrA[idx_components_bad],
-                     img=Cn)
+#    view_patches_bar(Yr, cnm.A.tocsc()[:, idx_components_bad], cnm.C[idx_components_bad],
+#                     cnm.b, cnm.f, dims[0], dims[1], YrA=cnm.YrA[idx_components_bad],
+#                     img=Cn)
 
 #%% RE-RUN seeded CNMF on accepted patches to refine and perform deconvolution
 A_in, C_in, b_in, f_in = cnm.A[:,
@@ -272,13 +266,77 @@ cnm2 = cnmf.CNMF(n_processes=1, k=A_in.shape[-1], gSig=gSig, p=p, dview=dview,
 
 cnm2 = cnm2.fit(images)
 
-#%% Extract DF/F values - doesn't make much sense
+#%% SIMPLE CNMF
+simple = 0
+
+if simple:
+    thresh_overlap = 0.2
+    K = 100 # tot K expected 
+    
+    cnm2 = cnmf.CNMF(n_processes=1, k=K, gSig=gSig,
+                     merge_thresh=merge_thresh, p=p,
+                     #rf=patch_size//2,
+                     stride=None, rf=None,
+                     simultaneously=False,
+                     del_duplicates=True, 
+                     use_dense=True,
+                     thresh_overlap=thresh_overlap,
+                     remove_very_bad_comps=True,
+                     skip_refinement=False,
+                     normalize_init=False, options_local_NMF=None,
+    #                 minibatch_shape=minibatch_shape, minibatch_suff_stat=5,
+                     update_num_comps=True, rval_thr=rval_thr,
+                     thresh_fitness_delta=-50, gnb=gnb,
+    #                 thresh_fitness_raw=thresh_fitness_raw,
+                     batch_update_suff_stat=True)#, max_comp_update_shape=max_comp_update_shape)
+    
+    cnm2 = cnm2.fit(images)
+
+#%% Extract DF/F values
 
 F_dff = detrend_df_f(cnm2.A, cnm2.b, cnm2.C, cnm2.f, YrA=cnm2.YrA,
                      quantileMin=8, frames_window=250)
 
+#%% Display DF/F -- very noisy
+#cell = 59
+#plt.figure()
+#plt.plot(F_dff[cell,:])
+
 #%% Show final traces
 cnm2.view_patches(Yr, dims=dims, img=Cn)
+
+#%% Extract coms of cells found
+from caiman.base.rois import com
+
+coms = com(cnm2.A, *dims)
+
+#%% Save results -- NotImplementedError: pool objects cannot be passed between processes or pickled
+#from caiman.utils.utils import save_object
+#
+#save_dict = dict()
+#
+#save_dict['cnm2'] = cnm2
+##save_dict['F_dff'] = F_dff
+#save_dict['coms'] = coms
+#
+#folder = os.path.join(os.path.dirname(fname[0]), 'offline_results')
+#saveResultPath = os.path.join(folder, 'ex1_cnmf_results.pkl')
+#
+#save_object(save_dict, saveResultPath)
+#
+#save_mat = False # additionally save the mat file
+#if save_mat:
+#    from pkl2mat import convert2mat
+#    convert2mat(file_full_name = saveResultPath)
+
+#%% Saving as npz works
+folder = os.path.dirname(fname[0])
+saved_data = os.path.join(folder, 'offline_results', 'ex2_cnmf_results.npz')
+
+np.savez(saved_data, A=cnm2.A, b=cnm2.b, C=cnm2.C, f=cnm2.f, YrA=cnm2.YrA,
+         Cn=Cn, dims=cnm2.dims, thresh_overlap=cnm2.thresh_overlap,
+         coms=coms, cnm_N=cnm2.A.shape[1], gnb=gnb)
+
 
 #%% STOP CLUSTER and clean up log files
 cm.stop_server(dview=dview)
@@ -286,17 +344,6 @@ log_files = glob.glob('*_LOG_*')
 for log_file in log_files:
     os.remove(log_file)
     
-#%% Save results
-from caiman.utils.utils import save_object
-
-save_dict = dict()
-save_dict['cnm2'] = cnm2
-
-folder = os.path.join(os.path.dirname(fname[0]), 'results')
-saveResultPath = os.path.join(folder, 'onacid_results_ds_' + str(fname[0]) + '.pkl')
-
-save_object(save_dict, saveResultPath)
-
 #%% reconstruct denoised movie
 denoised = cm.movie(cnm2.A.dot(cnm2.C) +
                     cnm2.b.dot(cnm2.f)).reshape(dims + (-1,), order='F').transpose([2, 0, 1])
@@ -305,5 +352,5 @@ denoised = cm.movie(cnm2.A.dot(cnm2.C) +
 moviehandle = cm.concatenate([m_els.resize(1, 1, downsample_ratio),
                 denoised.resize(1, 1, downsample_ratio)],
                axis=2)
-if 1:#display_images:
+if display_images:
         moviehandle.play(fr=60, gain=15, magnification=2, offset=0)  # press q to exit
