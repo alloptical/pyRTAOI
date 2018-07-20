@@ -852,6 +852,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         self.RoiRadius = 10
         self.thisROI = pg.CircleROI(self.RoiCenter,self.RoiRadius*2)
         self.removeModeOn = False
+        self.removeIdx = []
 
         # initialise ROI list
         self.InitNumROIs = 3
@@ -874,7 +875,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         self.graphicsView.addItem(self.ROIcontour_item)
         
         self.TargetPen = pg.mkPen(color = (255,112,75), width = 3, style = Qt.DotLine)
-        self.RemovePen = pg.mkPen(color = (255,255,0), width = 3, style = Qt.DashDotLine)
+        self.RemovePen = pg.mkPen(color = (255,255,0), width = 3, style = Qt.DotLine)
         self.Targetcontour_item = pg.ScatterPlotItem()
         self.Targetcontour_item.setBrush(self.scatterbrush)
         self.graphicsView.addItem(self.Targetcontour_item)
@@ -1076,15 +1077,49 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         pointSize = self.RoiRadius*2+5
         x = event.pos().x()
         y = event.pos().y()
-        print(str(x)+' '+str(y))
-        
-        det_dist = 20  # detection distance
-            
+                    
         if self.removeModeOn:
-#            self.Targetcontour_item.addPoints(x = [x], y = [y], pen = self.RemovePen, size = pointSize)
-#            self.removeIdx = []
-            pass
+            try:
+                det_dist = 10
+                
+                for idx in range(self.thisROIIdx):
+                    ROI_x = self.ROIlist[idx]["ROIx"]
+                    ROI_y = self.ROIlist[idx]["ROIy"]
+                    detected = abs(x - ROI_x) <= det_dist and abs(y - ROI_y) <= det_dist
+                
+                    if detected:
+                        if idx in self.removeIdx:
+                            # reset all remove list works
+#                            self.Targetcontour_item.clear()
+#                            self.updateTargets()
+#                            self.removeIdx = []
+                                                        
+                            # unselect individual remove items
+                            selected = self.Targetcontour_item.data
+                            selected_xy = [[value[0], value[1]] for value in selected][self.numTargets:]
+                                                        
+                            ROI_xy = [ROI_x, ROI_y]
+                            selected_idx = selected_xy.index(ROI_xy)
+
+                            del selected_xy[selected_idx]                            
+                            remove_x = [item[0] for item in selected_xy]
+                            remove_y = [item[1] for item in selected_xy]
+                            
+                            self.Targetcontour_item.clear()
+                            self.updateTargets()
+                            self.Targetcontour_item.addPoints(x = remove_x, y = remove_y, pen = self.RemovePen, size = pointSize)
+                
+                            self.removeIdx.remove(idx)
+                        else:
+                            self.removeIdx.append(idx)
+                            self.Targetcontour_item.addPoints(x = [ROI_x], y = [ROI_y], pen = self.RemovePen, size = pointSize)
+                            
+            except Exception as e:
+                print(e)
+                
         else:
+            print(str(x)+' '+str(y))
+            det_dist = 20  # detection distance
             detected = 0
             
             # check caiman ROIs - if select all, can deselect some and keep the rest
@@ -1093,8 +1128,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                     detected = abs(x - self.TargetX[idx]) <= det_dist and abs(y - self.TargetY[idx]) <= det_dist
                     if detected:
                         del self.TargetIdx[idx]
-                        del self.TargetX[idx]
-                        del self.TargetY[idx]
                         self.updateTargets()
                         return
                         
@@ -1144,7 +1177,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         self.browseResultPath_pushButton.clicked.connect(self.browseResultPath)
         
         self.removeMode_pushButton.clicked.connect(self.removeModeController)
-#        self.exitRemoveMode_pushButton.clicked.connect(self.exitRemoveMode)
         
         # start worker
         self.run_pushButton.clicked.connect(self.clickRun)
@@ -1444,8 +1476,9 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                     
     def selectAllROIs(self):
         if self.selectAll_checkBox.isChecked():
+            
             # add all ROIlist to the targetlist
-            self.TargetIdx = self.TargetIdx + list(range(0,self.thisROIIdx)) # self.TargetIdx = s np.append(self.TargetIdx, range(0,self.thisROIIdx))
+            self.TargetIdx = list(range(0,self.thisROIIdx)) # self.TargetIdx = np.append(self.TargetIdx, range(0,self.thisROIIdx))
             self.TargetIdx = list(sorted(set(self.TargetIdx))) #np.unique(self.TargetIdx)
             
             opsin_only = True  # select only opsin expressing ROIs
@@ -1456,16 +1489,15 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             self.TargetY = [self.ROIlist[i]["ROIy"] for i in self.TargetIdx] # self.TargetY +  # = np.append(self.TargetY, [self.ROIlist[i]["ROIy"] for i in self.TargetIdx])
             
             # check for existing extra targets
-            det_dist = 10 # remove extra targets only if ROI very close (otherwise manual)
+            det_dist = 10 # remove extra targets only if ROI very close
             idx_remove = []
+            
             for roi_idx in range(len(self.TargetX)):
                 for extra_idx in range(len(p['ExtraTargetX'])):
                     x = p['ExtraTargetX'][extra_idx]
                     y = p['ExtraTargetY'][extra_idx]
+                    
                     detected = abs(x - self.TargetX[roi_idx]) <= det_dist and abs(y - self.TargetY[roi_idx]) <= det_dist
-                    print(abs(x - self.TargetX[roi_idx]))
-                    print(abs(y - self.TargetY[roi_idx]))
-                    print(detected)
                     if detected:
                         print('A ROI overlaps with an extra target. Removing the extra duplicate.')
                         idx_remove.append(extra_idx)
@@ -1483,37 +1515,73 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             self.updateTargets()
     
     def updateTargets(self):
+        # update cell targets based on TargetIdx
+        self.TargetX = [self.ROIlist[i]["ROIx"] for i in self.TargetIdx]
+        self.TargetY = [self.ROIlist[i]["ROIy"] for i in self.TargetIdx]
+        
         # save current targets to p
         p['currentTargetX'] = self.TargetX + p['ExtraTargetX'] # = np.append(self.TargetX,p['ExtraTargetX'])
         p['currentTargetY'] = self.TargetY + p['ExtraTargetY'] # = np.append(self.TargetY,p['ExtraTargetY'])
         self.numTargets = len(self.TargetX) + len(p['ExtraTargetX']) # self.TargetX.shape[0]+p['ExtraTargetX'].shape[0]
-        print('Number of current targets: ', self.numTargets)
+        if not self.removeModeOn:
+            print('Number of current targets: ', self.numTargets)
 
         self.updateTargetROIs()
             
     def updateTargetROIs(self):
         # redraw targeted rois in imaging window - to do: draw what is saved in p
         self.Targetcontour_item.clear()
-        self.Targetcontour_item.addPoints(x = p['currentTargetX'], y = p['currentTargetY'], pen = self.TargetPen, size = self.RoiRadius*2+5)
+        self.Targetcontour_item.addPoints(x = p['currentTargetX'], y = p['currentTargetY'], pen = self.TargetPen, size = self.RoiRadius*2+5)  # TODO: check. in other case just *2
+        
         
     def removeModeController(self):
         self.removeModeOn = not self.removeModeOn
         
         if self.removeModeOn:
-            print('Remove mode on!')
-            self.removeMode_pushButton.setText('End')
             self.startRemoveMode()
         else:
-            self.removeMode_pushButton.setText('Start')
             self.exitRemoveMode()
-            print('Remove mode off')
             
-    
     def startRemoveMode(self):
-        pass        
+        print('Remove mode on!')
+        
+        disable = [self.Prairie_groupBox,self.caiman_groupBox,
+                   self.Blink_groupBox, self.opsinMask_groupBox,
+                   self.StimOptions_groupBox, self.OfflineAnalysis_groupBox,
+                   self.DisplayOptions_groupBox, self.photostim_groupBox,
+                   self.groupBox, self.config_groupBox, self.run_groupBox]
+                           
+        for item in disable:
+            item.setEnabled(False)
+        
+        self.removeMode_pushButton.setText('End')
         
     def exitRemoveMode(self):
-        pass
+        if self.removeIdx:
+            msg = QMessageBox()
+            msg.setText("Do you want to remove selected cells?") 
+            msg.setWindowTitle('pyRTAOI Message')
+            msg.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)       
+            retval = msg.exec_()
+            if(retval==QMessageBox.Ok):
+                self.updateInitialisation()
+            else:
+                self.updateTargetROIs()
+                self.removeIdx = []
+                
+        self.removeMode_pushButton.setText('Start')
+        
+        enable = [self.Prairie_groupBox, self.caiman_groupBox,
+           self.Blink_groupBox, self.opsinMask_groupBox,
+           self.StimOptions_groupBox, self.OfflineAnalysis_groupBox,
+           self.DisplayOptions_groupBox, self.photostim_groupBox,
+           self.groupBox, self.config_groupBox, self.run_groupBox]
+       
+        for item in enable:
+            item.setEnabled(True)
+        
+        print('Remove mode off')
+        
         
     def connectPV(self):
         self.updateStatusBar('connecting PV')
@@ -1556,61 +1624,65 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             if movie_ext == '.tif':
                 print('Correct video found')
                 
-    def plotSTAonMasks(self,sta_amp):
+    def plotSTAonMasks(self,sta_amp):   # TODO: post removing of cell: index 35 is out of bounds for axis 1 with size 35
         # show cells detected by caiman
         # make a image with sta levels
-        self.opsinMaskOn = False
-        
-#        cnm = self.proc_cnm
-        cnm = self.c['cnm2']
-
-        A, b = cnm.Ab[:, cnm.gnb:], cnm.Ab[:, :cnm.gnb].toarray()
-
-        if issparse(A):
-            A = np.array(A.todense())
-        else:
-            A = np.array(A)
- 
-        d, nr = np.shape(A)
-        
-        # do not show rejected cells
         try:
-            nr = self.c['cnm2'].N
-            accepted = self.c['cnm2'].accepted
+            self.opsinMaskOn = False
+            
+    #        cnm = self.proc_cnm
+            cnm = self.c['cnm2']
+    
+            A, b = cnm.Ab[:, cnm.gnb:], cnm.Ab[:, :cnm.gnb].toarray()
+    
+            if issparse(A):
+                A = np.array(A.todense())
+            else:
+                A = np.array(A)
+     
+            d, nr = np.shape(A)
+            
+            # do not show rejected cells
+            try:
+                nr = self.c['cnm2'].N
+                print('N',nr)
+                accepted = self.c['cnm2'].accepted
+            except Exception as e:
+                print(e)
+            
+            # use sta value, otherwise use one
+            if sta_amp is None: # will show scaled amplitude of A
+                sta_amp = np.ones((nr,))*255           
+            else: # normalise within component before multiply with sta
+                for i in accepted: # range(nr):
+                    A[:,i] = A[:,i]/sum(A[:,i])
+    
+            # put value into mask
+            cellMask = np.zeros((cnm.dims[1]*cnm.dims[0],))
+    
+            j = 0 # separate incrementer for sta_amp (all sta_amp traces are accepted)
+            
+            for i in accepted: # range(np.minimum(len(sta_amp),nr)):
+                if not np.isnan(sta_amp[j]):
+                    cellMask+=A[:,i].flatten()*sta_amp[j]
+                    print(max(A[:,i]))
+                    print('sum =' + str(sum(A[:,i])))
+                    j += 1
+    
+            cellMask2D = np.reshape(cellMask,cnm.dims,order='F')
+            cellMask2D = cellMask2D/max(cellMask)*255
+            print(cellMask2D.shape)
+    
+            norm = plt.Normalize(0,1)
+            im = plt.imshow(norm(cellMask2D),aspect = 'equal',cmap = 'Greys')
+            plt.colorbar(im, orientation='horizontal')
+            plt.show()
+            
+            cellMask2D = np.repeat(cellMask2D[:,:,None],3,axis=-1)
+            self.imageItem.setImage(cv2.resize(cellMask2D, (512, 512), interpolation=cv2.INTER_CUBIC))
         except Exception as e:
             print(e)
-        
-        # use sta value, otherwise use one
-        if sta_amp is None: # will show scaled amplitude of A
-            sta_amp = np.ones((nr,))*255           
-        else: # normalise within component before multiply with sta
-            for i in accepted: # range(nr):
-                A[:,i] = A[:,i]/sum(A[:,i])
-
-        # put value into mask
-        cellMask = np.zeros((cnm.dims[1]*cnm.dims[0],))
-
-        j = 0 # separate incrementer for sta_amp (all sta_amp traces are accepted)
-        
-        for i in accepted: # range(np.minimum(len(sta_amp),nr)):
-            if not np.isnan(sta_amp[j]):
-                cellMask+=A[:,i].flatten()*sta_amp[j]
-                print(max(A[:,i]))
-                print('sum =' + str(sum(A[:,i])))
-                j += 1
-
-        cellMask2D = np.reshape(cellMask,cnm.dims,order='F')
-        cellMask2D = cellMask2D/max(cellMask)*255
-        print(cellMask2D.shape)
-
-        norm = plt.Normalize(0,1)
-        im = plt.imshow(norm(cellMask2D),aspect = 'equal',cmap = 'Greys')
-        plt.colorbar(im, orientation='horizontal')
-        plt.show()
-        
-        cellMask2D =  np.repeat(cellMask2D[:,:,None],3,axis=-1)
-        self.imageItem.setImage(cv2.resize(cellMask2D, (512, 512), interpolation=cv2.INTER_CUBIC))
-        
+            
     
     def plotSTA(self):
         # load file in Temp folder
@@ -1967,66 +2039,144 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                 self.updateStatusBar('A non-tif file was provided - select a tif movie to initialise with a mask')
                 return
             
-        try:
-            # Prepare object for OnACID
-            idx_components = init_values['idx_components']
-            path_to_cnn_residual = os.path.join(caiman_datadir(), 'model', 'cnn_model_online.h5')
+        # Prepare object for OnACID
+        idx_components = init_values['idx_components']
+        path_to_cnn_residual = os.path.join(caiman_datadir(), 'model', 'cnn_model_online.h5')
+
+        cnm2 = deepcopy(init_values['cnm_init'])
+        cnm2._prepare_object(np.asarray(init_values['Yr']), init_values['T1'], 
+                             init_values['expected_comps'], idx_components=idx_components,
+                             min_num_trial=2, N_samples_exceptionality=int(init_values['N_samples']),
+                             path_to_model=path_to_cnn_residual)
+        
+        cnm2.opsin = None
+        cnm2.accepted = list(range(0,cnm2.N))
+        
+        # Extract number of cells detected
+        K = cnm2.N
+        self.InitNumROIs_spinBox.setValue(K)
+        print('Number of components initialised: ' + str(K))
+        
+        if self.MaxNumROIs_spinBox.value() < K+5:
+            self.MaxNumROIs_spinBox.setValue(K+10)
+        
+        self.ds_factor = ds_factor
+        self.c = init_values
+        self.c['cnm2'] = cnm2
+        self.c['removed_idx'] = []
+        
+        if idx_components is not None:
+            coms = self.c['coms_init']
+            self.c['coms_init'] = coms[idx_components]
+            
+#        if opsin_seeded: self.c['cnm2'].opsin = [True]*len(init_values['idx_components'])
+        
+#        self.proc_cnm = init_values['cnm_init']  # keep one copy only
+        self.dims = init_values['cnm_init'].dims
+        self.InitNumROIs = K
+        self.opsinMaskOn = False
+        self.imageItem.setImage(cv2.resize(self.c['img_norm'],(512,512),interpolation=cv2.INTER_CUBIC)) # display a frame from the initiialisation movie
+
+        if self.A_opsin.size:
+            print('Checking opsin overlap')
+            self.checkOpsin()
+        
+        self.initialiseROI()
+        for i in range(K):
+            y, x = init_values['coms_init'][i]  # reversed
+            self.getROImask(thisROIx = x, thisROIy = y)
     
-            cnm2 = deepcopy(init_values['cnm_init'])
-            cnm2._prepare_object(np.asarray(init_values['Yr']), init_values['T1'], 
-                                 init_values['expected_comps'], idx_components=idx_components,
-                                 min_num_trial=2, N_samples_exceptionality=int(init_values['N_samples']),
-                                 path_to_model=path_to_cnn_residual)
+        self.UseONACID_checkBox.setEnabled(True)
+        self.UseONACID_checkBox.setChecked(True)
+        
+        self.updateStatusBar('Initialision completed')
+        show_traces = 1
+        if show_traces:
+            self.showROIIdx()
+            cnm_init = init_values['cnm_init']
+            self.plotOnacidTraces(t=cnm_init.initbatch)
+    
+    
+    def updateInitialisation(self):
+        try:
+            keep_idx = list(set(range(self.thisROIIdx)) - set(self.removeIdx))
+#            print('keep idx', keep_idx)
+#            print('remove idx', self.removeIdx)
+    
+            # reset previous settings
+            self.ROIcontour_item.clear()
+            self.thisROIIdx = 0
+            self.resetROIlist()
+            self.deleteTextItems()
+            self.updateTable()
+            self.plotItem.clear()
+            self.resetFigure()
             
-            cnm2.opsin = None
-            cnm2.accepted = list(range(0,cnm2.N))
+            # remove chosen cells
+            self.c['cnm2'].remove_components(self.removeIdx)
+
+            K = self.c['cnm2'].N
+            print('new N:', K)
             
-            # Extract number of cells detected
-            K = cnm2.N
+            self.c['cnm2'].accepted = self.c['cnm2'].accepted[:K] # all cells accepted post initialisation
+            
+            coms = self.c['coms_init']
+            self.c['coms_init'] = coms[keep_idx]
+            
             self.InitNumROIs_spinBox.setValue(K)
-            print('Number of components initialised: ' + str(K))
-            
+            self.InitNumROIs = K
+        
             if self.MaxNumROIs_spinBox.value() < K+5:
                 self.MaxNumROIs_spinBox.setValue(K+10)
             
-            self.ds_factor = ds_factor
-            self.c = init_values
-            self.c['cnm2'] = cnm2
-            
-            if idx_components is not None:
-                coms = self.c['coms_init']
-                self.c['coms_init'] = coms[idx_components]
-                
-    #        if opsin_seeded: self.c['cnm2'].opsin = [True]*len(init_values['idx_components'])
-            
-    #        self.proc_cnm = init_values['cnm_init']  # keep one copy only
-            self.dims = init_values['cnm_init'].dims
-            self.InitNumROIs = K
-            self.opsinMaskOn = False
-            self.imageItem.setImage(cv2.resize(self.c['img_norm'],(512,512),interpolation=cv2.INTER_CUBIC)) # display a frame from the initiialisation movie
-    
             if self.A_opsin.size:
-                print('Checking opsin overlap')
                 self.checkOpsin()
-            
-            ### add a step to discard unwanted components from initialisation?
             
             self.initialiseROI()
             for i in range(K):
-                y, x = init_values['coms_init'][i]  # reversed
+                y, x = self.c['coms_init'][i]  # reversed
                 self.getROImask(thisROIx = x, thisROIy = y)
-        
-            self.UseONACID_checkBox.setEnabled(True)
-            self.UseONACID_checkBox.setChecked(True)
-            
-            self.updateStatusBar('Initialision completed')
+                
             show_traces = 1
             if show_traces:
                 self.showROIIdx()
-                cnm_init = init_values['cnm_init']
+                cnm_init = self.c['cnm_init']
                 self.plotOnacidTraces(t=cnm_init.initbatch)
+                        
+            # after new roi list initialised
+#            print('target idx list', self.TargetIdx)
+            for idx in sorted(self.removeIdx, reverse=True):
+                if idx in self.TargetIdx:
+#                    print('idx', idx)
+                    self.TargetIdx.remove(idx)
+                self.TargetIdx = [target-1 if target>idx else target for target in self.TargetIdx]
+                
+#            print('new target idx list', self.TargetIdx)
+                
+            self.updateTargets()
+            self.updateStatusBar('Removed cells: ' + str([value+1 for value in self.removeIdx])[1:-1])
+            
+            # extract orig idx of cell to be removed -- TODO: below doesn't work
+#            try:
+#                removed_earlier = self.c['removed_idx']
+#                print('removed earlier', removed_earlier)
+#                
+#                removeIdx_orig = []
+#                for idx in self.removeIdx:
+#                    print('removeidx new', self.removeIdx)
+#                    orig_idx = idx + sum([idx+len(removed_earlier)>=earlier for earlier in removed_earlier])
+#                    removeIdx_orig.append(orig_idx)
+#                    
+#                self.c['removed_idx'] = self.c['removed_idx'] + removeIdx_orig
+#                print('orig remove idx:', removeIdx_orig)
+#                print('updated list', self.c['removed_idx'])
+#            except Exception as e:
+#                print(e)
+            
+            self.removeIdx = []  # TODO: store info this somewhere before clearing? or just save a new init object?
         except Exception as e:
             print(e)
+        
     
     def loadOpsinImg(self):
         opsin_img_path = str(QFileDialog.getOpenFileName(self, 'Load a C1V1 image', self.movie_folder, 'MPTIFF (*.tif)')[0])
@@ -2193,7 +2343,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
     def addScatterROI(self, shift):
         self.ROIcontour_item.clear()
-        
         self.ROIcontour_item.addPoints(x = [ROI["ROIx"]+shift[0] for ROI in self.ROIlist[:self.thisROIIdx]],
                                            y = [ROI["ROIy"]+shift[1] for ROI in self.ROIlist[:self.thisROIIdx]],
                                            pen = [pg.mkPen(ROI["ROIcolor"], width=2) for ROI in self.ROIlist[:self.thisROIIdx]],
