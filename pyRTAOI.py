@@ -180,8 +180,9 @@ class DataStream(QObject):
     def stream(self):
         print('this is stream func')
         p['FLAG_END_LOADING'] = False
+        
  #%% streaming data from PV
-        if self.FLAG_PV_CONNECTED:
+        if self.FLAG_PV_CONNECTED and not p['FLAG_OFFLINE']:
             # PYCUDA
             import pycuda.driver as cuda
             from pycuda.tools import make_default_context
@@ -294,7 +295,7 @@ class DataStream(QObject):
                     print('too many incorrect frames, quit loop')
                     self.FLAG_SCANNING = False
     
-            if not self.FLAG_SCANNING:   # - need a flag outside of this thread to stop it
+            if not self.FLAG_SCANNING:  # - need a flag outside of this thread to stop it. clicking stop works
                 self.context.pop()
                 del self.context
                 from pycuda.tools import clear_context_caches
@@ -303,11 +304,11 @@ class DataStream(QObject):
                 del dest_gpu
                 del sample_mean
                 self.stream_finished_signal.emit()
-                print('stopped scanning')
+                print('stopped scanning') # gets here
                 p['FLAG_END_LOADING'] = True
                 
 #%% offline, read frames from tiff                
-        else:
+        elif p['FLAG_OFFLINE']:
             # load movie
             if p['moviePath'] != 'U:/simulate_movie/20170823.tif':
                 print('Loading video')
@@ -327,7 +328,8 @@ class DataStream(QObject):
             p['FLAG_END_LOADING'] = True   
                 
     def stop(self):
-        self.FLAG_SCANNING = False        
+        print('stream stop')
+        self.FLAG_SCANNING = False
             
 #%% process thread
 class Worker(QObject):
@@ -370,6 +372,7 @@ class Worker(QObject):
         # FLAGS
         self.STOP_JOB_FLAG = None
         self.UseONACID = p['UseONACID']
+        print('use onacid? ', self.UseONACID)
         self.FLAG_PV_CONNECTED = p['FLAG_PV_CONNECTED']
         self.FLAG_OFFLINE = p['FLAG_OFFLINE']
         print('pv connected? ' + str(self.FLAG_PV_CONNECTED))
@@ -453,7 +456,6 @@ class Worker(QObject):
             img_norm = self.c['img_norm'].copy().astype(np.float32)
             img_min = self.c['img_min'].copy().astype(np.float32)
             ds_factor = self.c['ds_factor']
-            print('ds factor ', ds_factor)
             dims = self.c['cnm_init'].dims
     
             # Extract opsin mask info constructed from c1v1 image
@@ -482,224 +484,238 @@ class Worker(QObject):
 
 
         # keep processing frames in qbuffer
-        while ((not p['FLAG_END_LOADING']) or (not qbuffer.empty())) and not self.STOP_JOB_FLAG:
-            # get data from queue
-            frame_in = qbuffer.get()
-            t0 = time.time()
-            framesProc = framesProc+1
-            
-            if FLAG_USE_ONACID:
-#                try:
-                # move trace buffer pointer
-                if BufferPointer==self.BufferLength-1:
-                    BufferPointer = 0
-                else:
-                    BufferPointer +=1
-                    
-                # process current frame
-                if ds_factor > 1:
-                    frame_in = cv2.resize(frame_in, img_norm.shape[::-1])   # downsampling
-    
-                frame_in -= img_min                                       # make data non-negative
-    
-                if mot_corr:                                            # motion correct
-                    mot_corr_start = time.time()
-                    templ = cnm2.Ab.dot(cnm2.C_on[:cnm2.M, t_cnm - 1]).reshape(cnm2.dims, order='F') * img_norm
-                    frame_cor, shift = motion_correct_iteration_fast(frame_in, templ, max_shift, max_shift)
-                    self.shifts.append(shift)
-#                    print(shift)                    
-#                    print('caiman motion correction time:' + str("%.4f"%(time.time()-mot_corr_start)))
-                else:
-                    frame_cor = frame_in
-    
-                frame_cor = frame_cor / img_norm                            # normalize data-frame
-                cnm2.fit_next(t_cnm, frame_cor.reshape(-1, order='F'))      # run OnACID on this frame
+        print('before buffer')
+        try:
+            while ((not p['FLAG_END_LOADING']) or (not qbuffer.empty())) and not self.STOP_JOB_FLAG: # some issue here: when stopped/finished, it usually does not enter finishing part
+                # get data from queue
+                frame_in = qbuffer.get()
+                t0 = time.time()
+                framesProc = framesProc+1
                 
-                # detect new compunents 
-                if expect_components:
-                    update_comp_time = time.time()
-                    if cnm2.N - (com_count+rejected) == 1:
-                        new_coms = com(cnm2.Ab[:, -1], dims[0], dims[1])[0]
-    
-                        # Check for repeated components
-                        close = abs(coms - new_coms) < self.dist_thresh/ds_factor
-                        repeated = any(np.all(close,axis=1))
-    
-                        if repeated == False: # add component to ROI
-                            coms = np.vstack((coms, new_coms))
-                            y, x = new_coms   # reversed
-                            ROIx = np.append(ROIx,x*ds_factor)  # ~0.11 ms // filling in empty array: ~0.07 ms
-                            ROIy = np.append(ROIy,y*ds_factor)
-    
-                            com_count += 1
-                            accepted.append(cnm2.N)
-                            print('New cell detected (' + str(cnm2.N-rejected) + ')')
-                            
-                            # Check cell for c1v1
-#                            tt = time_()
-                            if opsin_mask.size:
-                                cell_A = np.array(cnm2.Ab[:,-1].todense())
-                                cell_mask = (np.reshape(cell_A, dims, order='F') > 0).astype('int')
-                                cell_pix = sum(sum(cell_mask == 1))
-                                
-                                inter = cv2.bitwise_and(opsin_mask, cell_mask)
-                                inter_pix = sum(sum(inter))
-                                cell_overlap = inter_pix/cell_pix
-                                                    
-                                overlap.append(cell_overlap)
-                                opsin_positive = cell_overlap > opsin_thresh
-                                opsin.append(opsin_positive)
-#                                cnm2.opsin.append(cell_overlap > opsin_thresh)
-#                            print(time_()-tt)
-                            
-                            # add new ROI to photostim target, if required
-                            try:
-                                if p['FLAG_BLINK_CONNECTED'] and p['FLAG_AUTO_ADD_TARGETS']:
-                                    if opsin_positive:  # add target only if opsin present
-                                        p['currentTargetX'].append(x*ds_factor) # = np.append(p['currentTargetX'],x*ds_factor)
-                                        p['currentTargetY'].append(y*ds_factor) # = np.append(p['currentTargetY'],y*ds_factor)
-                                        p['NI_2D_ARRAY'][1,:] = NI_UNIT_POWER_ARRAY *np.polyval(power_polyfit_p,photoPowerPerCell*len(p['currentTargetY']))
-                                        self.sendCoords_signal.emit()
-                                        self.updateTargetROIs_signal.emit()
-                                
-                                self.getROImask_signal.emit(x,y) # add roi coords to list in main
-                                print('add new component time:' + str("%.4f"%(time.time()-update_comp_time)))
-                            except Exception as e:
-                                print(e)
-                            
-                            if com_count == p['MaxNumROIs']:
-                                expect_components = False
-                                print('Not accepting more components')
-                        else:
-                            print('Repeated component found!')
-                            rejected += 1
-                          
-                
-                # add data to buffer
-                try:
-                    self.RoiBuffer[:com_count, BufferPointer] = cnm2.C_on[accepted,t_cnm] # cnm2.noisyC is without deconvolution
-                    self.ROIlist_threshold[:com_count] = np.nanmean(self.RoiBuffer[:com_count,:], axis=1) + 3*np.nanstd(self.RoiBuffer[:com_count,:], axis=1)
-                except Exception as e:
-                    print(e)
-                    logger.exception(e)
-                    print(self.RoiBuffer[:com_count,:])
-                
-                
-                # trigger photostim
-                if p['photoProtoInx'] == CONSTANTS.PHOTO_ABOVE_THRESH:
-                    photostim_idx = self.RoiBuffer[:com_count, BufferPointer]-self.ROIlist_threshold[:com_count]
-                    print(photostim_idx)
-                    p['currentTargetX'] = ROIx[photostim_idx>0]
-                    p['currentTargetY'] = ROIy[photostim_idx>0]
-#                    print(p['currentTargetX'])
-#                    print(p['currentTargety'])
-                    num_stim_targets = len(p['currentTargetX'] )
-                    if (num_stim_targets>0):
-                        p['NI_2D_ARRAY'][1,:] = NI_UNIT_POWER_ARRAY*np.polyval(power_polyfit_p,photoPowerPerCell*num_stim_targets)
-                        self.sendCoords_signal.emit()
-                        self.sendPhotoStimTrig_signal.emit()
-                        self.updateTargetROIs_signal.emit() 
-                    
-                elif p['photoProtoInx'] == CONSTANTS.PHOTO_BELOW_THRESH:
-                    photostim_idx = self.ROIlist_threshold[:com_count] - self.RoiBuffer[:com_count, BufferPointer]
-                    p['currentTargetX'] = ROIx[photostim_idx>0]
-                    p['currentTargetY'] = ROIy[photostim_idx>0]  
-                    num_stim_targets = len(p['currentTargetX'] )
-                    if (num_stim_targets>0):
-                        p['NI_2D_ARRAY'][1,:] = NI_UNIT_POWER_ARRAY *np.polyval(power_polyfit_p,photoPowerPerCell*num_stim_targets)
-                        self.sendCoords_signal.emit()
-                        self.sendPhotoStimTrig_signal.emit()
-                        self.updateTargetROIs_signal.emit() 
-                    
-                # trigger sta recording 
-                if sta_stim_idx < self.num_stims:
-                    if p['FLAG_STIM_TRIG_ENABLED'] and framesProc == stim_frames[sta_stim_idx]: # send TTL 
-                        self.sendTTLTrigger_signal.emit()
-                    if p['photoProtoInx'] == CONSTANTS.PHOTO_FIX_FRAMES and framesProc == photo_stim_frames[sta_stim_idx]:
-                        self.sendPhotoStimTrig_signal.emit()
-                    
-                    if not self.flag_sta_recording:
-                        if framesProc == sta_start_frames[sta_stim_idx]:
-                            self.flag_sta_recording = True
-                            sta_frame_idx = 0
+                if FLAG_USE_ONACID:
+    #                try:
+                    # move trace buffer pointer
+                    if BufferPointer==self.BufferLength-1:
+                        BufferPointer = 0
                     else:
-                        self.sta_traces[:com_count,sta_stim_idx,sta_frame_idx] = cnm2.C_on[accepted,t_cnm]
-                        sta_frame_idx +=1
-                        if sta_frame_idx == self.sta_trace_length:
-                            self.flag_sta_recording = False
-                            sta_stim_idx += 1
-                
-                if framesProc > refreshFrame-1: #frame_count>self.BufferLength-1:
-                    if LastPlot == refreshFrame:    
-                        if p['plotOn']:
-                            plot_time = time.time()
-                            self.refreshPlot_signal.emit(self.RoiBuffer[:com_count,:])
-#                            print('update plot time = ' +str(time.time()-plot_time))
-                        LastPlot = 0
-                            
-                    elif LastPlot == refreshFrame-1:        
-                        if p['displayOn']:
-                            # display current frame
-                            if p['denoiseOn']:
-                                denoise_time = time.time()                            
-                                A, b = cnm2.Ab[:, cnm2.gnb:], cnm2.Ab[:, :cnm2.gnb].toarray()
-                                C_t, f_t = cnm2.C_on[cnm2.gnb:cnm2.M, t_cnm], cnm2.C_on[:cnm2.gnb, t_cnm]
-                                comps_frame = A.dot(C_t).reshape(cnm2.dims, order = 'F')*img_norm/np.max(img_norm)
-                                bgkrnd_frame = b.dot(f_t).reshape(cnm2.dims, order = 'F')*img_norm/np.max(img_norm) 
-                                frame = comps_frame + bgkrnd_frame   # denoised frame = component activity + background
-                                denoised_frame =  np.repeat(frame[:,:,None],3,axis=-1)
-                                denoised_frame = np.minimum((denoised_frame*255.),255).astype('u1')
-            
-                                if ds_factor == 1:
-                                    self.roi_signal.emit(denoised_frame)
-                                else:
-                                    res_denoised_frame = cv2.resize(denoised_frame, (512, 512), interpolation=cv2.INTER_CUBIC)
-                                    self.roi_signal.emit(res_denoised_frame)
-#                                print('generate denoise frame time:' + str("%.4f"%(time.time()-denoise_time)))
-                            else:
-                                if ds_factor == 1:
-                                    self.roi_signal.emit(frame_cor)
-                                else:
-                                    res_frame_cor = cv2.resize(frame_cor, (512, 512), interpolation=cv2.INTER_CUBIC)
-                                    self.roi_signal.emit(res_frame_cor)
+                        BufferPointer +=1
+                        
+                    # process current frame
+                    if ds_factor > 1:
+                        frame_in = cv2.resize(frame_in, img_norm.shape[::-1])   # downsampling
+        
+                    frame_in -= img_min                                       # make data non-negative
+        
+                    if mot_corr:                                            # motion correct
+                        mot_corr_start = time.time()
+                        templ = cnm2.Ab.dot(cnm2.C_on[:cnm2.M, t_cnm - 1]).reshape(cnm2.dims, order='F') * img_norm
+                        frame_cor, shift = motion_correct_iteration_fast(frame_in, templ, max_shift, max_shift)
+                        self.shifts.append(shift)
+    #                    print(shift)                    
+    #                    print('caiman motion correction time:' + str("%.4f"%(time.time()-mot_corr_start)))
+                    else:
+                        frame_cor = frame_in
+        
+                    frame_cor = frame_cor / img_norm                            # normalize data-frame
+                    cnm2.fit_next(t_cnm, frame_cor.reshape(-1, order='F'))      # run OnACID on this frame
+                    
+                    # detect new compunents 
+                    if expect_components:
+                        update_comp_time = time.time()
+                        if cnm2.N - (com_count+rejected) == 1:
+                            new_coms = com(cnm2.Ab[:, -1], dims[0], dims[1])[0]
+        
+                            # Check for repeated components
+                            close = abs(coms - new_coms) < self.dist_thresh/ds_factor
+                            repeated = any(np.all(close,axis=1))
+        
+                            if repeated == False: # add component to ROI
+                                coms = np.vstack((coms, new_coms))
+                                y, x = new_coms   # reversed
+                                ROIx = np.append(ROIx,x*ds_factor)  # ~0.11 ms // filling in empty array: ~0.07 ms
+                                ROIy = np.append(ROIy,y*ds_factor)
+        
+                                com_count += 1
+                                accepted.append(cnm2.N)
+                                print('New cell detected (' + str(cnm2.N-rejected) + ')')
+                                
+                                # Check cell for c1v1
+    #                            tt = time_()
+                                if opsin_mask.size:
+                                    cell_A = np.array(cnm2.Ab[:,-1].todense())
+                                    cell_mask = (np.reshape(cell_A, dims, order='F') > 0).astype('int')
+                                    cell_pix = sum(sum(cell_mask == 1))
                                     
-                          # refresh roi scatter
-                            shift_ = [round(shift[0]), round(shift[1])]
-                            if shift_ != [0,0]:
-                                self.display_shift_time = time.time()
-                                if self.display_shift == True: #denoiseOn == False:
-                                    self.refreshScatter_signal.emit(shift_)
-                                print('display shift time:' + str("%.4f"%(time.time()-self.display_shift_time)))  
-    
-                            self.thresh_signal.emit(self.ROIlist_threshold[:com_count])
-                            LastPlot += 1
-                    else:
-                        LastPlot += 1
-    
-                t_cnm +=1
-#                except Exception as e:
-#                    print(e)
+                                    inter = cv2.bitwise_and(opsin_mask, cell_mask)
+                                    inter_pix = sum(sum(inter))
+                                    cell_overlap = inter_pix/cell_pix
+                                                        
+                                    overlap.append(cell_overlap)
+                                    opsin_positive = cell_overlap > opsin_thresh
+                                    opsin.append(opsin_positive)
+    #                                cnm2.opsin.append(cell_overlap > opsin_thresh)
+    #                            print(time_()-tt)
+                                
+                                # add new ROI to photostim target, if required
+                                try:
+                                    if p['FLAG_BLINK_CONNECTED'] and p['FLAG_AUTO_ADD_TARGETS']:
+                                        if opsin_positive:  # add target only if opsin present
+                                            p['currentTargetX'].append(x*ds_factor) # = np.append(p['currentTargetX'],x*ds_factor)
+                                            p['currentTargetY'].append(y*ds_factor) # = np.append(p['currentTargetY'],y*ds_factor)
+    #                                        p['NI_2D_ARRAY'][1,:] = NI_UNIT_POWER_ARRAY *np.polyval(power_polyfit_p,photoPowerPerCell*len(p['currentTargetY']))
+                                            self.sendCoords_signal.emit()
+                                            self.updateTargetROIs_signal.emit()
+                                    
+                                    self.getROImask_signal.emit(x,y) # add roi coords to list in main
+                                    print('add new component time:' + str("%.4f"%(time.time()-update_comp_time)))
+                                except Exception as e:
+                                    print(e)
+                                
+                                if com_count == p['MaxNumROIs']:
+                                    expect_components = False
+                                    print('Not accepting more components')
+                            else:
+                                print('Repeated component found!')
+                                rejected += 1
+                              
+                    
+                    # add data to buffer
+                    try:
+                        self.RoiBuffer[:com_count, BufferPointer] = cnm2.C_on[accepted,t_cnm] # cnm2.noisyC is without deconvolution
+                        self.ROIlist_threshold[:com_count] = np.nanmean(self.RoiBuffer[:com_count,:], axis=1) + 3*np.nanstd(self.RoiBuffer[:com_count,:], axis=1)
+                    except Exception as e:
+                        print(e)
+                        logger.exception(e)
+                        print(self.RoiBuffer[:com_count,:])
+                    
+                    
+                    # trigger photostim
+                    if p['photoProtoInx'] == CONSTANTS.PHOTO_ABOVE_THRESH:
+                        photostim_idx = self.RoiBuffer[:com_count, BufferPointer]-self.ROIlist_threshold[:com_count]
+                        print(photostim_idx)
+                        p['currentTargetX'] = ROIx[photostim_idx>0]
+                        p['currentTargetY'] = ROIy[photostim_idx>0]
+    #                    print(p['currentTargetX'])
+    #                    print(p['currentTargety'])
+                        num_stim_targets = len(p['currentTargetX'] )
+                        if (num_stim_targets>0):
+                            p['NI_2D_ARRAY'][1,:] = NI_UNIT_POWER_ARRAY*np.polyval(power_polyfit_p,photoPowerPerCell*num_stim_targets)
+                            self.sendCoords_signal.emit()
+                            self.sendPhotoStimTrig_signal.emit()
+                            self.updateTargetROIs_signal.emit() 
+                        
+                    elif p['photoProtoInx'] == CONSTANTS.PHOTO_BELOW_THRESH:
+                        photostim_idx = self.ROIlist_threshold[:com_count] - self.RoiBuffer[:com_count, BufferPointer]
+                        p['currentTargetX'] = ROIx[photostim_idx>0]
+                        p['currentTargetY'] = ROIy[photostim_idx>0]  
+                        num_stim_targets = len(p['currentTargetX'] )
+                        if (num_stim_targets>0):
+                            p['NI_2D_ARRAY'][1,:] = NI_UNIT_POWER_ARRAY *np.polyval(power_polyfit_p,photoPowerPerCell*num_stim_targets)
+                            self.sendCoords_signal.emit()
+                            self.sendPhotoStimTrig_signal.emit()
+                            self.updateTargetROIs_signal.emit() 
+                        
+                    # trigger sta recording 
+                    if sta_stim_idx < self.num_stims:
+                        if p['FLAG_STIM_TRIG_ENABLED'] and framesProc == stim_frames[sta_stim_idx]: # send TTL 
+                            self.sendTTLTrigger_signal.emit()
+                        if p['photoProtoInx'] == CONSTANTS.PHOTO_FIX_FRAMES and framesProc == photo_stim_frames[sta_stim_idx]:
+                            self.sendPhotoStimTrig_signal.emit()
+                        
+                        if not self.flag_sta_recording:
+                            if framesProc == sta_start_frames[sta_stim_idx]:
+                                self.flag_sta_recording = True
+                                sta_frame_idx = 0
+                        else:
+                            self.sta_traces[:com_count,sta_stim_idx,sta_frame_idx] = cnm2.C_on[accepted,t_cnm]
+                            sta_frame_idx +=1
+                            if sta_frame_idx == self.sta_trace_length:
+                                self.flag_sta_recording = False
+                                sta_stim_idx += 1
+                    
+                    if framesProc > refreshFrame-1: #frame_count>self.BufferLength-1:
+                        if LastPlot == refreshFrame:    
+                            if p['plotOn']:
+                                plot_time = time.time()
+                                self.refreshPlot_signal.emit(self.RoiBuffer[:com_count,:])
+    #                            print('update plot time = ' +str(time.time()-plot_time))
+                            LastPlot = 0
+                                
+                        elif LastPlot == refreshFrame-1:        
+                            if p['displayOn']:
+                                # display current frame
+                                if p['denoiseOn']:
+                                    denoise_time = time.time()                            
+                                    A, b = cnm2.Ab[:, cnm2.gnb:], cnm2.Ab[:, :cnm2.gnb].toarray()
+                                    C_t, f_t = cnm2.C_on[cnm2.gnb:cnm2.M, t_cnm], cnm2.C_on[:cnm2.gnb, t_cnm]
+                                    comps_frame = A.dot(C_t).reshape(cnm2.dims, order = 'F')*img_norm/np.max(img_norm)
+                                    bgkrnd_frame = b.dot(f_t).reshape(cnm2.dims, order = 'F')*img_norm/np.max(img_norm) 
+                                    frame = comps_frame + bgkrnd_frame   # denoised frame = component activity + background
+                                    denoised_frame =  np.repeat(frame[:,:,None],3,axis=-1)
+                                    denoised_frame = np.minimum((denoised_frame*255.),255).astype('u1')
                 
-            # else not using onACID        
-            else:
-                temp_time = time.time()
-                self.roi_signal.emit(frame_in)
-                print('display time '+str("%.4f"%(time.time()-temp_time)))
-
+                                    if ds_factor == 1:
+                                        self.roi_signal.emit(denoised_frame)
+                                    else:
+                                        res_denoised_frame = cv2.resize(denoised_frame, (512, 512), interpolation=cv2.INTER_CUBIC)
+                                        self.roi_signal.emit(res_denoised_frame)
+    #                                print('generate denoise frame time:' + str("%.4f"%(time.time()-denoise_time)))
+                                else:
+                                    if ds_factor == 1:
+                                        self.roi_signal.emit(frame_cor)
+                                    else:
+                                        res_frame_cor = cv2.resize(frame_cor, (512, 512), interpolation=cv2.INTER_CUBIC)
+                                        self.roi_signal.emit(res_frame_cor)
+                                        
+                              # refresh roi scatter
+                                shift_ = [round(shift[0]), round(shift[1])]
+                                if shift_ != [0,0]:
+                                    self.display_shift_time = time.time()
+                                    if self.display_shift == True: #denoiseOn == False:
+                                        self.refreshScatter_signal.emit(shift_)
+                                        print('display shift time:' + str("%.4f"%(time.time()-self.display_shift_time)))  
+        
+                                self.thresh_signal.emit(self.ROIlist_threshold[:com_count])
+                                LastPlot += 1
+                        else:
+                            LastPlot += 1
+        
+                    t_cnm +=1
+    #                except Exception as e:
+    #                    print(e)
+                    
+                # else not using onACID        
+                else:
+                    temp_time = time.time()
+                    self.roi_signal.emit(frame_in)
+                    print('display time '+str("%.4f"%(time.time()-temp_time)))
     
-            self.tottime.append(time.time() - t0)                             # store time for each frame
-#            print('process frame time: ' + str("%.4f"%(time.time()- t0)))
-#            print('frames proc = ' + str(framesProc))
-            self.frame_signal.emit(framesProc)
-
-            qbuffer.task_done()
-
-#%% post-loop finishing   
+                
+                self.tottime.append(time.time() - t0)                       # store time for each frame
+    #            print('process frame time: ' + str("%.4f"%(time.time()- t0)))
+    #            print('frames proc = ' + str(framesProc))
+                self.frame_signal.emit(framesProc)
+    
+                qbuffer.task_done()
+                
+        except Exception as e:
+            print(e)
+        
+        try:
+            print('here')
+            if self.STOP_JOB_FLAG:#  or p['FLAG_END_LOADING']:
+                print('hi stop clicked')
+            if p['FLAG_END_LOADING']:
+                print('hi finished loading')
+        except Exception as e:
+            print(e)
+            
+#%% post-loop finishing
         print('finishing work')
-        self.BufferPointer = BufferPointer
         self.status_signal.emit('Mean processing time is ' + str(np.nanmean(self.tottime))[:6] + ' sec.')
         
         if self.UseONACID:
+            self.BufferPointer = BufferPointer
             self.BufferPointer = 0
             # show indices on viewbox
             self.showROIIdx_signal.emit()
@@ -722,6 +738,7 @@ class Worker(QObject):
             save_dict['cnm2'] = cnm2  # opsin info a part of cnm struct for now
             save_dict['accepted'] = accepted  # accepted currently stored inside cnm2 as well
             save_dict['t_cnm'] = t_cnm
+            save_dict['tottime'] = self.tottime
             save_dict['coms'] = coms
             
             try:
@@ -1424,7 +1441,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         retval = msg.exec_()
         if(retval==QMessageBox.Ok):
             self.c = {}
-#            self.cnm2 = {}
+            self.cnm2 = {}
             self.UseONACID_checkBox.setEnabled(False)
             self.UseONACID_checkBox.setChecked(False)
             self.imageItem.setImage(self.BlankImage)
@@ -1619,6 +1636,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         self.movie_path = movie_path
         p['moviePath'] = movie_path
         if movie_path:
+            self.IsOffline = True
+            self.IsOffline_radioButton.setChecked(True)
             self.moviePath_lineEdit.setText(movie_path)
             movie_ext = os.path.splitext(p['moviePath'])[1]
             if movie_ext == '.tif':
@@ -1900,11 +1919,12 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         else:
             ref_movie_path = str(QFileDialog.getOpenFileName(self, 'Load reference', '', 'PKL(*.pkl);;MPTIFF (*.tif);;All files (*.*)')[0])
         
-        self.ref_movie_path = ref_movie_path
-        self.movie_folder = os.path.dirname(os.path.dirname(self.ref_movie_path))  # added
-
-        self.refMoviePath_lineEdit.setText(self.ref_movie_path)
-        print('Reference movie selected')
+        if ref_movie_path:
+            self.ref_movie_path = ref_movie_path
+            self.movie_folder = os.path.dirname(os.path.dirname(self.ref_movie_path))  # added
+    
+            self.refMoviePath_lineEdit.setText(self.ref_movie_path)
+            print('Reference movie selected')
         #self.initialiseCaiman()
         
         
@@ -2491,7 +2511,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
     def switch_IsOffline(self):
         print('offline button')
         self.IsOffline = self.IsOffline_radioButton.isChecked()
-        self.updateStatusBar('Flag offline = '+str(self.IsOffline))
+        self.updateStatusBar('Flag offline = '+str(p['isOffline']))
         
         
     def switch_useOnacidMask(self):  # toggle the two buttons
@@ -2528,26 +2548,26 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         self.niPhotostimFullWriter.write_many_sample(p['NI_2D_ARRAY'])
         print('TTL with power volt sent')
         
-    def stop_thread(self):  # TODO: test
-        try:
-            self.workerObject.stop()
-            self.workerThread.wait(1)
-            self.workerThread.quit()
-            self.workerThread.wait() # ensures worker finished before next run can be started
-            
-            self.streamObject.stop()
-            self.streamThread.wait(1)
-            self.streamThread.quit()
-            self.streamThread.wait()
-            
-            print('FLAG PV', p['FLAG_PV_CONNECTED'])
-            if p['FLAG_PV_CONNECTED']:
-                if not self.pl.send_done(self.pl._abort):
-                    print('Prairie aborted')
+    def stop_thread(self):  # TODO: correct? when aborted, no return from prairie so disabled waiting
 
-        except Exception as e:
-            print(e)
-            
+        p['FLAG_END_LOADING'] = True
+        
+        # this worked a few times after which the timeout error occurred again
+#        if p['FLAG_PV_CONNECTED']:
+#            if not self.pl.send_done(self.pl._abort):
+#                print('Prairie aborted!')
+        
+        self.streamObject.stop()
+        self.workerObject.stop()
+
+        self.streamThread.wait(1)
+        self.streamThread.quit()
+        self.streamThread.wait()  
+                
+#        self.workerObject.stop()
+        self.workerThread.wait(1)
+        self.workerThread.quit()
+        self.workerThread.wait() # ensures worker finished before next run can be started
         
 
     def closeEvent(self,event):  
