@@ -6,13 +6,15 @@
     efficiently store and access big video files. Motion correction is done in
     advance and is fairly slow.
     
-    This generally finds very many components (e.g. >1000), many of which
+    This generally finds many components, based on K per patch and number of
+    patches. If high number of expected components are procided, many of them
     overlap or are not of great quality. Filtering the algorithm output using
     CNN can be adopted; this should significantly reduce the number of 
-    components (e.g. <50).
+    components to a reasonable number.
     
-    Simple testing showed that running OnACID multiple times can be more
-    effective at finding most active cells at reasonable numbers.
+    Motion correction and memmaping are slow processes but the rest of the 
+    pipeline runs smoothly on large files. The algorithm find similar number
+    of cells compared to OnACID run multiple times.
     
 """
 
@@ -54,10 +56,9 @@ from caiman.components_evaluation import estimate_components_quality_auto
 #%% First setup some parameters
 #fname = [r'C:\Users\intrinsic\caiman_data\sample_vid\stimulated_test\20170329_OG151_t-008_Substack (1-3000)--(1-500).tif'] # filename to be processed
 
-#fname = [r'C:\Users\intrinsic\Desktop\pyRTAOI2018\samples\example1\20171229_OG245_t-052_Cycle00001_Ch2.tif']
-fname = [r'C:\Users\intrinsic\Desktop\pyRTAOI2018\samples\example2\20171229_OG245_t-053\20171229_OG245_t-053_Cycle00001_Ch2.tif']
-#fname = [r'C:\Users\intrinsic\Desktop\pyRTAOI2018\samples\example3\20171130_OG235_t-002_Cycle00001_Ch2.tif']
-#fname = [r'C:\Users\intrinsic\Desktop\pyRTAOI2018\samples\example1\20171229_OG245_t-052_Cycle00001_Ch2_substack1-2700.tif']
+#fname = [r'C:\Users\intrinsic\Desktop\pyRTAOI-rig\samples\example1\20171229_OG245_t-052_Cycle00001_Ch2.tif']
+fname = [r'C:\Users\intrinsic\Desktop\pyRTAOI-rig\samples\example2\20171229_OG245_t-053\20171229_OG245_t-053_Cycle00001_Ch2.tif']
+#fname = [r'C:\Users\intrinsic\Desktop\pyRTAOI-rig\samples\example3\20171130_OG235_t-002_Cycle00001_Ch2.tif']
 
 # dataset dependent parameters
 display_images = False              # Set this to true to show movies and plots
@@ -156,13 +157,14 @@ mc = MotionCorrect(fname[0], min_mov,
 #%% Run piecewise-rigid motion correction using NoRMCorre
 #mc.motion_correct_rigid(save_movie=True)
 mc.motion_correct_pwrigid(save_movie=True)
+
 m_els = cm.load(mc.fname_tot_els)
 bord_px_els = np.ceil(np.maximum(np.max(np.abs(mc.x_shifts_els)),
                                  np.max(np.abs(mc.y_shifts_els)))).astype(np.int)
 
 # maximum shift to be used for trimming against NaNs
 
-#%% compare with original movie
+# compare with original movie
 display_images = False
 if display_images:
     moviehandle = cm.concatenate([m_orig.resize(1, 1, downsample_ratio) + offset_mov,
@@ -170,23 +172,40 @@ if display_images:
                axis=2)
     moviehandle.play(fr=60, q_max=99.5, magnification=2, offset=0)  # press q to exit
 
-#%% memory map the file in order 'C'
+# memory map the file in order 'C'
 fnames = mc.fname_tot_els   # name of the pw-rigidly corrected file.
 border_to_0 = bord_px_els     # number of pixels to exclude
 fname_new = cm.save_memmap(fnames, base_name='memmap_', order='C',
                            border_to_0=bord_px_els)  # exclude borders
 
-#%% now load the file
-#fname_new = r'C:\\Users\\intrinsic\\Desktop\\pyRTAOI2018\\samples\\example1\\memmap__d1_512_d2_512_d3_1_order_C_frames_5400_.mmap'
+# now load the file
+#fname_new = r'C:\\Users\\intrinsic\\Desktop\\pyRTAOI-rig\\samples\\example1\\memmap__d1_512_d2_512_d3_1_order_C_frames_5400_.mmap'
+
 Yr, dims, T = cm.load_memmap(fname_new)
+bord_px_els 
 d1, d2 = dims
 images = np.reshape(Yr.T, [T] + list(dims), order='F')
 # load frames in python format (T x X x Y)
 
-#%% restart cluster to clean up memory
-dview.terminate()
+# restart cluster to clean up memory
+try:
+    dview.terminate()
+except: pass
 c, dview, n_processes = cm.cluster.setup_cluster(
     backend='local', n_processes=None, single_thread=False)
+
+#%% Normalise data
+#img_min = Y.min()                                   # minimum value of movie. Subtract it to make the data non-negative
+#Y -= img_min
+#img_norm = np.std(Y, axis=0)                        
+#img_norm += np.median(img_norm)                     # normalizing factor to equalize the FOV
+#Y = Y / img_norm[None, :, :]                        # normalize data
+#
+#_, d1, d2 = Y.shape
+#dims = (d1, d2)                                     # dimensions of FOV
+#Yr = Y.to_2D().T                                    # convert data into 2D array                                    
+#    
+#images = np.reshape(Yr.T, [T] + list(dims), order='F')
 
 #%% RUN CNMF ON PATCHES
 
@@ -207,11 +226,11 @@ cnm = cnmf.CNMF(n_processes=1,
 cnm = cnm.fit(images)
 
 #%% plot contours of found components
-Cn = cm.local_correlations(images.transpose(1, 2, 0))
-Cn[np.isnan(Cn)] = 0
-plt.figure()
-crd = plot_contours(cnm.A, Cn, thr=0.9)
-plt.title('Contour plots of found components')
+#Cn = cm.local_correlations(images.transpose(1, 2, 0))
+#Cn[np.isnan(Cn)] = 0
+#plt.figure()
+#crd = plot_contours(cnm.A, Cn, thr=0.9)
+#plt.title('Contour plots of found components')
 
 
 #%% COMPONENT EVALUATION
@@ -292,15 +311,38 @@ if simple:
     
     cnm2 = cnm2.fit(images)
 
-#%% Extract DF/F values
+#%% Detrend DF/F values without loading the movie 
+
+#    F_df:
+#        the computed Calcium activity to the derivative of f
 
 F_dff = detrend_df_f(cnm2.A, cnm2.b, cnm2.C, cnm2.f, YrA=cnm2.YrA,
                      quantileMin=8, frames_window=250)
 
-#%% Display DF/F -- very noisy
-#cell = 59
-#plt.figure()
-#plt.plot(F_dff[cell,:])
+F_dff_no_noise = detrend_df_f(cnm2.A, cnm2.b, cnm2.C, cnm2.f,
+                     quantileMin=8, frames_window=250)
+
+#%% Display DF/F -- very noisy if YrA provided
+cell = 0
+plt.figure()
+plt.plot(F_dff[cell,:])
+
+#%% Extract DF/F values -- memory inefficient (a bit) but traces a lot less noisy
+
+#    Cdf:
+#        the computed Calcium activity to the derivative of f
+        
+from caiman.source_extraction.cnmf.utilities import extract_DF_F
+
+bl = cnm2.bl # baseline for each component
+
+C_df = extract_DF_F(Yr, cnm2.A, cnm2.C, bl)
+
+#%% Display C_df
+cell = 0
+plt.figure()
+plt.plot(C_df[cell,:])
+
 
 #%% Show final traces
 cnm2.view_patches(Yr, dims=dims, img=Cn)
@@ -329,14 +371,34 @@ coms = com(cnm2.A, *dims)
 #    from pkl2mat import convert2mat
 #    convert2mat(file_full_name = saveResultPath)
 
+#%% Load npz file
+file = r'C:\Users\intrinsic\Desktop\pyRTAOI-rig\samples\example1\offline_results\ex3_cnmf_results.npz'
+file_data = np.load(file)
+locals().update(file_data)
+#
+#cnm2 = cnmf.CNMF
+#cnm2.A = A
+#cnm2.b = b
+#cnm2.C = C
+#cnm2.f = f
+#cnm2.YrA = YrA
+
 #%% Saving as npz works
 folder = os.path.dirname(fname[0])
 saved_data = os.path.join(folder, 'offline_results', 'ex2_cnmf_results.npz')
 
-np.savez(saved_data, A=cnm2.A, b=cnm2.b, C=cnm2.C, f=cnm2.f, YrA=cnm2.YrA,
-         Cn=Cn, dims=cnm2.dims, thresh_overlap=cnm2.thresh_overlap,
-         coms=coms, cnm_N=cnm2.A.shape[1], gnb=gnb)
+np.savez(saved_data, A=cnm2.A, b=cnm2.b, C=cnm2.C, f=cnm2.f, YrA=cnm2.YrA, # YrA is residual signal
+         Y_r=cnm2.YrA + cnm2.C, Cn=Cn, dims=cnm2.dims, F_dff=F_dff, 
+         F_dff_no_noise=F_dff_no_noise, C_df=C_df, coms=coms, gnb=gnb,
+         thresh_overlap=cnm2.thresh_overlap, cnm_N=cnm2.A.shape[1],
+         bord_px_els=bord_px_els)
 
+#%% Save npz to mat
+from npz2mat import npz2mat
+
+save_mat = 1
+if save_mat:
+    npz2mat(saved_data)
 
 #%% STOP CLUSTER and clean up log files
 cm.stop_server(dview=dview)

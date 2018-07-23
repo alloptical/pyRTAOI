@@ -310,17 +310,17 @@ if visualise_init:
 #   b) a minimum peak SNR is required over the length of a transient
 #   c) each shape passes a CNN based classifier
     
-from caiman.components_evaluation import estimate_components_quality_auto
-
-T = cnm_init.initbatch
-images = np.reshape(Yr.T, [T] + list(dims), order='F')
-
-idx_components, idx_components_bad, SNR_comp, r_values, cnn_preds = \
-    estimate_components_quality_auto(images, cnm_init.A, cnm_init.C, cnm_init.b, cnm_init.f,
-                                     cnm_init.YrA, frate=30, decay_time=0.5, gSig=gSig, dims=dims,
-                                     min_SNR=2.5,
-                                     r_values_min=0.85, use_cnn=False,
-                                     thresh_cnn_min=0.8)
+#from caiman.components_evaluation import estimate_components_quality_auto
+#
+#T = cnm_init.initbatch
+#images = np.reshape(Yr.T, [T] + list(dims), order='F')
+#
+#idx_components, idx_components_bad, SNR_comp, r_values, cnn_preds = \
+#    estimate_components_quality_auto(images, cnm_init.A, cnm_init.C, cnm_init.b, cnm_init.f,
+#                                     cnm_init.YrA, frate=30, decay_time=0.5, gSig=gSig, dims=dims,
+#                                     min_SNR=2.5,
+#                                     r_values_min=0.85, use_cnn=False,
+#                                     thresh_cnn_min=0.8)
 
 #%% Remove any undesirable cells from initialisation
 inx = [0,1] # from visualisation

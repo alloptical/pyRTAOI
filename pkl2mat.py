@@ -11,7 +11,7 @@ import numpy as np
 root = tk.Tk()
 root.withdraw()
 
-def convert2mat(file_full_name = '',save_full_name = ''):
+def pkl2mat(file_full_name = '',save_full_name = ''):
     if file_full_name == '':
         file_full_name = filedialog.askopenfilename()
     print(file_full_name)
@@ -42,17 +42,16 @@ def convert2mat(file_full_name = '',save_full_name = ''):
     save_dict['cnm_b'] = b
     save_dict['cnm_C'] = C #cnm.C
     save_dict['cnm_f'] = f #cnm.f
-    save_dict['cnm_N'] = cnm.N
-    save_dict['cnm_gnb'] = cnm.gnb
-    save_dict['num_frames_init'] = cnm.initbatch
-
 
     # cell traces
     save_dict['noisyC'] = cnm.noisyC
 #    save_dict['deconvC'] = cnm.C_on
     save_dict['cnm_dims'] = cnm.dims
- 
         
+    # other
+    save_dict['cnm_N'] = cnm.N
+    save_dict['cnm_gnb'] = cnm.gnb
+    save_dict['num_frames_init'] = cnm.initbatch
         
         
     print('saved as '+save_full_name)
@@ -60,4 +59,4 @@ def convert2mat(file_full_name = '',save_full_name = ''):
 
     
 if __name__ == '__main__':
-    convert2mat()
+    pkl2mat()
