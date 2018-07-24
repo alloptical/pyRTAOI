@@ -6732,3 +6732,351 @@ Device Specified: Dev9
 Task Name: _unnamedTask<0>
 
 Status Code: -200220
+2018-07-23 16:52:12,924 - __main__ - INFO - Started application
+2018-07-24 09:34:11,891 - __main__ - INFO - Started application
+2018-07-24 10:24:10,541 - __main__ - INFO - Started application
+2018-07-24 10:24:10,541 - __main__ - INFO - Started application
+2018-07-24 10:24:10,568 - __main__ - ERROR - The specified resource is reserved. The operation could not be completed as specified.
+Task Name: _unnamedTask<3>
+
+Status Code: -50103
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 1003, in __init__
+    self.niStimWriter.write_one_sample(0,10.0)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\stream_writers.py", line 269, in write_one_sample
+    self._handle, data, auto_start, timeout)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\_task_modules\write_functions.py", line 48, in _write_analog_scalar_f_64
+    check_for_error(error_code)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: The specified resource is reserved. The operation could not be completed as specified.
+Task Name: _unnamedTask<3>
+
+Status Code: -50103
+2018-07-24 10:24:10,568 - __main__ - ERROR - The specified resource is reserved. The operation could not be completed as specified.
+Task Name: _unnamedTask<3>
+
+Status Code: -50103
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 1003, in __init__
+    self.niStimWriter.write_one_sample(0,10.0)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\stream_writers.py", line 269, in write_one_sample
+    self._handle, data, auto_start, timeout)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\_task_modules\write_functions.py", line 48, in _write_analog_scalar_f_64
+    check_for_error(error_code)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: The specified resource is reserved. The operation could not be completed as specified.
+Task Name: _unnamedTask<3>
+
+Status Code: -50103
+2018-07-24 11:07:19,762 - __main__ - INFO - Started application
+2018-07-24 11:07:19,762 - __main__ - INFO - Started application
+2018-07-24 11:07:19,762 - __main__ - INFO - Started application
+2018-07-24 11:07:19,788 - __main__ - ERROR - The specified resource is reserved. The operation could not be completed as specified.
+Task Name: _unnamedTask<6>
+
+Status Code: -50103
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 1003, in __init__
+    self.niStimWriter.write_one_sample(0,10.0)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\stream_writers.py", line 269, in write_one_sample
+    self._handle, data, auto_start, timeout)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\_task_modules\write_functions.py", line 48, in _write_analog_scalar_f_64
+    check_for_error(error_code)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: The specified resource is reserved. The operation could not be completed as specified.
+Task Name: _unnamedTask<6>
+
+Status Code: -50103
+2018-07-24 11:07:19,788 - __main__ - ERROR - The specified resource is reserved. The operation could not be completed as specified.
+Task Name: _unnamedTask<6>
+
+Status Code: -50103
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 1003, in __init__
+    self.niStimWriter.write_one_sample(0,10.0)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\stream_writers.py", line 269, in write_one_sample
+    self._handle, data, auto_start, timeout)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\_task_modules\write_functions.py", line 48, in _write_analog_scalar_f_64
+    check_for_error(error_code)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: The specified resource is reserved. The operation could not be completed as specified.
+Task Name: _unnamedTask<6>
+
+Status Code: -50103
+2018-07-24 11:07:19,788 - __main__ - ERROR - The specified resource is reserved. The operation could not be completed as specified.
+Task Name: _unnamedTask<6>
+
+Status Code: -50103
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 1003, in __init__
+    self.niStimWriter.write_one_sample(0,10.0)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\stream_writers.py", line 269, in write_one_sample
+    self._handle, data, auto_start, timeout)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\_task_modules\write_functions.py", line 48, in _write_analog_scalar_f_64
+    check_for_error(error_code)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: The specified resource is reserved. The operation could not be completed as specified.
+Task Name: _unnamedTask<6>
+
+Status Code: -50103
+2018-07-24 11:11:22,318 - __main__ - INFO - Started application
+2018-07-24 11:11:22,318 - __main__ - INFO - Started application
+2018-07-24 11:11:22,318 - __main__ - INFO - Started application
+2018-07-24 11:11:22,318 - __main__ - INFO - Started application
+2018-07-24 11:11:22,344 - __main__ - ERROR - The specified resource is reserved. The operation could not be completed as specified.
+Task Name: _unnamedTask<9>
+
+Status Code: -50103
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 1003, in __init__
+    self.niStimWriter.write_one_sample(0,10.0)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\stream_writers.py", line 269, in write_one_sample
+    self._handle, data, auto_start, timeout)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\_task_modules\write_functions.py", line 48, in _write_analog_scalar_f_64
+    check_for_error(error_code)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: The specified resource is reserved. The operation could not be completed as specified.
+Task Name: _unnamedTask<9>
+
+Status Code: -50103
+2018-07-24 11:11:22,344 - __main__ - ERROR - The specified resource is reserved. The operation could not be completed as specified.
+Task Name: _unnamedTask<9>
+
+Status Code: -50103
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 1003, in __init__
+    self.niStimWriter.write_one_sample(0,10.0)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\stream_writers.py", line 269, in write_one_sample
+    self._handle, data, auto_start, timeout)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\_task_modules\write_functions.py", line 48, in _write_analog_scalar_f_64
+    check_for_error(error_code)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: The specified resource is reserved. The operation could not be completed as specified.
+Task Name: _unnamedTask<9>
+
+Status Code: -50103
+2018-07-24 11:11:22,344 - __main__ - ERROR - The specified resource is reserved. The operation could not be completed as specified.
+Task Name: _unnamedTask<9>
+
+Status Code: -50103
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 1003, in __init__
+    self.niStimWriter.write_one_sample(0,10.0)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\stream_writers.py", line 269, in write_one_sample
+    self._handle, data, auto_start, timeout)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\_task_modules\write_functions.py", line 48, in _write_analog_scalar_f_64
+    check_for_error(error_code)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: The specified resource is reserved. The operation could not be completed as specified.
+Task Name: _unnamedTask<9>
+
+Status Code: -50103
+2018-07-24 11:11:22,344 - __main__ - ERROR - The specified resource is reserved. The operation could not be completed as specified.
+Task Name: _unnamedTask<9>
+
+Status Code: -50103
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 1003, in __init__
+    self.niStimWriter.write_one_sample(0,10.0)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\stream_writers.py", line 269, in write_one_sample
+    self._handle, data, auto_start, timeout)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\_task_modules\write_functions.py", line 48, in _write_analog_scalar_f_64
+    check_for_error(error_code)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: The specified resource is reserved. The operation could not be completed as specified.
+Task Name: _unnamedTask<9>
+
+Status Code: -50103
+2018-07-24 13:22:20,117 - __main__ - INFO - Started application
+2018-07-24 13:22:20,117 - __main__ - INFO - Started application
+2018-07-24 13:22:20,117 - __main__ - INFO - Started application
+2018-07-24 13:22:20,117 - __main__ - INFO - Started application
+2018-07-24 13:22:20,117 - __main__ - INFO - Started application
+2018-07-24 13:22:20,142 - __main__ - ERROR - The specified resource is reserved. The operation could not be completed as specified.
+Task Name: _unnamedTask<C>
+
+Status Code: -50103
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 1032, in __init__
+    self.niStimWriter.write_one_sample(0,10.0)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\stream_writers.py", line 269, in write_one_sample
+    self._handle, data, auto_start, timeout)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\_task_modules\write_functions.py", line 48, in _write_analog_scalar_f_64
+    check_for_error(error_code)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: The specified resource is reserved. The operation could not be completed as specified.
+Task Name: _unnamedTask<C>
+
+Status Code: -50103
+2018-07-24 13:22:20,142 - __main__ - ERROR - The specified resource is reserved. The operation could not be completed as specified.
+Task Name: _unnamedTask<C>
+
+Status Code: -50103
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 1032, in __init__
+    self.niStimWriter.write_one_sample(0,10.0)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\stream_writers.py", line 269, in write_one_sample
+    self._handle, data, auto_start, timeout)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\_task_modules\write_functions.py", line 48, in _write_analog_scalar_f_64
+    check_for_error(error_code)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: The specified resource is reserved. The operation could not be completed as specified.
+Task Name: _unnamedTask<C>
+
+Status Code: -50103
+2018-07-24 13:22:20,142 - __main__ - ERROR - The specified resource is reserved. The operation could not be completed as specified.
+Task Name: _unnamedTask<C>
+
+Status Code: -50103
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 1032, in __init__
+    self.niStimWriter.write_one_sample(0,10.0)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\stream_writers.py", line 269, in write_one_sample
+    self._handle, data, auto_start, timeout)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\_task_modules\write_functions.py", line 48, in _write_analog_scalar_f_64
+    check_for_error(error_code)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: The specified resource is reserved. The operation could not be completed as specified.
+Task Name: _unnamedTask<C>
+
+Status Code: -50103
+2018-07-24 13:22:20,142 - __main__ - ERROR - The specified resource is reserved. The operation could not be completed as specified.
+Task Name: _unnamedTask<C>
+
+Status Code: -50103
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 1032, in __init__
+    self.niStimWriter.write_one_sample(0,10.0)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\stream_writers.py", line 269, in write_one_sample
+    self._handle, data, auto_start, timeout)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\_task_modules\write_functions.py", line 48, in _write_analog_scalar_f_64
+    check_for_error(error_code)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: The specified resource is reserved. The operation could not be completed as specified.
+Task Name: _unnamedTask<C>
+
+Status Code: -50103
+2018-07-24 13:22:20,142 - __main__ - ERROR - The specified resource is reserved. The operation could not be completed as specified.
+Task Name: _unnamedTask<C>
+
+Status Code: -50103
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 1032, in __init__
+    self.niStimWriter.write_one_sample(0,10.0)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\stream_writers.py", line 269, in write_one_sample
+    self._handle, data, auto_start, timeout)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\_task_modules\write_functions.py", line 48, in _write_analog_scalar_f_64
+    check_for_error(error_code)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: The specified resource is reserved. The operation could not be completed as specified.
+Task Name: _unnamedTask<C>
+
+Status Code: -50103
+2018-07-24 13:29:09,402 - __main__ - INFO - Started application
+2018-07-24 13:41:24,708 - __main__ - INFO - Started application
+2018-07-24 13:41:51,345 - __main__ - INFO - Started application
+2018-07-24 13:51:21,822 - __main__ - INFO - Started application
+2018-07-24 13:53:46,138 - __main__ - INFO - Started application
+2018-07-24 13:53:46,138 - __main__ - INFO - Started application
+2018-07-24 13:53:46,164 - __main__ - ERROR - The specified resource is reserved. The operation could not be completed as specified.
+Task Name: _unnamedTask<3>
+
+Status Code: -50103
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 1036, in __init__
+    self.niStimWriter.write_one_sample(0,10.0)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\stream_writers.py", line 269, in write_one_sample
+    self._handle, data, auto_start, timeout)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\_task_modules\write_functions.py", line 48, in _write_analog_scalar_f_64
+    check_for_error(error_code)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: The specified resource is reserved. The operation could not be completed as specified.
+Task Name: _unnamedTask<3>
+
+Status Code: -50103
+2018-07-24 13:53:46,164 - __main__ - ERROR - The specified resource is reserved. The operation could not be completed as specified.
+Task Name: _unnamedTask<3>
+
+Status Code: -50103
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 1036, in __init__
+    self.niStimWriter.write_one_sample(0,10.0)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\stream_writers.py", line 269, in write_one_sample
+    self._handle, data, auto_start, timeout)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\_task_modules\write_functions.py", line 48, in _write_analog_scalar_f_64
+    check_for_error(error_code)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: The specified resource is reserved. The operation could not be completed as specified.
+Task Name: _unnamedTask<3>
+
+Status Code: -50103
+2018-07-24 13:56:50,342 - __main__ - INFO - Started application
+2018-07-24 13:56:50,342 - __main__ - INFO - Started application
+2018-07-24 13:56:50,342 - __main__ - INFO - Started application
+2018-07-24 13:56:50,369 - __main__ - ERROR - The specified resource is reserved. The operation could not be completed as specified.
+Task Name: _unnamedTask<6>
+
+Status Code: -50103
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 1036, in __init__
+    self.niStimWriter.write_one_sample(0,10.0)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\stream_writers.py", line 269, in write_one_sample
+    self._handle, data, auto_start, timeout)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\_task_modules\write_functions.py", line 48, in _write_analog_scalar_f_64
+    check_for_error(error_code)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: The specified resource is reserved. The operation could not be completed as specified.
+Task Name: _unnamedTask<6>
+
+Status Code: -50103
+2018-07-24 13:56:50,369 - __main__ - ERROR - The specified resource is reserved. The operation could not be completed as specified.
+Task Name: _unnamedTask<6>
+
+Status Code: -50103
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 1036, in __init__
+    self.niStimWriter.write_one_sample(0,10.0)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\stream_writers.py", line 269, in write_one_sample
+    self._handle, data, auto_start, timeout)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\_task_modules\write_functions.py", line 48, in _write_analog_scalar_f_64
+    check_for_error(error_code)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: The specified resource is reserved. The operation could not be completed as specified.
+Task Name: _unnamedTask<6>
+
+Status Code: -50103
+2018-07-24 13:56:50,369 - __main__ - ERROR - The specified resource is reserved. The operation could not be completed as specified.
+Task Name: _unnamedTask<6>
+
+Status Code: -50103
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 1036, in __init__
+    self.niStimWriter.write_one_sample(0,10.0)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\stream_writers.py", line 269, in write_one_sample
+    self._handle, data, auto_start, timeout)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\_task_modules\write_functions.py", line 48, in _write_analog_scalar_f_64
+    check_for_error(error_code)
+  File "C:\Users\User\AppData\Local\conda\conda\envs\caiman\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: The specified resource is reserved. The operation could not be completed as specified.
+Task Name: _unnamedTask<6>
+
+Status Code: -50103

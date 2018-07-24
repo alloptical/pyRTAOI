@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1276</width>
+    <width>1315</width>
     <height>1000</height>
    </rect>
   </property>
@@ -628,7 +628,7 @@
       </property>
       <widget class="QCheckBox" name="UseONACID_checkBox">
        <property name="enabled">
-        <bool>false</bool>
+        <bool>true</bool>
        </property>
        <property name="geometry">
         <rect>
@@ -812,11 +812,22 @@
         <item row="2" column="0">
          <layout class="QVBoxLayout" name="verticalLayout_3">
           <item>
-           <widget class="QPushButton" name="initialise_pushButton">
-            <property name="text">
-             <string>Initialise</string>
-            </property>
-           </widget>
+           <layout class="QHBoxLayout" name="horizontalLayout_4">
+            <item>
+             <widget class="QPushButton" name="takeRefMovie_pushButton">
+              <property name="text">
+               <string>Take Ref Movie</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="initialise_pushButton">
+              <property name="text">
+               <string>Initialise</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
          </layout>
         </item>
@@ -1022,7 +1033,7 @@
       <property name="geometry">
        <rect>
         <x>900</x>
-        <y>470</y>
+        <y>530</y>
         <width>331</width>
         <height>121</height>
        </rect>
@@ -1234,7 +1245,7 @@
       <property name="geometry">
        <rect>
         <x>900</x>
-        <y>600</y>
+        <y>660</y>
         <width>331</width>
         <height>61</height>
        </rect>
@@ -1539,9 +1550,9 @@
      <widget class="QGroupBox" name="run_groupBox">
       <property name="geometry">
        <rect>
-        <x>900</x>
+        <x>20</x>
         <y>670</y>
-        <width>331</width>
+        <width>341</width>
         <height>51</height>
        </rect>
       </property>
@@ -1553,7 +1564,7 @@
         <rect>
          <x>10</x>
          <y>10</y>
-         <width>311</width>
+         <width>320</width>
          <height>31</height>
         </rect>
        </property>
@@ -1655,7 +1666,7 @@
        </layout>
       </widget>
      </widget>
-     <widget class="QWidget" name="">
+     <widget class="QWidget" name="layoutWidget">
       <property name="geometry">
        <rect>
         <x>570</x>
@@ -1714,7 +1725,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1276</width>
+     <width>1315</width>
      <height>21</height>
     </rect>
    </property>
