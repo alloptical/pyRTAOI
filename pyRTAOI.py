@@ -158,6 +158,7 @@ class DataStream(QObject):
     
     processFrame_signal = pyqtSignal(object)
     stream_finished_signal = pyqtSignal()
+
     
     def __init__(self, **kwargs ):
         super(DataStream,self).__init__()
@@ -304,7 +305,7 @@ class DataStream(QObject):
                 del dest_gpu
                 del sample_mean
                 self.stream_finished_signal.emit()
-                print('stopped scanning') # gets here
+                print('stopped scanning')
                 p['FLAG_END_LOADING'] = True
                 
 #%% offline, read frames from tiff                
@@ -324,8 +325,9 @@ class DataStream(QObject):
                 qbuffer.put(frame.copy().astype(np.float32))
                 self.framesRecv += 1
                 
-            self.stream_finished_signal.emit()
-            p['FLAG_END_LOADING'] = True   
+            self.stream_finished_signal.emit()            
+            print('stream finished')
+            p['FLAG_END_LOADING'] = True
                 
     def stop(self):
         print('stream stop')
@@ -447,11 +449,11 @@ class Worker(QObject):
             com_count = self.com_count
             
             # local record of all roi coords
-            print('number of initial rois '+str(com_count))            
+            print('number of initial rois '+str(com_count))
             ROIx = np.asarray([item.get("ROIx") for item in self.ROIlist[:com_count]])   # could also predefine ROIx/y as arrays of bigger size (e.g. 100) and fill them in instad of append
             ROIy = np.asarray([item.get("ROIy") for item in self.ROIlist[:com_count]])
             print('roix', ROIx)
-            print('roiy',ROIy)
+            print('roiy', ROIy)
         
             img_norm = self.c['img_norm'].copy().astype(np.float32)
             img_min = self.c['img_min'].copy().astype(np.float32)
@@ -467,6 +469,7 @@ class Worker(QObject):
 
             except Exception as e:
                 opsin_mask = np.array([])
+                opsin_positive = True  # default for when no opsin mask
                 print(e)
                 
             # Define OnACID parameters
@@ -474,8 +477,6 @@ class Worker(QObject):
             cnm2 = (self.c['cnm2']) #deepcopy( cnm_init)
             t_cnm = cnm2.initbatch
             coms_init = self.c['coms_init']
-#            Cn_init = self.c['Cn_init']
-#            self.Cn = Cn_init.copy()
             coms = coms_init.copy()
             com_count = cnm2.N
             rejected = 0
@@ -484,7 +485,6 @@ class Worker(QObject):
 
 
         # keep processing frames in qbuffer
-        print('before buffer')
         try:
             while ((not p['FLAG_END_LOADING']) or (not qbuffer.empty())) and not self.STOP_JOB_FLAG: # some issue here: when stopped/finished, it usually does not enter finishing part
                 # get data from queue
@@ -562,7 +562,7 @@ class Worker(QObject):
                                         if opsin_positive:  # add target only if opsin present
                                             p['currentTargetX'].append(x*ds_factor) # = np.append(p['currentTargetX'],x*ds_factor)
                                             p['currentTargetY'].append(y*ds_factor) # = np.append(p['currentTargetY'],y*ds_factor)
-    #                                        p['NI_2D_ARRAY'][1,:] = NI_UNIT_POWER_ARRAY *np.polyval(power_polyfit_p,photoPowerPerCell*len(p['currentTargetY']))
+                                            p['NI_2D_ARRAY'][1,:] = NI_UNIT_POWER_ARRAY *np.polyval(power_polyfit_p,photoPowerPerCell*len(p['currentTargetY']))
                                             self.sendCoords_signal.emit()
                                             self.updateTargetROIs_signal.emit()
                                     
@@ -590,7 +590,7 @@ class Worker(QObject):
                     
                     
                     # trigger photostim
-                    if p['photoProtoInx'] == CONSTANTS.PHOTO_ABOVE_THRESH:
+                    if p['photoProtoInx'] == CONSTANTS.PHOTO_ABOVE_THRESH:  # TODO: no check for opsin here
                         photostim_idx = self.RoiBuffer[:com_count, BufferPointer]-self.ROIlist_threshold[:com_count]
                         print(photostim_idx)
                         p['currentTargetX'] = ROIx[photostim_idx>0]
@@ -703,7 +703,7 @@ class Worker(QObject):
         
         try:
             print('here')
-            if self.STOP_JOB_FLAG:#  or p['FLAG_END_LOADING']:
+            if self.STOP_JOB_FLAG:
                 print('hi stop clicked')
             if p['FLAG_END_LOADING']:
                 print('hi finished loading')
@@ -752,6 +752,8 @@ class Worker(QObject):
                 print('Saving onacid output')
                 save_separately = True # temp flag to save in a new folder inside movie folder
                 
+                timestr = time.strftime("%Y%m%d-%H%M%S")  # can add to title (day-time)
+                
                 if save_separately:  # TODO: what if pv connected? -- test
                     filename = os.path.basename(self.movie_name) + '_DS_' + str(ds_factor) + '_OnlineProc.pkl'
                     movie_folder = os.path.dirname(p['moviePath'])
@@ -796,11 +798,12 @@ class Worker(QObject):
         
     def stop(self):
         self.status_signal.emit('Stop clicked')
+        print('worker stop')
         self.STOP_JOB_FLAG = True
 
         
 #%%  
-class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
+class MainWindow(QMainWindow, GUI.Ui_MainWindow, CONSTANTS):
     '''
     The GUI window
 
@@ -1096,43 +1099,39 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         y = event.pos().y()
                     
         if self.removeModeOn:
-            try:
-                det_dist = 10
-                
-                for idx in range(self.thisROIIdx):
-                    ROI_x = self.ROIlist[idx]["ROIx"]
-                    ROI_y = self.ROIlist[idx]["ROIy"]
-                    detected = abs(x - ROI_x) <= det_dist and abs(y - ROI_y) <= det_dist
-                
-                    if detected:
-                        if idx in self.removeIdx:
-                            # reset all remove list works
+            det_dist = 10
+            
+            for idx in range(self.thisROIIdx):
+                ROI_x = self.ROIlist[idx]["ROIx"]
+                ROI_y = self.ROIlist[idx]["ROIy"]
+                detected = abs(x - ROI_x) <= det_dist and abs(y - ROI_y) <= det_dist
+            
+                if detected:
+                    if idx in self.removeIdx:
+                        # reset all remove list works
 #                            self.Targetcontour_item.clear()
 #                            self.updateTargets()
 #                            self.removeIdx = []
-                                                        
-                            # unselect individual remove items
-                            selected = self.Targetcontour_item.data
-                            selected_xy = [[value[0], value[1]] for value in selected][self.numTargets:]
-                                                        
-                            ROI_xy = [ROI_x, ROI_y]
-                            selected_idx = selected_xy.index(ROI_xy)
+                                                    
+                        # unselect individual remove items
+                        selected = self.Targetcontour_item.data
+                        selected_xy = [[value[0], value[1]] for value in selected][self.numTargets:]
+                                                    
+                        ROI_xy = [ROI_x, ROI_y]
+                        selected_idx = selected_xy.index(ROI_xy)
 
-                            del selected_xy[selected_idx]                            
-                            remove_x = [item[0] for item in selected_xy]
-                            remove_y = [item[1] for item in selected_xy]
-                            
-                            self.Targetcontour_item.clear()
-                            self.updateTargets()
-                            self.Targetcontour_item.addPoints(x = remove_x, y = remove_y, pen = self.RemovePen, size = pointSize)
-                
-                            self.removeIdx.remove(idx)
-                        else:
-                            self.removeIdx.append(idx)
-                            self.Targetcontour_item.addPoints(x = [ROI_x], y = [ROI_y], pen = self.RemovePen, size = pointSize)
-                            
-            except Exception as e:
-                print(e)
+                        del selected_xy[selected_idx]                            
+                        remove_x = [item[0] for item in selected_xy]
+                        remove_y = [item[1] for item in selected_xy]
+                        
+                        self.Targetcontour_item.clear()
+                        self.updateTargets()
+                        self.Targetcontour_item.addPoints(x = remove_x, y = remove_y, pen = self.RemovePen, size = pointSize)
+            
+                        self.removeIdx.remove(idx)
+                    else:
+                        self.removeIdx.append(idx)
+                        self.Targetcontour_item.addPoints(x = [ROI_x], y = [ROI_y], pen = self.RemovePen, size = pointSize)
                 
         else:
             print(str(x)+' '+str(y))
@@ -1290,7 +1289,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         self.MaxNumROIs = p['MaxNumROIs']
         self.flipRowChanged()
         self.currentZoomChanged()
-        #p['InitNumROIs'] = K  #TODO: keep one copy only
+
         
     def testTTLTrigger(self):
         self.getValues()
@@ -1442,6 +1441,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         if(retval==QMessageBox.Ok):
             self.c = {}
             self.cnm2 = {}
+            self.opsinMaskOn = False
             self.UseONACID_checkBox.setEnabled(False)
             self.UseONACID_checkBox.setChecked(False)
             self.imageItem.setImage(self.BlankImage)
@@ -1502,8 +1502,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             if opsin_only and self.A_opsin.size:
                 self.TargetIdx = list(compress(self.TargetIdx, self.c['cnm2'].opsin))
             
-            self.TargetX = [self.ROIlist[i]["ROIx"] for i in self.TargetIdx] # self.TargetX +  # np.append(self.TargetX, [self.ROIlist[i]["ROIx"] for i in self.TargetIdx])
-            self.TargetY = [self.ROIlist[i]["ROIy"] for i in self.TargetIdx] # self.TargetY +  # = np.append(self.TargetY, [self.ROIlist[i]["ROIy"] for i in self.TargetIdx])
+            self.TargetX = [self.ROIlist[i]["ROIx"] for i in self.TargetIdx] # np.append(self.TargetX, [self.ROIlist[i]["ROIx"] for i in self.TargetIdx])
+            self.TargetY = [self.ROIlist[i]["ROIy"] for i in self.TargetIdx] # np.append(self.TargetY, [self.ROIlist[i]["ROIy"] for i in self.TargetIdx])
             
             # check for existing extra targets
             det_dist = 10 # remove extra targets only if ROI very close
@@ -1548,7 +1548,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
     def updateTargetROIs(self):
         # redraw targeted rois in imaging window - to do: draw what is saved in p
         self.Targetcontour_item.clear()
-        self.Targetcontour_item.addPoints(x = p['currentTargetX'], y = p['currentTargetY'], pen = self.TargetPen, size = self.RoiRadius*2+5)  # TODO: check. in other case just *2
+        self.Targetcontour_item.addPoints(x = p['currentTargetX'], y = p['currentTargetY'], pen = self.TargetPen, size = self.RoiRadius*2+5)
         
         
     def removeModeController(self):
@@ -2109,6 +2109,9 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         self.UseONACID_checkBox.setEnabled(True)
         self.UseONACID_checkBox.setChecked(True)
         
+        if self.selectAll_checkBox.isChecked():
+            self.selectAllROIs()
+        
         self.updateStatusBar('Initialision completed')
         show_traces = 1
         if show_traces:
@@ -2149,9 +2152,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             if self.MaxNumROIs_spinBox.value() < K+5:
                 self.MaxNumROIs_spinBox.setValue(K+10)
             
-            if self.A_opsin.size:
-                self.checkOpsin()
-            
             self.initialiseROI()
             for i in range(K):
                 y, x = self.c['coms_init'][i]  # reversed
@@ -2164,14 +2164,15 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                 self.plotOnacidTraces(t=cnm_init.initbatch)
                         
             # after new roi list initialised
-#            print('target idx list', self.TargetIdx)
             for idx in sorted(self.removeIdx, reverse=True):
                 if idx in self.TargetIdx:
-#                    print('idx', idx)
+                    print('idx', idx)
                     self.TargetIdx.remove(idx)
                 self.TargetIdx = [target-1 if target>idx else target for target in self.TargetIdx]
                 
-#            print('new target idx list', self.TargetIdx)
+                
+            if self.A_opsin.size:
+                self.checkOpsin()
                 
             self.updateTargets()
             self.updateStatusBar('Removed cells: ' + str([value+1 for value in self.removeIdx])[1:-1])
@@ -2406,7 +2407,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             else:
                 return
             
-        if p['UseONACID'] or self.FLAG_PV_CONNECTED:  # TODO: if no c but useonacid selected.. or disable onacid and turn it off after reset. maybe? useonacid and self.c != {})
+        if p['UseONACID'] or self.FLAG_PV_CONNECTED:
             try: self.resetFigure()
             except: pass
             
@@ -2421,10 +2422,15 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             
             self.getValues()
             kwargs = {"caiman": self.c,"prairie": self.pl,"ROIlist":self.ROIlist}
+    
+    
+            # connect stop_thread to stop button when analysis running
+            self.stop_pushButton.clicked.connect(self.stop_thread)
+
             self.workerObject = Worker(**kwargs)
             self.updateStatusBar('Worker created')        
             self.workerObject.moveToThread(self.workerThread)
-            
+        
             # update display signals
             self.workerObject.status_signal.connect(self.updateStatusBar)
             self.workerObject.roi_signal.connect(self.updateROI)
@@ -2441,14 +2447,20 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             self.workerObject.transDataToMain_signal.connect(self.transDataToMain)
             self.workerThread.started.connect(self.workerObject.work)
             self.workerObject.finished_signal.connect(self.workerThread.exit)
-            
+                                            
+            # disconnect stop_thread for stop to avoid repeated thread object issues on rerunning
+            self.stopButtonDisconnect = lambda: self.stop_pushButton.clicked.disconnect(self.stop_thread)
+            self.workerObject.finished_signal.connect(self.stopButtonDisconnect) 
+
+            self.workerObject.finished_signal.connect(self.workerObject.deleteLater)  # delete instance later
+
             # triggers
             self.workerObject.sendTTLTrigger_signal.connect(self.sendTTLTrigger)
             self.workerObject.sendCoords_signal.connect(self.sendCoords)
             self.workerObject.sendPhotoStimTrig_signal.connect(self.sendPhotoStimTrigger)
-            self.stop_pushButton.clicked.connect(self.stop_thread)
             self.workerThread.start()
             self.updateStatusBar('Worker started')
+            
             
             # start stream thread
             kwargs = {"prairie": self.pl}
@@ -2456,8 +2468,10 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             self.streamObject.moveToThread(self.streamThread)
             self.streamThread.started.connect(self.streamObject.stream)
             self.streamObject.stream_finished_signal.connect(self.streamThread.exit)
+            self.streamObject.stream_finished_signal.connect(self.streamObject.deleteLater)  # delete this instance later (seems it doesn't work but stop disconnect sorts it)
             self.streamThread.start()
-            self.updateStatusBar('stream started')
+            self.updateStatusBar('Stream started')
+            
             
         else:
             self.updateStatusBar('No initialisation provided and PV not connected')
@@ -2467,7 +2481,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
     def refreshPlot(self,arr):
         self.plotItem.clear()
         for i in range(self.thisROIIdx):
-            self.plotItem.plot(arr[i,:], antialias=True, pen=pg.mkPen(self.ROIlist[i]["ROIcolor"], width=1))#self.ROIpen)   #roipen width for this as well?
+            self.plotItem.plot(arr[i,:], antialias=True, pen=pg.mkPen(self.ROIlist[i]["ROIcolor"], width=1))
         try:
             self.plotItem.setYRange(np.round(arr.min())-1,np.round(arr.max())+1)
         except:
@@ -2511,7 +2525,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
     def switch_IsOffline(self):
         print('offline button')
         self.IsOffline = self.IsOffline_radioButton.isChecked()
-        self.updateStatusBar('Flag offline = '+str(p['isOffline']))
+        self.updateStatusBar('Flag offline = ' + str(self.IsOffline))
         
         
     def switch_useOnacidMask(self):  # toggle the two buttons
@@ -2556,18 +2570,18 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 #        if p['FLAG_PV_CONNECTED']:
 #            if not self.pl.send_done(self.pl._abort):
 #                print('Prairie aborted!')
-        
-        self.streamObject.stop()
-        self.workerObject.stop()
 
+        self.streamObject.stop()    
         self.streamThread.wait(1)
         self.streamThread.quit()
-        self.streamThread.wait()  
-                
-#        self.workerObject.stop()
+        self.streamThread.wait()
+
+        self.workerObject.stop()
         self.workerThread.wait(1)
         self.workerThread.quit()
         self.workerThread.wait() # ensures worker finished before next run can be started
+
+        self.stop_pushButton.clicked.disconnect(self.stop_thread)
         
 
     def closeEvent(self,event):  
