@@ -346,21 +346,20 @@ class imageSaver(QObject):
 		super(imageSaver,self).__init__()
 		self.mptiff_path = kwargs.get('save_movie_path',[])
 		self.frameSaved = 0
-		if self.pl == []:
-			print('No Prairie object provided')
-		else:
-			print('image saver initialised')
 
 	def saveImage(self):
 		# buffer for save multipage tiff
 		mptiff_path = self.mptiff_path
 		print('imageSaver, movie name='+str(mptiff_path))
-
-		while ((not p['FLAG_END_LOADING']) or (not qbuffer.empty())):
-			frame_in = qbuffer.get()
-			with tifffile.TiffWriter(mptiff_path, bigtiff=True) as tif:
+		with tifffile.TiffWriter(mptiff_path, bigtiff=True) as tif:
+			while ((not p['FLAG_END_LOADING']) or (not qbuffer.empty())):
+				try:
+					frame_in = qbuffer.get(timeout = 3)
+				except Exception as e:
+					print(e)
 				tif.save(frame_in)
 				self.frameSaved+=1
+				print('number frame saved = '+str(self.frameSaved))
 
 		# finishing
 		print('number of frames saved'+str(self.frameSaved))
@@ -2433,10 +2432,11 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		self.getValues()
 
 		if self.FLAG_PV_CONNECTED:
-			print('this is rake ref movie function')
+			print('this is take ref movie function')
 
 			# setup thread objects
 			save_path = self.pl.get_movie_name()+'rtaoi.tif'
+			print(save_path)
 			kwargs = {"save_movie_path": save_path}
 			self.imageSaverObject = imageSaver(**kwargs)
 			self.updateStatusBar('imageSaver object created')
@@ -2444,6 +2444,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.imageSaverThread.started.connect(self.imageSaverObject.saveImage)
 			self.imageSaverObject.finished_signal.connect(self.imageSaverThread.exit)
 			self.imageSaverThread.start()
+
 
 			# start stream thread
 			kwargs = {"prairie": self.pl}
