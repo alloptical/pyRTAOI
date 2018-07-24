@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1315</width>
-    <height>1000</height>
+    <width>1630</width>
+    <height>875</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -19,8 +19,8 @@
      <rect>
       <x>0</x>
       <y>0</y>
-      <width>1261</width>
-      <height>961</height>
+      <width>1611</width>
+      <height>821</height>
      </rect>
     </property>
     <property name="currentIndex">
@@ -178,7 +178,7 @@
       <property name="geometry">
        <rect>
         <x>560</x>
-        <y>640</y>
+        <y>410</y>
         <width>331</width>
         <height>81</height>
        </rect>
@@ -230,14 +230,14 @@
      <widget class="QGroupBox" name="DisplayOptions_groupBox">
       <property name="geometry">
        <rect>
-        <x>900</x>
-        <y>140</y>
+        <x>560</x>
+        <y>260</y>
         <width>331</width>
         <height>141</height>
        </rect>
       </property>
       <property name="title">
-       <string>Display options</string>
+       <string>Display settings</string>
       </property>
       <widget class="QWidget" name="layoutWidget">
        <property name="geometry">
@@ -249,55 +249,15 @@
         </rect>
        </property>
        <layout class="QGridLayout" name="gridLayout_8">
-        <item row="0" column="1">
-         <layout class="QVBoxLayout" name="verticalLayout_2">
-          <item>
-           <widget class="QCheckBox" name="denoiseOn_checkBox">
-            <property name="text">
-             <string>Denoise</string>
-            </property>
-            <property name="checked">
-             <bool>true</bool>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QCheckBox" name="displayOn_checkBox">
-            <property name="text">
-             <string>Display On</string>
-            </property>
-            <property name="checked">
-             <bool>true</bool>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QCheckBox" name="plotOn_checkBox">
-            <property name="text">
-             <string>Plot On</string>
-            </property>
-            <property name="checked">
-             <bool>true</bool>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <spacer name="verticalSpacer_4">
-            <property name="orientation">
-             <enum>Qt::Vertical</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>20</width>
-              <height>40</height>
-             </size>
-            </property>
-           </spacer>
-          </item>
-         </layout>
-        </item>
-        <item row="0" column="3">
+        <item row="0" column="2">
          <layout class="QGridLayout" name="gridLayout_7">
+          <item row="4" column="2">
+           <widget class="QPushButton" name="plotSTAonMasks_pushButton">
+            <property name="text">
+             <string>Show STA on ROIs</string>
+            </property>
+           </widget>
+          </item>
           <item row="3" column="2">
            <widget class="QPushButton" name="plotSTA_pushButton">
             <property name="sizePolicy">
@@ -324,14 +284,7 @@
             </property>
            </widget>
           </item>
-          <item row="4" column="2">
-           <widget class="QPushButton" name="plotSTAonMasks_pushButton">
-            <property name="text">
-             <string>Show STA on ROIs</string>
-            </property>
-           </widget>
-          </item>
-          <item row="3" column="0">
+          <item row="3" column="3">
            <spacer name="horizontalSpacer_13">
             <property name="orientation">
              <enum>Qt::Horizontal</enum>
@@ -344,10 +297,47 @@
             </property>
            </spacer>
           </item>
+          <item row="0" column="0">
+           <widget class="QCheckBox" name="denoiseOn_checkBox">
+            <property name="text">
+             <string>Denoise</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="0">
+           <widget class="QCheckBox" name="displayOn_checkBox">
+            <property name="text">
+             <string>Display On</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="4" column="0">
+           <widget class="QCheckBox" name="plotOn_checkBox">
+            <property name="text">
+             <string>Plot On</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
          </layout>
         </item>
-        <item row="1" column="3">
+        <item row="1" column="2">
          <layout class="QHBoxLayout" name="horizontalLayout">
+          <item>
+           <widget class="QLabel" name="label_16">
+            <property name="text">
+             <string> Plot every </string>
+            </property>
+           </widget>
+          </item>
           <item>
            <widget class="QSpinBox" name="refreshFrame_spinBox">
             <property name="minimum">
@@ -386,27 +376,20 @@
           </item>
          </layout>
         </item>
-        <item row="1" column="1">
-         <widget class="QLabel" name="label_16">
-          <property name="text">
-           <string> Plot every </string>
-          </property>
-         </widget>
-        </item>
        </layout>
       </widget>
      </widget>
      <widget class="QGroupBox" name="StimOptions_groupBox">
       <property name="geometry">
        <rect>
-        <x>560</x>
-        <y>460</y>
-        <width>331</width>
+        <x>1240</x>
+        <y>20</y>
+        <width>341</width>
         <height>171</height>
        </rect>
       </property>
       <property name="title">
-       <string>Stimulation options</string>
+       <string>Stimulation settings</string>
       </property>
       <layout class="QVBoxLayout" name="verticalLayout">
        <item>
@@ -617,64 +600,106 @@
      <widget class="QGroupBox" name="caiman_groupBox">
       <property name="geometry">
        <rect>
-        <x>560</x>
+        <x>900</x>
         <y>140</y>
         <width>331</width>
-        <height>181</height>
+        <height>261</height>
        </rect>
       </property>
       <property name="title">
-       <string>Initialisation options</string>
+       <string>Caiman initialisation</string>
       </property>
-      <widget class="QCheckBox" name="UseONACID_checkBox">
-       <property name="enabled">
-        <bool>true</bool>
-       </property>
-       <property name="geometry">
-        <rect>
-         <x>230</x>
-         <y>0</y>
-         <width>98</width>
-         <height>17</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>Enable ONACID</string>
-       </property>
-       <property name="checked">
-        <bool>false</bool>
-       </property>
-      </widget>
       <widget class="QWidget" name="gridLayoutWidget_13">
        <property name="geometry">
         <rect>
          <x>10</x>
          <y>20</y>
          <width>311</width>
-         <height>131</height>
+         <height>239</height>
         </rect>
        </property>
        <layout class="QGridLayout" name="gridLayout_19">
-        <item row="0" column="0">
+        <item row="2" column="1">
+         <layout class="QGridLayout" name="gridLayout_3">
+          <item row="0" column="2" colspan="2">
+           <widget class="QLineEdit" name="refMoviePath_lineEdit">
+            <property name="text">
+             <string>U:/simulate_movie/20170823.tif</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="QLabel" name="label_4">
+            <property name="text">
+             <string>Reference Path</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="4">
+           <widget class="QPushButton" name="takeRefMovie_pushButton">
+            <property name="text">
+             <string>Take Ref Movie</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="4">
+           <widget class="QPushButton" name="loadRefMoviePath_pushButton">
+            <property name="text">
+             <string>Browse</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item row="3" column="1">
+         <widget class="QPushButton" name="initialise_pushButton">
+          <property name="text">
+           <string>Initialise</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1">
          <layout class="QGridLayout" name="gridLayout_2">
           <property name="verticalSpacing">
            <number>0</number>
           </property>
-          <item row="3" column="3">
-           <widget class="QLabel" name="label_3">
+          <item row="2" column="0">
+           <widget class="QCheckBox" name="UseONACID_checkBox">
+            <property name="enabled">
+             <bool>true</bool>
+            </property>
             <property name="text">
-             <string>Max num ROIs</string>
+             <string>Enable ONACID</string>
+            </property>
+            <property name="checked">
+             <bool>false</bool>
             </property>
            </widget>
           </item>
-          <item row="1" column="3">
-           <widget class="QLabel" name="label_5">
+          <item row="2" column="4">
+           <widget class="QPushButton" name="removeMode_pushButton">
+            <property name="enabled">
+             <bool>true</bool>
+            </property>
             <property name="text">
-             <string>Init num ROIs</string>
+             <string>Remove mode: OFF</string>
+            </property>
+            <property name="iconSize">
+             <size>
+              <width>14</width>
+              <height>14</height>
+             </size>
             </property>
            </widget>
           </item>
-          <item row="1" column="5">
+          <item row="5" column="0">
+           <widget class="QLabel" name="label_7">
+            <property name="text">
+             <string>Downsampling</string>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="2">
            <widget class="QSpinBox" name="InitNumROIs_spinBox">
             <property name="minimum">
              <number>1</number>
@@ -684,7 +709,14 @@
             </property>
            </widget>
           </item>
-          <item row="2" column="5">
+          <item row="6" column="0">
+           <widget class="QLabel" name="label_3">
+            <property name="text">
+             <string>Max num ROIs</string>
+            </property>
+           </widget>
+          </item>
+          <item row="5" column="2">
            <widget class="QDoubleSpinBox" name="dsFactor_doubleSpinBox">
             <property name="decimals">
              <number>2</number>
@@ -700,14 +732,27 @@
             </property>
            </widget>
           </item>
-          <item row="2" column="3">
-           <widget class="QLabel" name="label_7">
+          <item row="5" column="4">
+           <widget class="QRadioButton" name="UseOnacidMask_radioButton">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
             <property name="text">
-             <string>Downsampling</string>
+             <string>From file</string>
+            </property>
+            <property name="autoExclusive">
+             <bool>false</bool>
             </property>
            </widget>
           </item>
-          <item row="3" column="5">
+          <item row="3" column="0">
+           <widget class="QLabel" name="label_5">
+            <property name="text">
+             <string>Init num ROIs</string>
+            </property>
+           </widget>
+          </item>
+          <item row="6" column="2">
            <widget class="QSpinBox" name="MaxNumROIs_spinBox">
             <property name="minimum">
              <number>1</number>
@@ -717,7 +762,7 @@
             </property>
            </widget>
           </item>
-          <item row="3" column="1">
+          <item row="3" column="4">
            <widget class="QPushButton" name="loadMask_pushButton">
             <property name="enabled">
              <bool>true</bool>
@@ -733,7 +778,7 @@
             </property>
            </widget>
           </item>
-          <item row="2" column="0">
+          <item row="6" column="4">
            <widget class="QRadioButton" name="UseOpsinMask_radioButton">
             <property name="enabled">
              <bool>false</bool>
@@ -749,28 +794,8 @@
             </property>
            </widget>
           </item>
-          <item row="3" column="0">
-           <widget class="QRadioButton" name="UseOnacidMask_radioButton">
-            <property name="enabled">
-             <bool>false</bool>
-            </property>
-            <property name="text">
-             <string>From file</string>
-            </property>
-            <property name="autoExclusive">
-             <bool>false</bool>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="0">
-           <widget class="QLabel" name="label_30">
-            <property name="text">
-             <string>Use mask</string>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="2">
-           <spacer name="horizontalSpacer_5">
+          <item row="3" column="3">
+           <spacer name="horizontalSpacer_2">
             <property name="orientation">
              <enum>Qt::Horizontal</enum>
             </property>
@@ -784,53 +809,6 @@
           </item>
          </layout>
         </item>
-        <item row="1" column="0">
-         <layout class="QGridLayout" name="gridLayout_3">
-          <item row="0" column="4">
-           <widget class="QPushButton" name="loadRefMoviePath_pushButton">
-            <property name="text">
-             <string>Browse</string>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="2" colspan="2">
-           <widget class="QLineEdit" name="refMoviePath_lineEdit">
-            <property name="text">
-             <string>U:/simulate_movie/20170823.tif</string>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="1">
-           <widget class="QLabel" name="label_4">
-            <property name="text">
-             <string>Reference Path</string>
-            </property>
-           </widget>
-          </item>
-         </layout>
-        </item>
-        <item row="2" column="0">
-         <layout class="QVBoxLayout" name="verticalLayout_3">
-          <item>
-           <layout class="QHBoxLayout" name="horizontalLayout_4">
-            <item>
-             <widget class="QPushButton" name="takeRefMovie_pushButton">
-              <property name="text">
-               <string>Take Ref Movie</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QPushButton" name="initialise_pushButton">
-              <property name="text">
-               <string>Initialise</string>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </item>
-         </layout>
-        </item>
        </layout>
       </widget>
      </widget>
@@ -838,8 +816,8 @@
       <property name="geometry">
        <rect>
         <x>30</x>
-        <y>750</y>
-        <width>651</width>
+        <y>600</y>
+        <width>511</width>
         <height>171</height>
        </rect>
       </property>
@@ -847,9 +825,9 @@
      <widget class="QTableWidget" name="Thresh_tableWidget">
       <property name="geometry">
        <rect>
-        <x>740</x>
-        <y>750</y>
-        <width>481</width>
+        <x>560</x>
+        <y>600</y>
+        <width>331</width>
         <height>171</height>
        </rect>
       </property>
@@ -872,8 +850,8 @@
      <widget class="QGroupBox" name="Blink_groupBox">
       <property name="geometry">
        <rect>
-        <x>900</x>
-        <y>20</y>
+        <x>560</x>
+        <y>140</y>
         <width>331</width>
         <height>111</height>
        </rect>
@@ -1033,9 +1011,9 @@
       <property name="geometry">
        <rect>
         <x>900</x>
-        <y>530</y>
+        <y>410</y>
         <width>331</width>
-        <height>121</height>
+        <height>151</height>
        </rect>
       </property>
       <property name="title">
@@ -1047,10 +1025,28 @@
          <x>10</x>
          <y>20</y>
          <width>311</width>
-         <height>91</height>
+         <height>121</height>
         </rect>
        </property>
        <layout class="QGridLayout" name="gridLayout_12">
+        <item row="0" column="0">
+         <layout class="QGridLayout" name="gridLayout_13">
+          <item row="0" column="0">
+           <widget class="QLabel" name="label_25">
+            <property name="text">
+             <string>Save Path</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1" colspan="2">
+           <widget class="QLineEdit" name="saveResultPath_lineEdit">
+            <property name="text">
+             <string/>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
         <item row="1" column="0">
          <layout class="QHBoxLayout" name="horizontalLayout_5">
           <item>
@@ -1076,23 +1072,18 @@
           </property>
          </widget>
         </item>
-        <item row="0" column="0">
-         <layout class="QGridLayout" name="gridLayout_13">
-          <item row="0" column="0">
-           <widget class="QLabel" name="label_25">
-            <property name="text">
-             <string>Save Path</string>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="1" colspan="2">
-           <widget class="QLineEdit" name="saveResultPath_lineEdit">
-            <property name="text">
-             <string/>
-            </property>
-           </widget>
-          </item>
-         </layout>
+        <item row="4" column="0">
+         <spacer name="verticalSpacer_3">
+          <property name="orientation">
+           <enum>Qt::Vertical</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>20</width>
+            <height>40</height>
+           </size>
+          </property>
+         </spacer>
         </item>
        </layout>
       </widget>
@@ -1100,10 +1091,10 @@
      <widget class="QGroupBox" name="opsinMask_groupBox">
       <property name="geometry">
        <rect>
-        <x>560</x>
-        <y>330</y>
+        <x>900</x>
+        <y>20</y>
         <width>331</width>
-        <height>121</height>
+        <height>111</height>
        </rect>
       </property>
       <property name="title">
@@ -1244,8 +1235,8 @@
      <widget class="QGroupBox" name="config_groupBox">
       <property name="geometry">
        <rect>
-        <x>900</x>
-        <y>660</y>
+        <x>560</x>
+        <y>500</y>
         <width>331</width>
         <height>61</height>
        </rect>
@@ -1307,9 +1298,9 @@
      <widget class="QGroupBox" name="photostim_groupBox">
       <property name="geometry">
        <rect>
-        <x>900</x>
-        <y>290</y>
-        <width>331</width>
+        <x>1240</x>
+        <y>200</y>
+        <width>341</width>
         <height>171</height>
        </rect>
       </property>
@@ -1321,7 +1312,7 @@
         <rect>
          <x>10</x>
          <y>20</y>
-         <width>318</width>
+         <width>321</width>
          <height>142</height>
         </rect>
        </property>
@@ -1550,9 +1541,9 @@
      <widget class="QGroupBox" name="run_groupBox">
       <property name="geometry">
        <rect>
-        <x>20</x>
-        <y>670</y>
-        <width>341</width>
+        <x>900</x>
+        <y>600</y>
+        <width>331</width>
         <height>51</height>
        </rect>
       </property>
@@ -1564,7 +1555,7 @@
         <rect>
          <x>10</x>
          <y>10</y>
-         <width>320</width>
+         <width>311</width>
          <height>31</height>
         </rect>
        </property>
@@ -1666,41 +1657,6 @@
        </layout>
       </widget>
      </widget>
-     <widget class="QWidget" name="layoutWidget">
-      <property name="geometry">
-       <rect>
-        <x>570</x>
-        <y>290</y>
-        <width>311</width>
-        <height>25</height>
-       </rect>
-      </property>
-      <layout class="QGridLayout" name="gridLayout_14">
-       <item row="0" column="0">
-        <widget class="QLabel" name="label_34">
-         <property name="text">
-          <string>Remove cells mode</string>
-         </property>
-        </widget>
-       </item>
-       <item row="0" column="2">
-        <widget class="QPushButton" name="removeMode_pushButton">
-         <property name="enabled">
-          <bool>true</bool>
-         </property>
-         <property name="text">
-          <string>Start</string>
-         </property>
-         <property name="iconSize">
-          <size>
-           <width>14</width>
-           <height>14</height>
-          </size>
-         </property>
-        </widget>
-       </item>
-      </layout>
-     </widget>
     </widget>
     <widget class="QWidget" name="tab_2">
      <attribute name="title">
@@ -1725,7 +1681,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1315</width>
+     <width>1630</width>
      <height>21</height>
     </rect>
    </property>
