@@ -1600,7 +1600,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		for item in disable:
 			item.setEnabled(False)
 
-		self.removeMode_pushButton.setText('End')
+		self.removeMode_pushButton.setText('Remove mode: ON')
 
 	def exitRemoveMode(self):
 		if self.removeIdx:
@@ -1615,7 +1615,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 				self.updateTargetROIs()
 				self.removeIdx = []
 
-		self.removeMode_pushButton.setText('Start')
+		self.removeMode_pushButton.setText('Remove mode: OFF')
 
 		enable = [self.Prairie_groupBox, self.caiman_groupBox,
 		   self.Blink_groupBox, self.opsinMask_groupBox,
