@@ -41,6 +41,7 @@ CAREFUL WHEN USING 'REPLACE ALL' - IT WILL QUIT, WITHOUT SAVING!!
 9. some memory leak - every time the app is run, memory increases by ~3-4 % - mostly solved by explicit deleting of big variables
 
 10. release gpu memory after one movie
+11. daq task issues - 'the specified resource is reserved error' - maybe need better clean up??
 
 # other notes:
 - numpy.append is slower than list.append, so avoid using it in loops but there's not much difference if just appending a single value
@@ -166,6 +167,8 @@ class DataStream(QObject):
 		self.pl = kwargs.get('prairie',[])
 		self.framesRecv = 0
 		self.FLAG_PV_CONNECTED = p['FLAG_PV_CONNECTED']
+		global STOP_JOB_FLAG
+		STOP_JOB_FLAG = False
 
 		# movie name
 		if self.FLAG_PV_CONNECTED:
@@ -267,23 +270,20 @@ class DataStream(QObject):
 					self.FLAG_SCANNING  = False
 
 				elif int(num_samples) == samplesPerFrame:
-
-					print('recv time: '+str("%.4f"%(time.time()-loop_start_time)))
 					recvTime += time.time()-loop_start_time
-					recv_time = time.time()
-
+#					recv_time = time.time()
 					# -----  use cuda -------
 					buf_gpu = gpuarray.to_gpu(buf.astype(np.int16))
 					sample_mean( buf_gpu, pixelsPerLine, linesPerFrame, samplesPerPixel, p['flipEvenRows'], dest_gpu,
 						block=(1024,1,1), grid = (int(samplesPerFrame/1024),1,1) )
 					dest_gpu = dest_gpu.reshape(linesPerFrame,pixelsPerLine)
 					thisFrame = dest_gpu.get()
-					print('convert time:' + str("%.4f"%(time.time()-recv_time)))
+#					print('convert time:' + str("%.4f"%(time.time()-recv_time)))
 
 					# put frame in global queue
-					qcopy_time = time.time()
+#					qcopy_time = time.time()
 					qbuffer.put(thisFrame.copy().astype(np.float32))
-					print('frame to queue:' + str("%.4f"%(time.time()-qcopy_time)))
+#					print('frame to queue:' + str("%.4f"%(time.time()-qcopy_time)))
 					self.framesRecv += 1
 					print('frames recv ='+str(self.framesRecv))
 					incorrectCount = 0
@@ -346,6 +346,7 @@ class imageSaver(QObject):
 		super(imageSaver,self).__init__()
 		self.mptiff_path = kwargs.get('save_movie_path',[])
 		self.frameSaved = 0
+		p['FLAG_END_LOADING'] = False
 
 	def saveImage(self):
 		# buffer for save multipage tiff
@@ -353,7 +354,7 @@ class imageSaver(QObject):
 		print('imageSaver, movie name='+str(mptiff_path))
 		with tifffile.TiffWriter(mptiff_path, bigtiff=True) as tif:
 			while ((not p['FLAG_END_LOADING']) or (not qbuffer.empty())):
-				frame_in = qbuffer.get(timeout = 3)
+				frame_in = qbuffer.get(timeout = 5)
 				tif.save(frame_in)
 				self.frameSaved+=1
 				print('number frame saved = '+str(self.frameSaved))
@@ -443,6 +444,9 @@ class Worker(QObject):
 		# make Temp folder
 		self.save_dir = p['temp_save_dir']
 
+		global STOP_JOB_FLAG
+		STOP_JOB_FLAG = False
+
 
 #%% process frame
 	def work(self):
@@ -513,11 +517,11 @@ class Worker(QObject):
 
 
 		# keep processing frames in qbuffer
-		print('before buffer')
+
 		try:
 			while ((not p['FLAG_END_LOADING']) or (not qbuffer.empty())) and not STOP_JOB_FLAG: # some issue here: when stopped/finished, it usually does not enter finishing part
 				# get data from queue
-				frame_in = qbuffer.get(timeout = 3)
+				frame_in = qbuffer.get(timeout = 10)
 				t0 = time.time()
 				framesProc = framesProc+1
 
@@ -722,7 +726,7 @@ class Worker(QObject):
 
 				self.tottime.append(time.time() - t0)                       # store time for each frame
 	#            print('process frame time: ' + str("%.4f"%(time.time()- t0)))
-	#            print('frames proc = ' + str(framesProc))
+				print('frames proc = ' + str(framesProc))
 				self.frame_signal.emit(framesProc)
 
 				qbuffer.task_done()
@@ -1718,8 +1722,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			for i in accepted: # range(np.minimum(len(sta_amp),nr)):
 				if not np.isnan(sta_amp[j]):
 					cellMask+=A[:,i].flatten()*sta_amp[j]
-					print(max(A[:,i]))
-					print('sum =' + str(sum(A[:,i])))
 					j += 1
 
 			cellMask2D = np.reshape(cellMask,cnm.dims,order='F')
@@ -2455,7 +2457,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.imageSaverThread.started.connect(self.imageSaverObject.saveImage)
 			self.imageSaverObject.finished_signal.connect(self.imageSaverThread.exit)
 			self.imageSaverThread.start()
-
 
 			# start stream thread
 			kwargs = {"prairie": self.pl}
