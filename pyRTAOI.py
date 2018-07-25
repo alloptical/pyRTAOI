@@ -353,10 +353,7 @@ class imageSaver(QObject):
 		print('imageSaver, movie name='+str(mptiff_path))
 		with tifffile.TiffWriter(mptiff_path, bigtiff=True) as tif:
 			while ((not p['FLAG_END_LOADING']) or (not qbuffer.empty())):
-				try:
-					frame_in = qbuffer.get(timeout = 3)
-				except Exception as e:
-					print(e)
+				frame_in = qbuffer.get(timeout = 3)
 				tif.save(frame_in)
 				self.frameSaved+=1
 				print('number frame saved = '+str(self.frameSaved))
@@ -500,6 +497,7 @@ class Worker(QObject):
 
 			except Exception as e:
 				opsin_mask = np.array([])
+				opsin_positive = True  # default for when no opsin mask
 				print(e)
 
 			# Define OnACID parameters
@@ -507,8 +505,6 @@ class Worker(QObject):
 			cnm2 = (self.c['cnm2']) #deepcopy( cnm_init)
 			t_cnm = cnm2.initbatch
 			coms_init = self.c['coms_init']
-#            Cn_init = self.c['Cn_init']
-#            self.Cn = Cn_init.copy()
 			coms = coms_init.copy()
 			com_count = cnm2.N
 			rejected = 0
@@ -521,7 +517,7 @@ class Worker(QObject):
 		try:
 			while ((not p['FLAG_END_LOADING']) or (not qbuffer.empty())) and not STOP_JOB_FLAG: # some issue here: when stopped/finished, it usually does not enter finishing part
 				# get data from queue
-				frame_in = qbuffer.get()
+				frame_in = qbuffer.get(timeout = 3)
 				t0 = time.time()
 				framesProc = framesProc+1
 
@@ -544,7 +540,7 @@ class Worker(QObject):
 						templ = cnm2.Ab.dot(cnm2.C_on[:cnm2.M, t_cnm - 1]).reshape(cnm2.dims, order='F') * img_norm
 						frame_cor, shift = motion_correct_iteration_fast(frame_in, templ, max_shift, max_shift)
 						self.shifts.append(shift)
-	#                    print(shift)
+
 	#                    print('caiman motion correction time:' + str("%.4f"%(time.time()-mot_corr_start)))
 					else:
 						frame_cor = frame_in
@@ -595,7 +591,7 @@ class Worker(QObject):
 										if opsin_positive:  # add target only if opsin present
 											p['currentTargetX'].append(x*ds_factor) # = np.append(p['currentTargetX'],x*ds_factor)
 											p['currentTargetY'].append(y*ds_factor) # = np.append(p['currentTargetY'],y*ds_factor)
-	#                                        p['NI_2D_ARRAY'][1,:] = NI_UNIT_POWER_ARRAY *np.polyval(power_polyfit_p,photoPowerPerCell*len(p['currentTargetY']))
+											p['NI_2D_ARRAY'][1,:] = NI_UNIT_POWER_ARRAY *np.polyval(power_polyfit_p,photoPowerPerCell*len(p['currentTargetY']))
 											self.sendCoords_signal.emit()
 											self.updateTargetROIs_signal.emit()
 
@@ -623,7 +619,7 @@ class Worker(QObject):
 
 
 					# trigger photostim
-					if p['photoProtoInx'] == CONSTANTS.PHOTO_ABOVE_THRESH:
+					if p['photoProtoInx'] == CONSTANTS.PHOTO_ABOVE_THRESH: # TODO: no check for opsin here
 						photostim_idx = self.RoiBuffer[:com_count, BufferPointer]-self.ROIlist_threshold[:com_count]
 						print(photostim_idx)
 						p['currentTargetX'] = ROIx[photostim_idx>0]
@@ -736,7 +732,7 @@ class Worker(QObject):
 
 		try:
 			print('here')
-			if STOP_JOB_FLAG:#  or p['FLAG_END_LOADING']:
+			if STOP_JOB_FLAG:
 				print('hi stop clicked')
 			if p['FLAG_END_LOADING']:
 				print('hi finished loading')
@@ -784,6 +780,7 @@ class Worker(QObject):
 			try:
 				print('Saving onacid output')
 				save_separately = True # temp flag to save in a new folder inside movie folder
+				timestr = time.strftime("%Y%m%d-%H%M%S")  # can add to title (day-time)
 
 				if save_separately:  # TODO: what if pv connected? -- test
 					filename = os.path.basename(self.movie_name) + '_DS_' + str(ds_factor) + '_OnlineProc.pkl'
@@ -829,6 +826,7 @@ class Worker(QObject):
 
 	def stop(self):
 		self.status_signal.emit('Stop clicked')
+		print('worker stop')
 		global STOP_JOB_FLAG
 		STOP_JOB_FLAG = True
 
@@ -1131,43 +1129,41 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		y = event.pos().y()
 
 		if self.removeModeOn:
-			try:
-				det_dist = 10
+			det_dist = 10
 
-				for idx in range(self.thisROIIdx):
-					ROI_x = self.ROIlist[idx]["ROIx"]
-					ROI_y = self.ROIlist[idx]["ROIy"]
-					detected = abs(x - ROI_x) <= det_dist and abs(y - ROI_y) <= det_dist
+			for idx in range(self.thisROIIdx):
+				ROI_x = self.ROIlist[idx]["ROIx"]
+				ROI_y = self.ROIlist[idx]["ROIy"]
+				detected = abs(x - ROI_x) <= det_dist and abs(y - ROI_y) <= det_dist
 
-					if detected:
-						if idx in self.removeIdx:
-							# reset all remove list works
+				if detected:
+					if idx in self.removeIdx:
+						# reset all remove list works
 #                            self.Targetcontour_item.clear()
 #                            self.updateTargets()
 #                            self.removeIdx = []
 
-							# unselect individual remove items
-							selected = self.Targetcontour_item.data
-							selected_xy = [[value[0], value[1]] for value in selected][self.numTargets:]
+						# unselect individual remove items
+						selected = self.Targetcontour_item.data
+						selected_xy = [[value[0], value[1]] for value in selected][self.numTargets:]
 
-							ROI_xy = [ROI_x, ROI_y]
-							selected_idx = selected_xy.index(ROI_xy)
+						ROI_xy = [ROI_x, ROI_y]
+						selected_idx = selected_xy.index(ROI_xy)
 
-							del selected_xy[selected_idx]
-							remove_x = [item[0] for item in selected_xy]
-							remove_y = [item[1] for item in selected_xy]
+						del selected_xy[selected_idx]
+						remove_x = [item[0] for item in selected_xy]
+						remove_y = [item[1] for item in selected_xy]
 
-							self.Targetcontour_item.clear()
-							self.updateTargets()
-							self.Targetcontour_item.addPoints(x = remove_x, y = remove_y, pen = self.RemovePen, size = pointSize)
+						self.Targetcontour_item.clear()
+						self.updateTargets()
+						self.Targetcontour_item.addPoints(x = remove_x, y = remove_y, pen = self.RemovePen, size = pointSize)
 
-							self.removeIdx.remove(idx)
-						else:
-							self.removeIdx.append(idx)
-							self.Targetcontour_item.addPoints(x = [ROI_x], y = [ROI_y], pen = self.RemovePen, size = pointSize)
+						self.removeIdx.remove(idx)
+					else:
+						self.removeIdx.append(idx)
+						self.Targetcontour_item.addPoints(x = [ROI_x], y = [ROI_y], pen = self.RemovePen, size = pointSize)
 
-			except Exception as e:
-				print(e)
+
 
 		else:
 			print(str(x)+' '+str(y))
@@ -1531,8 +1527,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			if opsin_only and self.A_opsin.size:
 				self.TargetIdx = list(compress(self.TargetIdx, self.c['cnm2'].opsin))
 
-			self.TargetX = [self.ROIlist[i]["ROIx"] for i in self.TargetIdx] # self.TargetX +  # np.append(self.TargetX, [self.ROIlist[i]["ROIx"] for i in self.TargetIdx])
-			self.TargetY = [self.ROIlist[i]["ROIy"] for i in self.TargetIdx] # self.TargetY +  # = np.append(self.TargetY, [self.ROIlist[i]["ROIy"] for i in self.TargetIdx])
+			self.TargetX = [self.ROIlist[i]["ROIx"] for i in self.TargetIdx] #  np.append(self.TargetX, [self.ROIlist[i]["ROIx"] for i in self.TargetIdx])
+			self.TargetY = [self.ROIlist[i]["ROIy"] for i in self.TargetIdx] #  np.append(self.TargetY, [self.ROIlist[i]["ROIy"] for i in self.TargetIdx])
 
 			# check for existing extra targets
 			det_dist = 10 # remove extra targets only if ROI very close
@@ -1577,7 +1573,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 	def updateTargetROIs(self):
 		# redraw targeted rois in imaging window - to do: draw what is saved in p
 		self.Targetcontour_item.clear()
-		self.Targetcontour_item.addPoints(x = p['currentTargetX'], y = p['currentTargetY'], pen = self.TargetPen, size = self.RoiRadius*2+5)  # TODO: check. in other case just *2
+		self.Targetcontour_item.addPoints(x = p['currentTargetX'], y = p['currentTargetY'], pen = self.TargetPen, size = self.RoiRadius*2+5)
 
 	def removeModeController(self):
 		self.removeModeOn = not self.removeModeOn
@@ -1599,7 +1595,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		for item in disable:
 			item.setEnabled(False)
 
-		self.removeMode_pushButton.setText('Remove mode: ON')
+		self.removeMode_pushButton.setEnabled(True)
+		self.removeMode_pushButton.setText('Remove selected')
 
 	def exitRemoveMode(self):
 		if self.removeIdx:
@@ -1614,7 +1611,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 				self.updateTargetROIs()
 				self.removeIdx = []
 
-		self.removeMode_pushButton.setText('Remove mode: OFF')
+		self.removeMode_pushButton.setText('Start remove')
 
 		enable = [self.Prairie_groupBox, self.caiman_groupBox,
 		   self.Blink_groupBox, self.opsinMask_groupBox,
@@ -2030,7 +2027,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		if cnmf_init:
 			if movie_ext == '.tif':
 				K = self.InitNumROIs_spinBox.value()
-
 				print('Starting CNMF initialisation with tiff file')
 				lframe, init_values = initialise(self.ref_movie_path, init_method='cnmf', K=K, initbatch=500, ds_factor=ds_factor,
 												 rval_thr=0.85, thresh_overlap=0, save_init=True, mot_corr=True, merge_thresh=0.85,
@@ -2136,6 +2132,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 		self.UseONACID_checkBox.setEnabled(True)
 		self.UseONACID_checkBox.setChecked(True)
+		if self.selectAll_checkBox.isChecked():
+			self.selectAllROIs()
 
 		self.updateStatusBar('Initialision completed')
 		show_traces = 1
@@ -2177,9 +2175,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			if self.MaxNumROIs_spinBox.value() < K+5:
 				self.MaxNumROIs_spinBox.setValue(K+10)
 
-			if self.A_opsin.size:
-				self.checkOpsin()
-
 			self.initialiseROI()
 			for i in range(K):
 				y, x = self.c['coms_init'][i]  # reversed
@@ -2199,7 +2194,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 					self.TargetIdx.remove(idx)
 				self.TargetIdx = [target-1 if target>idx else target for target in self.TargetIdx]
 
-#            print('new target idx list', self.TargetIdx)
+			if self.A_opsin.size:
+				self.checkOpsin()
 
 			self.updateTargets()
 			self.updateStatusBar('Removed cells: ' + str([value+1 for value in self.removeIdx])[1:-1])
@@ -2435,8 +2431,14 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			print('this is take ref movie function')
 
 			# setup thread objects
-			save_path = self.pl.get_movie_name()+'rtaoi.tif'
+			save_path = self.pl.get_movie_name()+'_rtaoi.tif'
 			print(save_path)
+
+			# set this file as the ref movie
+			self.ref_movie_path = save_path
+			self.refMoviePath_lineEdit.setText(self.ref_movie_path)
+
+
 			kwargs = {"save_movie_path": save_path}
 			self.imageSaverObject = imageSaver(**kwargs)
 			self.updateStatusBar('imageSaver object created')
@@ -2473,7 +2475,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			else:
 				return
 
-		if p['UseONACID'] or self.FLAG_PV_CONNECTED:  # TODO: if no c but useonacid selected.. or disable onacid and turn it off after reset. maybe? useonacid and self.c != {})
+		if p['UseONACID'] or self.FLAG_PV_CONNECTED:
 			try: self.resetFigure()
 			except: pass
 
@@ -2487,6 +2489,10 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.dsFactor_doubleSpinBox.setValue(self.ds_factor)
 
 			self.getValues()
+
+			# connect stop_thread to stop button when analysis running
+			self.stop_pushButton.clicked.connect(self.stop_thread)
+
 			kwargs = {"caiman": self.c,"prairie": self.pl,"ROIlist":self.ROIlist}
 			self.workerObject = Worker(**kwargs)
 			self.updateStatusBar('Worker created')
@@ -2509,6 +2515,11 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.workerThread.started.connect(self.workerObject.work)
 			self.workerObject.finished_signal.connect(self.workerThread.exit)
 
+			# disconnect stop_thread for stop to avoid repeated thread object issues on rerunning
+			self.stopButtonDisconnect = lambda: self.stop_pushButton.clicked.disconnect(self.stop_thread)
+			self.workerObject.finished_signal.connect(self.stopButtonDisconnect) # is there conflict when connecting one signal to two functions?
+			self.workerObject.finished_signal.connect(self.workerObject.deleteLater)  # delete instance later
+
 			# triggers
 			self.workerObject.sendTTLTrigger_signal.connect(self.sendTTLTrigger)
 			self.workerObject.sendCoords_signal.connect(self.sendCoords)
@@ -2523,6 +2534,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.streamObject.moveToThread(self.streamThread)
 			self.streamThread.started.connect(self.streamObject.stream)
 			self.streamObject.stream_finished_signal.connect(self.streamThread.exit)
+			self.streamObject.stream_finished_signal.connect(self.streamObject.deleteLater)  # delete this instance later (seems it doesn't work but stop disconnect sorts it)
 			self.streamThread.start()
 			self.updateStatusBar('stream started')
 
@@ -2534,7 +2546,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 	def refreshPlot(self,arr):
 		self.plotItem.clear()
 		for i in range(self.thisROIIdx):
-			self.plotItem.plot(arr[i,:], antialias=True, pen=pg.mkPen(self.ROIlist[i]["ROIcolor"], width=1))#self.ROIpen)   #roipen width for this as well?
+			self.plotItem.plot(arr[i,:], antialias=True, pen=pg.mkPen(self.ROIlist[i]["ROIcolor"], width=1))
 		try:
 			self.plotItem.setYRange(np.round(arr.min())-1,np.round(arr.max())+1)
 		except:
@@ -2578,7 +2590,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 	def switch_IsOffline(self):
 		print('offline button')
 		self.IsOffline = self.IsOffline_radioButton.isChecked()
-		self.updateStatusBar('Flag offline = '+str(p['isOffline']))
+		self.updateStatusBar('Flag offline = '+str( self.IsOffline))
 
 
 	def switch_useOnacidMask(self):  # toggle the two buttons
@@ -2626,16 +2638,17 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 		# need to check status before calling .stop
 		self.streamObject.stop()
-		self.workerObject.stop()
-
 		self.streamThread.wait(1)
 		self.streamThread.quit()
 		self.streamThread.wait()
 
-#        self.workerObject.stop()
+
+		self.workerObject.stop()
 		self.workerThread.wait(1)
 		self.workerThread.quit()
 		self.workerThread.wait() # ensures worker finished before next run can be started
+
+		self.stop_pushButton.clicked.disconnect(self.stop_thread)
 
 
 	def closeEvent(self,event):
