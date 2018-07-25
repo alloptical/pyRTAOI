@@ -1024,7 +1024,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		self.niStimTask = daqtask.Task()
 		self.niPhotoStimTask = daqtask.Task() #  TTL trigger only
 		self.niPhotoStimFullTask = daqtask.Task() # TTL trigger plus power control
-
 		p['NI_1D_ARRAY'] = self.daq_array
 
 		try: # sensory stim
@@ -1042,6 +1041,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.niPhotoStimTask.ao_channels.add_ao_voltage_chan(p['photostimDaqDevice'],'photostim_trig')
 			self.niPhotoStimWriter= stream_writers.AnalogSingleChannelWriter(self.niPhotoStimTask.out_stream,True)
 			self.niPhotoStimWriter.write_one_sample(0,10.0)
+			print('single channel photostim trigger set')
 
 			# multi-channel writer - send triggers and voltage to power control device  - need test
 			self.niPhotoStimFullTask.ao_channels.add_ao_voltage_chan(p['photostimDaqDevice'],'photostim_trig')
@@ -1056,6 +1056,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			p['NI_2D_ARRAY'] = init_output
 			p['NI_UNIT_POWER_ARRAY'] = init_output[1,:]
 			self.niPhotostimFullWriter.write_many_sample(init_output)
+			print('multi channel photostim trigger set')
 
 
 
@@ -1236,6 +1237,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		self.plotSTA_pushButton.clicked.connect(self.plotSTA)
 		self.plotSTAonMasks_pushButton.clicked.connect(lambda: self.plotSTAonMasks(self.sta_amp))
 		self.showComponents_pushButton.clicked.connect(lambda: self.plotSTAonMasks(None))
+		self.showFOV_pushButton.clicked.connect(self.showFOV)
 
 		# triggers
 		self.enableStimTrigger_checkBox.clicked.connect(self.enableStimTrigger)
@@ -1667,6 +1669,13 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			movie_ext = os.path.splitext(p['moviePath'])[1]
 			if movie_ext == '.tif':
 				print('Correct video found')
+
+	def showFOV(self):
+		try:
+			self.imageItem.setImage(cv2.resize(self.c['img_norm'],(512,512),interpolation=cv2.INTER_CUBIC)) # display FOV
+		except Exception as e:
+			print(e)
+
 
 	def plotSTAonMasks(self,sta_amp):   # TODO: post removing of cell: index 35 is out of bounds for axis 1 with size 35
 		# show cells detected by caiman
@@ -2119,7 +2128,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		self.dims = init_values['cnm_init'].dims
 		self.InitNumROIs = K
 		self.opsinMaskOn = False
-		self.imageItem.setImage(cv2.resize(self.c['img_norm'],(512,512),interpolation=cv2.INTER_CUBIC)) # display a frame from the initiialisation movie
+		self.imageItem.setImage(cv2.resize(self.c['img_norm'],(512,512),interpolation=cv2.INTER_CUBIC)) # display FOV
 
 		if self.A_opsin.size:
 			print('Checking opsin overlap')
@@ -2673,7 +2682,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.streamThread.wait(1)
 			self.streamThread.quit()
 
-		# reset AO to zero
+		# reset AO to zero, clear ni tasks
 		if self.niStimWriter:
 			self.niStimWriter.write_one_sample(0,10.0)
 		self.niStimTask.stop()
@@ -2685,6 +2694,9 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		self.niPhotoStimTask.stop()
 		self.niPhotoStimTask.close()
 #        del self.niPhotoStimTask
+
+		self.niPhotoStimFullTask.stop()
+		self.niPhotoStimFullTask.close()
 
 
 		# delete big structs to free memory

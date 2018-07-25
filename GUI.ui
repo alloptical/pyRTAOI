@@ -284,19 +284,6 @@
             </property>
            </widget>
           </item>
-          <item row="3" column="3">
-           <spacer name="horizontalSpacer_13">
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>40</width>
-              <height>20</height>
-             </size>
-            </property>
-           </spacer>
-          </item>
           <item row="0" column="0">
            <widget class="QCheckBox" name="denoiseOn_checkBox">
             <property name="text">
@@ -324,6 +311,13 @@
             </property>
             <property name="checked">
              <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="3">
+           <widget class="QPushButton" name="showFOV_pushButton">
+            <property name="text">
+             <string>Show FOV</string>
             </property>
            </widget>
           </item>
@@ -946,7 +940,7 @@
        <rect>
         <x>30</x>
         <y>560</y>
-        <width>529</width>
+        <width>511</width>
         <height>25</height>
        </rect>
       </property>
