@@ -34,11 +34,11 @@ from caiman.components_evaluation import evaluate_components_CNN
 
 
 
-def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1, initbatch=500,
-               T1=20000, gSig=(9,9), mot_corr=True, expected_comps=150,
-               rval_thr=0.85, NumROIs=None, thresh_overlap=0.1, decay_time=0.2,
-               min_SNR=2.5, merge_thresh=0.85, minibatch_shape=100,
-               CNN_filter=False,  save_init=False):
+def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1,
+               initbatch=500, gSig = (10,10), rval_thr=0.85, thresh_overlap=0.1,
+               merge_thresh=0.85, min_SNR=2.5, decay_time=0.2, NumROIs=None,
+               expected_comps=150, minibatch_shape=100, T1=20000, mot_corr=True,
+               CNN_filter=False, thresh_cnn=0.1, save_init=False):
                #del_duplicates=False):
     """
     Inputs:
@@ -62,43 +62,51 @@ def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1, initba
     initbatch               int
                             number of frames for initialization
     
-    T1                      int
-                            expected length of the whole recording, in frames (overestimate)
-                            
-    mot_corr                Boolean
-                            flag for online motion correction
-                            
-    expected_comps         int
-                            maximum number of expected components used for memory pre-allocation (exaggerate here)
+    gSig                    tuple of ints
+                            expected half size of neurons
                             
     rval_thr                float
                             correlation threshold for new component inclusion; preferrable range: 0.8-0.9;
                             default for CNMF: 0.9
-                            
-    NumROIs                 int
-                            maximum number of ROIs to be tracked    
-    
+
     thresh_overlap          int
                             allowed overlap between detected cells; set to 0 for online analysis (0.5 default)
                             
-    decay time              float
-                            approximate length of transient event in seconds (0.5 default)
-                            
-    min_SNR                 float
-                            minimum SNR for accepting new components
-    
     merge_thresh            float
                             merging correlation threshold for initialisation
-                            default: 0.8-0.85, strict: 0.65 (may merge seperate cells if close)
+                            default: 0.8-0.85, strict: 0.65 (may merge seperate cells if close)                 
+
+    min_SNR                 float
+                            minimum SNR for accepting new components
                             
-    gSig                    tuple of ints
-                            expected half size of neurons
-                                
+    decay time              float
+                            approximate length of transient event in seconds (0.5 default)
+                                                                                    
+    NumROIs                 int
+                            maximum number of ROIs to be tracked
+                            
+    expected_compts         int
+                            maximum number of expected components used for memory pre-allocation (exaggerate here)
+                            
+    minibatch_shape         int
+                            length of minibatch of frames to be used for shape update, deconvolution etc.
+    
+    T1                      int
+                            expected length of the whole recording, in frames (overestimate)   
+                            
+    mot_corr                Boolean
+                            flag for online motion correction
+                            
+    CNN_filter              Boolean
+                            flag for running CNN filter on initialisation results
+                    
+    thresh_cnn              float
+                            threshold for CNN classifier; 0.5 for mild filtering, 0.1 for stricter
+                            
     save_init               Boolean
                             flag for saving initialization object
-                            
+        
     """
-    
     
     # set up some additional supporting parameters needed for the algorithm (these are default values but change according to dataset characteristics)
     t1 = time_()
