@@ -56,9 +56,11 @@ from caiman.components_evaluation import estimate_components_quality_auto
 #%% First setup some parameters
 #fname = [r'C:\Users\intrinsic\caiman_data\sample_vid\stimulated_test\20170329_OG151_t-008_Substack (1-3000)--(1-500).tif'] # filename to be processed
 
-#fname = [r'C:\Users\intrinsic\Desktop\pyRTAOI-rig\samples\example1\20171229_OG245_t-052_Cycle00001_Ch2.tif']
-fname = [r'C:\Users\intrinsic\Desktop\pyRTAOI-rig\samples\example2\20171229_OG245_t-053\20171229_OG245_t-053_Cycle00001_Ch2.tif']
-#fname = [r'C:\Users\intrinsic\Desktop\pyRTAOI-rig\samples\example3\20171130_OG235_t-002_Cycle00001_Ch2.tif']
+#fname = [r'C:\Users\intrinsic\Desktop\samples\example1\20171229_OG245_t-052_Cycle00001_Ch2.tif']
+#fname = [r'C:\Users\intrinsic\Desktop\samples\example2\20171229_OG245_t-053\20171229_OG245_t-053_Cycle00001_Ch2.tif']
+#fname = [r'C:\Users\intrinsic\Desktop\samples\example3\20171130_OG235_t-002_Cycle00001_Ch2.tif']
+fname = [r'C:\Users\intrinsic\Desktop\samples\example4\20171228_OG241_t-023_Cycle00001_Ch2.tif']
+#fname = [r'C:\Users\intrinsic\Desktop\samples\example5\20171228_OG241_t-024_Cycle00001_Ch2.tif']
 
 # dataset dependent parameters
 display_images = False              # Set this to true to show movies and plots
@@ -161,10 +163,14 @@ mc.motion_correct_pwrigid(save_movie=True)
 m_els = cm.load(mc.fname_tot_els)
 bord_px_els = np.ceil(np.maximum(np.max(np.abs(mc.x_shifts_els)),
                                  np.max(np.abs(mc.y_shifts_els)))).astype(np.int)
-
 # maximum shift to be used for trimming against NaNs
 
-# compare with original movie
+# save bord_px_els
+folder = os.path.dirname(fname[0])
+save = os.path.join(folder, 'bord_px_els.npz')
+np.savez(save, bord_px_els=bord_px_els)
+
+#%% compare with original movie
 display_images = False
 if display_images:
     moviehandle = cm.concatenate([m_orig.resize(1, 1, downsample_ratio) + offset_mov,
@@ -172,22 +178,28 @@ if display_images:
                axis=2)
     moviehandle.play(fr=60, q_max=99.5, magnification=2, offset=0)  # press q to exit
 
-# memory map the file in order 'C'
+#%% memory map the file in order 'C'
 fnames = mc.fname_tot_els   # name of the pw-rigidly corrected file.
 border_to_0 = bord_px_els     # number of pixels to exclude
 fname_new = cm.save_memmap(fnames, base_name='memmap_', order='C',
                            border_to_0=bord_px_els)  # exclude borders
 
-# now load the file
-#fname_new = r'C:\\Users\\intrinsic\\Desktop\\pyRTAOI-rig\\samples\\example1\\memmap__d1_512_d2_512_d3_1_order_C_frames_5400_.mmap'
+#%% now load the file
+fname_new = r'C:\Users\intrinsic\Desktop\samples\example4\memmap__d1_512_d2_512_d3_1_order_C_frames_6000_.mmap'
 
 Yr, dims, T = cm.load_memmap(fname_new)
-bord_px_els 
 d1, d2 = dims
 images = np.reshape(Yr.T, [T] + list(dims), order='F')
 # load frames in python format (T x X x Y)
 
-# restart cluster to clean up memory
+#%% load board_px_els
+d = np.load(r'C:\Users\intrinsic\Desktop\samples\example4\bord_px_els.npz')
+try:
+    bord_px_els = bord_px_els
+except:
+    bord_px_els = d['arr_0']
+    
+#%% restart cluster to clean up memory
 try:
     dview.terminate()
 except: pass
@@ -246,6 +258,8 @@ idx_components, idx_components_bad, SNR_comp, r_values, cnn_preds = \
                                      r_values_min=rval_thr, use_cnn=False,
                                      thresh_cnn_min=cnn_thr)
 
+print('Number of components accepted: ', len(idx_components))
+
 #%% PLOT COMPONENTS
 try:
     Cn
@@ -271,9 +285,9 @@ if display_images:
                      cnm.b, cnm.f, dims[0], dims[1], YrA=cnm.YrA[idx_components],
                      img=Cn)
 
-#    view_patches_bar(Yr, cnm.A.tocsc()[:, idx_components_bad], cnm.C[idx_components_bad],
-#                     cnm.b, cnm.f, dims[0], dims[1], YrA=cnm.YrA[idx_components_bad],
-#                     img=Cn)
+    view_patches_bar(Yr, cnm.A.tocsc()[:, idx_components_bad], cnm.C[idx_components_bad],
+                     cnm.b, cnm.f, dims[0], dims[1], YrA=cnm.YrA[idx_components_bad],
+                     img=Cn)
 
 #%% RE-RUN seeded CNMF on accepted patches to refine and perform deconvolution
 A_in, C_in, b_in, f_in = cnm.A[:,
@@ -385,15 +399,15 @@ locals().update(file_data)
 
 #%% Saving as npz works
 folder = os.path.dirname(fname[0])
-saved_data = os.path.join(folder, 'offline_results', 'ex2_cnmf_results.npz')
+saved_data = os.path.join(folder, 'offline_results', 'cnmf_results.npz')
 
 np.savez(saved_data, A=cnm2.A, b=cnm2.b, C=cnm2.C, f=cnm2.f, YrA=cnm2.YrA, # YrA is residual signal
          Y_r=cnm2.YrA + cnm2.C, Cn=Cn, dims=cnm2.dims, F_dff=F_dff, 
          F_dff_no_noise=F_dff_no_noise, C_df=C_df, coms=coms, gnb=gnb,
-         thresh_overlap=cnm2.thresh_overlap, cnm_N=cnm2.A.shape[1],
-         bord_px_els=bord_px_els)
+         thresh_overlap=cnm2.thresh_overlap, cnm_N=cnm2.A.shape[1])
+#         bord_px_els=bord_px_els)
 
-#%% Save npz to mat
+# Save npz to mat
 from npz2mat import npz2mat
 
 save_mat = 1
