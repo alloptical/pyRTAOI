@@ -1249,6 +1249,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		self.enableStimTrigger_checkBox.clicked.connect(self.enableStimTrigger)
 		self.testTTLTrigger_pushButton.clicked.connect(self.testTTLTrigger)
 		self.testPhotoStimTrigger_pushButton.clicked.connect(self.testPhotoStimTrigger)
+		self.testPower_pushButton.clicked.connect(self.testPower)
 
 		# running mode
 		self.IsOffline_radioButton.toggled.connect(self.switch_IsOffline)
@@ -1372,8 +1373,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 	def testPhotoStimTrigger(self):
 		self.getValues()
 		try:
-			self.niPhotoStimTask.ao_channels.add_ao_voltage_chan(p['photostimDaqDevice'])
-			self.niPhotoStimWriter = stream_writers.AnalogSingleChannelWriter(self.niPhotoStimTask.out_stream,True)
 			self.niPhotoStimWriter.write_one_sample(0,10.0)
 		except Exception as e:
 			print(e)
@@ -1384,6 +1383,15 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		except Exception as e:
 			print(e)
 
+	def testPower(self):
+		print('test power trigger')
+		try:
+			self.niPhotostimFullWriter.write_many_sample( p['NI_2D_ARRAY'],10.0)
+		except Exception as e:
+			print(e)
+
+
+
 	def sendTTLTrigger(self):
 		numsent = self.niStimWriter.write_many_sample(self.daq_array,10.0)
 		print('stim trigger sent')
@@ -1391,7 +1399,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 	def sendPhotoStimTrigger(self):
 		try:
-			if p['SendPowerVolt']:
+			if not p['SendPowerVolt']:
 			   self.niPhotoStimWriter.write_many_sample( p['NI_1D_ARRAY'],10.0)
 			else:
 			   self.niPhotostimFullWriter.write_many_sample( p['NI_2D_ARRAY'],10.0)

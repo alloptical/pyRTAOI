@@ -16030,3 +16030,14 @@ nidaqmx.errors.DaqError: The specified resource is reserved. The operation could
 Task Name: _unnamedTask<9>
 
 Status Code: -50103
+2018-07-26 13:34:58,450 - __main__ - INFO - Started application
+2018-07-26 13:45:32,957 - __main__ - INFO - Started application
+2018-07-26 13:45:32,957 - __main__ - INFO - Started application
+2018-07-26 13:51:02,193 - __main__ - INFO - Started application
+2018-07-26 13:51:02,193 - __main__ - INFO - Started application
+2018-07-26 13:51:02,193 - __main__ - INFO - Started application
+2018-07-26 13:51:53,636 - __main__ - INFO - Started application
+2018-07-26 13:51:53,636 - __main__ - INFO - Started application
+2018-07-26 13:51:53,636 - __main__ - INFO - Started application
+2018-07-26 13:51:53,636 - __main__ - INFO - Started application
+2018-07-26 13:52:46,239 - __main__ - INFO - Started application

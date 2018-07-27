@@ -1376,7 +1376,7 @@
              </sizepolicy>
             </property>
             <property name="text">
-             <string>Dev9/ao1</string>
+             <string>Dev5/ao1</string>
             </property>
             <property name="maxLength">
              <number>500</number>
@@ -1471,7 +1471,7 @@
         <item row="2" column="2">
          <widget class="QPushButton" name="testPhotoStimTrigger_pushButton">
           <property name="text">
-           <string>Reset/Test</string>
+           <string>Test trigger</string>
           </property>
          </widget>
         </item>
@@ -1484,7 +1484,7 @@
            </sizepolicy>
           </property>
           <property name="text">
-           <string>Dev9/ao0</string>
+           <string>Dev5/ao0</string>
           </property>
           <property name="maxLength">
            <number>500</number>
@@ -1508,7 +1508,7 @@
         <item row="3" column="2">
          <widget class="QPushButton" name="testPower_pushButton">
           <property name="text">
-           <string>Reset/Test</string>
+           <string>Test power</string>
           </property>
          </widget>
         </item>
