@@ -16041,3 +16041,152 @@ Status Code: -50103
 2018-07-26 13:51:53,636 - __main__ - INFO - Started application
 2018-07-26 13:51:53,636 - __main__ - INFO - Started application
 2018-07-26 13:52:46,239 - __main__ - INFO - Started application
+2018-07-27 10:41:37,896 - __main__ - INFO - Started application
+2018-07-27 11:17:38,222 - __main__ - INFO - Started application
+2018-07-27 11:17:38,222 - __main__ - INFO - Started application
+2018-07-27 11:22:35,018 - __main__ - INFO - Started application
+2018-07-27 11:26:03,310 - __main__ - INFO - Started application
+2018-07-27 11:35:43,167 - __main__ - INFO - Started application
+2018-07-27 11:35:43,167 - __main__ - INFO - Started application
+2018-07-27 11:38:40,285 - __main__ - INFO - Started application
+2018-07-27 11:40:31,560 - __main__ - INFO - Started application
+2018-07-27 11:47:47,489 - __main__ - INFO - Started application
+2018-07-27 11:57:00,146 - __main__ - INFO - Started application
+2018-07-27 11:57:00,146 - __main__ - INFO - Started application
+2018-07-27 11:57:00,168 - __main__ - ERROR - 'MainWindow' object has no attribute 'POWER_CONTROL_READY'
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 2860, in <module>
+    main(sys.argv)
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 2825, in main
+    window = MainWindow()
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 1000, in __init__
+    self.getValues()
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 1335, in getValues
+    if self.POWER_CONTROL_READY:
+AttributeError: 'MainWindow' object has no attribute 'POWER_CONTROL_READY'
+2018-07-27 11:57:00,168 - __main__ - ERROR - 'MainWindow' object has no attribute 'POWER_CONTROL_READY'
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 2860, in <module>
+    main(sys.argv)
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 2825, in main
+    window = MainWindow()
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 1000, in __init__
+    self.getValues()
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 1335, in getValues
+    if self.POWER_CONTROL_READY:
+AttributeError: 'MainWindow' object has no attribute 'POWER_CONTROL_READY'
+2018-07-27 11:58:03,454 - __main__ - INFO - Started application
+2018-07-27 11:58:03,454 - __main__ - INFO - Started application
+2018-07-27 11:58:03,454 - __main__ - INFO - Started application
+2018-07-27 11:58:32,279 - __main__ - INFO - Started application
+2018-07-27 12:04:20,472 - __main__ - INFO - Started application
+2018-07-27 12:09:01,418 - __main__ - INFO - Started application
+2018-07-27 12:09:01,418 - __main__ - INFO - Started application
+2018-07-27 12:10:43,172 - __main__ - INFO - Started application
+2018-07-27 12:10:43,172 - __main__ - INFO - Started application
+2018-07-27 12:10:43,172 - __main__ - INFO - Started application
+2018-07-27 12:24:14,543 - __main__ - INFO - Started application
+2018-07-27 12:24:14,543 - __main__ - INFO - Started application
+2018-07-27 12:24:14,543 - __main__ - INFO - Started application
+2018-07-27 12:24:14,543 - __main__ - INFO - Started application
+2018-07-27 12:27:27,324 - __main__ - INFO - Started application
+2018-07-27 12:27:27,324 - __main__ - INFO - Started application
+2018-07-27 12:27:27,324 - __main__ - INFO - Started application
+2018-07-27 12:27:27,324 - __main__ - INFO - Started application
+2018-07-27 12:27:27,324 - __main__ - INFO - Started application
+2018-07-27 13:19:24,106 - __main__ - INFO - Started application
+2018-07-27 13:19:24,106 - __main__ - INFO - Started application
+2018-07-27 13:19:24,106 - __main__ - INFO - Started application
+2018-07-27 13:19:24,106 - __main__ - INFO - Started application
+2018-07-27 13:19:24,106 - __main__ - INFO - Started application
+2018-07-27 13:19:24,106 - __main__ - INFO - Started application
+2018-07-27 13:40:44,085 - __main__ - INFO - Started application
+2018-07-27 13:40:44,085 - __main__ - INFO - Started application
+2018-07-27 13:40:44,085 - __main__ - INFO - Started application
+2018-07-27 13:40:44,085 - __main__ - INFO - Started application
+2018-07-27 13:40:44,085 - __main__ - INFO - Started application
+2018-07-27 13:40:44,085 - __main__ - INFO - Started application
+2018-07-27 13:40:44,085 - __main__ - INFO - Started application
+2018-07-27 14:02:15,633 - __main__ - INFO - Started application
+2018-07-27 14:04:08,792 - __main__ - INFO - Started application
+2018-07-27 14:04:08,792 - __main__ - INFO - Started application
+2018-07-27 14:19:54,975 - __main__ - INFO - Started application
+2018-07-27 14:19:54,975 - __main__ - INFO - Started application
+2018-07-27 14:19:54,975 - __main__ - INFO - Started application
+2018-07-27 14:20:44,102 - __main__ - INFO - Started application
+2018-07-27 14:47:52,185 - __main__ - INFO - Started application
+2018-07-27 14:47:52,185 - __main__ - INFO - Started application
+2018-07-27 14:47:52,207 - __main__ - ERROR - 'stimStopFrame'
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 2838, in <module>
+    main(sys.argv)
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 2803, in main
+    window = MainWindow()
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 1008, in __init__
+    self.getValues()
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 1348, in getValues
+    self.stim_frames = np.arange(p['stimStartFrame'],p['stimStopFrame']+1,p['interStimInterval'])
+KeyError: 'stimStopFrame'
+2018-07-27 14:47:52,207 - __main__ - ERROR - 'stimStopFrame'
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 2838, in <module>
+    main(sys.argv)
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 2803, in main
+    window = MainWindow()
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 1008, in __init__
+    self.getValues()
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 1348, in getValues
+    self.stim_frames = np.arange(p['stimStartFrame'],p['stimStopFrame']+1,p['interStimInterval'])
+KeyError: 'stimStopFrame'
+2018-07-27 14:48:52,017 - __main__ - INFO - Started application
+2018-07-27 14:48:52,017 - __main__ - INFO - Started application
+2018-07-27 14:48:52,017 - __main__ - INFO - Started application
+2018-07-27 14:48:52,040 - __main__ - ERROR - ufunc 'add' did not contain a loop with signature matching types dtype('<U11') dtype('<U11') dtype('<U11')
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 2839, in <module>
+    main(sys.argv)
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 2804, in main
+    window = MainWindow()
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 1008, in __init__
+    self.getValues()
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 1350, in getValues
+    print('stim frames'+self.stim_frames)
+TypeError: ufunc 'add' did not contain a loop with signature matching types dtype('<U11') dtype('<U11') dtype('<U11')
+2018-07-27 14:48:52,040 - __main__ - ERROR - ufunc 'add' did not contain a loop with signature matching types dtype('<U11') dtype('<U11') dtype('<U11')
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 2839, in <module>
+    main(sys.argv)
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 2804, in main
+    window = MainWindow()
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 1008, in __init__
+    self.getValues()
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 1350, in getValues
+    print('stim frames'+self.stim_frames)
+TypeError: ufunc 'add' did not contain a loop with signature matching types dtype('<U11') dtype('<U11') dtype('<U11')
+2018-07-27 14:48:52,040 - __main__ - ERROR - ufunc 'add' did not contain a loop with signature matching types dtype('<U11') dtype('<U11') dtype('<U11')
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 2839, in <module>
+    main(sys.argv)
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 2804, in main
+    window = MainWindow()
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 1008, in __init__
+    self.getValues()
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 1350, in getValues
+    print('stim frames'+self.stim_frames)
+TypeError: ufunc 'add' did not contain a loop with signature matching types dtype('<U11') dtype('<U11') dtype('<U11')
+2018-07-27 14:49:56,447 - __main__ - INFO - Started application
+2018-07-27 14:49:56,447 - __main__ - INFO - Started application
+2018-07-27 14:49:56,447 - __main__ - INFO - Started application
+2018-07-27 14:49:56,447 - __main__ - INFO - Started application
+2018-07-27 15:08:57,366 - __main__ - INFO - Started application
+2018-07-27 15:08:57,366 - __main__ - INFO - Started application
+2018-07-27 15:08:57,366 - __main__ - INFO - Started application
+2018-07-27 15:08:57,366 - __main__ - INFO - Started application
+2018-07-27 15:08:57,366 - __main__ - INFO - Started application
+2018-07-27 15:12:24,958 - __main__ - INFO - Started application
+2018-07-27 15:22:57,890 - __main__ - INFO - Started application
+2018-07-27 15:22:57,890 - __main__ - INFO - Started application
+2018-07-27 15:23:34,938 - __main__ - INFO - Started application
+2018-07-27 15:32:01,893 - __main__ - INFO - Started application
+2018-07-27 15:32:01,893 - __main__ - INFO - Started application
+2018-07-27 15:32:24,122 - __main__ - INFO - Started application
