@@ -12,36 +12,32 @@ CAREFUL WHEN USING 'REPLACE ALL' - IT WILL QUIT, WITHOUT SAVING!!
  TO DO:
 0. data stream stopped in the middle of a movie - not polling data from buffer fast enough
 
-	0.1 nested thread - read data and emit signal when the correct number of sample is collected
+	0.1 nested thread - read data and emit signal when the correct number of sample is collected - bad idea
 		- saved in pyRTAOI-20180620_1; this guaranteed data streaming from PV but it takes more time to process one frame, 35 ms without nested thread; 60 ms with
-	0.2 use queue to communicate between worker and streamer
+	0.2 use queue to communicate between worker and streamer - done
 		- saved in pyRTAOI-20180620_2; < 20 ms when running offline; need to test on rig
-	0.3 use gpu for motion correction? - caiman motion correction is below 10 ms
+	0.3 use gpu for motion correction? - caiman motion correction is below 10 ms; good enough
 
 	- down sample by 2 kept up with 30Hz image stream
 
-1. log data for offline anaysis - photostimulation targets and frame idx; save online analysis result
+1. log data for offline anaysis - photostimulation targets and frame idx; save online analysis result - done, need test
 	offline analysis - convert cnmf results to .mat file - done
 
 2. deal with zoom - check
-3. mark point setting for changing photostim power; if not fast enough use dummy targets in zero blocker, or feed voltage to pockels directly
+3. mark point setting for changing photostim power - done
 	control voltage = (outMax/displayMax)*PV value; where outMax and displayMax are defined in prairie view configuration.xml
 	need to map power to voltage - done
-	send volt to pockels via ni card - ran out of daq ao; consider outsource it to holoblink; or use tcp for sensory stim
-
-
+	send volt to pockels via ni card -  consider outsource it to holoblink?
 
 4. Plot STA dF/F - send triggers - check
 5. threshold sometimes becomes Inf - check
-6. auto initialisation - take reference movie and load
+6. auto initialisation - take reference movie and load - done
 7. photostim protocol - done, need to test on rig
-
-
 8. delete target by right clicking  - done by left click
 9. some memory leak - every time the app is run, memory increases by ~3-4 % - mostly solved by explicit deleting of big variables
 
-10. release gpu memory after one movie
-11. daq task issues - 'the specified resource is reserved error' - maybe need better clean up??
+10. release gpu memory after one movie - done
+11. daq task issues - 'the specified resource is reserved error' - this only happens when triggering online
 
 # other notes:
 - numpy.append is slower than list.append, so avoid using it in loops but there's not much difference if just appending a single value
@@ -156,7 +152,6 @@ class MyThread(QThread):
 
 #%% stream thread
 class DataStream(QObject):
-
 	processFrame_signal = pyqtSignal(object)
 	stream_finished_signal = pyqtSignal()
 
@@ -307,7 +302,6 @@ class DataStream(QObject):
 				print('stopped scanning') # gets here
 				p['FLAG_END_LOADING'] = True
 				self.stream_finished_signal.emit()
-
 
 #%% offline, read frames from tiff
 		elif p['FLAG_OFFLINE']:
@@ -463,15 +457,23 @@ class Worker(QObject):
 		framesProc = self.framesProc
 		refreshFrame = p['refreshFrame']
 		num_photostim = 0
+		current_target_idx = []
+		last_target_idx = []
+		FLAG_TRIG_PHOTOSTIM = False
+		FLAG_SEND_COORDS = False
 
 		# local param
 		FLAG_USE_ONACID = self.UseONACID
 		BufferPointer = self.BufferPointer
 		sta_start_frames = self.sta_start_frames
-		photo_stim_frames = self.photo_stim_frames
-		print('photostim frames:')
-		print(photo_stim_frames)
+		photo_stim_frames = self.photo_stim_frames # predefined fixed frames
 		stim_frames = self.stim_frames # stim at fixed intervals
+
+		# Local buffer for recording online protocol
+		online_photo_frames = []
+		online_photo_targets = []
+
+
 
 		try:
 			power_polyfit_p = p['power_polyfit_p']
@@ -481,11 +483,10 @@ class Worker(QObject):
 			pass
 
 		if FLAG_USE_ONACID:
-		# use locally scoped variables to speed up
+			# use locally scoped variables to speed up
 			self.status_signal.emit('Using OnACID')
 			# Extract initialisation parameters
 			mot_corr = True # hard coded now; using motion correction from onacid
-
 			self.com_count = self.c['cnm2'].N  # moved inside
 			com_count = self.com_count
 
@@ -493,8 +494,6 @@ class Worker(QObject):
 			print('number of initial rois '+str(com_count))
 			ROIx = np.asarray([item.get("ROIx") for item in self.ROIlist[:com_count]])   # could also predefine ROIx/y as arrays of bigger size (e.g. 100) and fill them in instad of append
 			ROIy = np.asarray([item.get("ROIy") for item in self.ROIlist[:com_count]])
-			print('roix', ROIx)
-			print('roiy',ROIy)
 
 			img_norm = self.c['img_norm'].copy().astype(np.float32)
 			img_min = self.c['img_min'].copy().astype(np.float32)
@@ -524,7 +523,6 @@ class Worker(QObject):
 			accepted = list(range(1, com_count+1)) # start count from 1 for easier online access
 			expect_components = True
 
-
 		# keep processing frames in qbuffer
 		while ((not p['FLAG_END_LOADING']) or (not qbuffer.empty())) and not STOP_JOB_FLAG: # some issue here: when stopped/finished, it usually does not enter finishing part
 			# get data from queue
@@ -538,7 +536,6 @@ class Worker(QObject):
 			framesProc = framesProc+1
 
 			if FLAG_USE_ONACID:
-#                try:
 				# move trace buffer pointer
 				if BufferPointer==self.BufferLength-1:
 					BufferPointer = 0
@@ -607,9 +604,11 @@ class Worker(QObject):
 									if opsin_positive:  # add target only if opsin present
 										p['currentTargetX'].append(x*ds_factor) # = np.append(p['currentTargetX'],x*ds_factor)
 										p['currentTargetY'].append(y*ds_factor) # = np.append(p['currentTargetY'],y*ds_factor)
-										p['NI_2D_ARRAY'][1,:] = NI_UNIT_POWER_ARRAY *np.polyval(power_polyfit_p,photoPowerPerCell*len(p['currentTargetY']))
+										current_target_idx = range(com_count)
+										num_stim_targets = len(current_target_idx)
 										self.sendCoords_signal.emit()
 										self.updateTargetROIs_signal.emit()
+										FLAG_SEND_COORDS = False
 
 								self.getROImask_signal.emit(x,y) # add roi coords to list in main
 								print('add new component time:' + str("%.4f"%(time.time()-update_comp_time)))
@@ -635,41 +634,59 @@ class Worker(QObject):
 
 
 				# trigger photostim
-				if p['photoProtoInx'] == CONSTANTS.PHOTO_ABOVE_THRESH: # TODO: no check for opsin here
-					photostim_idx = self.RoiBuffer[:com_count, BufferPointer]-self.ROIlist_threshold[:com_count]
-					print(photostim_idx)
-					p['currentTargetX'] = ROIx[photostim_idx>0]
-					p['currentTargetY'] = ROIy[photostim_idx>0]
-					print(p['currentTargetX'])
-					print(p['currentTargety'])
+				if p['photoProtoInx'] == CONSTANTS.PHOTO_FIX_FRAMES and framesProc == photo_stim_frames[num_photostim] and num_photostim < self.num_stims:
+					FLAG_TRIG_PHOTOSTIM = True
 
-					num_stim_targets = len(p['currentTargetX'] )
+				elif p['photoProtoInx'] == CONSTANTS.PHOTO_ABOVE_THRESH: # TODO: no check for opsin here
+					photostim_flag = self.RoiBuffer[:com_count, BufferPointer]-self.ROIlist_threshold[:com_count]
+					last_target_idx = np.copy(current_target_idx)
+					current_target_idx = np.nonzero(photostim_flag>0)
+					num_stim_targets = len(current_target_idx)
+
 					if (num_stim_targets>0):
-						p['NI_2D_ARRAY'][1,:] = NI_UNIT_POWER_ARRAY*np.polyval(power_polyfit_p,photoPowerPerCell*num_stim_targets)
-						self.sendCoords_signal.emit()
-						self.sendPhotoStimTrig_signal.emit()
-						self.updateTargetROIs_signal.emit()
-						num_photostim +=1
+						FLAG_TRIG_PHOTOSTIM = True
+						if np.array_equal(last_target_idx,current_target_idx):
+							FLAG_SEND_COORDS = True
+
+					p['currentTargetX'] = ROIx[current_target_idx]
+					p['currentTargetY'] = ROIy[current_target_idx]
 
 				elif p['photoProtoInx'] == CONSTANTS.PHOTO_BELOW_THRESH:
-					photostim_idx = self.ROIlist_threshold[:com_count] - self.RoiBuffer[:com_count, BufferPointer]
-					p['currentTargetX'] = ROIx[photostim_idx>0]
-					p['currentTargetY'] = ROIy[photostim_idx>0]
-					num_stim_targets = len(p['currentTargetX'] )
-					if (num_stim_targets>0):
-						p['NI_2D_ARRAY'][1,:] = NI_UNIT_POWER_ARRAY *np.polyval(power_polyfit_p,photoPowerPerCell*num_stim_targets)
-						self.sendCoords_signal.emit()
-						self.sendPhotoStimTrig_signal.emit()
-						self.updateTargetROIs_signal.emit()
-						num_photostim +=1
+					photostim_flag = self.ROIlist_threshold[:com_count] - self.RoiBuffer[:com_count, BufferPointer]
+					last_target_idx = np.copy(current_target_idx)
+					current_target_idx = np.nonzero(photostim_flag>0)
+					num_stim_targets = len(current_target_idx)
 
-				if p['photoProtoInx'] == CONSTANTS.PHOTO_FIX_FRAMES and framesProc == photo_stim_frames[num_photostim] and num_photostim < self.num_stims:
+					if (num_stim_targets>0):
+						FLAG_TRIG_PHOTOSTIM = True
+						if np.array_equal(last_target_idx,current_target_idx):
+							FLAG_SEND_COORDS = True
+
+					p['currentTargetX'] = ROIx[current_target_idx]
+					p['currentTargetY'] = ROIy[current_target_idx]
+
+				if FLAG_TRIG_PHOTOSTIM:
+					# update phase mask
+					if FLAG_SEND_COORDS:
+						self.sendCoords_signal.emit()
+
+					# trigger spiral
+					p['NI_2D_ARRAY'][1,:] = NI_UNIT_POWER_ARRAY *np.polyval(power_polyfit_p,photoPowerPerCell*num_stim_targets)
 					self.sendPhotoStimTrig_signal.emit()
+					FLAG_TRIG_PHOTOSTIM = False
+
+					# take notes
+					online_photo_frames.append(framesProc)
+					online_photo_targets.append(current_target_idx)
+
+					# update display
+					if FLAG_SEND_COORDS:
+						self.updateTargetROIs_signal.emit()
+						FLAG_SEND_COORDS = False
 					num_photostim +=1
 
-				# trigger sta recording
+				# Sta recording and sensory stim
 				if sta_stim_idx < self.num_stims:
-
 					if p['FLAG_STIM_TRIG_ENABLED'] and framesProc == stim_frames[sta_stim_idx]: # send TTL
 						self.sendTTLTrigger_signal.emit()
 
@@ -684,6 +701,7 @@ class Worker(QObject):
 							self.flag_sta_recording = False
 							sta_stim_idx += 1
 
+				# Update display
 				if framesProc > refreshFrame-1: #frame_count>self.BufferLength-1:
 					if LastPlot == refreshFrame:
 						if p['plotOn']:
@@ -730,10 +748,7 @@ class Worker(QObject):
 							LastPlot += 1
 					else:
 						LastPlot += 1
-
 				t_cnm +=1
-#                except Exception as e:
-#                    print(e)
 
 			# else not using onACID
 			else:
@@ -741,7 +756,7 @@ class Worker(QObject):
 				self.roi_signal.emit(frame_in)
 				print('display time '+str("%.4f"%(time.time()-temp_time)))
 
-
+			# record timing
 			self.tottime.append(time.time() - t0)                       # store time for each frame
 #            print('process frame time: ' + str("%.4f"%(time.time()- t0)))
 			print('frames proc = ' + str(framesProc))
@@ -782,6 +797,8 @@ class Worker(QObject):
 			save_dict['t_cnm'] = t_cnm
 			save_dict['tottime'] = self.tottime
 			save_dict['coms'] = coms
+			save_dict['online_photo_frames'] = online_photo_frames
+			save_dict['online_photo_targets'] = online_photo_targets
 
 			try:
 				save_dict['opsin_thresh'] = opsin_thresh
@@ -1348,14 +1365,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.updatePowerControl()
 
 
-		# temp test
-		p['stimStopFrame'] = p['stimStartFrame']+p['numberStims']*p['interStimInterval']+p['staPreFrame']
-		self.stim_frames = np.arange(p['stimStartFrame'],p['stimStopFrame']+1,p['interStimInterval'])
-		print(self.stim_frames)
-
-
-		#p['InitNumROIs'] = K  #TODO: keep one copy only
-
 	def updatePowerControl(self):
 
 		NI_TTL_NUM_SAMPLES = p['NI_TTL_NUM_SAMPLES']
@@ -1371,14 +1380,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		self.niPhotoStimFullTask.timing.cfg_samp_clk_timing(rate = p['NI_SAMPLE_RATE'],sample_mode= nidaqmx.constants.AcquisitionType.FINITE, samps_per_chan = max(NI_TTL_NUM_SAMPLES+1,NI_STIM_NUM_SAMPLES+1))
 
 	def testTTLTrigger(self):
-		self.getValues()
-		try:
-			self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
-			self.niStimWriter = stream_writers.AnalogSingleChannelWriter(self.niStimTask.out_stream,True)
-			self.niStimWriter.write_one_sample(0,10.0)
-		except Exception as e:
-			print(e)
-			self.updateStatusBar('All settings updated, Error sending trgger:'+str(e))
 		try:
 			self.sendTTLTrigger()
 			self.updateStatusBar('All settings updated, test trigger sent')
