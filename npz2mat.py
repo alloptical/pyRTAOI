@@ -43,6 +43,20 @@ def npz2mat(file_full_name = '',save_full_name = ''):
     save_dict['F_dff'] = file_data['F_dff']
     save_dict['C_df'] = file_data['C_df'] # cleaner signal
 
+    # params
+    try:
+        save_dict['thresh_overlap'] = file_data['thresh_overlap']
+        save_dict['merge_thresh'] = file_data['merge_thresh']
+        save_dict['gSig'] = file_data['gSig']
+        save_dict['min_SNR'] = file_data['min_SNR']
+        save_dict['rval_thr'] = file_data['rval_thr']
+        save_dict['cnn_thr'] = file_data['cnn_thr']
+        save_dict['use_cnn'] = file_data['use_cnn']
+        save_dict['rf'] = file_data['rf']
+        save_dict['K'] = file_data['K']
+    except:
+        print('Params were not saved')
+
     # other
     save_dict['cnm_N'] = file_data['cnm_N']
     save_dict['cnm_gnb'] = file_data['gnb']

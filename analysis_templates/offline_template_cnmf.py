@@ -56,11 +56,16 @@ from caiman.components_evaluation import estimate_components_quality_auto
 #%% First setup some parameters
 #fname = [r'C:\Users\intrinsic\caiman_data\sample_vid\stimulated_test\20170329_OG151_t-008_Substack (1-3000)--(1-500).tif'] # filename to be processed
 
-#fname = [r'C:\Users\intrinsic\Desktop\samples\example1\20171229_OG245_t-052_Cycle00001_Ch2.tif']
-#fname = [r'C:\Users\intrinsic\Desktop\samples\example2\20171229_OG245_t-053\20171229_OG245_t-053_Cycle00001_Ch2.tif']
-#fname = [r'C:\Users\intrinsic\Desktop\samples\example3\20171130_OG235_t-002_Cycle00001_Ch2.tif']
-fname = [r'C:\Users\intrinsic\Desktop\samples\example4\20171228_OG241_t-023_Cycle00001_Ch2.tif']
-#fname = [r'C:\Users\intrinsic\Desktop\samples\example5\20171228_OG241_t-024_Cycle00001_Ch2.tif']
+# example movies
+example = 8
+
+sample_folder = r'C:\Users\intrinsic\Desktop\samples'
+example_folder = os.path.join(sample_folder, 'example' + str(example))
+files = glob.glob(os.path.join(example_folder,'*Ch2.tif'))
+
+if len(files)==1:
+    fname = files
+print('Ref movie path: ', fname)
 
 # dataset dependent parameters
 display_images = False              # Set this to true to show movies and plots
@@ -106,6 +111,7 @@ alpha_snmf = None
 min_SNR = 2.5               # signal to noise ratio for accepting a component
 rval_thr = 0.85              # space correlation threshold for accepting a component
 cnn_thr = 0.9 # 0.8               # threshold for CNN based classifier
+use_cnn = False
 
 #%%
 #import tifffile
@@ -170,7 +176,7 @@ folder = os.path.dirname(fname[0])
 save = os.path.join(folder, 'bord_px_els.npz')
 np.savez(save, bord_px_els=bord_px_els)
 
-#%% compare with original movie
+# compare with original movie
 display_images = False
 if display_images:
     moviehandle = cm.concatenate([m_orig.resize(1, 1, downsample_ratio) + offset_mov,
@@ -178,13 +184,13 @@ if display_images:
                axis=2)
     moviehandle.play(fr=60, q_max=99.5, magnification=2, offset=0)  # press q to exit
 
-#%% memory map the file in order 'C'
+# memory map the file in order 'C'
 fnames = mc.fname_tot_els   # name of the pw-rigidly corrected file.
 border_to_0 = bord_px_els     # number of pixels to exclude
 fname_new = cm.save_memmap(fnames, base_name='memmap_', order='C',
                            border_to_0=bord_px_els)  # exclude borders
 
-#%% now load the file
+# now load the file
 fname_new = r'C:\Users\intrinsic\Desktop\samples\example4\memmap__d1_512_d2_512_d3_1_order_C_frames_6000_.mmap'
 
 Yr, dims, T = cm.load_memmap(fname_new)
@@ -192,14 +198,14 @@ d1, d2 = dims
 images = np.reshape(Yr.T, [T] + list(dims), order='F')
 # load frames in python format (T x X x Y)
 
-#%% load board_px_els
+# load board_px_els
 d = np.load(r'C:\Users\intrinsic\Desktop\samples\example4\bord_px_els.npz')
 try:
     bord_px_els = bord_px_els
 except:
     bord_px_els = d['arr_0']
     
-#%% restart cluster to clean up memory
+# restart cluster to clean up memory
 try:
     dview.terminate()
 except: pass
@@ -255,7 +261,7 @@ idx_components, idx_components_bad, SNR_comp, r_values, cnn_preds = \
     estimate_components_quality_auto(images, cnm.A, cnm.C, cnm.b, cnm.f,
                                      cnm.YrA, fr, decay_time, gSig, dims,
                                      dview=dview, min_SNR=min_SNR,
-                                     r_values_min=rval_thr, use_cnn=False,
+                                     r_values_min=rval_thr, use_cnn=use_cnn,
                                      thresh_cnn_min=cnn_thr)
 
 print('Number of components accepted: ', len(idx_components))
@@ -288,6 +294,11 @@ if display_images:
     view_patches_bar(Yr, cnm.A.tocsc()[:, idx_components_bad], cnm.C[idx_components_bad],
                      cnm.b, cnm.f, dims[0], dims[1], YrA=cnm.YrA[idx_components_bad],
                      img=Cn)
+    
+#%% View only accepted
+view_patches_bar(Yr, cnm.A.tocsc()[:, idx_components], cnm.C[idx_components],
+             cnm.b, cnm.f, dims[0], dims[1], YrA=cnm.YrA[idx_components],
+             img=None)
 
 #%% RE-RUN seeded CNMF on accepted patches to refine and perform deconvolution
 A_in, C_in, b_in, f_in = cnm.A[:,
@@ -399,13 +410,19 @@ locals().update(file_data)
 
 #%% Saving as npz works
 folder = os.path.dirname(fname[0])
-saved_data = os.path.join(folder, 'offline_results', 'cnmf_results.npz')
+results_folder = os.path.join(folder, 'offline_results')
+
+if not os.path.exists(results_folder):
+    os.makedirs(results_folder)
+    
+saved_data = os.path.join(results_folder, 'ex' + str(example) + '_cnmf_results.npz')
 
 np.savez(saved_data, A=cnm2.A, b=cnm2.b, C=cnm2.C, f=cnm2.f, YrA=cnm2.YrA, # YrA is residual signal
          Y_r=cnm2.YrA + cnm2.C, Cn=Cn, dims=cnm2.dims, F_dff=F_dff, 
-         F_dff_no_noise=F_dff_no_noise, C_df=C_df, coms=coms, gnb=gnb,
-         thresh_overlap=cnm2.thresh_overlap, cnm_N=cnm2.A.shape[1])
-#         bord_px_els=bord_px_els)
+         F_dff_no_noise=F_dff_no_noise,  C_df=C_df, coms=coms, gnb=gnb,
+         thresh_overlap=cnm2.thresh_overlap, cnm_N=cnm2.A.shape[1],
+         merge_thresh=merge_thresh, gSig=gSig, min_SNR=min_SNR,
+         rval_thr=rval_thr, cnn_thr=cnn_thr, use_cnn=use_cnn, rf=rf, K=K)
 
 # Save npz to mat
 from npz2mat import npz2mat

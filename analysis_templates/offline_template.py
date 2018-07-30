@@ -35,6 +35,7 @@ except NameError:
 
 
 import os
+import glob
 import numpy as np
 from copy import deepcopy
 import time
@@ -63,34 +64,43 @@ from caiman.base.rois import extract_binary_masks_from_structural_channel
 
 #%% Select reference movie, init parameters and initialise the algorithm or load an init .pkl file
 
-#ref_movie_path = r'C:\Users\intrinsic\caiman_data\sample_vid\stimulated_test\20170329_OG151_t-008_Substack (1-3000)--(1-500).tif'
-#ref_movie_path = r'C:\Users\intrinsic\caiman_data\sample_vid\stimulated_test\20170329_OG151_t-008_Substack (1-3000)--(1-500)_init_cnmf_DS_1.5.pkl'
-
-# example movies
-#ref_movie_path = r'C:\Users\intrinsic\Desktop\samples\example1\20171229_OG245_t-052_Cycle00001_Ch2.tif'
-#ref_movie_path = r'C:\Users\intrinsic\Desktop\samples\example2\20171229_OG245_t-053\20171229_OG245_t-053_Cycle00001_Ch2.tif'
-#ref_movie_path = r'C:\Users\intrinsic\Desktop\samples\example3\20171130_OG235_t-002_Cycle00001_Ch2.tif'
-#ref_movie_path = r'C:\Users\intrinsic\Desktop\samples\example4\20171228_OG241_t-023_Cycle00001_Ch2.tif'
-ref_movie_path = r'C:\Users\intrinsic\Desktop\samples\example5\20171228_OG241_t-024_Cycle00001_Ch2.tif'
-
 #ref_movie_path = r'C:\Users\intrinsic\Desktop\samples\example5\init_results\20171228_OG241_t-024_Cycle00001_Ch2_init_cnmf_DS_1.5.pkl'
 #ref_movie_path = r'C:\Users\intrinsic\Desktop\samples\example1\init_results\20171229_OG245_t-052_Cycle00001_Ch2_substack1-200_init_seeded_DS_1.5.pkl'
+
+# example movies
+example = 8
+
+sample_folder = r'C:\Users\intrinsic\Desktop\samples'
+example_folder = os.path.join(sample_folder, 'example' + str(example))
+files = glob.glob(os.path.join(example_folder,'*Ch2.tif'))
+
+if len(files)==1:
+    ref_movie_path = files[0]
+print('Ref movie path: ', ref_movie_path)
+
 
 movie_ext = ref_movie_path[-4:]
 
 
 if movie_ext  == '.tif':
-    K = 30
+    K = 40
     ds_factor = 1.5
     initbatch = 500
     minibatch_shape = 100
     min_SNR = 2.5
-    gSig = (10,10)  # maybe use 9/11 instead
+    gSig = (3,3)
+    
+    rval_thr = 0.85          # 0.85
+    thresh_overlap = 0.5     # 0.2; caiman default: 0.5
+    merge_thresh = 0.95      # 0.85
     
     lframe, init_values = initialise(ref_movie_path, init_method='cnmf', K=K,
-                                     ds_factor=ds_factor, initbatch=initbatch, rval_thr=0.85, #0.85,
-                                     thresh_overlap=0.2, save_init=True, mot_corr=True, # thresh_overlap = 0.5 as default
-                                     merge_thresh=0.85, minibatch_shape=minibatch_shape,
+                                     ds_factor=ds_factor, initbatch=initbatch,
+                                     rval_thr=rval_thr,
+                                     thresh_overlap=thresh_overlap, 
+                                     save_init=True, mot_corr=True,
+                                     merge_thresh=merge_thresh,
+                                     minibatch_shape=minibatch_shape,
                                      min_SNR=min_SNR, T1=10000, gSig=gSig)
     
 elif movie_ext == '.pkl':
@@ -570,6 +580,7 @@ if save_results:
              coms=coms, opsin=cnm2.opsin,
              dims=cnm2.dims, ds_factor=ds_factor,
              min_SNR=min_SNR, thresh_overlap=cnm2.thresh_overlap,
+             
              tottime=tottime,
              shifts=shifts)
 
@@ -585,9 +596,20 @@ save_dict['t_cnm'] = t
 save_dict['Cn'] = Cn
 save_dict['coms'] = coms
 
+# parameters
+save_dict['min_SNR'] = min_SNR
+save_dict['gSig'] = gSig
+save_dict['rval_thr'] = rval_thr
+save_dict['thresh_overlap'] = thresh_overlap
+save_dict['merge_thresh'] = merge_thresh
+    
+    
 folder = os.path.join(os.path.dirname(ref_movie_path), 'offline_results')
+if not os.path.exists(folder):
+    os.makedirs(folder)
+    
 if use_CNN:
-    saveResultPath = os.path.join(folder, 'onacid_results_ds_' + str(ds_factor) + '_CNN_' + str(thresh_cnn) + '.pkl')
+    saveResultPath = os.path.join(folder, 'ex' + str(example) + '_onacid_results_ds_' + str(ds_factor) + '_CNN_' + str(thresh_cnn) + '.pkl')
     
     cnm3 = deepcopy(cnm2)
     cnm3.remove_components(ind_rem_CNN)  # remove cells rejected by CNN
@@ -596,7 +618,7 @@ if use_CNN:
     save_dict['coms'] = coms[ind_keep_CNN]
 
 else:
-    saveResultPath = os.path.join(folder, 'onacid_results_ds_' + str(ds_factor) + '.pkl')
+    saveResultPath = os.path.join(folder, 'ex' + str(example) + '_onacid_results_ds_' + str(ds_factor) + '.pkl')
     save_dict['cnm2'] = cnm2
     save_dict['coms'] = coms
 
