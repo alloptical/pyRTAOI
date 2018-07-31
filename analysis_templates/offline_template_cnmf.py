@@ -57,7 +57,7 @@ from caiman.components_evaluation import estimate_components_quality_auto
 #fname = [r'C:\Users\intrinsic\caiman_data\sample_vid\stimulated_test\20170329_OG151_t-008_Substack (1-3000)--(1-500).tif'] # filename to be processed
 
 # example movies
-example = 8
+example = 6
 
 sample_folder = r'C:\Users\intrinsic\Desktop\samples'
 example_folder = os.path.join(sample_folder, 'example' + str(example))
@@ -99,8 +99,8 @@ merge_thresh = 0.8          # merging threshold, max correlation allowed
 # half-size of the patches in pixels. e.g., if rf=25, patches are 50x50
 rf = 50 #15
 stride_cnmf = 5 #6             # amount of overlap between the patches in pixels
-K = 10 #3                       # number of components per patch
-gSig = [10, 10]               # expected half size of neurons
+K = 40 #3                       # number of components per patch
+gSig = [4, 4]               # expected half size of neurons
 # initialization method (if analyzing dendritic data using 'sparse_nmf')
 init_method = 'greedy_roi'
 is_dendrites = False        # flag for analyzing dendritic data
@@ -108,10 +108,10 @@ is_dendrites = False        # flag for analyzing dendritic data
 alpha_snmf = None
 
 # parameters for component evaluation
-min_SNR = 2.5               # signal to noise ratio for accepting a component
-rval_thr = 0.85              # space correlation threshold for accepting a component
-cnn_thr = 0.9 # 0.8               # threshold for CNN based classifier
-use_cnn = False
+min_SNR = 2.5              # signal to noise ratio for accepting a component
+rval_thr = 0.75              # space correlation threshold for accepting a component
+cnn_thr = 0.8               # threshold for CNN based classifier
+use_cnn = True
 
 #%%
 #import tifffile
@@ -191,7 +191,6 @@ fname_new = cm.save_memmap(fnames, base_name='memmap_', order='C',
                            border_to_0=bord_px_els)  # exclude borders
 
 # now load the file
-fname_new = r'C:\Users\intrinsic\Desktop\samples\example4\memmap__d1_512_d2_512_d3_1_order_C_frames_6000_.mmap'
 
 Yr, dims, T = cm.load_memmap(fname_new)
 d1, d2 = dims
@@ -418,8 +417,10 @@ if not os.path.exists(results_folder):
 saved_data = os.path.join(results_folder, 'ex' + str(example) + '_cnmf_results.npz')
 
 np.savez(saved_data, A=cnm2.A, b=cnm2.b, C=cnm2.C, f=cnm2.f, YrA=cnm2.YrA, # YrA is residual signal
-         Y_r=cnm2.YrA + cnm2.C, Cn=Cn, dims=cnm2.dims, F_dff=F_dff, 
-         F_dff_no_noise=F_dff_no_noise,  C_df=C_df, coms=coms, gnb=gnb,
+         Y_r=cnm2.YrA + cnm2.C, Cn=Cn, dims=cnm2.dims, 
+#         F_dff=F_dff, 
+#         F_dff_no_noise=F_dff_no_noise,
+         C_df=C_df, coms=coms, gnb=gnb,
          thresh_overlap=cnm2.thresh_overlap, cnm_N=cnm2.A.shape[1],
          merge_thresh=merge_thresh, gSig=gSig, min_SNR=min_SNR,
          rval_thr=rval_thr, cnn_thr=cnn_thr, use_cnn=use_cnn, rf=rf, K=K)

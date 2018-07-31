@@ -1351,7 +1351,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         # temp test
         p['stimStopFrame'] = p['stimStartFrame']+p['numberStims']*p['interStimInterval']+p['staPreFrame']
         self.stim_frames = np.arange(p['stimStartFrame'],p['stimStopFrame']+1,p['interStimInterval'])
-        print(self.stim_frames)
+#        print(self.stim_frames)
 
 
         #p['InitNumROIs'] = K  #TODO: keep one copy only
@@ -1968,7 +1968,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         else:
             ref_movie_path = str(QFileDialog.getOpenFileName(self, 'Load reference', '', 'PKL(*.pkl);;MPTIFF (*.tif);;All files (*.*)')[0])
 
-        if ref_movie_path:
+        if ref_movie_path and ref_movie_path != 'U:/simulate_movie/20170823.tif':
             self.ref_movie_path = ref_movie_path
             self.movie_folder = os.path.dirname(os.path.dirname(self.ref_movie_path))
 
@@ -2038,8 +2038,19 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             self.updateStatusBar('No reference movie selected!')
             return
 
-        K = self.InitNumROIs_spinBox.value()
-        ds_factor = self.dsFactor_doubleSpinBox.value()
+        
+        # init parameters
+        if movie_ext == '.tif':    
+            ds_factor = self.dsFactor_doubleSpinBox.value()
+            K = self.InitNumROIs_spinBox.value()
+        
+            cell_radius = self.cellRadius_spinBox_2.value()
+            gSig = (cell_radius, cell_radius)
+            min_SNR = self.minSNR_doubleSpinBox.value()
+            rval_thr = self.rval_thresh_doubleSpinBox.value()  # for component quality
+            merge_thresh = self.merge_thresh_doubleSpinBox.value()
+            thresh_overlap = self.overlap_thresh_doubleSpinBox.value()
+
 
         # init method to be used
         opsin_seeded = self.UseOpsinMask_radioButton.isChecked()
@@ -2051,10 +2062,13 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             if movie_ext == '.tif':
                 K = self.InitNumROIs_spinBox.value()
                 print('Starting CNMF initialisation with tiff file')
-                lframe, init_values = initialise(self.ref_movie_path, init_method='cnmf', K=K, initbatch=500, ds_factor=ds_factor,
-                                                 rval_thr=0.85, thresh_overlap=0, save_init=True, mot_corr=True, merge_thresh=0.85,
-                                                 decay_time=0.2, min_SNR=2.5)
-                                                # rval_thr for component quality
+                lframe, init_values = initialise(self.ref_movie_path, init_method='cnmf', 
+                                                 K=K, gSig=gSig, initbatch=500, 
+                                                 ds_factor=ds_factor, rval_thr=rval_thr,
+                                                 thresh_overlap=thresh_overlap,
+                                                 save_init=True, mot_corr=True,
+                                                 merge_thresh=merge_thresh,
+                                                 decay_time=0.2, min_SNR=min_SNR)
 
             elif movie_ext == '.pkl':
                 print('Loading initialisation file')
@@ -2074,10 +2088,13 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                         self.createOpsinMask()
 
                     print('Starting seeded initialisation using the opsin mask')
-                    lframe, init_values = initialise(self.ref_movie_path, init_method='seeded', Ain=self.A_opsin,
-                                                     ds_factor=ds_factor, initbatch=500, rval_thr=0.85,
-                                                     thresh_overlap=0.1, save_init=True, mot_corr=True,
-                                                     merge_thresh=0.85, CNN_filter=True)
+                    lframe, init_values = initialise(self.ref_movie_path, init_method='seeded',
+                                                     Ain=self.A_opsin, gSig=gSig,
+                                                     ds_factor=ds_factor, initbatch=500,
+                                                     rval_thr=rval_thr, merge_thresh=merge_thresh,
+                                                     thresh_overlap=thresh_overlap,
+                                                     save_init=True, mot_corr=True,
+                                                     min_SNR=min_SNR, CNN_filter=True)
 
                 else:
                     self.updateStatusBar('A non-tif file was provided - select a tif movie to initialise with a mask')
@@ -2126,6 +2143,19 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
         if self.MaxNumROIs_spinBox.value() < K+5:
             self.MaxNumROIs_spinBox.setValue(K+10)
+            
+        if movie_ext == '.pkl':
+            cnm = init_values['cnm_init']
+            
+            self.cellRadius_spinBox_2.setValue(cnm.gSig[0]*ds_factor)
+            self.rval_thresh_doubleSpinBox.setValue(cnm.rval_thr)
+            self.merge_thresh_doubleSpinBox.setValue(cnm.merge_thresh)
+            self.overlap_thresh_doubleSpinBox.setValue(cnm.thresh_overlap)
+            try:
+                self.minSNR_doubleSpinBox.setValue(init_values['min_SNR'])
+            except:
+                self.minSNR_doubleSpinBox.setValue(2.5) # default
+                
 
         self.ds_factor = ds_factor
         self.c = init_values

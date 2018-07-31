@@ -66,7 +66,7 @@ def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1,
                             expected half size of neurons
                             
     rval_thr                float
-                            correlation threshold for new component inclusion; preferrable range: 0.8-0.9;
+                            correlation threshold for new component inclusion; preferred range: 0.8-0.9;
                             default for CNMF: 0.9
 
     thresh_overlap          int
@@ -207,7 +207,7 @@ def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1,
                                          gSig=gSig,
                                          merge_thresh=merge_thresh, p=p,
                                          stride=stride,
-                                         simultaneously=True, # True: slower but more accurate (doesn't seem slower actually)
+                                         simultaneously=False, # True: slower but more accurate (doesn't seem slower actually)
                                          del_duplicates=True, 
                                          use_dense=True,
                                          thresh_overlap=thresh_overlap,
@@ -255,6 +255,7 @@ def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1,
     
     init_values['mot_corr'] = mot_corr
     init_values['ds_factor'] = ds_factor
+    init_values['min_SNR'] = min_SNR
     init_values['T1'] = T1
     init_values['N_samples'] = N_samples
     init_values['expected_comps'] = expected_comps

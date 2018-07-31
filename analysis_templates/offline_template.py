@@ -68,7 +68,7 @@ from caiman.base.rois import extract_binary_masks_from_structural_channel
 #ref_movie_path = r'C:\Users\intrinsic\Desktop\samples\example1\init_results\20171229_OG245_t-052_Cycle00001_Ch2_substack1-200_init_seeded_DS_1.5.pkl'
 
 # example movies
-example = 8
+example = 1
 
 sample_folder = r'C:\Users\intrinsic\Desktop\samples'
 example_folder = os.path.join(sample_folder, 'example' + str(example))
@@ -81,24 +81,33 @@ print('Ref movie path: ', ref_movie_path)
 
 movie_ext = ref_movie_path[-4:]
 
-
 if movie_ext  == '.tif':
-    K = 40
+    K = 30
     ds_factor = 1.5
     initbatch = 500
     minibatch_shape = 100
-    min_SNR = 2.5
-    gSig = (3,3)
+    gSig = (10,10)
+    expected_comps = 200
     
-    rval_thr = 0.85          # 0.85
-    thresh_overlap = 0.5     # 0.2; caiman default: 0.5
-    merge_thresh = 0.95      # 0.85
+    lenient = 1
+    
+    if lenient:
+        rval_thr = 0.7
+        min_SNR = 1
+        thresh_overlap = 0.2 # 0.5
+    else:
+        rval_thr = 0.85
+        min_SNR = 2.5
+        thresh_overlap = 0.2
+    
+    merge_thresh = 0.9      # 0.85
     
     lframe, init_values = initialise(ref_movie_path, init_method='cnmf', K=K,
                                      ds_factor=ds_factor, initbatch=initbatch,
-                                     rval_thr=rval_thr,
+                                     rval_thr=rval_thr, 
+                                     expected_comps=expected_comps,
                                      thresh_overlap=thresh_overlap, 
-                                     save_init=True, mot_corr=True,
+                                     save_init=False, mot_corr=True,
                                      merge_thresh=merge_thresh,
                                      minibatch_shape=minibatch_shape,
                                      min_SNR=min_SNR, T1=10000, gSig=gSig)
@@ -380,8 +389,11 @@ cnm2.Ab_epoch = []                       # save the shapes at the end of each ep
 movie_path = ref_movie_path
 
 print('Loading video')
-Y_ = []
-Y_ = cm.load(movie_path, subindices=slice(initbatch,T1,None)) # 0,T1,None
+try:
+    print(Y_.shape)
+except:
+    Y_ = cm.load(movie_path, subindices=slice(initbatch,T1,None)) # 0,T1,None
+    
 print('Video loaded')
 
 for iter in range(epochs):  
@@ -555,7 +567,7 @@ if show_coms:
 
 view_patches_bar([], A, # scipy.sparse.coo_matrix(A.tocsc()[:, :]),
                  C[:, :t], b, f[:,:t],
-                 dims[0], dims[1], YrA=YrA[:,:t], img=Cn)
+                 dims[0], dims[1], YrA=YrA[:,:t], img=None) #img=Cn for background frame, None for cell mask
 
 
 #%% Plot deconvolved signal for checking
@@ -597,11 +609,13 @@ save_dict['Cn'] = Cn
 save_dict['coms'] = coms
 
 # parameters
+save_dict['ds_factor'] = ds_factor
 save_dict['min_SNR'] = min_SNR
 save_dict['gSig'] = gSig
 save_dict['rval_thr'] = rval_thr
 save_dict['thresh_overlap'] = thresh_overlap
 save_dict['merge_thresh'] = merge_thresh
+save_dict['expected_comps'] = expected_comps
     
     
 folder = os.path.join(os.path.dirname(ref_movie_path), 'offline_results')
@@ -618,7 +632,11 @@ if use_CNN:
     save_dict['coms'] = coms[ind_keep_CNN]
 
 else:
-    saveResultPath = os.path.join(folder, 'ex' + str(example) + '_onacid_results_ds_' + str(ds_factor) + '.pkl')
+    if lenient:
+        saveResultPath = os.path.join(folder, 'lenient_ex' + str(example) + '_onacid_results_ds_' + str(ds_factor) + '.pkl')
+    else: 
+        saveResultPath = os.path.join(folder, 'ex' + str(example) + '_onacid_results_ds_' + str(ds_factor) + '.pkl')
+
     save_dict['cnm2'] = cnm2
     save_dict['coms'] = coms
 
@@ -631,7 +649,7 @@ if save_mat:
     pkl2mat(file_full_name = saveResultPath)
 
 #%% Load pkl-ed cnm object
-saveResultPath = r'C:\Users\intrinsic\Desktop\pyRTAOI-rig\samples\example1\offline_results\ex1_onacid_results_ds_1.5.pkl'
+saveResultPath = r'C:\Users\intrinsic\Desktop\samples\example1\offline_results\ex1_onacid_results_ds_1.5.pkl'
 cnm_object = load_object(saveResultPath)
 
 cnm2 = cnm_object['cnm2']

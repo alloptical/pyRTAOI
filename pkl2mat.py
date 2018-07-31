@@ -50,11 +50,13 @@ def pkl2mat(file_full_name = '',save_full_name = ''):
     
     # params
     try:
+        save_dict['ds_factor'] = file_data['ds_factor']
         save_dict['min_SNR'] = file_data['min_SNR']
         save_dict['gSig'] = file_data['gSig']
         save_dict['rval_thr'] = file_data['rval_thr']
         save_dict['thresh_overlap'] = file_data['thresh_overlap']
         save_dict['merge_thresh'] = file_data['merge_thresh']
+        save_dict['expected_comps'] = file_data['expected_comps']
     except:
         print('Params were not saved')
     
