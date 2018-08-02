@@ -51,6 +51,7 @@ def pkl2mat(file_full_name = '',save_full_name = ''):
     # params
     try:
         save_dict['ds_factor'] = file_data['ds_factor']
+        save_dict['K'] = file_data['K']
         save_dict['min_SNR'] = file_data['min_SNR']
         save_dict['gSig'] = file_data['gSig']
         save_dict['rval_thr'] = file_data['rval_thr']
@@ -65,9 +66,9 @@ def pkl2mat(file_full_name = '',save_full_name = ''):
     save_dict['cnm_gnb'] = cnm.gnb
     save_dict['num_frames_init'] = cnm.initbatch
         
-        
-    print('saved as '+save_full_name)
+    print('saving...') 
     scipy.io.savemat(save_full_name, mdict = save_dict)
+    print('saved as '+save_full_name)
 
     
 if __name__ == '__main__':

@@ -57,9 +57,9 @@ from caiman.components_evaluation import estimate_components_quality_auto
 #fname = [r'C:\Users\intrinsic\caiman_data\sample_vid\stimulated_test\20170329_OG151_t-008_Substack (1-3000)--(1-500).tif'] # filename to be processed
 
 # example movies
-example = 6
+example = 8
 
-sample_folder = r'C:\Users\intrinsic\Desktop\samples'
+sample_folder = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples'
 example_folder = os.path.join(sample_folder, 'example' + str(example))
 files = glob.glob(os.path.join(example_folder,'*Ch2.tif'))
 
@@ -134,7 +134,7 @@ try:
     dview.terminate()
 #     cm.stop_server(dview=dview)
 except:
-    print('OK')    
+    print('OK')
 
 c, dview, n_processes = cm.cluster.setup_cluster(
     backend='local', n_processes=None, single_thread=False)
@@ -190,7 +190,8 @@ border_to_0 = bord_px_els     # number of pixels to exclude
 fname_new = cm.save_memmap(fnames, base_name='memmap_', order='C',
                            border_to_0=bord_px_els)  # exclude borders
 
-# now load the file
+#%% now load the file
+fname_new = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples\example8\memmap__d1_512_d2_512_d3_1_order_C_frames_4956_.mmap'
 
 Yr, dims, T = cm.load_memmap(fname_new)
 d1, d2 = dims
@@ -198,11 +199,11 @@ images = np.reshape(Yr.T, [T] + list(dims), order='F')
 # load frames in python format (T x X x Y)
 
 # load board_px_els
-d = np.load(r'C:\Users\intrinsic\Desktop\samples\example4\bord_px_els.npz')
+d = np.load(r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples\example8\bord_px_els.npz')
 try:
     bord_px_els = bord_px_els
 except:
-    bord_px_els = d['arr_0']
+    bord_px_els = d['bord_px_els']
     
 # restart cluster to clean up memory
 try:

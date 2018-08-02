@@ -68,9 +68,9 @@ from caiman.base.rois import extract_binary_masks_from_structural_channel
 #ref_movie_path = r'C:\Users\intrinsic\Desktop\samples\example1\init_results\20171229_OG245_t-052_Cycle00001_Ch2_substack1-200_init_seeded_DS_1.5.pkl'
 
 # example movies
-example = 1
+example = 8
 
-sample_folder = r'C:\Users\intrinsic\Desktop\samples'
+sample_folder = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples'
 example_folder = os.path.join(sample_folder, 'example' + str(example))
 files = glob.glob(os.path.join(example_folder,'*Ch2.tif'))
 
@@ -82,35 +82,35 @@ print('Ref movie path: ', ref_movie_path)
 movie_ext = ref_movie_path[-4:]
 
 if movie_ext  == '.tif':
-    K = 30
+    K = 100
     ds_factor = 1.5
     initbatch = 500
     minibatch_shape = 100
-    gSig = (10,10)
-    expected_comps = 200
+    gSig = (4,4)
+    expected_comps = 700
     
-    lenient = 1
+    lenient = 0
     
     if lenient:
         rval_thr = 0.7
         min_SNR = 1
         thresh_overlap = 0.2 # 0.5
     else:
-        rval_thr = 0.85
+        rval_thr = 0.8
         min_SNR = 2.5
         thresh_overlap = 0.2
     
-    merge_thresh = 0.9      # 0.85
+    merge_thresh = 0.95     # 0.85
     
     lframe, init_values = initialise(ref_movie_path, init_method='cnmf', K=K,
-                                     ds_factor=ds_factor, initbatch=initbatch,
-                                     rval_thr=rval_thr, 
+                                     ds_factor=ds_factor, gSig=gSig,
+                                     initbatch=initbatch, rval_thr=rval_thr, 
                                      expected_comps=expected_comps,
                                      thresh_overlap=thresh_overlap, 
                                      save_init=False, mot_corr=True,
                                      merge_thresh=merge_thresh,
                                      minibatch_shape=minibatch_shape,
-                                     min_SNR=min_SNR, T1=10000, gSig=gSig)
+                                     min_SNR=min_SNR, T1=10000)
     
 elif movie_ext == '.pkl':
     init_values = load_object(ref_movie_path)
@@ -597,8 +597,8 @@ if save_results:
              shifts=shifts)
 
 #%% Reload and unpack saved data
-npz_datafile = np.load(saved_data)
-locals().update(npz_datafile)
+#npz_datafile = np.load(saved_data)
+#locals().update(npz_datafile)
 
 #%% Save results (whole cnm object) as pkl
 
@@ -610,6 +610,7 @@ save_dict['coms'] = coms
 
 # parameters
 save_dict['ds_factor'] = ds_factor
+save_dict['K'] = K
 save_dict['min_SNR'] = min_SNR
 save_dict['gSig'] = gSig
 save_dict['rval_thr'] = rval_thr
@@ -657,8 +658,7 @@ t = cnm_object['t_cnm']
 epochs = 1
 
 #%% Load pkl init object
-#saved_pkl = r'C:\Users\intrinsic\Desktop\pyRTAOI2018\samples\example1\20171229_OG245_t-052_Cycle00001_Ch2_substack1-1000_DS_1.5_OnlineProc.pkl' #20171229_OG245_t-052_Cycle00001_Ch2_substack1-2700_init_cnmf_DS_1.5.pkl'
-saved_pkl = r'C:/Users/intrinsic/Desktop/pyRTAOI2018/samples/example1/20171229_OG245_t-052_Cycle00001_Ch2_substack1-200_init_seeded_DS_1.5.pkl'
+saved_pkl = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples\example1\init_results\20171229_OG245_t-052_Cycle00001_Ch2_init_cnmf_DS_1.5.pkl'
 pkl_datafile = load_object(saved_pkl)
 
 #mask = pkl_datafile['cnm_init'].A # access mask
