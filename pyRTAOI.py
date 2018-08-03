@@ -299,7 +299,7 @@ class DataStream(QObject):
                 del buf_gpu
                 del dest_gpu
                 del sample_mean
-                print('stopped scanning') # gets here
+                print('stopped scanning')
                 p['FLAG_END_LOADING'] = True
                 self.stream_finished_signal.emit()
 
@@ -483,6 +483,7 @@ class Worker(QObject):
         except:
             pass
 
+
         if FLAG_USE_ONACID:
             # use locally scoped variables to speed up
             self.status_signal.emit('Using OnACID')
@@ -524,14 +525,21 @@ class Worker(QObject):
             accepted = list(range(1, com_count+1)) # start count from 1 for easier online access
             expect_components = True
 
+        
+        if p['FLAG_OFFLINE']:
+            max_wait = None  # wait till video loaded and buffer starts filling
+        else:
+            max_wait = 10 # timeout
+
+
         # keep processing frames in qbuffer
         while ((not p['FLAG_END_LOADING']) or (not qbuffer.empty())) and not STOP_JOB_FLAG:
             # get data from queue
             try:
-                frame_in = qbuffer.get(timeout = 10)
-            except Exception as e: # should be timeout exception
+                frame_in = qbuffer.get(timeout = max_wait)
+            except Exception: # timeout exception
                 print('Timeout Exception: empty qbuffer')
-                break
+                break # this may be a problem for online too? stops reading the stream completely if timeout happens
 
             t0 = time.time()
             framesProc = framesProc+1
