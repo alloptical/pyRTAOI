@@ -299,7 +299,7 @@ class DataStream(QObject):
                 del buf_gpu
                 del dest_gpu
                 del sample_mean
-                print('stopped scanning')
+                print('stopped scanning') # gets here
                 p['FLAG_END_LOADING'] = True
                 self.stream_finished_signal.emit()
 
@@ -738,6 +738,7 @@ class Worker(QObject):
                                     res_denoised_frame = cv2.resize(denoised_frame, (512, 512), interpolation=cv2.INTER_CUBIC)
                                     self.roi_signal.emit(res_denoised_frame)
 #                                print('generate denoise frame time:' + str("%.4f"%(time.time()-denoise_time)))
+
                             else:
                                 if ds_factor == 1:
                                     self.roi_signal.emit(frame_cor)
@@ -758,7 +759,6 @@ class Worker(QObject):
                     else:
                         LastPlot += 1
                 t_cnm +=1
-                print('end of while loop ', (((not p['FLAG_END_LOADING']) or (not qbuffer.empty())) and not STOP_JOB_FLAG))
 
             # else not using onACID
             else:
@@ -1398,7 +1398,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         try:
             save_dict = dict()
             save_dict['cnm2'] = self.c['cnm2'] #self.cnm2
-            save_dict['com_count_init'] = self.K_init 
+            save_dict['com_count_init'] = self.K_init
             save_dict['accepted'] = self.accepted
             save_dict['t_cnm'] = self.t_cnm
             save_object(save_dict, p['saveResultPath'])
@@ -1454,7 +1454,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             self.TargetX = [] # all target coords
             self.TargetY = []
             p['ExtraTargetX'] = [] #selected targets (not in the ROIlist) -- TODO
-            p['ExtraTargetY'] = []
+            p['ExtraTargetY'] = [] 
             p['currentTargetX'] = [] # keep track of what is currently on SLM
             p['currentTargetY'] = []
 
@@ -2218,81 +2218,61 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 
     def updateInitialisation(self):
-        try:
-            keep_idx = list(set(range(self.thisROIIdx)) - set(self.removeIdx))
-            
-            # reset previous settings
-            self.ROIcontour_item.clear()
-            self.thisROIIdx = 0
-            self.resetROIlist()
-            self.deleteTextItems()
-            self.updateTable()
-            self.plotItem.clear()
-            self.resetFigure()
+        keep_idx = list(set(range(self.thisROIIdx)) - set(self.removeIdx))
+        
+        # reset previous settings
+        self.ROIcontour_item.clear()
+        self.thisROIIdx = 0
+        self.resetROIlist()
+        self.deleteTextItems()
+        self.updateTable()
+        self.plotItem.clear()
+        self.resetFigure()
 
-            # remove chosen cells
-            self.c['cnm2'].remove_components(self.removeIdx)
+        # remove chosen cells
+        self.c['cnm2'].remove_components(self.removeIdx)
 
-            K = self.c['cnm2'].N
-            print('new K:', K)
-            self.K_init = K
+        K = self.c['cnm2'].N
+        print('new K:', K)
+        self.K_init = K
 
-            self.c['cnm2'].accepted = self.c['cnm2'].accepted[:K] # all cells accepted post initialisation
+        self.c['cnm2'].accepted = self.c['cnm2'].accepted[:K] # all cells accepted post initialisation
 
-            coms = self.c['coms_init']
-            self.c['coms_init'] = coms[keep_idx]
+        coms = self.c['coms_init']
+        self.c['coms_init'] = coms[keep_idx]
 
-            self.InitNumROIs_spinBox.setValue(K)
-            self.InitNumROIs = K
+        self.InitNumROIs_spinBox.setValue(K)
+        self.InitNumROIs = K
 
-            if self.MaxNumROIs_spinBox.value() < K+5:
-                self.MaxNumROIs_spinBox.setValue(K+10)
+        if self.MaxNumROIs_spinBox.value() < K+5:
+            self.MaxNumROIs_spinBox.setValue(K+10)
 
-            self.initialiseROI()
-            for i in range(K):
-                y, x = self.c['coms_init'][i]  # reversed
-                self.getROImask(thisROIx = x, thisROIy = y)
+        self.initialiseROI()
+        for i in range(K):
+            y, x = self.c['coms_init'][i]  # reversed
+            self.getROImask(thisROIx = x, thisROIy = y)
 
-            show_traces = 1
-            if show_traces:
-                self.showROIIdx()
-                cnm_init = self.c['cnm_init']
-                self.plotOnacidTraces(t=cnm_init.initbatch)
+        show_traces = 1
+        if show_traces:
+            self.showROIIdx()
+            cnm_init = self.c['cnm_init']
+            self.plotOnacidTraces(t=cnm_init.initbatch)
 
-            # after new roi list initialised
+        # after new roi list initialised
 #            print('target idx list', self.TargetIdx)
-            for idx in sorted(self.removeIdx, reverse=True):
-                if idx in self.TargetIdx:
+        for idx in sorted(self.removeIdx, reverse=True):
+            if idx in self.TargetIdx:
 #                    print('idx', idx)
-                    self.TargetIdx.remove(idx)
-                self.TargetIdx = [target-1 if target>idx else target for target in self.TargetIdx]
+                self.TargetIdx.remove(idx)
+            self.TargetIdx = [target-1 if target>idx else target for target in self.TargetIdx]
 
-            if self.A_opsin.size:
-                self.checkOpsin()
+        if self.A_opsin.size:
+            self.checkOpsin()
 
-            self.updateTargets()
-            self.updateStatusBar('Removed cells: ' + str([value+1 for value in self.removeIdx])[1:-1])
+        self.updateTargets()
+        self.updateStatusBar('Removed cells: ' + str([value+1 for value in self.removeIdx])[1:-1])
 
-            # extract orig idx of cell to be removed -- not needed if com_count from init saved post onacid
-#            try:
-#                removed_earlier = self.c['removed_idx']
-#                print('removed earlier', removed_earlier)
-#
-#                removeIdx_orig = []
-#                for idx in self.removeIdx:
-#                    print('removeidx new', self.removeIdx)
-#                    orig_idx = idx + sum([idx+len(removed_earlier)>=earlier for earlier in removed_earlier])
-#                    removeIdx_orig.append(orig_idx)
-#
-#                self.c['removed_idx'] = self.c['removed_idx'] + removeIdx_orig
-#                print('orig remove idx:', removeIdx_orig)
-#                print('updated list', self.c['removed_idx'])
-#            except Exception as e:
-#                print(e)
-
-            self.removeIdx = []
-        except Exception as e:
-            print(e)
+        self.removeIdx = []
 
 
     def loadOpsinImg(self):
@@ -2759,15 +2739,16 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                 self.streamThread.wait(1)
                 self.streamThread.quit()
                 self.streamThread.wait()
+        except: pass
     
+        try:
             if self.workerObject:
                 self.workerObject.stop()
                 self.workerThread.wait(1)
                 self.workerThread.quit()
                 self.workerThread.wait() # ensures worker finished before next run can be started
-                
-        except Exception as e:
-            print(e)
+        except: pass
+
 
         self.stop_pushButton.clicked.disconnect(self.stop_thread)
         print('stop button disconnected')
