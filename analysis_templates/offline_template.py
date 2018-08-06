@@ -597,8 +597,12 @@ if save_results:
              shifts=shifts)
 
 #%% Reload and unpack saved data
-#npz_datafile = np.load(saved_data)
-#locals().update(npz_datafile)
+file = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples\example1\offline_results\ex1_cnmf_results.npz'
+npz_datafile = np.load(file)
+locals().update(npz_datafile)
+
+#%%
+#A = npz_datafile['cnm_A']
 
 #%% Save results (whole cnm object) as pkl
 
@@ -650,12 +654,16 @@ if save_mat:
     pkl2mat(file_full_name = saveResultPath)
 
 #%% Load pkl-ed cnm object
-saveResultPath = r'C:\Users\intrinsic\Desktop\samples\example1\offline_results\ex1_onacid_results_ds_1.5.pkl'
+file1 = 'substack1-200_DS_1.5_OnlineProc.pkl'
+file2 = 'substack1-1000_DS_1.5_OnlineProc.pkl'
+saveResultPath = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples\example1\pyrtaoi_results\20171229_OG245_t-052_Cycle00001_Ch2_' + file1
 cnm_object = load_object(saveResultPath)
 
 cnm2 = cnm_object['cnm2']
 t = cnm_object['t_cnm']
 epochs = 1
+
+C, f = cnm2.C_on[cnm2.gnb:cnm2.M], cnm2.C_on[:cnm2.gnb]
 
 #%% Load pkl init object
 saved_pkl = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples\example1\init_results\20171229_OG245_t-052_Cycle00001_Ch2_init_cnmf_DS_1.5.pkl'

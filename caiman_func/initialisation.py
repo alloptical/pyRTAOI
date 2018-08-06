@@ -159,7 +159,7 @@ def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1,
     if init_method == 'bare':
         cnm_init = bare_initialization(Y.transpose(1, 2, 0), init_batch=initbatch, k=K, gnb=gnb,
                                      gSig=gSig, p=p, 
-                                     minibatch_shape=100,
+                                     minibatch_shape=minibatch_shape,
                                      minibatch_suff_stat=5,
                                      update_num_comps=True, rval_thr=rval_thr,
                                      thresh_fitness_raw=thresh_fitness_raw,
@@ -201,10 +201,9 @@ def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1,
         n_processes = np.maximum(np.int(psutil.cpu_count()),1)
         images = np.reshape(Yr.T, [T] + list(dims), order='F')
         
-        cnm_init = seeded_initialization(Y.transpose(1, 2, 0), Ain=Ain, init_batch=initbatch, gnb=gnb,
+        cnm_init = seeded_initialization(Y.transpose(1, 2, 0), Ain=Ain, init_batch=initbatch,
                                         # n_processes - default of 2 inside seeded_init
-                                         #k=K, 
-                                         gSig=gSig,
+                                         gSig=gSig, gnb=gnb,
                                          merge_thresh=merge_thresh, p=p,
                                          stride=stride,
                                          simultaneously=False, # True: slower but more accurate (doesn't seem slower actually)
@@ -214,9 +213,9 @@ def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1,
                                          remove_very_bad_comps=True, # apparently can be less precise if true?
                                          skip_refinement=False,
                                          normalize_init=False, options_local_NMF=None,
-                                         minibatch_shape=100, minibatch_suff_stat=5,
+                                         minibatch_shape=minibatch_shape, minibatch_suff_stat=5,
                                          update_num_comps=True, rval_thr=rval_thr,
-                                         thresh_fitness_delta=-50, #gnb=gnb,
+                                         thresh_fitness_delta=-50,
                                          thresh_fitness_raw=thresh_fitness_raw,
                                          batch_update_suff_stat=True, max_comp_update_shape=max_comp_update_shape)
     
