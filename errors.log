@@ -16211,3 +16211,23 @@ TypeError: ufunc 'add' did not contain a loop with signature matching types dtyp
 2018-07-28 15:27:54,519 - __main__ - INFO - Started application
 2018-07-28 15:27:54,519 - __main__ - INFO - Started application
 2018-07-28 15:27:54,519 - __main__ - INFO - Started application
+2018-07-31 13:43:27,466 - __main__ - INFO - Started application
+2018-07-31 13:43:27,746 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<0>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "X:/Python/pyRTAOI/pyRTAOI.py", line 1065, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<0>
+
+Status Code: -200220

@@ -2,8 +2,9 @@
  Dependences:
  follow instructions in these links to install all dependences
  caiman  : https://github.com/flatironinstitute/CaImAn
- opencv  (pip install .whl) : https://www.lfd.uci.edu/~gohlke/pythonlibs/#opencv
- PyDAQmx (pip) : https://github.com/clade/PyDAQmx
+ opencv  (pip install .whl) : https://www.lfd.uci.edu/~gohlke/pythonlibs/#opencv (caiman installs it)
+ nidaqwx (pip install)
+ pyqtgraph (pip install)
 
 SPYDER HAS NO AUTOSAVE FUNCTION!  (only autosaves when script is run)
 CAREFUL WHEN USING 'REPLACE ALL' - IT WILL QUIT, WITHOUT SAVING!!
@@ -37,7 +38,12 @@ CAREFUL WHEN USING 'REPLACE ALL' - IT WILL QUIT, WITHOUT SAVING!!
 9. some memory leak - every time the app is run, memory increases by ~3-4 % - mostly solved by explicit deleting of big variables
 
 10. release gpu memory after one movie - done
-11. daq task issues - 'the specified resource is reserved error' - this only happens when triggering online
+11. daq task issues - 'the specified resource is reserved error' - this only happens when triggering online; need to restart spyder after one run
+
+----
+12. add option to save out motion-corrected movie by image-saver and by worker (when online photostim is not enabled)
+13. save out detected events in ROIs for making trigger-triggered average frames
+
 
 # other notes:
 - numpy.append is slower than list.append, so avoid using it in loops but there's not much difference if just appending a single value
@@ -81,7 +87,6 @@ from pvlink import *
 import ctypes
 from ctypes import *
 
-
 # blink
 from bLink import bLink
 
@@ -122,6 +127,8 @@ from queue import Queue
 # power control voltage
 from loadPowerFile import get_power_params
 
+# sta 
+from utils import sta 
 
 # configure logging
 logger = logging.getLogger(__name__)
@@ -135,7 +142,6 @@ logger.info('Started application')
 
 # Interpret image data as row-major instead of col-major
 pg.setConfigOptions(imageAxisOrder = 'row-major')
-
 
 class CONSTANTS():
 	# constants
@@ -410,8 +416,6 @@ class Worker(QObject):
 		if self.c == {}:
 			self.UseONACID = False
 			print('No reference movie provided')
-#        else:
-#            self.com_count = self.c['cnm2'].N    # caiman related
 
 		if self.pl == []:
 			print('No Prairie object provided')
@@ -429,8 +433,6 @@ class Worker(QObject):
 		self.RoiBuffer = p['RoiBuffer']
 		self.BufferPointer = p['BufferPointer']
 		self.ROIlist_threshold = np.zeros(p['MaxNumROIs'])
-
-
 		self.dist_thresh = 21 # reject new rois too close to existing rois
 		self.display_shift = False  # option to display motion correction shift
 
@@ -464,6 +466,7 @@ class Worker(QObject):
 
 		# local param
 		FLAG_USE_ONACID = self.UseONACID
+		FLAG_SAVE_TIFF = p['saveAsTiff']
 		BufferPointer = self.BufferPointer
 		sta_start_frames = self.sta_start_frames
 		photo_stim_frames = self.photo_stim_frames # predefined fixed frames
@@ -472,16 +475,16 @@ class Worker(QObject):
 		# Local buffer for recording online protocol
 		online_photo_frames = []
 		online_photo_targets = []
-
-
-
+		
+		# get power control prameters if provided
 		try:
 			power_polyfit_p = p['power_polyfit_p']
 			photoPowerPerCell = p['photoPowerPerCell']
 			NI_UNIT_POWER_ARRAY = p['NI_UNIT_POWER_ARRAY']
 		except:
 			pass
-
+		
+		# initialise onACID
 		if FLAG_USE_ONACID:
 			# use locally scoped variables to speed up
 			self.status_signal.emit('Using OnACID')
@@ -523,6 +526,21 @@ class Worker(QObject):
 			accepted = list(range(1, com_count+1)) # start count from 1 for easier online access
 			expect_components = True
 
+		# prepare to save frames to tiff file
+		if FLAG_SAVE_TIFF:
+			if self.FLAG_PV_CONNECTED:
+				movie_save_path = self.pl.get_movie_name()+ '_DS_' + str(ds_factor) +'_rtaoi.tif'
+			else:
+				movie_save_path = os.path.splitext(p['moviePath'])[0]+ '_DS_' + str(ds_factor) +'_rtaoi.tif'
+			try:
+				MyTiffwriter =  tifffile.TiffWriter(movie_save_path, bigtiff=True)
+				print('movie will be saved as '+movie_save_path)
+			except Exception as e:
+				print('tiffwriter error:' + e)
+				FLAG_SAVE_TIFF = False
+			
+
+
 		# keep processing frames in qbuffer
 		while ((not p['FLAG_END_LOADING']) or (not qbuffer.empty())) and not STOP_JOB_FLAG: # some issue here: when stopped/finished, it usually does not enter finishing part
 			# get data from queue
@@ -544,11 +562,11 @@ class Worker(QObject):
 
 				# process current frame
 				if ds_factor > 1:
-					frame_in = cv2.resize(frame_in, img_norm.shape[::-1])   # downsampling
+					frame_in = cv2.resize(frame_in, img_norm.shape[::-1])  # downsampling
 
 				frame_in -= img_min                                       # make data non-negative
 
-				if mot_corr:                                            # motion correct
+				if mot_corr:                                              # motion correct
 #					mot_corr_start = time.time()
 					templ = cnm2.Ab.dot(cnm2.C_on[:cnm2.M, t_cnm - 1]).reshape(cnm2.dims, order='F') * img_norm
 					frame_cor, shift = motion_correct_iteration_fast(frame_in, templ, max_shift, max_shift)
@@ -557,7 +575,11 @@ class Worker(QObject):
 #                    print('caiman motion correction time:' + str("%.4f"%(time.time()-mot_corr_start)))
 				else:
 					frame_cor = frame_in
-
+				
+				# save to tiff file
+				if FLAG_SAVE_TIFF:
+					MyTiffwriter.save(frame_cor)
+					
 				frame_cor = frame_cor / img_norm                            # normalize data-frame
 				cnm2.fit_next(t_cnm, frame_cor.reshape(-1, order='F'))      # run OnACID on this frame
 
@@ -685,7 +707,7 @@ class Worker(QObject):
 						FLAG_SEND_COORDS = False
 					num_photostim +=1
 
-				# Sta recording and sensory stim
+				# Sta recording and sensory stim - not necessary to do online, move it elsewhere
 				if sta_stim_idx < self.num_stims:
 					if p['FLAG_STIM_TRIG_ENABLED'] and framesProc == stim_frames[sta_stim_idx]: # send TTL
 						self.sendTTLTrigger_signal.emit()
@@ -769,7 +791,9 @@ class Worker(QObject):
 		print('finishing work')
 		print('number of photostims = ' +str(num_photostim))
 		self.status_signal.emit('Mean processing time is ' + str(np.nanmean(self.tottime))[:6] + ' sec.')
-
+		
+		if FLAG_SAVE_TIFF:
+			MyTiffwriter.close()
 
 		if self.UseONACID:
 			self.BufferPointer = BufferPointer
@@ -782,8 +806,6 @@ class Worker(QObject):
 			cnm2.accepted = accepted # for easier access in MainWindow
 			if opsin_mask.size:
 				cnm2.opsin = opsin
-
-#            self.cnm2 = cnm2
 
 			# save results to Temp folder
 			if self.FLAG_PV_CONNECTED:
@@ -799,6 +821,7 @@ class Worker(QObject):
 			save_dict['coms'] = coms
 			save_dict['online_photo_frames'] = online_photo_frames
 			save_dict['online_photo_targets'] = online_photo_targets
+			save_dict['ds_factor'] = ds_factor
 
 			try:
 				save_dict['opsin_thresh'] = opsin_thresh
@@ -1354,8 +1377,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		p['FLAG_PV_CONNECTED'] = self.FLAG_PV_CONNECTED
 		p['FLAG_OFFLINE'] = self.IsOffline
 		p['photoProtoInx'] = self.photoProtoInx
-
-
+		
 #        self.ds_factor = p['dsFactor']
 		self.MaxNumROIs = p['MaxNumROIs']
 		self.flipRowChanged()
@@ -2445,6 +2467,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 	def autoAddClicked(self):
 		p['FLAG_AUTO_ADD_TARGETS'] = self.addNewROIsToTarget_checkBox.isChecked()
 		print('FLAG_AUTO_ADD_TARGETS = '+str(p['FLAG_AUTO_ADD_TARGETS']))
+		
 
 	def enterEvent(self,event):
 		self.graphicsView.setCursor(Qt.CrossCursor)
