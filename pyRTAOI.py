@@ -2,8 +2,9 @@
  Dependences:
  follow instructions in these links to install all dependences
  caiman  : https://github.com/flatironinstitute/CaImAn
- opencv  (pip install .whl) : https://www.lfd.uci.edu/~gohlke/pythonlibs/#opencv
- PyDAQmx (pip) : https://github.com/clade/PyDAQmx
+ opencv  (pip install .whl) : https://www.lfd.uci.edu/~gohlke/pythonlibs/#opencv (caiman installs it)
+ nidaqwx (pip install)
+ pyqtgraph (pip install)
 
 SPYDER HAS NO AUTOSAVE FUNCTION!  (only autosaves when script is run)
 CAREFUL WHEN USING 'REPLACE ALL' - IT WILL QUIT, WITHOUT SAVING!!
@@ -37,7 +38,12 @@ CAREFUL WHEN USING 'REPLACE ALL' - IT WILL QUIT, WITHOUT SAVING!!
 9. some memory leak - every time the app is run, memory increases by ~3-4 % - mostly solved by explicit deleting of big variables
 
 10. release gpu memory after one movie - done
-11. daq task issues - 'the specified resource is reserved error' - this only happens when triggering online
+11. daq task issues - 'the specified resource is reserved error' - this only happens when triggering online; need to restart spyder after one run
+
+----
+12. add option to save out motion-corrected movie by image-saver and by worker (when online photostim is not enabled)
+13. save out detected events in ROIs for making trigger-triggered average frames
+
 
 # other notes:
 - numpy.append is slower than list.append, so avoid using it in loops but there's not much difference if just appending a single value
@@ -81,7 +87,6 @@ from pvlink import *
 import ctypes
 from ctypes import *
 
-
 # blink
 from bLink import bLink
 
@@ -122,6 +127,8 @@ from queue import Queue
 # power control voltage
 from loadPowerFile import get_power_params
 
+# sta
+from utils import sta
 
 # configure logging
 logger = logging.getLogger(__name__)
@@ -135,7 +142,6 @@ logger.info('Started application')
 
 # Interpret image data as row-major instead of col-major
 pg.setConfigOptions(imageAxisOrder = 'row-major')
-
 
 class CONSTANTS():
     # constants
@@ -359,7 +365,7 @@ class imageSaver(QObject):
                 print('number frame saved = '+str(self.frameSaved))
 
         # finishing
-        print('number of frames saved'+str(self.frameSaved))
+        print('Total number of frames saved '+str(self.frameSaved))
         self.finished_signal.emit()
 
 #%% process thread
@@ -411,9 +417,7 @@ class Worker(QObject):
         if self.c == {}:
             self.UseONACID = False
             print('No reference movie provided')
-#        else:
-#            self.com_count = self.c['cnm2'].N    # caiman related
-
+            
         if self.pl == []:
             print('No Prairie object provided')
 
@@ -430,8 +434,6 @@ class Worker(QObject):
         self.RoiBuffer = p['RoiBuffer']
         self.BufferPointer = p['BufferPointer']
         self.ROIlist_threshold = np.zeros(p['MaxNumROIs'])
-
-
         self.dist_thresh = 21 # reject new rois too close to existing rois
         self.display_shift = False  # option to display motion correction shift
 
@@ -464,18 +466,21 @@ class Worker(QObject):
         FLAG_SEND_COORDS = False
 
         # local param
-        FLAG_USE_ONACID = self.UseONACID
-        BufferPointer = self.BufferPointer
-        sta_start_frames = self.sta_start_frames
-        photo_stim_frames = self.photo_stim_frames # predefined fixed frames
-        stim_frames = self.stim_frames # stim at fixed intervals
+        try:
+            FLAG_USE_ONACID = self.UseONACID
+            FLAG_SAVE_TIFF = p['saveAsTiff']
+            BufferPointer = self.BufferPointer
+            sta_start_frames = self.sta_start_frames
+            photo_stim_frames = self.photo_stim_frames # predefined fixed frames
+            stim_frames = self.stim_frames # stim at fixed intervals
+    
+            # Local buffer for recording online protocol
+            online_photo_frames = []
+            online_photo_targets = []
+        except Exception as e:
+            print(e)
 
-        # Local buffer for recording online protocol
-        online_photo_frames = []
-        online_photo_targets = []
-
-
-
+        # get power control prameters if provided
         try:
             power_polyfit_p = p['power_polyfit_p']
             photoPowerPerCell = p['photoPowerPerCell']
@@ -483,39 +488,47 @@ class Worker(QObject):
         except:
             pass
 
-
         if FLAG_USE_ONACID:
-            # use locally scoped variables to speed up
+            # Use locally scoped variables to speed up
             self.status_signal.emit('Using OnACID')
+    
             # Extract initialisation parameters
             mot_corr = True # hard coded now; using motion correction from onacid
-            
-            # Define OnACID parameters
             cnm2 = self.c['cnm2'] #deepcopy(cnm_init)
-            
-            accepted = [ix+cnm2.gnb for ix in cnm2.accepted]
-            rejected_count = cnm2.N - len(accepted)
-            expect_components = True
-            
-            self.com_count = len(accepted) #self.c['cnm2'].N  # moved inside
-            com_count = self.com_count
-            
-            # local record of all roi coords
-            print('number of initial rois '+str(len(accepted)))
-            ROIx = np.asarray([item.get("ROIx") for item in self.ROIlist[:com_count]])   # could also predefine ROIx/y as arrays of bigger size (e.g. 100) and fill them in instad of append
-            ROIy = np.asarray([item.get("ROIy") for item in self.ROIlist[:com_count]])
-
             img_norm = self.c['img_norm'].copy().astype(np.float32)
             img_min = self.c['img_min'].copy().astype(np.float32)
             ds_factor = self.c['ds_factor']
             dims = self.c['cnm_init'].dims
             keep_prev = self.c['keep_prev']
+            
+            # Define OnACID parameters
             max_shift = np.ceil(10./ds_factor).astype('int')  # max shift allowed
-
+            accepted = [ix+cnm2.gnb for ix in cnm2.accepted]
+            rejected_count = cnm2.N - len(accepted)
+            expect_components = True
+            self.com_count = len(accepted) #self.c['cnm2'].N
+            com_count = self.com_count
+            
+            # Local record of all roi coords
+            print('number of initial rois '+str(len(accepted)))
+            ROIx = np.asarray([item.get("ROIx") for item in self.ROIlist[:com_count]])   # could also predefine ROIx/y as arrays of bigger size (e.g. 100) and fill them in instad of append
+            ROIy = np.asarray([item.get("ROIy") for item in self.ROIlist[:com_count]])
+            
+            # Keep or discard previous online cells if rerunning OnACID
+            keep_full_traces = True  # keep full trace history of the previous session (may be necessary for deconv of last minibatch, otherwise errors possible)
             if keep_prev:
                 coms_init = self.c['coms']
+                if keep_full_traces:
+                    t_cnm = cnm2.t
+#                else:
+##                    mbs = cnm2.minibatch_shape
+#                    init_shape = cnm2.initbatch
+#                    t_cnm = init_shape # + mbs
+##                    cnm2.C_on[:cnm2.N+cnm2.gnb,init_shape:t_cnm] = cnm2.C_on[:cnm2.N+cnm2.gnb,-mbs:]
+#                    cnm2.C_on[:cnm2.N+cnm2.gnb,t_cnm:] = 0  # clears previous results -- should keep at least last minibatch if clearing
             else:
                 coms_init = self.c['coms_init']
+                t_cnm = cnm2.initbatch
             coms = coms_init.copy()
             
             
@@ -531,18 +544,16 @@ class Worker(QObject):
                 opsin_positive = True  # default for when no opsin mask
                 print(e)
 
-            if keep_prev:
-                keep_full_traces = True  # keep full trace history of the previous session (may be necessary for deconv of last minibatch, otherwise errors possible)
-                if keep_full_traces:
-                    t_cnm = cnm2.t
-#                else:
-##                    mbs = cnm2.minibatch_shape
-#                    init_shape = cnm2.initbatch
-#                    t_cnm = init_shape # + mbs
-##                    cnm2.C_on[:cnm2.N+cnm2.gnb,init_shape:t_cnm] = cnm2.C_on[:cnm2.N+cnm2.gnb,-mbs:]
-#                    cnm2.C_on[:cnm2.N+cnm2.gnb,t_cnm:] = 0  # clears previous results -- should keep at least last minibatch if clearing
-            else:
-                t_cnm = cnm2.initbatch
+        
+        # prepare to save frames to tiff file
+        if FLAG_SAVE_TIFF:
+            try:
+                MyTiffwriter =  tifffile.TiffWriter(p['currentMoviePath'], bigtiff=True)
+                print('movie will be saved as '+p['currentMoviePath'])
+            except Exception as e:
+                print('tiffwriter error:' + e)
+                FLAG_SAVE_TIFF = False
+                
         
         if p['FLAG_OFFLINE']:
             max_wait = None  # wait till video loaded and buffer starts filling
@@ -660,73 +671,74 @@ class Worker(QObject):
                         print(self.RoiBuffer[:com_count,:])
     
     
-                    # trigger photostim
-                    if p['photoProtoInx'] == CONSTANTS.PHOTO_FIX_FRAMES and framesProc == photo_stim_frames[num_photostim] and num_photostim < self.num_stims:
+    
+                # trigger photostim
+                if p['photoProtoInx'] == CONSTANTS.PHOTO_FIX_FRAMES and framesProc == photo_stim_frames[num_photostim] and num_photostim < self.num_stims:
+                    FLAG_TRIG_PHOTOSTIM = True
+
+                elif p['photoProtoInx'] == CONSTANTS.PHOTO_ABOVE_THRESH: # TODO: no check for opsin here
+                    photostim_flag = self.RoiBuffer[:com_count, BufferPointer]-self.ROIlist_threshold[:com_count]
+                    last_target_idx = np.copy(current_target_idx)
+                    current_target_idx = np.nonzero(photostim_flag>0)
+                    num_stim_targets = len(current_target_idx)
+
+                    if (num_stim_targets>0):
                         FLAG_TRIG_PHOTOSTIM = True
-    
-                    elif p['photoProtoInx'] == CONSTANTS.PHOTO_ABOVE_THRESH: # TODO: no check for opsin here
-                        photostim_flag = self.RoiBuffer[:com_count, BufferPointer]-self.ROIlist_threshold[:com_count]
-                        last_target_idx = np.copy(current_target_idx)
-                        current_target_idx = np.nonzero(photostim_flag>0)
-                        num_stim_targets = len(current_target_idx)
-    
-                        if (num_stim_targets>0):
-                            FLAG_TRIG_PHOTOSTIM = True
-                            if np.array_equal(last_target_idx,current_target_idx):
-                                FLAG_SEND_COORDS = True
-    
-                        p['currentTargetX'] = ROIx[current_target_idx]
-                        p['currentTargetY'] = ROIy[current_target_idx]
-    
-                    elif p['photoProtoInx'] == CONSTANTS.PHOTO_BELOW_THRESH:
-                        photostim_flag = self.ROIlist_threshold[:com_count] - self.RoiBuffer[:com_count, BufferPointer]
-                        last_target_idx = np.copy(current_target_idx)
-                        current_target_idx = np.nonzero(photostim_flag>0)
-                        num_stim_targets = len(current_target_idx)
-    
-                        if (num_stim_targets>0):
-                            FLAG_TRIG_PHOTOSTIM = True
-                            if np.array_equal(last_target_idx,current_target_idx):
-                                FLAG_SEND_COORDS = True
-    
-                        p['currentTargetX'] = ROIx[current_target_idx]
-                        p['currentTargetY'] = ROIy[current_target_idx]
-    
-                    if FLAG_TRIG_PHOTOSTIM:
-                        # update phase mask
-                        if FLAG_SEND_COORDS:
-                            self.sendCoords_signal.emit()
-    
-                        # trigger spiral
-                        p['NI_2D_ARRAY'][1,:] = NI_UNIT_POWER_ARRAY *np.polyval(power_polyfit_p,photoPowerPerCell*num_stim_targets)
-                        self.sendPhotoStimTrig_signal.emit()
-                        FLAG_TRIG_PHOTOSTIM = False
-    
-                        # take notes
-                        online_photo_frames.append(framesProc)
-                        online_photo_targets.append(current_target_idx)
-    
-                        # update display
-                        if FLAG_SEND_COORDS:
-                            self.updateTargetROIs_signal.emit()
-                            FLAG_SEND_COORDS = False
-                        num_photostim +=1
-    
-                    # Sta recording and sensory stim
-                    if sta_stim_idx < self.num_stims:
-                        if p['FLAG_STIM_TRIG_ENABLED'] and framesProc == stim_frames[sta_stim_idx]: # send TTL
-                            self.sendTTLTrigger_signal.emit()
-    
-                        if not self.flag_sta_recording:
-                            if framesProc == sta_start_frames[sta_stim_idx]:
-                                self.flag_sta_recording = True
-                                sta_frame_idx = 0
-                        else:
-                            self.sta_traces[:com_count,sta_stim_idx,sta_frame_idx] = cnm2.C_on[accepted,t_cnm]
-    #                        sta_frame_idx +=1
-                            if sta_frame_idx == self.sta_trace_length:
-                                self.flag_sta_recording = False
-                                sta_stim_idx += 1
+                        if np.array_equal(last_target_idx,current_target_idx):
+                            FLAG_SEND_COORDS = True
+
+                    p['currentTargetX'] = ROIx[current_target_idx]
+                    p['currentTargetY'] = ROIy[current_target_idx]
+
+                elif p['photoProtoInx'] == CONSTANTS.PHOTO_BELOW_THRESH:
+                    photostim_flag = self.ROIlist_threshold[:com_count] - self.RoiBuffer[:com_count, BufferPointer]
+                    last_target_idx = np.copy(current_target_idx)
+                    current_target_idx = np.nonzero(photostim_flag>0)
+                    num_stim_targets = len(current_target_idx)
+
+                    if (num_stim_targets>0):
+                        FLAG_TRIG_PHOTOSTIM = True
+                        if np.array_equal(last_target_idx,current_target_idx):
+                            FLAG_SEND_COORDS = True
+
+                    p['currentTargetX'] = ROIx[current_target_idx]
+                    p['currentTargetY'] = ROIy[current_target_idx]
+
+                if FLAG_TRIG_PHOTOSTIM:
+                    # update phase mask
+                    if FLAG_SEND_COORDS:
+                        self.sendCoords_signal.emit()
+
+                    # trigger spiral
+                    p['NI_2D_ARRAY'][1,:] = NI_UNIT_POWER_ARRAY *np.polyval(power_polyfit_p,photoPowerPerCell*num_stim_targets)
+                    self.sendPhotoStimTrig_signal.emit()
+                    FLAG_TRIG_PHOTOSTIM = False
+
+                    # take notes
+                    online_photo_frames.append(framesProc)
+                    online_photo_targets.append(current_target_idx)
+
+                    # update display
+                    if FLAG_SEND_COORDS:
+                        self.updateTargetROIs_signal.emit()
+                        FLAG_SEND_COORDS = False
+                    num_photostim +=1
+
+                # Sta recording and sensory stim - not necessary to do online, move it elsewhere
+                if sta_stim_idx < self.num_stims:
+                    if p['FLAG_STIM_TRIG_ENABLED'] and framesProc == stim_frames[sta_stim_idx]: # send TTL
+                        self.sendTTLTrigger_signal.emit()
+
+                    if not self.flag_sta_recording:
+                        if framesProc == sta_start_frames[sta_stim_idx]:
+                            self.flag_sta_recording = True
+                            sta_frame_idx = 0
+                    else:
+                        self.sta_traces[:com_count,sta_stim_idx,sta_frame_idx] = cnm2.C_on[accepted,t_cnm]
+#                        sta_frame_idx +=1
+                        if sta_frame_idx == self.sta_trace_length:
+                            self.flag_sta_recording = False
+                            sta_stim_idx += 1
     
                     # Update display
                     if framesProc > refreshFrame-1: #frame_count>self.BufferLength-1:
@@ -800,7 +812,9 @@ class Worker(QObject):
         print('number of photostims = ' + str(num_photostim))
         self.status_signal.emit('Mean processing time is ' + str(np.nanmean(self.tottime))[:6] + ' sec.')
 
-
+        if FLAG_SAVE_TIFF:
+            MyTiffwriter.close()
+        
         if self.UseONACID:
             self.BufferPointer = BufferPointer
             self.BufferPointer = 0
@@ -814,12 +828,8 @@ class Worker(QObject):
             if opsin_mask.size:
                 cnm2.opsin = opsin
 
-
             # save results to Temp folder
-            if self.FLAG_PV_CONNECTED:
-                self.movie_name = os.path.basename(self.pl.get_movie_name())
-            else:
-                self.movie_name = os.path.splitext(p['moviePath'])[0]
+            self.movie_name = p['currentMoviePath']
 
             save_dict = dict()
             save_dict['cnm2'] = cnm2  # opsin info a part of cnm struct for now
@@ -830,6 +840,7 @@ class Worker(QObject):
             save_dict['coms'] = coms
             save_dict['online_photo_frames'] = online_photo_frames
             save_dict['online_photo_targets'] = online_photo_targets
+            save_dict['ds_factor'] = ds_factor
 
             try:
                 save_dict['opsin_thresh'] = opsin_thresh
@@ -844,32 +855,29 @@ class Worker(QObject):
                 timestr = time.strftime("%Y%m%d-%H%M%S")  # can add to title (day-time)
 
                 if save_separately:  # TODO: what if pv connected? -- test
-                    filename = os.path.basename(self.movie_name) + '_DS_' + str(ds_factor) + '_OnlineProc.pkl'
-                    movie_folder = os.path.dirname(p['moviePath'])
+                    filename = os.path.basename(self.movie_name)[:-4] + '_OnlineProc.pkl'  # + '_DS_' + str(ds_factor) 
+                    movie_folder = os.path.dirname(self.movie_name)
                     save_folder = os.path.join(movie_folder, 'pyrtaoi_results')  # save init result in a separate folder
                     if not os.path.exists(save_folder):
                         os.makedirs(save_folder)
-
                     save_path = os.path.join(save_folder, filename)
                 else:
-                    save_path = self.movie_name + '_DS_' + str(ds_factor) + '_OnlineProc.pkl'   # save results in the same folder
-
+                    save_path = self.movie_name + '_OnlineProc.pkl'   # save results in the same folder # + '_DS_' + str(ds_factor) 
+                print('OnACID result saved as:' + save_path)
                 save_object(save_dict, save_path)
             except Exception as e:
                 print(e)
-
-#            self.com_count = com_count
 
             # save sta traces to Temp folder - havent testing in live stream mode
             sta_trial_avg = np.nanmean(self.sta_traces,1)
             if(p['staAvgStopFrame']>p['staAvgStartFrame']):
                 sta_trial_avg_amp = np.nanmean(sta_trial_avg[:,p['staAvgStartFrame']+p['staPreFrame']:p['staAvgStopFrame']+p['staPreFrame']],1)
-                self.sta_amp_signal.emit(sta_trial_avg_amp[:com_count])
+                self.sta_amp_signal.emit(sta_trial_avg_amp[:self.com_count])
             else:
                 self.status_signal.emit('Check sta average range')
             save_name = str(self.save_dir) + 'sta_traces.npy'
             print('sta traces saved as: '+save_name)
-            np.save(save_name, self.sta_traces)
+            np.save(save_name,self.sta_traces)
 
 
             # transfer data to main and show traces in plot tab
@@ -1218,7 +1226,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 #                            self.Targetcontour_item.clear()
 #                            self.updateTargets()
 #                            self.removeIdx = []
-
 
                         # unselect individual remove items
                         selected = self.Targetcontour_item.data
@@ -2561,23 +2568,19 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 
             kwargs = {"save_movie_path": save_path}
-#            if not self.imageSaverObject:
             self.imageSaverObject = imageSaver(**kwargs)
             self.updateStatusBar('imageSaver object created')
             self.imageSaverObject.moveToThread(self.imageSaverThread)
             self.imageSaverThread.started.connect(self.imageSaverObject.saveImage)
             self.imageSaverObject.finished_signal.connect(self.imageSaverThread.exit)
-            self.imageSaverObject.finished_signal.connect(self.imageSaverObject.deleteLater)  # added
             self.imageSaverThread.start()
 
             # start stream thread
             kwargs = {"prairie": self.pl}
-#            if not self.streamObject:
             self.streamObject = DataStream(**kwargs)
             self.streamObject.moveToThread(self.streamThread)
             self.streamThread.started.connect(self.streamObject.stream)
             self.streamObject.stream_finished_signal.connect(self.streamThread.exit)
-            self.streamObject.stream_finished_signal.connect(self.streamObject.deleteLater)  # added
             self.streamThread.start()
             self.updateStatusBar('stream started in takeRefMovie function')
         else:
@@ -2585,26 +2588,33 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             self.updateStatusBar('Check PV connection')
 
 
-
     def clickRun(self):
         global STOP_JOB_FLAG
         STOP_JOB_FLAG = False
         
+        if not qbuffer.empty():
+#                qbuffer.clear()  # error: 'Queue' object has no attribute 'clear'
+            with qbuffer.mutex:
+                qbuffer.queue.clear()
+                print('qbuffer cleared!')
+        
         # connect to pv if not offline
         if (not self.IsOffline) and (not self.FLAG_PV_CONNECTED):
             self.connectPV
+
+        # get current movie name if PV is connected
+        if self.FLAG_PV_CONNECTED:
+            p['currentMoviePath'] = self.pl.get_movie_name()+ '_DS_' + str(self.ds_factor) +'_rtaoi.tif'
+            print('current movie:' + p['currentMoviePath'])
+        else:
+            p['currentMoviePath'] = os.path.splitext(p['moviePath'])[0]+ '_DS_' + str(self.ds_factor) +'_rtaoi.tif'
+
 
         if self.IsOffline or self.FLAG_PV_CONNECTED: # p['UseONACID'] or self.FLAG_PV_CONNECTED
             try: self.resetFigure()
             except: pass
         
             self.c['keep_prev'] = False # default
-            
-            if not qbuffer.empty():
-    #                qbuffer.clear()  # error: 'Queue' object has no attribute 'clear'
-                with qbuffer.mutex:
-                    qbuffer.queue.clear()
-                    print('qbuffer cleared!')
     
             if self.c['cnm2'].t > self.c['cnm2'].initbatch: # self.cnm2:
                 msg = QMessageBox()
@@ -2623,7 +2633,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                         self.c['cnm2'].t = self.c['cnm2'].initbatch
                         self.removeIdx = np.arange(self.K_init,curr_count)
                         self.updateInitialisation()
-#                        self.c['keep_prev'] = False
                     else:
                         self.c['keep_prev'] = True
                 else:
@@ -2677,10 +2686,9 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             self.workerThread.started.connect(self.workerObject.work)
             self.workerObject.finished_signal.connect(self.workerThread.exit)
 
-            # disconnect stop_thread from stop button to avoid repeated thread object issues on rerunning            
-            # TODO: test with prairie - may be problematic if worker exits earlier than stream
+            # reset worker thread after finishing and disconnect stop button
             self.stopButtonDisconnect = lambda: self.stop_pushButton.clicked.disconnect(self.stop_thread)
-            self.workerObject.finished_signal.connect(self.stopButtonDisconnect) # can connect finished_signal to many functions
+            self.workerObject.finished_signal.connect(self.stopButtonDisconnect)
             self.workerObject.finished_signal.connect(self.workerObject.deleteLater)  # delete qt (C++) instance later
             self.workerObject.finished_signal.connect(resetworkerObject) # remove python reference to workerObject
 
@@ -2698,7 +2706,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             self.streamObject.moveToThread(self.streamThread)
             self.streamThread.started.connect(self.streamObject.stream)
             self.streamObject.stream_finished_signal.connect(self.streamThread.exit)
-            self.streamObject.stream_finished_signal.connect(self.streamObject.deleteLater)  # delete this instance later (seems it doesn't work but stop disconnect sorts it)
+            self.streamObject.stream_finished_signal.connect(self.streamObject.deleteLater)  # seems it doesn't get deleted but stop disconnect sorts it
 #            self.streamObject.stream_finished_signal.connect(resetstreamObject)  # looks like stream object not deleted though
             self.streamThread.start()
             self.updateStatusBar('stream started')
@@ -2995,6 +3003,7 @@ if __name__ == '__main__':
     # initialise parameters
     global p
     p = {}
+    p['saveAsTiff'] = False # temp here
 
    # global data buffer
     global qbuffer

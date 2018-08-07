@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'GUI.ui'
 #
-# Created by: PyQt5 UI code generator 5.9.2
+# Created by: PyQt5 UI code generator 5.6
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -683,7 +683,7 @@ class Ui_MainWindow(object):
         self.run_groupBox.setTitle("")
         self.run_groupBox.setObjectName("run_groupBox")
         self.gridLayoutWidget_9 = QtWidgets.QWidget(self.run_groupBox)
-        self.gridLayoutWidget_9.setGeometry(QtCore.QRect(10, 10, 311, 31))
+        self.gridLayoutWidget_9.setGeometry(QtCore.QRect(10, 10, 320, 31))
         self.gridLayoutWidget_9.setObjectName("gridLayoutWidget_9")
         self.gridLayout_10 = QtWidgets.QGridLayout(self.gridLayoutWidget_9)
         self.gridLayout_10.setContentsMargins(0, 0, 0, 0)
@@ -736,22 +736,6 @@ class Ui_MainWindow(object):
         self.test_pushButton.setMinimumSize(QtCore.QSize(0, 20))
         self.test_pushButton.setObjectName("test_pushButton")
         self.gridLayout_10.addWidget(self.test_pushButton, 0, 2, 1, 1)
-        self.ImageWindow.raise_()
-        self.Prairie_groupBox.raise_()
-        self.OfflineAnalysis_groupBox.raise_()
-        self.DisplayOptions_groupBox.raise_()
-        self.StimOptions_groupBox.raise_()
-        self.caiman_groupBox.raise_()
-        self.plotArea_graphicsLayoutWidget.raise_()
-        self.Thresh_tableWidget.raise_()
-        self.Blink_groupBox.raise_()
-        self.gridLayoutWidget_8.raise_()
-        self.groupBox.raise_()
-        self.opsinMask_groupBox.raise_()
-        self.config_groupBox.raise_()
-        self.photostim_groupBox.raise_()
-        self.run_groupBox.raise_()
-        self.label_30.raise_()
         self.tabWidget.addTab(self.tab, "")
         self.tab_2 = QtWidgets.QWidget()
         self.tab_2.setObjectName("tab_2")

@@ -1695,7 +1695,7 @@
         <rect>
          <x>10</x>
          <y>10</y>
-         <width>311</width>
+         <width>320</width>
          <height>31</height>
         </rect>
        </property>
@@ -1797,23 +1797,6 @@
        </layout>
       </widget>
      </widget>
-     <zorder>ImageWindow</zorder>
-     <zorder>Prairie_groupBox</zorder>
-     <zorder>OfflineAnalysis_groupBox</zorder>
-     <zorder>DisplayOptions_groupBox</zorder>
-     <zorder>StimOptions_groupBox</zorder>
-     <zorder>caiman_groupBox</zorder>
-     <zorder>plotArea_graphicsLayoutWidget</zorder>
-     <zorder>Thresh_tableWidget</zorder>
-     <zorder>Blink_groupBox</zorder>
-     <zorder>gridLayoutWidget_8</zorder>
-     <zorder>groupBox</zorder>
-     <zorder>opsinMask_groupBox</zorder>
-     <zorder>config_groupBox</zorder>
-     <zorder>photostim_groupBox</zorder>
-     <zorder>run_groupBox</zorder>
-     <zorder>label_30</zorder>
-     <zorder>InitNumROIs_spinBox_2</zorder>
     </widget>
     <widget class="QWidget" name="tab_2">
      <attribute name="title">
