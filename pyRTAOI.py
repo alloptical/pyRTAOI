@@ -41,7 +41,7 @@ CAREFUL WHEN USING 'REPLACE ALL' - IT WILL QUIT, WITHOUT SAVING!!
 11. daq task issues - 'the specified resource is reserved error' - this only happens when triggering online; need to restart spyder after one run
 
 ----
-12. add option to save out motion-corrected movie by image-saver and by worker (when online photostim is not enabled)
+12. add option to save out motion-corrected movie by image-saver and by worker (when online photostim is not enabled) - done
 13. save out detected events in ROIs for making trigger-triggered average frames
 
 
@@ -803,10 +803,8 @@ class Worker(QObject):
 			if opsin_mask.size:
 				cnm2.opsin = opsin
 
-			# save results to Temp folder
-
+			# save results 
 			self.movie_name = p['currentMoviePath']
-
 			save_dict = dict()
 			save_dict['cnm2'] = cnm2  # opsin info a part of cnm struct for now
 			save_dict['accepted'] = accepted  # accepted currently stored inside cnm2 as well
@@ -816,6 +814,10 @@ class Worker(QObject):
 			save_dict['online_photo_frames'] = online_photo_frames
 			save_dict['online_photo_targets'] = online_photo_targets
 			save_dict['ds_factor'] = ds_factor
+			if p['FLAG_STIM_TRIG_ENABLED'] :
+				save_dict['sensory_stim_frames'] = self.stim_frames
+			else:
+				save_dict['sensory_stim_frames'] =[]
 
 			try:
 				save_dict['opsin_thresh'] = opsin_thresh
