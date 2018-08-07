@@ -57,7 +57,7 @@ from caiman.components_evaluation import estimate_components_quality_auto
 #fname = [r'C:\Users\intrinsic\caiman_data\sample_vid\stimulated_test\20170329_OG151_t-008_Substack (1-3000)--(1-500).tif'] # filename to be processed
 
 # example movies
-example = 8
+example = 1
 
 sample_folder = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples'
 example_folder = os.path.join(sample_folder, 'example' + str(example))
@@ -99,8 +99,8 @@ merge_thresh = 0.8          # merging threshold, max correlation allowed
 # half-size of the patches in pixels. e.g., if rf=25, patches are 50x50
 rf = 50 #15
 stride_cnmf = 5 #6             # amount of overlap between the patches in pixels
-K = 40 #3                       # number of components per patch
-gSig = [4, 4]               # expected half size of neurons
+K = 10 #3                       # number of components per patch
+gSig = [10, 10]               # expected half size of neurons
 # initialization method (if analyzing dendritic data using 'sparse_nmf')
 init_method = 'greedy_roi'
 is_dendrites = False        # flag for analyzing dendritic data
@@ -176,7 +176,7 @@ folder = os.path.dirname(fname[0])
 save = os.path.join(folder, 'bord_px_els.npz')
 np.savez(save, bord_px_els=bord_px_els)
 
-# compare with original movie
+#%% compare with original movie
 display_images = False
 if display_images:
     moviehandle = cm.concatenate([m_orig.resize(1, 1, downsample_ratio) + offset_mov,
@@ -184,14 +184,18 @@ if display_images:
                axis=2)
     moviehandle.play(fr=60, q_max=99.5, magnification=2, offset=0)  # press q to exit
 
-# memory map the file in order 'C'
+#%% memory map the file in order 'C'
 fnames = mc.fname_tot_els   # name of the pw-rigidly corrected file.
 border_to_0 = bord_px_els     # number of pixels to exclude
 fname_new = cm.save_memmap(fnames, base_name='memmap_', order='C',
                            border_to_0=bord_px_els)  # exclude borders
 
 #%% now load the file
-fname_new = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples\example8\memmap__d1_512_d2_512_d3_1_order_C_frames_4956_.mmap'
+#fname_new = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples\example8\memmap__d1_512_d2_512_d3_1_order_C_frames_4956_.mmap'
+
+fname_new = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples\example1\memmap__d1_512_d2_512_d3_1_order_C_frames_5400_.mmap'
+b = np.load(r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples\example1\bord_px_els.npz')
+bord_px_els = b['bord_px_els']
 
 Yr, dims, T = cm.load_memmap(fname_new)
 d1, d2 = dims
@@ -199,11 +203,11 @@ images = np.reshape(Yr.T, [T] + list(dims), order='F')
 # load frames in python format (T x X x Y)
 
 # load board_px_els
-d = np.load(r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples\example8\bord_px_els.npz')
-try:
-    bord_px_els = bord_px_els
-except:
-    bord_px_els = d['bord_px_els']
+#d = np.load(r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples\example8\bord_px_els.npz')
+#try:
+#    bord_px_els = bord_px_els
+#except:
+#    bord_px_els = d['bord_px_els']
     
 # restart cluster to clean up memory
 try:
@@ -231,8 +235,8 @@ c, dview, n_processes = cm.cluster.setup_cluster(
 # for this step deconvolution is turned off (p=0)
 t1 = time.time()
 
-cnm = cnmf.CNMF(n_processes=1, 
-                k=K, 
+cnm = cnmf.CNMF(n_processes=1,
+                k=20, 
                 gSig=gSig, merge_thresh=merge_thresh,
                 p=0, 
                 dview=dview, 
@@ -260,7 +264,7 @@ cnm = cnm.fit(images)
 idx_components, idx_components_bad, SNR_comp, r_values, cnn_preds = \
     estimate_components_quality_auto(images, cnm.A, cnm.C, cnm.b, cnm.f,
                                      cnm.YrA, fr, decay_time, gSig, dims,
-                                     dview=dview, min_SNR=min_SNR,
+                                     dview=dview, min_SNR=1.5,#min_SNR,
                                      r_values_min=rval_thr, use_cnn=use_cnn,
                                      thresh_cnn_min=cnn_thr)
 
@@ -370,7 +374,7 @@ plt.plot(C_df[cell,:])
 
 
 #%% Show final traces
-cnm2.view_patches(Yr, dims=dims, img=Cn)
+cnm2.view_patches(Yr, dims=dims, img=None) #=Cn
 
 #%% Extract coms of cells found
 from caiman.base.rois import com
@@ -415,7 +419,7 @@ results_folder = os.path.join(folder, 'offline_results')
 if not os.path.exists(results_folder):
     os.makedirs(results_folder)
     
-saved_data = os.path.join(results_folder, 'ex' + str(example) + '_cnmf_results.npz')
+saved_data = os.path.join(results_folder, 'ex' + str(example) + '_cnmf_results_minSRN1.5.npz')
 
 np.savez(saved_data, A=cnm2.A, b=cnm2.b, C=cnm2.C, f=cnm2.f, YrA=cnm2.YrA, # YrA is residual signal
          Y_r=cnm2.YrA + cnm2.C, Cn=Cn, dims=cnm2.dims, 

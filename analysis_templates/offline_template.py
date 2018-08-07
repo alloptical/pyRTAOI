@@ -78,6 +78,7 @@ if len(files)==1:
     ref_movie_path = files[0]
 print('Ref movie path: ', ref_movie_path)
 
+#ref_movie_path = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples\example8\init_results\20180107_OG242_t-001_Cycle00001_Ch2_init_cnmf_DS_1.5.pkl'
 
 movie_ext = ref_movie_path[-4:]
 
@@ -148,7 +149,7 @@ if visualise_init:
     A, C, b, f, YrA, sn = cnm_init.A, cnm_init.C, cnm_init.b, cnm_init.f, cnm_init.YrA, cnm_init.sn
     
     view_patches_bar([], scipy.sparse.coo_matrix(
-    A.tocsc()[:, :]), C[:, :], b, f, dims[0], dims[1], YrA=YrA[:, :], img=Cn_init)
+    A.tocsc()[:, :]), C[:, :], b, f, dims[0], dims[1], YrA=YrA[:, :], img=None)#Cn_init)
 
 #%% Load c1v1 image and create a binary cell mask
 mask_file = r'C:\Users\intrinsic\Desktop\pyRTAOI2018\samples\example1\20171229_OG245_s-026_Cycle00001_Ch1_000001.ome.tif'
