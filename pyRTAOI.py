@@ -127,8 +127,8 @@ from queue import Queue
 # power control voltage
 from loadPowerFile import get_power_params
 
-# sta 
-from utils import sta 
+# sta
+from utils import sta
 
 # configure logging
 logger = logging.getLogger(__name__)
@@ -364,7 +364,7 @@ class imageSaver(QObject):
 				print('number frame saved = '+str(self.frameSaved))
 
 		# finishing
-		print('number of frames saved'+str(self.frameSaved))
+		print('Total number of frames saved '+str(self.frameSaved))
 		self.finished_signal.emit()
 
 #%% process thread
@@ -475,7 +475,7 @@ class Worker(QObject):
 		# Local buffer for recording online protocol
 		online_photo_frames = []
 		online_photo_targets = []
-		
+
 		# get power control prameters if provided
 		try:
 			power_polyfit_p = p['power_polyfit_p']
@@ -483,7 +483,7 @@ class Worker(QObject):
 			NI_UNIT_POWER_ARRAY = p['NI_UNIT_POWER_ARRAY']
 		except:
 			pass
-		
+
 		# initialise onACID
 		if FLAG_USE_ONACID:
 			# use locally scoped variables to speed up
@@ -528,17 +528,13 @@ class Worker(QObject):
 
 		# prepare to save frames to tiff file
 		if FLAG_SAVE_TIFF:
-			if self.FLAG_PV_CONNECTED:
-				movie_save_path = self.pl.get_movie_name()+ '_DS_' + str(ds_factor) +'_rtaoi.tif'
-			else:
-				movie_save_path = os.path.splitext(p['moviePath'])[0]+ '_DS_' + str(ds_factor) +'_rtaoi.tif'
 			try:
-				MyTiffwriter =  tifffile.TiffWriter(movie_save_path, bigtiff=True)
-				print('movie will be saved as '+movie_save_path)
+				MyTiffwriter =  tifffile.TiffWriter(p['currentMoviePath'], bigtiff=True)
+				print('movie will be saved as '+p['currentMoviePath'])
 			except Exception as e:
 				print('tiffwriter error:' + e)
 				FLAG_SAVE_TIFF = False
-			
+
 
 
 		# keep processing frames in qbuffer
@@ -575,11 +571,11 @@ class Worker(QObject):
 #                    print('caiman motion correction time:' + str("%.4f"%(time.time()-mot_corr_start)))
 				else:
 					frame_cor = frame_in
-				
+
 				# save to tiff file
 				if FLAG_SAVE_TIFF:
 					MyTiffwriter.save(frame_cor)
-					
+
 				frame_cor = frame_cor / img_norm                            # normalize data-frame
 				cnm2.fit_next(t_cnm, frame_cor.reshape(-1, order='F'))      # run OnACID on this frame
 
@@ -791,7 +787,7 @@ class Worker(QObject):
 		print('finishing work')
 		print('number of photostims = ' +str(num_photostim))
 		self.status_signal.emit('Mean processing time is ' + str(np.nanmean(self.tottime))[:6] + ' sec.')
-		
+
 		if FLAG_SAVE_TIFF:
 			MyTiffwriter.close()
 
@@ -808,10 +804,8 @@ class Worker(QObject):
 				cnm2.opsin = opsin
 
 			# save results to Temp folder
-			if self.FLAG_PV_CONNECTED:
-				self.movie_name = os.path.basename(self.pl.get_movie_name())
-			else:
-				self.movie_name = os.path.splitext(p['moviePath'])[0]
+
+			self.movie_name = p['currentMoviePath']
 
 			save_dict = dict()
 			save_dict['cnm2'] = cnm2  # opsin info a part of cnm struct for now
@@ -837,15 +831,14 @@ class Worker(QObject):
 
 				if save_separately:  # TODO: what if pv connected? -- test
 					filename = os.path.basename(self.movie_name) + '_DS_' + str(ds_factor) + '_OnlineProc.pkl'
-					movie_folder = os.path.dirname(p['moviePath'])
+					movie_folder = os.path.dirname(self.movie_name)
 					save_folder = os.path.join(movie_folder, 'pyrtaoi_results')  # save init result in a separate folder
 					if not os.path.exists(save_folder):
 						os.makedirs(save_folder)
-
 					save_path = os.path.join(save_folder, filename)
 				else:
 					save_path = self.movie_name + '_DS_' + str(ds_factor) + '_OnlineProc.pkl'   # save results in the same folder
-
+				print('onACID result saved as:' + save_path)
 				save_object(save_dict, save_path)
 			except Exception as e:
 				print(e)
@@ -1377,7 +1370,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		p['FLAG_PV_CONNECTED'] = self.FLAG_PV_CONNECTED
 		p['FLAG_OFFLINE'] = self.IsOffline
 		p['photoProtoInx'] = self.photoProtoInx
-		
+
 #        self.ds_factor = p['dsFactor']
 		self.MaxNumROIs = p['MaxNumROIs']
 		self.flipRowChanged()
@@ -2467,7 +2460,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 	def autoAddClicked(self):
 		p['FLAG_AUTO_ADD_TARGETS'] = self.addNewROIsToTarget_checkBox.isChecked()
 		print('FLAG_AUTO_ADD_TARGETS = '+str(p['FLAG_AUTO_ADD_TARGETS']))
-		
+
 
 	def enterEvent(self,event):
 		self.graphicsView.setCursor(Qt.CrossCursor)
@@ -2539,6 +2532,14 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		# connect to pv if not offline
 		if (not self.IsOffline ) and (not self.FLAG_PV_CONNECTED):
 			self.connectPV
+
+		# get current movie name if PV is connected
+		if self.FLAG_PV_CONNECTED:
+			p['currentMoviePath'] = self.pl.get_movie_name()+ '_DS_' + str(self.ds_factor) +'_rtaoi.tif'
+			print('current movie:' + p['currentMoviePath'])
+		else:
+			p['currentMoviePath'] = os.path.splitext(p['moviePath'])[0]+ '_DS_' + str(self.ds_factor) +'_rtaoi.tif'
+
 
 		if p['UseONACID'] or self.FLAG_PV_CONNECTED:
 			try: self.resetFigure()
