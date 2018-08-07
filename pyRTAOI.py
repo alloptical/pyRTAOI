@@ -41,7 +41,7 @@ CAREFUL WHEN USING 'REPLACE ALL' - IT WILL QUIT, WITHOUT SAVING!!
 11. daq task issues - 'the specified resource is reserved error' - this only happens when triggering online; need to restart spyder after one run
 
 ----
-12. add option to save out motion-corrected movie by image-saver and by worker (when online photostim is not enabled)
+12. add option to save out motion-corrected movie by image-saver and by worker (when online photostim is not enabled) - done
 13. save out detected events in ROIs for making trigger-triggered average frames
 
 
@@ -841,6 +841,10 @@ class Worker(QObject):
             save_dict['online_photo_frames'] = online_photo_frames
             save_dict['online_photo_targets'] = online_photo_targets
             save_dict['ds_factor'] = ds_factor
+            if p['FLAG_STIM_TRIG_ENABLED'] :
+                save_dict['sensory_stim_frames'] = self.stim_frames
+            else:
+                save_dict['sensory_stim_frames'] =[]
 
             try:
                 save_dict['opsin_thresh'] = opsin_thresh
@@ -852,17 +856,18 @@ class Worker(QObject):
             try:
                 print('Saving onacid output')
                 save_separately = True # temp flag to save in a new folder inside movie folder
-                timestr = time.strftime("%Y%m%d-%H%M%S")  # can add to title (day-time)
+                daytimestr = time.strftime("%Y%m%d-%H%M%S")
+                timestr = daytimestr[-6:]
 
-                if save_separately:  # TODO: what if pv connected? -- test
-                    filename = os.path.basename(self.movie_name)[:-4] + '_OnlineProc.pkl'  # + '_DS_' + str(ds_factor) 
+                if save_separately:
+                    filename = os.path.basename(self.movie_name)[:-4] + '_OnlineProc_' + timestr + '.pkl'  # + '_DS_' + str(ds_factor) 
                     movie_folder = os.path.dirname(self.movie_name)
                     save_folder = os.path.join(movie_folder, 'pyrtaoi_results')  # save init result in a separate folder
                     if not os.path.exists(save_folder):
                         os.makedirs(save_folder)
                     save_path = os.path.join(save_folder, filename)
                 else:
-                    save_path = self.movie_name + '_OnlineProc.pkl'   # save results in the same folder # + '_DS_' + str(ds_factor) 
+                    save_path = self.movie_name[:-4] + '_OnlineProc_' + timestr + '.pkl'   # save results in the same folder # + '_DS_' + str(ds_factor) 
                 print('OnACID result saved as:' + save_path)
                 save_object(save_dict, save_path)
             except Exception as e:
@@ -3003,7 +3008,6 @@ if __name__ == '__main__':
     # initialise parameters
     global p
     p = {}
-    p['saveAsTiff'] = False # temp here
 
    # global data buffer
     global qbuffer

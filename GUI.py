@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'GUI.ui'
 #
-# Created by: PyQt5 UI code generator 5.6
+# Created by: PyQt5 UI code generator 5.9.2
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -359,6 +359,9 @@ class Ui_MainWindow(object):
         self.overlap_thresh_doubleSpinBox.setProperty("value", 0.0)
         self.overlap_thresh_doubleSpinBox.setObjectName("overlap_thresh_doubleSpinBox")
         self.gridLayout_2.addWidget(self.overlap_thresh_doubleSpinBox, 12, 5, 1, 1)
+        self.saveAsTiff_checkBox = QtWidgets.QCheckBox(self.gridLayoutWidget_13)
+        self.saveAsTiff_checkBox.setObjectName("saveAsTiff_checkBox")
+        self.gridLayout_2.addWidget(self.saveAsTiff_checkBox, 1, 0, 1, 1)
         self.gridLayout_19.addLayout(self.gridLayout_2, 1, 1, 1, 1)
         self.horizontalLayout_4 = QtWidgets.QHBoxLayout()
         self.horizontalLayout_4.setObjectName("horizontalLayout_4")
@@ -587,7 +590,7 @@ class Ui_MainWindow(object):
         self.photostim_groupBox.setGeometry(QtCore.QRect(1240, 200, 341, 171))
         self.photostim_groupBox.setObjectName("photostim_groupBox")
         self.gridLayoutWidget_10 = QtWidgets.QWidget(self.photostim_groupBox)
-        self.gridLayoutWidget_10.setGeometry(QtCore.QRect(10, 20, 321, 142))
+        self.gridLayoutWidget_10.setGeometry(QtCore.QRect(10, 20, 373, 142))
         self.gridLayoutWidget_10.setObjectName("gridLayoutWidget_10")
         self.gridLayout_11 = QtWidgets.QGridLayout(self.gridLayoutWidget_10)
         self.gridLayout_11.setContentsMargins(0, 0, 0, 0)
@@ -816,6 +819,7 @@ class Ui_MainWindow(object):
         self.UseONACID_checkBox.setText(_translate("MainWindow", "Use ONACID"))
         self.label_34.setText(_translate("MainWindow", "Merge thresh"))
         self.label_35.setText(_translate("MainWindow", "Overlap thresh"))
+        self.saveAsTiff_checkBox.setText(_translate("MainWindow", "Save tiff"))
         self.loadRefMoviePath_pushButton.setText(_translate("MainWindow", "Browse"))
         self.takeRefMovie_pushButton.setText(_translate("MainWindow", "Take Ref Movie"))
         self.initialise_pushButton.setText(_translate("MainWindow", "Initialise"))
