@@ -29,7 +29,7 @@ def get_power_params():
 
 
 if __name__ == '__main__':
-	power = 100
+	power = 0
 	power_polyfit_p = get_power_params()
 	print(power_polyfit_p)
 
