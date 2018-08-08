@@ -15,7 +15,7 @@ import time
 
 def get_power_params():
 	# parameters 
-	outMax = 1.9
+	outMax = 1
 	displayMax = 1000
 	powerfile_name = os.environ['BRUKER1_DROPBOX_PATH'] + '/PowerUtilities/Bruker1_PowerFile.mat'
 	mat_file = sio.loadmat(powerfile_name)

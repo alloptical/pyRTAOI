@@ -1,0 +1,30 @@
+0. data stream stopped in the middle of a movie - not polling data from buffer fast enough
+
+    0.1 nested thread - read data and emit signal when the correct number of sample is collected - bad idea
+        - saved in pyRTAOI-20180620_1; this guaranteed data streaming from PV but it takes more time to process one frame, 35 ms without nested thread; 60 ms with
+    0.2 use queue to communicate between worker and streamer - done
+        - saved in pyRTAOI-20180620_2; < 20 ms when running offline; need to test on rig
+    0.3 use gpu for motion correction? - caiman motion correction is below 10 ms; good enough
+
+    - down sample by 2 kept up with 30Hz image stream
+
+1. log data for offline anaysis - photostimulation targets and frame idx; save online analysis result - done, need test
+    offline analysis - convert cnmf results to .mat file - done
+
+2. deal with zoom - check
+3. mark point setting for changing photostim power - done
+    control voltage = (outMax/displayMax)*PV value; where outMax and displayMax are defined in prairie view configuration.xml
+    need to map power to voltage - done
+    send volt to pockels via ni card -  consider outsource it to holoblink?
+
+4. Plot STA dF/F - send triggers - check
+5. threshold sometimes becomes Inf - check
+6. auto initialisation - take reference movie and load - done
+7. photostim protocol - done, need to test on rig
+8. delete target by right clicking  - done by left click
+9. some memory leak - every time the app is run, memory increases by ~3-4 % - mostly solved by explicit deleting of big variables
+10. release gpu memory after one movie - done
+11. daq task issues - 'the specified resource is reserved error' - this only happens when triggering online; need to restart spyder after one run
+12. add option to save out motion-corrected movie by image-saver and by worker (when online photostim is not enabled) - done
+13. save out detected events in ROIs for making trigger-triggered average frames -- done in matlab (post-hoc)
+
