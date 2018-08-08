@@ -35,6 +35,7 @@ except NameError:
 
 
 import os
+import glob
 import numpy as np
 from copy import deepcopy
 import time
@@ -63,32 +64,54 @@ from caiman.base.rois import extract_binary_masks_from_structural_channel
 
 #%% Select reference movie, init parameters and initialise the algorithm or load an init .pkl file
 
-#ref_movie_path = r'C:\Users\intrinsic\caiman_data\sample_vid\stimulated_test\20170329_OG151_t-008_Substack (1-3000)--(1-500).tif'
-#ref_movie_path = r'C:\Users\intrinsic\caiman_data\sample_vid\stimulated_test\20170329_OG151_t-008_Substack (1-3000)--(1-500)_init_cnmf_DS_1.5.pkl'
+#ref_movie_path = r'C:\Users\intrinsic\Desktop\samples\example5\init_results\20171228_OG241_t-024_Cycle00001_Ch2_init_cnmf_DS_1.5.pkl'
+#ref_movie_path = r'C:\Users\intrinsic\Desktop\samples\example1\init_results\20171229_OG245_t-052_Cycle00001_Ch2_substack1-200_init_seeded_DS_1.5.pkl'
 
 # example movies
-#ref_movie_path = r'C:\Users\intrinsic\Desktop\pyRTAOI2018\samples\example1\20171229_OG245_t-052_Cycle00001_Ch2.tif'
-#ref_movie_path = r'C:\Users\intrinsic\Desktop\pyRTAOI2018\samples\example2\20171229_OG245_t-053\20171229_OG245_t-053_Cycle00001_Ch2.tif'
-#ref_movie_path = r'C:\Users\intrinsic\Desktop\pyRTAOI2018\samples\example3\20171130_OG235_t-002_Cycle00001_Ch2.tif'
+example = 8
 
-ref_movie_path = r'C:\Users\intrinsic\Desktop\pyRTAOI2018\samples\example1\init_results\20171229_OG245_t-052_Cycle00001_Ch2_substack1-200_init_seeded_DS_1.5.pkl'
+sample_folder = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples'
+example_folder = os.path.join(sample_folder, 'example' + str(example))
+files = glob.glob(os.path.join(example_folder,'*Ch2.tif'))
+
+if len(files)==1:
+    ref_movie_path = files[0]
+print('Ref movie path: ', ref_movie_path)
+
+#ref_movie_path = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples\example8\init_results\20180107_OG242_t-001_Cycle00001_Ch2_init_cnmf_DS_1.5.pkl'
 
 movie_ext = ref_movie_path[-4:]
 
-
 if movie_ext  == '.tif':
-    K = 30
+    K = 100
     ds_factor = 1.5
     initbatch = 500
     minibatch_shape = 100
-    min_SNR = 2.5
-    gSig = (10,10)  # maybe use 9 instead
+    gSig = (4,4)
+    expected_comps = 700
     
-    lframe, init_values = initialise(ref_movie_path, init_method='cnmf', K=K, 
-                                     ds_factor=ds_factor, initbatch=initbatch, rval_thr=0.85, #0.85,
-                                     thresh_overlap=0.2, save_init=False, mot_corr=True, # thresh_overlap = 0.5 as default
-                                     merge_thresh=0.9, minibatch_shape=minibatch_shape,
-                                     min_SNR=min_SNR, T1=10000, gSig=gSig)
+    lenient = 0
+    
+    if lenient:
+        rval_thr = 0.7
+        min_SNR = 1
+        thresh_overlap = 0.2 # 0.5
+    else:
+        rval_thr = 0.8
+        min_SNR = 2.5
+        thresh_overlap = 0.2
+    
+    merge_thresh = 0.95     # 0.85
+    
+    lframe, init_values = initialise(ref_movie_path, init_method='cnmf', K=K,
+                                     ds_factor=ds_factor, gSig=gSig,
+                                     initbatch=initbatch, rval_thr=rval_thr, 
+                                     expected_comps=expected_comps,
+                                     thresh_overlap=thresh_overlap, 
+                                     save_init=False, mot_corr=True,
+                                     merge_thresh=merge_thresh,
+                                     minibatch_shape=minibatch_shape,
+                                     min_SNR=min_SNR, T1=10000)
     
 elif movie_ext == '.pkl':
     init_values = load_object(ref_movie_path)
@@ -126,7 +149,7 @@ if visualise_init:
     A, C, b, f, YrA, sn = cnm_init.A, cnm_init.C, cnm_init.b, cnm_init.f, cnm_init.YrA, cnm_init.sn
     
     view_patches_bar([], scipy.sparse.coo_matrix(
-    A.tocsc()[:, :]), C[:, :], b, f, dims[0], dims[1], YrA=YrA[:, :], img=Cn_init)
+    A.tocsc()[:, :]), C[:, :], b, f, dims[0], dims[1], YrA=YrA[:, :], img=None)#Cn_init)
 
 #%% Load c1v1 image and create a binary cell mask
 mask_file = r'C:\Users\intrinsic\Desktop\pyRTAOI2018\samples\example1\20171229_OG245_s-026_Cycle00001_Ch1_000001.ome.tif'
@@ -367,9 +390,13 @@ cnm2.Ab_epoch = []                       # save the shapes at the end of each ep
 movie_path = ref_movie_path
 
 print('Loading video')
-Y_ = cm.load(movie_path, subindices=slice(0,T1,None)) # 0,T1,None
+try:
+    print(Y_.shape)
+except:
+    Y_ = cm.load(movie_path, subindices=slice(initbatch,T1,None)) # 0,T1,None
+    
 print('Video loaded')
-          
+
 for iter in range(epochs):  
     for frame_count, frame in enumerate(Y_):        # now process each file
         t1 = time_()
@@ -476,11 +503,11 @@ for iter in range(epochs):
     # save the shapes at the end of each epoch
     cnm2.Ab_epoch.append(cnm2.Ab.copy())
 
-
+ 
 #%% Extract results from object
 # Can pass through the CNN classifier with a low threshold (keeps clearer neuron shapes and excludes processes)
 
-use_CNN = 1
+use_CNN = 0
 if use_CNN:
     A, b = cnm2.Ab[:, cnm2.gnb:cnm2.M], cnm2.Ab[:, :cnm2.gnb]
     C, f = cnm2.C_on[cnm2.gnb:cnm2.M], cnm2.C_on[:cnm2.gnb]
@@ -512,7 +539,7 @@ else:
                  epochs:t], cnm2.C_on[:cnm2.gnb, t - t // epochs:t] # this does not show init frames for epochs > 1 and may not show all frames of last epochs
 
 # could use t - (t - initbatch) // epochs:t for just the last epoch
-# can also stack init
+# can also stack init (hstack)
     
     noisyC = cnm2.noisyC[:, t - t // epochs:t]
     YrA = noisyC[cnm2.gnb:cnm2.M] - C
@@ -541,14 +568,14 @@ if show_coms:
 
 view_patches_bar([], A, # scipy.sparse.coo_matrix(A.tocsc()[:, :]),
                  C[:, :t], b, f[:,:t],
-                 dims[0], dims[1], YrA=YrA[:,:t], img=Cn)
+                 dims[0], dims[1], YrA=YrA[:,:t], img=None) #img=Cn for background frame, None for cell mask
 
 
 #%% Plot deconvolved signal for checking
 pl.figure();pl.plot(deconvolved[cell][initbatch:])
 
 #%% Save results individually, as npz
-save_results = True
+save_results = False
 folder = os.path.dirname(ref_movie_path)
 
 # can't save Ab or cnm2 (can't access the inside of it) directly
@@ -566,22 +593,43 @@ if save_results:
              coms=coms, opsin=cnm2.opsin,
              dims=cnm2.dims, ds_factor=ds_factor,
              min_SNR=min_SNR, thresh_overlap=cnm2.thresh_overlap,
+             
              tottime=tottime,
              shifts=shifts)
 
 #%% Reload and unpack saved data
-npz_datafile = np.load(saved_data)
+file = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples\example1\offline_results\ex1_cnmf_results.npz'
+npz_datafile = np.load(file)
 locals().update(npz_datafile)
 
-#%% Save results (whole cnm object) as pkl - works?
+#%%
+#A = npz_datafile['cnm_A']
+
+#%% Save results (whole cnm object) as pkl
 
 save_dict = dict()
 save_dict['accepted'] = accepted
 save_dict['t_cnm'] = t
+save_dict['Cn'] = Cn
+save_dict['coms'] = coms
 
-folder = os.path.join(os.path.dirname(ref_movie_path), 'results')
+# parameters
+save_dict['ds_factor'] = ds_factor
+save_dict['K'] = K
+save_dict['min_SNR'] = min_SNR
+save_dict['gSig'] = gSig
+save_dict['rval_thr'] = rval_thr
+save_dict['thresh_overlap'] = thresh_overlap
+save_dict['merge_thresh'] = merge_thresh
+save_dict['expected_comps'] = expected_comps
+    
+    
+folder = os.path.join(os.path.dirname(ref_movie_path), 'offline_results')
+if not os.path.exists(folder):
+    os.makedirs(folder)
+    
 if use_CNN:
-    saveResultPath = os.path.join(folder, 'onacid_results_ds_' + str(ds_factor) + '_CNN_' + str(thresh_cnn) + '.pkl')
+    saveResultPath = os.path.join(folder, 'ex' + str(example) + '_onacid_results_ds_' + str(ds_factor) + '_CNN_' + str(thresh_cnn) + '.pkl')
     
     cnm3 = deepcopy(cnm2)
     cnm3.remove_components(ind_rem_CNN)  # remove cells rejected by CNN
@@ -590,7 +638,11 @@ if use_CNN:
     save_dict['coms'] = coms[ind_keep_CNN]
 
 else:
-    saveResultPath = os.path.join(folder, 'onacid_results_ds_' + str(ds_factor) + '.pkl')
+    if lenient:
+        saveResultPath = os.path.join(folder, 'lenient_ex' + str(example) + '_onacid_results_ds_' + str(ds_factor) + '.pkl')
+    else: 
+        saveResultPath = os.path.join(folder, 'ex' + str(example) + '_onacid_results_ds_' + str(ds_factor) + '.pkl')
+
     save_dict['cnm2'] = cnm2
     save_dict['coms'] = coms
 
@@ -598,17 +650,24 @@ save_object(save_dict, saveResultPath)
 
 save_mat = True # additionally save the mat file
 if save_mat:
-    from pkl2mat import convert2mat
+    from pkl2mat import pkl2mat
 
-    convert2mat(file_full_name = saveResultPath)
+    pkl2mat(file_full_name = saveResultPath)
 
 #%% Load pkl-ed cnm object
-saveResultPath = r'C:\Users\intrinsic\Desktop\pyRTAOI2018\samples\example1\results\onacid_results_ds_1.5.pkl'
+file1 = 'substack1-200_DS_1.5_OnlineProc.pkl'
+file2 = 'substack1-1000_DS_1.5_OnlineProc.pkl'
+saveResultPath = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples\example1\pyrtaoi_results\20171229_OG245_t-052_Cycle00001_Ch2_' + file1
 cnm_object = load_object(saveResultPath)
 
+cnm2 = cnm_object['cnm2']
+t = cnm_object['t_cnm']
+epochs = 1
+
+C, f = cnm2.C_on[cnm2.gnb:cnm2.M], cnm2.C_on[:cnm2.gnb]
+
 #%% Load pkl init object
-#saved_pkl = r'C:\Users\intrinsic\Desktop\pyRTAOI2018\samples\example1\20171229_OG245_t-052_Cycle00001_Ch2_substack1-1000_DS_1.5_OnlineProc.pkl' #20171229_OG245_t-052_Cycle00001_Ch2_substack1-2700_init_cnmf_DS_1.5.pkl'
-saved_pkl = r'C:/Users/intrinsic/Desktop/pyRTAOI2018/samples/example1/20171229_OG245_t-052_Cycle00001_Ch2_substack1-200_init_seeded_DS_1.5.pkl'
+saved_pkl = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples\example1\init_results\20171229_OG245_t-052_Cycle00001_Ch2_init_cnmf_DS_1.5.pkl'
 pkl_datafile = load_object(saved_pkl)
 
 #mask = pkl_datafile['cnm_init'].A # access mask

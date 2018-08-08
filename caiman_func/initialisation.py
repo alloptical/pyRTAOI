@@ -34,11 +34,11 @@ from caiman.components_evaluation import evaluate_components_CNN
 
 
 
-def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1, initbatch=500,
-               T1=20000, gSig=(9,9), mot_corr=True, expected_comps=150,
-               rval_thr=0.85, NumROIs=None, thresh_overlap=0.1, decay_time=0.2,
-               min_SNR=2.5, merge_thresh=0.85, minibatch_shape=100,
-               CNN_filter=False,  save_init=False):
+def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1,
+               initbatch=500, gSig = (10,10), rval_thr=0.85, thresh_overlap=0.1,
+               merge_thresh=0.85, min_SNR=2.5, decay_time=0.2, NumROIs=None,
+               expected_comps=150, minibatch_shape=100, T1=20000, mot_corr=True,
+               CNN_filter=False, thresh_cnn=0.1, save_init=False):
                #del_duplicates=False):
     """
     Inputs:
@@ -62,43 +62,51 @@ def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1, initba
     initbatch               int
                             number of frames for initialization
     
+    gSig                    tuple of ints
+                            expected half size of neurons
+                            
+    rval_thr                float
+                            correlation threshold for new component inclusion; preferred range: 0.8-0.9;
+                            default for CNMF: 0.9
+
+    thresh_overlap          int
+                            allowed overlap between detected cells; set to 0 for online analysis (0.5 default)
+                            
+    merge_thresh            float
+                            merging correlation threshold for initialisation
+                            default: 0.8-0.85, strict: 0.65 (may merge seperate cells if close)                 
+
+    min_SNR                 float
+                            minimum SNR for accepting new components
+                            
+    decay time              float
+                            approximate length of transient event in seconds (0.5 default)
+                                                                                    
+    NumROIs                 int
+                            maximum number of ROIs to be tracked
+                            
+    expected_compts         int
+                            maximum number of expected components used for memory pre-allocation (exaggerate here)
+                            
+    minibatch_shape         int
+                            length of minibatch of frames to be used for shape update, deconvolution etc.
+    
     T1                      int
-                            expected length of the whole recording, in frames (overestimate)
+                            expected length of the whole recording, in frames (overestimate)   
                             
     mot_corr                Boolean
                             flag for online motion correction
                             
-    expected_comps         int
-                            maximum number of expected components used for memory pre-allocation (exaggerate here)
+    CNN_filter              Boolean
+                            flag for running CNN filter on initialisation results
+                    
+    thresh_cnn              float
+                            threshold for CNN classifier; 0.5 for mild filtering, 0.1 for stricter
                             
-    rval_thr                float
-                            correlation threshold for new component inclusion; preferrable range: 0.8-0.9;
-                            default for CNMF: 0.9
-                            
-    NumROIs                 int
-                            maximum number of ROIs to be tracked    
-    
-    thresh_overlap          int
-                            allowed overlap between detected cells; set to 0 for online analysis (0.5 default)
-                            
-    decay time              float
-                            approximate length of transient event in seconds (0.5 default)
-                            
-    min_SNR                 float
-                            minimum SNR for accepting new components
-    
-    merge_thresh            float
-                            merging correlation threshold for initialisation
-                            default: 0.8-0.85, strict: 0.65 (may merge seperate cells if close)
-                            
-    gSig                    tuple of ints
-                            expected half size of neurons
-                                
     save_init               Boolean
                             flag for saving initialization object
-                            
+        
     """
-    
     
     # set up some additional supporting parameters needed for the algorithm (these are default values but change according to dataset characteristics)
     t1 = time_()
@@ -151,7 +159,7 @@ def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1, initba
     if init_method == 'bare':
         cnm_init = bare_initialization(Y.transpose(1, 2, 0), init_batch=initbatch, k=K, gnb=gnb,
                                      gSig=gSig, p=p, 
-                                     minibatch_shape=100,
+                                     minibatch_shape=minibatch_shape,
                                      minibatch_suff_stat=5,
                                      update_num_comps=True, rval_thr=rval_thr,
                                      thresh_fitness_raw=thresh_fitness_raw,
@@ -193,22 +201,21 @@ def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1, initba
         n_processes = np.maximum(np.int(psutil.cpu_count()),1)
         images = np.reshape(Yr.T, [T] + list(dims), order='F')
         
-        cnm_init = seeded_initialization(Y.transpose(1, 2, 0), Ain=Ain, init_batch=initbatch, gnb=gnb,
+        cnm_init = seeded_initialization(Y.transpose(1, 2, 0), Ain=Ain, init_batch=initbatch,
                                         # n_processes - default of 2 inside seeded_init
-                                         #k=K, 
-                                         gSig=gSig,
+                                         gSig=gSig, gnb=gnb,
                                          merge_thresh=merge_thresh, p=p,
                                          stride=stride,
-                                         simultaneously=True, # True: slower but more accurate (doesn't seem slower actually)
+                                         simultaneously=False, # True: slower but more accurate (doesn't seem slower actually)
                                          del_duplicates=True, 
                                          use_dense=True,
                                          thresh_overlap=thresh_overlap,
                                          remove_very_bad_comps=True, # apparently can be less precise if true?
                                          skip_refinement=False,
                                          normalize_init=False, options_local_NMF=None,
-                                         minibatch_shape=100, minibatch_suff_stat=5,
+                                         minibatch_shape=minibatch_shape, minibatch_suff_stat=5,
                                          update_num_comps=True, rval_thr=rval_thr,
-                                         thresh_fitness_delta=-50, #gnb=gnb,
+                                         thresh_fitness_delta=-50,
                                          thresh_fitness_raw=thresh_fitness_raw,
                                          batch_update_suff_stat=True, max_comp_update_shape=max_comp_update_shape)
     
@@ -247,6 +254,7 @@ def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1, initba
     
     init_values['mot_corr'] = mot_corr
     init_values['ds_factor'] = ds_factor
+    init_values['min_SNR'] = min_SNR
     init_values['T1'] = T1
     init_values['N_samples'] = N_samples
     init_values['expected_comps'] = expected_comps

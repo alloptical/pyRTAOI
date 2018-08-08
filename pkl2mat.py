@@ -47,15 +47,28 @@ def pkl2mat(file_full_name = '',save_full_name = ''):
     save_dict['noisyC'] = cnm.noisyC
 #    save_dict['deconvC'] = cnm.C_on
     save_dict['cnm_dims'] = cnm.dims
-        
+    
+    # params
+    try:
+        save_dict['ds_factor'] = file_data['ds_factor']
+        save_dict['K'] = file_data['K']
+        save_dict['min_SNR'] = file_data['min_SNR']
+        save_dict['gSig'] = file_data['gSig']
+        save_dict['rval_thr'] = file_data['rval_thr']
+        save_dict['thresh_overlap'] = file_data['thresh_overlap']
+        save_dict['merge_thresh'] = file_data['merge_thresh']
+        save_dict['expected_comps'] = file_data['expected_comps']
+    except:
+        print('Params were not saved')
+    
     # other
     save_dict['cnm_N'] = cnm.N
     save_dict['cnm_gnb'] = cnm.gnb
     save_dict['num_frames_init'] = cnm.initbatch
         
-        
-    print('saved as '+save_full_name)
+    print('saving...') 
     scipy.io.savemat(save_full_name, mdict = save_dict)
+    print('saved as '+save_full_name)
 
     
 if __name__ == '__main__':
