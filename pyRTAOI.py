@@ -507,6 +507,8 @@ class Worker(QObject):
             rejected_count = cnm2.N - len(accepted)
             expect_components = True
             com_count = len(accepted) #self.c['cnm2'].N
+            initbatch = cnm2.initbatch
+            new_spotted = []
             K_init = self.c['K_init']
 #            com_count = self.com_count
             
@@ -530,8 +532,8 @@ class Worker(QObject):
             else:
                 coms_init = self.c['coms_init']
                 t_cnm = cnm2.initbatch
+                
             coms = coms_init.copy()
-            
             
             # Extract opsin mask info constructed from c1v1 image
             try:
@@ -605,6 +607,7 @@ class Worker(QObject):
                     if expect_components:
                         update_comp_time = time.time()
                         if cnm2.N - (com_count+rejected_count) == 1:
+                            new_spotted.append(t_cnm-initbatch)
                             new_coms = com(cnm2.Ab[:, -1], dims[0], dims[1])[0]
     
                             # Check for repeated components
@@ -836,6 +839,7 @@ class Worker(QObject):
             save_dict['cnm2'] = cnm2  # opsin info a part of cnm struct for now
             save_dict['K'] = K_init # store in case any cells removed from init file
             save_dict['accepted'] = accepted  # accepted currently stored inside cnm2 as well
+            save_dict['new_spotted'] = new_spotted
             save_dict['t_cnm'] = t_cnm
             save_dict['tottime'] = self.tottime
             save_dict['coms'] = coms
@@ -857,14 +861,14 @@ class Worker(QObject):
             try:
                 print('Saving onacid output')
                 save_separately = True # temp flag to save in a new folder inside movie folder
-                daytimestr = time.strftime("%Y%m%d-%H%M%S")
+                daytimestr = time.strftime("%Y%m%d_%H%M%S")
                 timestr = daytimestr[-6:]
 
                 if save_separately:
                     if self.FLAG_PV_CONNECTED:
                         filename = os.path.basename(self.movie_name)[:-4] + '_OnlineProc.pkl'
                     else:
-                        filename = os.path.basename(self.movie_name)[:-4] + '_OnlineProc_' + timestr + '.pkl'
+                        filename = os.path.basename(self.movie_name)[:-4] + '_OnlineProc_' + daytimestr + '.pkl'
                         
                     movie_folder = os.path.dirname(self.movie_name)
                     save_folder = os.path.join(movie_folder, 'pyrtaoi_results')  # save init result in a separate folder
@@ -1442,7 +1446,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         try:
             save_dict = dict()
             save_dict['cnm2'] = self.c['cnm2'] #self.cnm2
-            save_dict['K'] = self.K_init
+            save_dict['K'] = self.c['K_init']
             save_dict['accepted'] = self.accepted
             save_dict['t_cnm'] = self.t_cnm
             save_object(save_dict, p['saveResultPath'])
@@ -2263,11 +2267,11 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         self.merge_thresh = merge_thresh
         self.thresh_overlap = thresh_overlap
         self.ds_factor = ds_factor
-        self.K_init = K
 
         self.c = init_values
         self.c['cnm2'] = cnm2
         self.c['removed_idx'] = []
+        self.c['K_init'] = K
 
         if idx_components is not None:
             coms = self.c['coms_init']
@@ -2318,7 +2322,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
         K = self.c['cnm2'].N
         print('new K:', K)
-        self.K_init = K
         self.c['K_init'] = K
 
         self.c['cnm2'].accepted = self.c['cnm2'].accepted[:K] # all cells accepted post initialisation
@@ -2645,7 +2648,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                     if(retval==QMessageBox.No):
                         curr_count = self.c['cnm2'].N
                         self.c['cnm2'].t = self.c['cnm2'].initbatch
-                        self.removeIdx = np.arange(self.K_init,curr_count)
+                        self.removeIdx = np.arange(self.c['K_init'],curr_count)
                         self.updateInitialisation()
                     else:
                         self.c['keep_prev'] = True
