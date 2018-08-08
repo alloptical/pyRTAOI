@@ -87,7 +87,7 @@ if movie_ext  == '.tif':
     ds_factor = 1.5
     initbatch = 500
     minibatch_shape = 100
-    gSig = (4,4)
+    gSig = (4,4)  # expected cell radius
     expected_comps = 700
     
     lenient = 0
@@ -597,12 +597,10 @@ if save_results:
              tottime=tottime,
              shifts=shifts)
 
-#%% Reload and unpack saved data
+#%% Reload and unpack saved npz data
 file = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples\example1\offline_results\ex1_cnmf_results.npz'
 npz_datafile = np.load(file)
 locals().update(npz_datafile)
-
-#%%
 #A = npz_datafile['cnm_A']
 
 #%% Save results (whole cnm object) as pkl
@@ -655,19 +653,28 @@ if save_mat:
     pkl2mat(file_full_name = saveResultPath)
 
 #%% Load pkl-ed cnm object
-file1 = 'substack1-200_DS_1.5_OnlineProc.pkl'
-file2 = 'substack1-1000_DS_1.5_OnlineProc.pkl'
-saveResultPath = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples\example1\pyrtaoi_results\20171229_OG245_t-052_Cycle00001_Ch2_' + file1
+#file1 = 'substack1-200_DS_1.5_OnlineProc.pkl'
+#file2 = 'substack1-1000_DS_1.5_OnlineProc.pkl'
+#saveResultPath = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples\example1\pyrtaoi_results\20171229_OG245_t-052_Cycle00001_Ch2_' + file1
+
+folder = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\tests on rig\20180807\pyrtaoi_results'
+
+#file = '20180807_OG300_0002_DS_1.5_rtaoi.tif_DS_1.5_OnlineProc.pkl'
+file = '20180807_OG300_0004_DS_1.5_rtaoi_OnlineProc.pkl'
+
+saveResultPath = os.path.join(folder,file)
 cnm_object = load_object(saveResultPath)
 
-cnm2 = cnm_object['cnm2']
-t = cnm_object['t_cnm']
-epochs = 1
+locals().update(cnm_object)
 
-C, f = cnm2.C_on[cnm2.gnb:cnm2.M], cnm2.C_on[:cnm2.gnb]
+#cnm2 = cnm_object['cnm2']
+#t = cnm_object['t_cnm']
+#epochs = 1
+#
+#C, f = cnm2.C_on[cnm2.gnb:cnm2.M], cnm2.C_on[:cnm2.gnb]
 
 #%% Load pkl init object
-saved_pkl = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples\example1\init_results\20171229_OG245_t-052_Cycle00001_Ch2_init_cnmf_DS_1.5.pkl'
+saved_pkl = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples\example1\offline_results\ex1_onacid_results_ds_1.5.pkl'
 pkl_datafile = load_object(saved_pkl)
 
 #mask = pkl_datafile['cnm_init'].A # access mask

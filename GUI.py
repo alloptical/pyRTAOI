@@ -590,7 +590,7 @@ class Ui_MainWindow(object):
         self.photostim_groupBox.setGeometry(QtCore.QRect(1240, 200, 341, 171))
         self.photostim_groupBox.setObjectName("photostim_groupBox")
         self.gridLayoutWidget_10 = QtWidgets.QWidget(self.photostim_groupBox)
-        self.gridLayoutWidget_10.setGeometry(QtCore.QRect(10, 20, 373, 142))
+        self.gridLayoutWidget_10.setGeometry(QtCore.QRect(10, 20, 321, 142))
         self.gridLayoutWidget_10.setObjectName("gridLayoutWidget_10")
         self.gridLayout_11 = QtWidgets.QGridLayout(self.gridLayoutWidget_10)
         self.gridLayout_11.setContentsMargins(0, 0, 0, 0)

@@ -506,8 +506,9 @@ class Worker(QObject):
             accepted = [ix+cnm2.gnb for ix in cnm2.accepted]
             rejected_count = cnm2.N - len(accepted)
             expect_components = True
-            self.com_count = len(accepted) #self.c['cnm2'].N
-            com_count = self.com_count
+            com_count = len(accepted) #self.c['cnm2'].N
+            K_init = self.c['K_init']
+#            com_count = self.com_count
             
             # Local record of all roi coords
             print('number of initial rois '+str(len(accepted)))
@@ -556,7 +557,7 @@ class Worker(QObject):
                 
         
         if p['FLAG_OFFLINE']:
-            max_wait = None  # wait till video loaded and buffer starts filling
+            max_wait = None  # wait until video loaded and buffer starts filling
         else:
             max_wait = 10 # timeout
 
@@ -833,7 +834,7 @@ class Worker(QObject):
 
             save_dict = dict()
             save_dict['cnm2'] = cnm2  # opsin info a part of cnm struct for now
-            save_dict['init_com_count'] = self.com_count # com_count from init file (in case any cells removed from init file)
+            save_dict['K'] = K_init # store in case any cells removed from init file
             save_dict['accepted'] = accepted  # accepted currently stored inside cnm2 as well
             save_dict['t_cnm'] = t_cnm
             save_dict['tottime'] = self.tottime
@@ -860,15 +861,22 @@ class Worker(QObject):
                 timestr = daytimestr[-6:]
 
                 if save_separately:
-                    filename = os.path.basename(self.movie_name)[:-4] + '_OnlineProc_' + timestr + '.pkl'  # + '_DS_' + str(ds_factor) 
+                    if self.FLAG_PV_CONNECTED:
+                        filename = os.path.basename(self.movie_name)[:-4] + '_OnlineProc.pkl'
+                    else:
+                        filename = os.path.basename(self.movie_name)[:-4] + '_OnlineProc_' + timestr + '.pkl'
+                        
                     movie_folder = os.path.dirname(self.movie_name)
                     save_folder = os.path.join(movie_folder, 'pyrtaoi_results')  # save init result in a separate folder
+                    
                     if not os.path.exists(save_folder):
                         os.makedirs(save_folder)
                     save_path = os.path.join(save_folder, filename)
+                    
                 else:
-                    save_path = self.movie_name[:-4] + '_OnlineProc_' + timestr + '.pkl'   # save results in the same folder # + '_DS_' + str(ds_factor) 
-                print('OnACID result saved as:' + save_path)
+                    save_path = self.movie_name[:-4] + '_OnlineProc.pkl'   # save results in the same folder
+                    
+                print('OnACID result saved as: ' + save_path)
                 save_object(save_dict, save_path)
             except Exception as e:
                 print(e)
@@ -877,7 +885,7 @@ class Worker(QObject):
             sta_trial_avg = np.nanmean(self.sta_traces,1)
             if(p['staAvgStopFrame']>p['staAvgStartFrame']):
                 sta_trial_avg_amp = np.nanmean(sta_trial_avg[:,p['staAvgStartFrame']+p['staPreFrame']:p['staAvgStopFrame']+p['staPreFrame']],1)
-                self.sta_amp_signal.emit(sta_trial_avg_amp[:self.com_count])
+                self.sta_amp_signal.emit(sta_trial_avg_amp[:com_count])
             else:
                 self.status_signal.emit('Check sta average range')
             save_name = str(self.save_dir) + 'sta_traces.npy'
@@ -1434,7 +1442,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         try:
             save_dict = dict()
             save_dict['cnm2'] = self.c['cnm2'] #self.cnm2
-            save_dict['com_count_init'] = self.K_init
+            save_dict['K'] = self.K_init
             save_dict['accepted'] = self.accepted
             save_dict['t_cnm'] = self.t_cnm
             save_object(save_dict, p['saveResultPath'])
@@ -2311,6 +2319,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         K = self.c['cnm2'].N
         print('new K:', K)
         self.K_init = K
+        self.c['K_init'] = K
 
         self.c['cnm2'].accepted = self.c['cnm2'].accepted[:K] # all cells accepted post initialisation
 
