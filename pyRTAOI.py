@@ -14,15 +14,11 @@ TO DO    log this to Notes ToDo_log when it's done and tested
 
 1. log data for offline anaysis - keep checking if everything is saved out
 2. deal with zoom - check
-3. mark point setting for changing photostim power - done
 7. photostim protocol - done, need to test on rig
 11. daq task issues - 'the specified resource is reserved error' - this only happens when triggering online; need to restart spyder after one run
-14. calibration check - done, make a button for it!
-15. select photostim targets that are not detected by caiman
 16. deal with photostim artifect:
 	is caiman affacted?? need to interpolate or skip frames with photostim if it is!
 
-17. add live scan and/or single scan to make calcheck or target selection easier
 UPDATE REV40 PV SETTINGS MAX VOLTAGE FOR PHOTOSTIM CONTROL!!!
 
 # other notes:
@@ -259,9 +255,7 @@ class DataStream(QObject):
 #                    print('convert time:' + str("%.4f"%(time.time()-recv_time)))
 
 					# put frame in global queue
-#                    qcopy_time = time.time()
 					qbuffer.put(thisFrame.copy().astype(np.float32))
-#                    print('frame to queue:' + str("%.4f"%(time.time()-qcopy_time)))
 					self.framesRecv += 1
 					print('frames recv ='+str(self.framesRecv))
 					incorrectCount = 0
@@ -536,7 +530,6 @@ class Worker(QObject):
 			max_wait = None  # wait till video loaded and buffer starts filling
 		else:
 			max_wait = 10 # timeout
-
 
 		# keep processing frames in qbuffer
 		while ((not p['FLAG_END_LOADING']) or (not qbuffer.empty())) and not STOP_JOB_FLAG:
@@ -1039,7 +1032,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		self.photoProtoInx = CONSTANTS.PHOTO_NONE
 
 		# make dir to save data temporally
-		p['temp_save_dir'] = os.path.join(os.path.dirname(__file__),'/Temp/')
+		p['temp_save_dir'] = os.getcwd()+'/Temp/'
 		if not os.path.exists(p['temp_save_dir']):
 			os.makedirs(p['temp_save_dir'])
 		p['saveResultPath'] = p['temp_save_dir'] +str('temp.pkl')
@@ -1047,7 +1040,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 		# power control
 		self.POWER_CONTROL_READY = False
-
 
 		# get gui elements
 		self.getValues()
@@ -1099,7 +1091,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 		try: # photo stim
 			# single-channel writer - only send triggers
-			self.niPhotoStimTask.ao_channels.add_ao_voltage_chan('Dev5/ao2','photostim_simple_trig') # hard coded for now
+			self.niPhotoStimTask.ao_channels.add_ao_voltage_chan('Dev5/ao2','photostim_simple_trig') # hard coded
 			self.niPhotoStimWriter= stream_writers.AnalogSingleChannelWriter(self.niPhotoStimTask.out_stream,True)
 			self.niPhotoStimWriter.write_one_sample(0,10.0)
 			print('single channel photostim trigger set')
@@ -1109,19 +1101,18 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.niPhotoStimFullTask.ao_channels.add_ao_voltage_chan(p['powerDaqDevice'],'photostim_power')
 			self.niPhotostimFullWriter = stream_writers.AnalogMultiChannelWriter(self.niPhotoStimFullTask.out_stream,auto_start = True)
 			self.niPhotoStimFullTask.timing.cfg_samp_clk_timing(rate = NI_SAMPLE_RATE,sample_mode= nidaqmx.constants.AcquisitionType.FINITE, samps_per_chan = max(NI_TTL_NUM_SAMPLES+1,NI_STIM_NUM_SAMPLES+1))
-
-
+			
 			init_output = np.zeros([2, max(NI_TTL_NUM_SAMPLES+1,NI_STIM_NUM_SAMPLES+1)])
 			init_output.ravel()[:len(self.daq_array)] = self.daq_array  # use ravel to data between array (fastest way)
 			init_output[1,:-1] = 1
 			p['NI_2D_ARRAY'] = np.copy(init_output)
 			p['NI_UNIT_POWER_ARRAY'] = np.copy(init_output[1,:])
 			p['NI_2D_ARRAY'][1,:] = p['NI_UNIT_POWER_ARRAY'] *np.polyval(p['power_polyfit_p'],p['photoPowerPerCell']) # single cell power
-			self.niPhotostimFullWriter.write_many_sample(init_output)
-			while(not self.niPhotoStimFullTask.is_task_done()):
-				pass
-			self.niPhotoStimFullTask.stop()
-			self.niPhotostimFullWriter = stream_writers.AnalogMultiChannelWriter(self.niPhotoStimFullTask.out_stream,auto_start = True)
+#			self.niPhotostimFullWriter.write_many_sample(init_output)
+#			while(not self.niPhotoStimFullTask.is_task_done()):
+#				pass
+#			self.niPhotoStimFullTask.stop()
+#			self.niPhotostimFullWriter = stream_writers.AnalogMultiChannelWriter(self.niPhotoStimFullTask.out_stream,auto_start = True)
 			print('multi channel photostim trigger set')
 			self.POWER_CONTROL_READY = True
 
@@ -1138,6 +1129,9 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 		# flag reading/streaming data
 		p['FLAG_END_LOADING'] = False
+		
+		# allow drag and drop
+		self.setAcceptDrops(True)
 
 		# signal/slot connections
 		self.setConnects()
@@ -1145,7 +1139,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		# methods for elements within MainWindow
 		self.ImageWindow.enterEvent = self.displayOpsinImg.__get__(self.ImageWindow)  # ImageWindow when opsinMaskOn
 		self.ImageWindow.leaveEvent = self.displayOpsinMask.__get__(self.ImageWindow)
-
 		self.figCanvas.keyPressEvent = self.arrow_key_image_control.__get__(self.figCanvas) # changing cell display in the plot tab with arrows
 
 
@@ -1269,8 +1262,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.updateImage(cv2.resize(np.squeeze(self.opsin_mask).astype('u1'), (512, 512), interpolation=cv2.INTER_CUBIC))
 
 	def tempTest(self):
-		print('button clicked')
-		self.calCheck()
+		print('test button clicked')
+
 
 	def setConnects(self):
 		# load and save
@@ -1286,7 +1279,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		self.loadConfig_pushButton.clicked.connect(self.loadConfig)
 		self.saveResult_pushButton.clicked.connect(self.saveResults)
 		self.browseResultPath_pushButton.clicked.connect(self.browseResultPath)
-
 		self.removeMode_pushButton.clicked.connect(self.removeModeController)
 
 		# start worker
@@ -1329,11 +1321,14 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 		# reference movie
 		self.takeRefMovie_pushButton.clicked.connect(self.takeRefMovie)
+		
+		# calibration check
+		self.calcheck_pushButton.clicked.connect(self.calCheck)
 
 		# others
 		self.test_pushButton.clicked.connect(self.tempTest)
 		self.reset_pushButton.clicked.connect(self.resetAll)
-
+		
 		# auto add connects to update p and trial config plot whenever anything changes
 		widgets = (QComboBox, QCheckBox, QLineEdit, QSpinBox, QDoubleSpinBox)
 		for obj in self.findChildren(widgets):
@@ -1545,6 +1540,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		print('bl created')
 		if self.bl.CONNECTED:
 			p['FLAG_BLINK_CONNECTED'] = True
+			self.updateStatusBar('Blink connected')
 		print('bl connected = '+str(self.bl.CONNECTED))
 
 
@@ -1783,9 +1779,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 	def plotSTA(self):
 		# load file in Temp folder
 		try:
-			dirname = dirname = os.path.dirname(__file__)
-			print(dirname)
-			filename = os.path.join(dirname,'/Temp/sta_traces.npy')
+			filename = os.getcwd()+'/Temp/sta_traces.npy'
 			sta_traces = np.load(filename)
 		except:
 			self.updateStatusBar('STA file not found')
@@ -2431,7 +2425,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		try:
 			if self.A_opsin.size and self.c != {}:
 				self.checkOpsin()  # for overlap update
-
 				# visualise all comps
 				summed_A = np.hstack((self.A_opsin, self.onacid_mask))
 				summed_mask = np.reshape(np.array(summed_A.sum(axis=1)), self.dims, order='F')
@@ -2956,7 +2949,10 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 	def calCheck(self):
 		# burn patterns of spots in a sequence; even patterns are blanked out (0 power on sample)
 		ERROR_FLAG = False
-		pattern_dir =r"C:\Users\User\Desktop\pyRTAOI-rig\Patterns"
+		current_dir = os.getcwd()
+		print(current_dir)
+		pattern_dir = current_dir+'/Patterns'
+#		pattern_dir =r"C:\Users\User\Desktop\pyRTAOI-rig\Patterns"
 		file_list = glob.glob(os.path.join(pattern_dir,'*.tif'))
 		num_patterns = len(file_list)
 		xcoord_list = []
@@ -2972,7 +2968,29 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 		power_array = np.full(num_patterns,p['photoPowerPerCell'])
 		power_array[1::2] =0
+		
+		# show expected burnt locations
+		burntPen = pg.mkPen(color = (255,112,75), width = 2)
+		skipPen = pg.mkPen(color = (64,64,64), width = 2)
+		skipx = [item for sublist in xcoord_list[1::2] for item in sublist ]
+		skipy = [item for sublist in ycoord_list[1::2] for item in sublist ]
+		burntx =  [item for sublist in xcoord_list[::2] for item in sublist ]
+		burnty =  [item for sublist in ycoord_list[::2] for item in sublist ]
+		self.Targetcontour_item.clear()
+		self.Targetcontour_item.addPoints(x = burntx, y = burnty, pen = burntPen, size = self.RoiRadius*2+5)
+		self.Targetcontour_item.addPoints(x = skipx, y = skipy, pen = skipPen, size = self.RoiRadius*2)
 
+		
+		# confirm if start buring
+		msg = QMessageBox()
+		msg.setText("Start burning spots?")
+		msg.setWindowTitle('calCheck Message')
+		msg.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+		retval = msg.exec_()
+		if(retval==QMessageBox.Cancel):
+			ERROR_FLAG = True
+			self.Targetcontour_item.clear()
+			return
 		# send to blink and trigger photostim
 		for i in range (num_patterns):
 			p['currentTargetX'] = xcoord_list[i]
@@ -3008,16 +3026,33 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			else:
 				print('calcheck error, check daq and/or blink connection!')
 
-		# show expected burnt locations
-		burntPen = pg.mkPen(color = (255,112,75), width = 2)
-		skipPen = pg.mkPen(color = (64,64,64), width = 2)
-		skipx = [item for sublist in xcoord_list[1::2] for item in sublist ]
-		skipy = [item for sublist in ycoord_list[1::2] for item in sublist ]
-		burntx =  [item for sublist in xcoord_list[::2] for item in sublist ]
-		burnty =  [item for sublist in ycoord_list[::2] for item in sublist ]
-		self.Targetcontour_item.clear()
-		self.Targetcontour_item.addPoints(x = burntx, y = burnty, pen = burntPen, size = self.RoiRadius*2+5)
-		self.Targetcontour_item.addPoints(x = skipx, y = skipy, pen = skipPen, size = self.RoiRadius*2)
+#%% drag drop
+	def dragEnterEvent( self, event ):
+		data = event.mimeData()
+		urls = data.urls()
+		if ( urls and urls[0].scheme() == 'file' ):
+			event.acceptProposedAction()
+
+	def dragMoveEvent( self, event ):
+		data = event.mimeData()
+		urls = data.urls()
+		if ( urls and urls[0].scheme() == 'file' ):
+			event.acceptProposedAction()
+
+	def dropEvent( self, event ):
+		data = event.mimeData()
+		urls = data.urls()
+		if ( urls and urls[0].scheme() == 'file' ):
+			# for some reason, this doubles up the intro slash
+			if os.name == 'nt':
+				filepath = str(urls[0].path()[1:])
+			else:
+				filepath = str(urls[0].path())
+			droppedIMG = cv2.imread(filepath,cv2.IMREAD_ANYDEPTH)
+			self.imageItem.setImage(cv2.resize(droppedIMG,(512,512),interpolation=cv2.INTER_CUBIC))
+			self.opsinMaskOn = False
+			print('current image:'+str(filepath))
+
 
 #%%
 def main(argv):

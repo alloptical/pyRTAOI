@@ -27,4 +27,6 @@
 11. daq task issues - 'the specified resource is reserved error' - this only happens when triggering online; need to restart spyder after one run
 12. add option to save out motion-corrected movie by image-saver and by worker (when online photostim is not enabled) - done
 13. save out detected events in ROIs for making trigger-triggered average frames -- done in matlab (post-hoc)
-
+14. calibration check - done, make a button for it!
+15. select photostim targets that are not detected by caiman
+17. add live scan and/or single scan to make calcheck or target selection easier - added drag and drop 

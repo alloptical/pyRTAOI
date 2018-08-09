@@ -1465,12 +1465,39 @@
         </rect>
        </property>
        <layout class="QGridLayout" name="gridLayout_11">
+        <item row="1" column="3">
+         <widget class="QPushButton" name="testPhotoStimTrigger_pushButton">
+          <property name="text">
+           <string>Test trigger</string>
+          </property>
+         </widget>
+        </item>
         <item row="1" column="0">
          <widget class="QLabel" name="label_22">
           <property name="text">
            <string>Wait frames</string>
           </property>
          </widget>
+        </item>
+        <item row="1" column="1">
+         <layout class="QHBoxLayout" name="horizontalLayout_2">
+          <item>
+           <widget class="QSpinBox" name="photoWaitFrames_spinBox"/>
+          </item>
+          <item>
+           <spacer name="horizontalSpacer_10">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+         </layout>
         </item>
         <item row="0" column="1">
          <widget class="QComboBox" name="photoProto_comboBox">
@@ -1500,26 +1527,6 @@
            </property>
           </item>
          </widget>
-        </item>
-        <item row="1" column="1">
-         <layout class="QHBoxLayout" name="horizontalLayout_2">
-          <item>
-           <widget class="QSpinBox" name="photoWaitFrames_spinBox"/>
-          </item>
-          <item>
-           <spacer name="horizontalSpacer_10">
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>40</width>
-              <height>20</height>
-             </size>
-            </property>
-           </spacer>
-          </item>
-         </layout>
         </item>
         <item row="3" column="1">
          <widget class="QLineEdit" name="powerDaqDevice_lineEdit">
@@ -1604,24 +1611,10 @@
           </item>
          </layout>
         </item>
-        <item row="2" column="3">
-         <widget class="QPushButton" name="testPhotoStimTrigger_pushButton">
-          <property name="text">
-           <string>Test trigger</string>
-          </property>
-         </widget>
-        </item>
         <item row="3" column="0">
          <widget class="QLabel" name="label_32">
           <property name="text">
            <string>Power Dev/Ch</string>
-          </property>
-         </widget>
-        </item>
-        <item row="0" column="0">
-         <widget class="QLabel" name="label_21">
-          <property name="text">
-           <string>Trigger on:</string>
           </property>
          </widget>
         </item>
@@ -1644,6 +1637,30 @@
            </size>
           </property>
          </spacer>
+        </item>
+        <item row="0" column="0">
+         <widget class="QLabel" name="label_21">
+          <property name="text">
+           <string>Trigger on:</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="3">
+         <widget class="QCheckBox" name="SendPowerVolt_checkBox">
+          <property name="text">
+           <string>Ctr power</string>
+          </property>
+          <property name="checked">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="3">
+         <widget class="QPushButton" name="calcheck_pushButton">
+          <property name="text">
+           <string>Run CalCheck</string>
+          </property>
+         </widget>
         </item>
         <item row="2" column="1">
          <layout class="QHBoxLayout" name="horizontalLayout_3">
@@ -1672,13 +1689,6 @@
          <widget class="QLabel" name="label_31">
           <property name="text">
            <string>Duration (ms)</string>
-          </property>
-         </widget>
-        </item>
-        <item row="0" column="3">
-         <widget class="QCheckBox" name="SendPowerVolt_checkBox">
-          <property name="text">
-           <string>Ctr power</string>
           </property>
          </widget>
         </item>

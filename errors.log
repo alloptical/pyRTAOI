@@ -19005,3 +19005,1563 @@ Status Code: -200220
 2018-08-08 20:56:38,793 - __main__ - INFO - Started application
 2018-08-08 20:56:38,793 - __main__ - INFO - Started application
 2018-08-08 20:56:38,793 - __main__ - INFO - Started application
+2018-08-09 14:59:56,401 - __main__ - INFO - Started application
+2018-08-09 14:59:56,673 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<0>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<0>
+
+Status Code: -200220
+2018-08-09 15:05:32,946 - __main__ - INFO - Started application
+2018-08-09 15:05:32,946 - __main__ - INFO - Started application
+2018-08-09 15:05:33,016 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<3>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<3>
+
+Status Code: -200220
+2018-08-09 15:05:33,016 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<3>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<3>
+
+Status Code: -200220
+2018-08-09 15:21:07,032 - __main__ - INFO - Started application
+2018-08-09 15:21:07,032 - __main__ - INFO - Started application
+2018-08-09 15:21:07,032 - __main__ - INFO - Started application
+2018-08-09 15:21:07,131 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<6>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<6>
+
+Status Code: -200220
+2018-08-09 15:21:07,131 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<6>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<6>
+
+Status Code: -200220
+2018-08-09 15:21:07,131 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<6>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<6>
+
+Status Code: -200220
+2018-08-09 15:46:34,928 - __main__ - INFO - Started application
+2018-08-09 15:46:34,928 - __main__ - INFO - Started application
+2018-08-09 15:46:34,928 - __main__ - INFO - Started application
+2018-08-09 15:46:34,928 - __main__ - INFO - Started application
+2018-08-09 15:46:35,032 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<9>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<9>
+
+Status Code: -200220
+2018-08-09 15:46:35,032 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<9>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<9>
+
+Status Code: -200220
+2018-08-09 15:46:35,032 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<9>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<9>
+
+Status Code: -200220
+2018-08-09 15:46:35,032 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<9>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<9>
+
+Status Code: -200220
+2018-08-09 15:48:32,938 - __main__ - INFO - Started application
+2018-08-09 15:48:32,938 - __main__ - INFO - Started application
+2018-08-09 15:48:32,938 - __main__ - INFO - Started application
+2018-08-09 15:48:32,938 - __main__ - INFO - Started application
+2018-08-09 15:48:32,938 - __main__ - INFO - Started application
+2018-08-09 15:48:33,028 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<C>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<C>
+
+Status Code: -200220
+2018-08-09 15:48:33,028 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<C>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<C>
+
+Status Code: -200220
+2018-08-09 15:48:33,028 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<C>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<C>
+
+Status Code: -200220
+2018-08-09 15:48:33,028 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<C>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<C>
+
+Status Code: -200220
+2018-08-09 15:48:33,028 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<C>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<C>
+
+Status Code: -200220
+2018-08-09 15:49:01,581 - __main__ - INFO - Started application
+2018-08-09 15:49:01,581 - __main__ - INFO - Started application
+2018-08-09 15:49:01,581 - __main__ - INFO - Started application
+2018-08-09 15:49:01,581 - __main__ - INFO - Started application
+2018-08-09 15:49:01,581 - __main__ - INFO - Started application
+2018-08-09 15:49:01,581 - __main__ - INFO - Started application
+2018-08-09 15:49:01,655 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<F>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<F>
+
+Status Code: -200220
+2018-08-09 15:49:01,655 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<F>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<F>
+
+Status Code: -200220
+2018-08-09 15:49:01,655 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<F>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<F>
+
+Status Code: -200220
+2018-08-09 15:49:01,655 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<F>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<F>
+
+Status Code: -200220
+2018-08-09 15:49:01,655 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<F>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<F>
+
+Status Code: -200220
+2018-08-09 15:49:01,655 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<F>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<F>
+
+Status Code: -200220
+2018-08-09 15:50:32,249 - __main__ - INFO - Started application
+2018-08-09 15:50:32,249 - __main__ - INFO - Started application
+2018-08-09 15:50:32,249 - __main__ - INFO - Started application
+2018-08-09 15:50:32,249 - __main__ - INFO - Started application
+2018-08-09 15:50:32,249 - __main__ - INFO - Started application
+2018-08-09 15:50:32,249 - __main__ - INFO - Started application
+2018-08-09 15:50:32,249 - __main__ - INFO - Started application
+2018-08-09 15:50:32,347 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<12>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1091, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<12>
+
+Status Code: -200220
+2018-08-09 15:50:32,347 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<12>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1091, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<12>
+
+Status Code: -200220
+2018-08-09 15:50:32,347 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<12>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1091, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<12>
+
+Status Code: -200220
+2018-08-09 15:50:32,347 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<12>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1091, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<12>
+
+Status Code: -200220
+2018-08-09 15:50:32,347 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<12>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1091, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<12>
+
+Status Code: -200220
+2018-08-09 15:50:32,347 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<12>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1091, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<12>
+
+Status Code: -200220
+2018-08-09 15:50:32,347 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<12>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1091, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<12>
+
+Status Code: -200220
+2018-08-09 15:52:18,927 - __main__ - INFO - Started application
+2018-08-09 15:52:18,927 - __main__ - INFO - Started application
+2018-08-09 15:52:18,927 - __main__ - INFO - Started application
+2018-08-09 15:52:18,927 - __main__ - INFO - Started application
+2018-08-09 15:52:18,927 - __main__ - INFO - Started application
+2018-08-09 15:52:18,927 - __main__ - INFO - Started application
+2018-08-09 15:52:18,927 - __main__ - INFO - Started application
+2018-08-09 15:52:18,927 - __main__ - INFO - Started application
+2018-08-09 15:52:19,020 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<15>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<15>
+
+Status Code: -200220
+2018-08-09 15:52:19,020 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<15>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<15>
+
+Status Code: -200220
+2018-08-09 15:52:19,020 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<15>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<15>
+
+Status Code: -200220
+2018-08-09 15:52:19,020 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<15>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<15>
+
+Status Code: -200220
+2018-08-09 15:52:19,020 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<15>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<15>
+
+Status Code: -200220
+2018-08-09 15:52:19,020 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<15>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<15>
+
+Status Code: -200220
+2018-08-09 15:52:19,020 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<15>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<15>
+
+Status Code: -200220
+2018-08-09 15:52:19,020 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<15>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<15>
+
+Status Code: -200220
+2018-08-09 15:53:11,995 - __main__ - INFO - Started application
+2018-08-09 15:53:11,995 - __main__ - INFO - Started application
+2018-08-09 15:53:11,995 - __main__ - INFO - Started application
+2018-08-09 15:53:11,995 - __main__ - INFO - Started application
+2018-08-09 15:53:11,995 - __main__ - INFO - Started application
+2018-08-09 15:53:11,995 - __main__ - INFO - Started application
+2018-08-09 15:53:11,995 - __main__ - INFO - Started application
+2018-08-09 15:53:11,995 - __main__ - INFO - Started application
+2018-08-09 15:53:11,995 - __main__ - INFO - Started application
+2018-08-09 15:53:12,101 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<18>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<18>
+
+Status Code: -200220
+2018-08-09 15:53:12,101 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<18>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<18>
+
+Status Code: -200220
+2018-08-09 15:53:12,101 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<18>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<18>
+
+Status Code: -200220
+2018-08-09 15:53:12,101 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<18>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<18>
+
+Status Code: -200220
+2018-08-09 15:53:12,101 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<18>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<18>
+
+Status Code: -200220
+2018-08-09 15:53:12,101 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<18>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<18>
+
+Status Code: -200220
+2018-08-09 15:53:12,101 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<18>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<18>
+
+Status Code: -200220
+2018-08-09 15:53:12,101 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<18>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<18>
+
+Status Code: -200220
+2018-08-09 15:53:12,101 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<18>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<18>
+
+Status Code: -200220
+2018-08-09 15:53:46,801 - __main__ - INFO - Started application
+2018-08-09 15:53:46,801 - __main__ - INFO - Started application
+2018-08-09 15:53:46,801 - __main__ - INFO - Started application
+2018-08-09 15:53:46,801 - __main__ - INFO - Started application
+2018-08-09 15:53:46,801 - __main__ - INFO - Started application
+2018-08-09 15:53:46,801 - __main__ - INFO - Started application
+2018-08-09 15:53:46,801 - __main__ - INFO - Started application
+2018-08-09 15:53:46,801 - __main__ - INFO - Started application
+2018-08-09 15:53:46,801 - __main__ - INFO - Started application
+2018-08-09 15:53:46,801 - __main__ - INFO - Started application
+2018-08-09 15:53:46,881 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<1B>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<1B>
+
+Status Code: -200220
+2018-08-09 15:53:46,881 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<1B>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<1B>
+
+Status Code: -200220
+2018-08-09 15:53:46,881 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<1B>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<1B>
+
+Status Code: -200220
+2018-08-09 15:53:46,881 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<1B>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<1B>
+
+Status Code: -200220
+2018-08-09 15:53:46,881 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<1B>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<1B>
+
+Status Code: -200220
+2018-08-09 15:53:46,881 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<1B>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<1B>
+
+Status Code: -200220
+2018-08-09 15:53:46,881 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<1B>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<1B>
+
+Status Code: -200220
+2018-08-09 15:53:46,881 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<1B>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<1B>
+
+Status Code: -200220
+2018-08-09 15:53:46,881 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<1B>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<1B>
+
+Status Code: -200220
+2018-08-09 15:53:46,881 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<1B>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<1B>
+
+Status Code: -200220
+2018-08-09 16:10:15,852 - __main__ - INFO - Started application
+2018-08-09 16:10:15,852 - __main__ - INFO - Started application
+2018-08-09 16:10:15,852 - __main__ - INFO - Started application
+2018-08-09 16:10:15,852 - __main__ - INFO - Started application
+2018-08-09 16:10:15,852 - __main__ - INFO - Started application
+2018-08-09 16:10:15,852 - __main__ - INFO - Started application
+2018-08-09 16:10:15,852 - __main__ - INFO - Started application
+2018-08-09 16:10:15,852 - __main__ - INFO - Started application
+2018-08-09 16:10:15,852 - __main__ - INFO - Started application
+2018-08-09 16:10:15,852 - __main__ - INFO - Started application
+2018-08-09 16:10:15,852 - __main__ - INFO - Started application
+2018-08-09 16:10:15,961 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<1E>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<1E>
+
+Status Code: -200220
+2018-08-09 16:10:15,961 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<1E>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<1E>
+
+Status Code: -200220
+2018-08-09 16:10:15,961 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<1E>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<1E>
+
+Status Code: -200220
+2018-08-09 16:10:15,961 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<1E>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<1E>
+
+Status Code: -200220
+2018-08-09 16:10:15,961 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<1E>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<1E>
+
+Status Code: -200220
+2018-08-09 16:10:15,961 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<1E>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<1E>
+
+Status Code: -200220
+2018-08-09 16:10:15,961 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<1E>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<1E>
+
+Status Code: -200220
+2018-08-09 16:10:15,961 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<1E>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<1E>
+
+Status Code: -200220
+2018-08-09 16:10:15,961 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<1E>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<1E>
+
+Status Code: -200220
+2018-08-09 16:10:15,961 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<1E>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<1E>
+
+Status Code: -200220
+2018-08-09 16:10:15,961 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<1E>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1090, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<1E>
+
+Status Code: -200220
+2018-08-09 17:07:31,352 - __main__ - INFO - Started application
+2018-08-09 17:07:31,352 - __main__ - INFO - Started application
+2018-08-09 17:07:31,352 - __main__ - INFO - Started application
+2018-08-09 17:07:31,352 - __main__ - INFO - Started application
+2018-08-09 17:07:31,352 - __main__ - INFO - Started application
+2018-08-09 17:07:31,352 - __main__ - INFO - Started application
+2018-08-09 17:07:31,352 - __main__ - INFO - Started application
+2018-08-09 17:07:31,352 - __main__ - INFO - Started application
+2018-08-09 17:07:31,352 - __main__ - INFO - Started application
+2018-08-09 17:07:31,352 - __main__ - INFO - Started application
+2018-08-09 17:07:31,352 - __main__ - INFO - Started application
+2018-08-09 17:07:31,352 - __main__ - INFO - Started application
+2018-08-09 17:07:31,433 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<21>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1082, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<21>
+
+Status Code: -200220
+2018-08-09 17:07:31,433 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<21>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1082, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<21>
+
+Status Code: -200220
+2018-08-09 17:07:31,433 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<21>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1082, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<21>
+
+Status Code: -200220
+2018-08-09 17:07:31,433 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<21>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1082, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<21>
+
+Status Code: -200220
+2018-08-09 17:07:31,433 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<21>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1082, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<21>
+
+Status Code: -200220
+2018-08-09 17:07:31,433 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<21>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1082, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<21>
+
+Status Code: -200220
+2018-08-09 17:07:31,433 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<21>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1082, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<21>
+
+Status Code: -200220
+2018-08-09 17:07:31,433 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<21>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1082, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<21>
+
+Status Code: -200220
+2018-08-09 17:07:31,433 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<21>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1082, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<21>
+
+Status Code: -200220
+2018-08-09 17:07:31,433 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<21>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1082, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<21>
+
+Status Code: -200220
+2018-08-09 17:07:31,433 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<21>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1082, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<21>
+
+Status Code: -200220
+2018-08-09 17:07:31,433 - __main__ - ERROR - Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<21>
+
+Status Code: -200220
+Traceback (most recent call last):
+  File "Y:/zzhang/Python/pyRTAOI/pyRTAOI.py", line 1082, in __init__
+    self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\_task_modules\ao_channel_collection.py", line 191, in add_ao_voltage_chan
+    check_for_error(error_code)
+  File "C:\Users\Zihui\AppData\Local\conda\conda\envs\caiman_new\lib\site-packages\nidaqmx\errors.py", line 127, in check_for_error
+    raise DaqError(error_buffer.value.decode("utf-8"), error_code)
+nidaqmx.errors.DaqError: Device identifier is invalid.
+Device Specified: Dev5
+
+Task Name: _unnamedTask<21>
+
+Status Code: -200220
