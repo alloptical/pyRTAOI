@@ -7,6 +7,7 @@ import copy
 import numpy as np
 import matplotlib.pyplot as pl
 
+
 import caiman as cm
 from caiman.utils.utils import load_object
 from caiman.utils.visualization import view_patches_bar, plot_contours
@@ -137,3 +138,4 @@ pl.subplot(122)
 pl.plot(noisyC[cell+1,:],'b',label='noisyC')
 pl.legend()
 pl.ylim(y_min, y_max)
+pl.show('hold')

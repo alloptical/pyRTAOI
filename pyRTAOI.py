@@ -101,7 +101,7 @@ from queue import Queue
 from loadPowerFile import get_power_params
 
 # sta
-from utils import sta
+from utils import STATraceMaker
 
 # configure logging
 logger = logging.getLogger(__name__)
@@ -369,8 +369,6 @@ class Worker(QObject):
 		print('worker pl empty? ' + str(self.pl == []))
 
 		# sta traces
-		self.sta_traces = np.zeros([p['MaxNumROIs'],p['numberStims'],p['staPreFrame']+p['staPostFrame']])
-		self.sta_traces.fill(np.nan)
 		p['stimStopFrame'] = p['stimStartFrame']+p['numberStims']*p['interStimInterval']+p['staPreFrame']
 		self.stim_frames = np.arange(p['stimStartFrame'],p['stimStopFrame']+1,p['interStimInterval'])
 
@@ -393,7 +391,6 @@ class Worker(QObject):
 			print('No Prairie object provided')
 
 		# initialise sta
-		self.sta_start_frames = self.stim_frames -p['staPreFrame']
 		self.photo_stim_frames = self.stim_frames + p['photoWaitFrames']
 		self.flag_sta_recording = False
 		self.sta_frame_idx = 0
@@ -425,8 +422,7 @@ class Worker(QObject):
 #%% process frame
 	def work(self):
 		# local counts
-		sta_stim_idx = 0
-		sta_frame_idx = 0
+		sens_stim_idx = 0
 		LastPlot = 0
 		framesProc = self.framesProc
 		refreshFrame = p['refreshFrame']
@@ -441,7 +437,6 @@ class Worker(QObject):
 			FLAG_USE_ONACID = self.UseONACID
 			FLAG_SAVE_TIFF = p['saveAsTiff']
 			BufferPointer = self.BufferPointer
-			sta_start_frames = self.sta_start_frames
 			photo_stim_frames = self.photo_stim_frames # predefined fixed frames
 			stim_frames = self.stim_frames # stim at fixed intervals
 
@@ -540,106 +535,104 @@ class Worker(QObject):
 				print('Timeout Exception: empty qbuffer')
 				break # this may be a problem for online too? stops reading the stream completely if timeout happens
 
-			try:
-				t0 = time.time()
-				framesProc = framesProc+1
+			t0 = time.time()
+			framesProc = framesProc+1
 
-				if FLAG_USE_ONACID:
-					# move trace buffer pointer
-					if BufferPointer==self.BufferLength-1:
-						BufferPointer = 0
-					else:
-						BufferPointer +=1
+			if FLAG_USE_ONACID:
+				# move trace buffer pointer
+				if BufferPointer==self.BufferLength-1:
+					BufferPointer = 0
+				else:
+					BufferPointer +=1
 
-					# process current frame
-					if ds_factor > 1:
-						frame_in = cv2.resize(frame_in, img_norm.shape[::-1])   # downsampling
+				# process current frame
+				if ds_factor > 1:
+					frame_in = cv2.resize(frame_in, img_norm.shape[::-1])   # downsampling
 
-					frame_in -= img_min                                       # make data non-negative
+				frame_in -= img_min                                       # make data non-negative
 
-					if mot_corr:                                            # motion correct
+				if mot_corr:                                            # motion correct
 #                        mot_corr_start = time.time()
-						templ = cnm2.Ab.dot(cnm2.C_on[:cnm2.M, t_cnm - 1]).reshape(cnm2.dims, order='F') * img_norm
-						frame_cor, shift = motion_correct_iteration_fast(frame_in, templ, max_shift, max_shift)
-						self.shifts.append(shift)
+					templ = cnm2.Ab.dot(cnm2.C_on[:cnm2.M, t_cnm - 1]).reshape(cnm2.dims, order='F') * img_norm
+					frame_cor, shift = motion_correct_iteration_fast(frame_in, templ, max_shift, max_shift)
+					self.shifts.append(shift)
 
 #                        print('caiman motion correction time:' + str("%.4f"%(time.time()-mot_corr_start)))
-					else:
-						frame_cor = frame_in
+				else:
+					frame_cor = frame_in
 
-					frame_cor = frame_cor / img_norm                            # normalize data-frame
-					cnm2.fit_next(t_cnm, frame_cor.reshape(-1, order='F'))      # run OnACID on this frame
+				frame_cor = frame_cor / img_norm                            # normalize data-frame
+				cnm2.fit_next(t_cnm, frame_cor.reshape(-1, order='F'))      # run OnACID on this frame
 
-					# detect new compunents
-					if expect_components:
-						update_comp_time = time.time()
-						if cnm2.N - (com_count+rejected_count) == 1:
-							new_coms = com(cnm2.Ab[:, -1], dims[0], dims[1])[0]
+				# detect new compunents
+				if expect_components:
+					update_comp_time = time.time()
+					if cnm2.N - (com_count+rejected_count) == 1:
+						new_coms = com(cnm2.Ab[:, -1], dims[0], dims[1])[0]
 
-							# Check for repeated components
-							close = abs(coms - new_coms) < self.dist_thresh/ds_factor
-							repeated = any(np.all(close,axis=1))
+						# Check for repeated components
+						close = abs(coms - new_coms) < self.dist_thresh/ds_factor
+						repeated = any(np.all(close,axis=1))
 
-							if repeated == False: # add component to ROI
-								coms = np.vstack((coms, new_coms))
-								y, x = new_coms   # reversed
-								ROIx = np.append(ROIx,x*ds_factor)  # ~0.11 ms // filling in empty array: ~0.07 ms
-								ROIy = np.append(ROIy,y*ds_factor)
+						if repeated == False: # add component to ROI
+							coms = np.vstack((coms, new_coms))
+							y, x = new_coms   # reversed
+							ROIx = np.append(ROIx,x*ds_factor)  # ~0.11 ms // filling in empty array: ~0.07 ms
+							ROIy = np.append(ROIy,y*ds_factor)
 
-								com_count += 1
-								accepted.append(cnm2.N)
-								print('New cell detected (' + str(cnm2.N-rejected_count) + ')')
+							com_count += 1
+							accepted.append(cnm2.N)
+							print('New cell detected (' + str(cnm2.N-rejected_count) + ')')
 
-								# Check cell for c1v1
-	#                            tt = time_()
-								if opsin_mask.size:
-									cell_A = np.array(cnm2.Ab[:,-1].todense())
-									cell_mask = (np.reshape(cell_A, dims, order='F') > 0).astype('int')
-									cell_pix = sum(sum(cell_mask == 1))
+							# Check cell for c1v1
+#                            tt = time_()
+							if opsin_mask.size:
+								cell_A = np.array(cnm2.Ab[:,-1].todense())
+								cell_mask = (np.reshape(cell_A, dims, order='F') > 0).astype('int')
+								cell_pix = sum(sum(cell_mask == 1))
 
-									inter = cv2.bitwise_and(opsin_mask, cell_mask)
-									inter_pix = sum(sum(inter))
-									cell_overlap = inter_pix/cell_pix
+								inter = cv2.bitwise_and(opsin_mask, cell_mask)
+								inter_pix = sum(sum(inter))
+								cell_overlap = inter_pix/cell_pix
 
-									overlap.append(cell_overlap)
-									opsin_positive = cell_overlap > opsin_thresh
-									opsin.append(opsin_positive)
-	#                                cnm2.opsin.append(cell_overlap > opsin_thresh)
-	#                            print(time_()-tt)
+								overlap.append(cell_overlap)
+								opsin_positive = cell_overlap > opsin_thresh
+								opsin.append(opsin_positive)
+#                                cnm2.opsin.append(cell_overlap > opsin_thresh)
+#                            print(time_()-tt)
 
-								# add new ROI to photostim target, if required
-								try:
-									if p['FLAG_BLINK_CONNECTED'] and p['FLAG_AUTO_ADD_TARGETS']:
-										if opsin_positive:  # add target only if opsin present
-											p['currentTargetX'].append(x*ds_factor)
-											p['currentTargetY'].append(y*ds_factor)
-											current_target_idx = range(com_count)
-											num_stim_targets = len(current_target_idx)
-											self.sendCoords_signal.emit()
-											self.updateTargetROIs_signal.emit()
-											FLAG_SEND_COORDS = False
+							# add new ROI to photostim target, if required
+							try:
+								if p['FLAG_BLINK_CONNECTED'] and p['FLAG_AUTO_ADD_TARGETS']:
+									if opsin_positive:  # add target only if opsin present
+										p['currentTargetX'].append(x*ds_factor)
+										p['currentTargetY'].append(y*ds_factor)
+										current_target_idx = range(com_count)
+										num_stim_targets = len(current_target_idx)
+										self.sendCoords_signal.emit()
+										self.updateTargetROIs_signal.emit()
+										FLAG_SEND_COORDS = False
 
-									self.getROImask_signal.emit(x,y) # add roi coords to list in main
-									print('add new component time:' + str("%.4f"%(time.time()-update_comp_time)))
-								except Exception as e:
-									print(e)
+								self.getROImask_signal.emit(x,y) # add roi coords to list in main
+								print('add new component time:' + str("%.4f"%(time.time()-update_comp_time)))
+							except Exception as e:
+								print(e)
 
-								if com_count == p['MaxNumROIs']:
-									expect_components = False
-									print('Not accepting more components')
-							else:
-								print('Repeated component found!')
-								rejected_count += 1
+							if com_count == p['MaxNumROIs']:
+								expect_components = False
+								print('Not accepting more components')
+						else:
+							print('Repeated component found!')
+							rejected_count += 1
 
-					# add data to buffer
-					try:
-						self.RoiBuffer[:com_count, BufferPointer] = cnm2.C_on[accepted,t_cnm] # cnm2.noisyC is without deconvolution
-						self.ROIlist_threshold[:com_count] = np.nanmean(self.RoiBuffer[:com_count,:], axis=1) + 3*np.nanstd(self.RoiBuffer[:com_count,:], axis=1)
-					except Exception as e:
-						print(e)
-						logger.exception(e)
-						print(self.RoiBuffer[:com_count,:])
-
+				# add data to buffer
+				try:
+					self.RoiBuffer[:com_count, BufferPointer] = cnm2.C_on[accepted,t_cnm] # cnm2.noisyC is without deconvolution
+					self.ROIlist_threshold[:com_count] = np.nanmean(self.RoiBuffer[:com_count,:], axis=1) + 3*np.nanstd(self.RoiBuffer[:com_count,:], axis=1)
+				except Exception as e:
+					print(e)
+					logger.exception(e)
+					print(self.RoiBuffer[:com_count,:])
 
 
 				# trigger photostim
@@ -694,79 +687,68 @@ class Worker(QObject):
 						FLAG_SEND_COORDS = False
 					num_photostim +=1
 
-				# Sta recording and sensory stim - not necessary to do online, move it elsewhere
-				if sta_stim_idx < self.num_stims:
-					if p['FLAG_STIM_TRIG_ENABLED'] and framesProc == stim_frames[sta_stim_idx]: # send TTL
+				# Trigger sensory stimulation
+				if sens_stim_idx < self.num_stims:
+					if p['FLAG_STIM_TRIG_ENABLED'] and framesProc == stim_frames[sens_stim_idx]: # send TTL
 						self.sendTTLTrigger_signal.emit()
+						sens_stim_idx += 1
 
-					if not self.flag_sta_recording:
-						if framesProc == sta_start_frames[sta_stim_idx]:
-							self.flag_sta_recording = True
-							sta_frame_idx = 0
-					else:
-						self.sta_traces[:com_count,sta_stim_idx,sta_frame_idx] = cnm2.C_on[accepted,t_cnm]
-#                        sta_frame_idx +=1
-						if sta_frame_idx == self.sta_trace_length:
-							self.flag_sta_recording = False
-							sta_stim_idx += 1
+				# Update display
+				if framesProc > refreshFrame-1: #frame_count>self.BufferLength-1:
+					if LastPlot == refreshFrame:
+						if p['plotOn']:
+							plot_time = time.time()
+							self.refreshPlot_signal.emit(self.RoiBuffer[:com_count,:])
+							print('update plot time = ' +str(time.time()-plot_time))
+						LastPlot = 0
 
-					# Update display
-					if framesProc > refreshFrame-1: #frame_count>self.BufferLength-1:
-						if LastPlot == refreshFrame:
-							if p['plotOn']:
-								plot_time = time.time()
-								self.refreshPlot_signal.emit(self.RoiBuffer[:com_count,:])
-								print('update plot time = ' +str(time.time()-plot_time))
-							LastPlot = 0
-
-						elif LastPlot == refreshFrame-1:
-							if p['displayOn']:
-								# display current frame
-								if p['denoiseOn']:
+					elif LastPlot == refreshFrame-1:
+						if p['displayOn']:
+							# display current frame
+							if p['denoiseOn']:
 #                                    denoise_time = time.time()
-									A, b = cnm2.Ab[:, cnm2.gnb:], cnm2.Ab[:, :cnm2.gnb].toarray()
-									C_t, f_t = cnm2.C_on[cnm2.gnb:cnm2.M, t_cnm], cnm2.C_on[:cnm2.gnb, t_cnm]
-									comps_frame = A.dot(C_t).reshape(cnm2.dims, order = 'F')*img_norm/np.max(img_norm)
-									bgkrnd_frame = b.dot(f_t).reshape(cnm2.dims, order = 'F')*img_norm/np.max(img_norm)
-									frame = comps_frame + bgkrnd_frame   # denoised frame = component activity + background
-									denoised_frame =  np.repeat(frame[:,:,None],3,axis=-1)
-									denoised_frame = np.minimum((denoised_frame*255.),255).astype('u1')
+								A, b = cnm2.Ab[:, cnm2.gnb:], cnm2.Ab[:, :cnm2.gnb].toarray()
+								C_t, f_t = cnm2.C_on[cnm2.gnb:cnm2.M, t_cnm], cnm2.C_on[:cnm2.gnb, t_cnm]
+								comps_frame = A.dot(C_t).reshape(cnm2.dims, order = 'F')*img_norm/np.max(img_norm)
+								bgkrnd_frame = b.dot(f_t).reshape(cnm2.dims, order = 'F')*img_norm/np.max(img_norm)
+								frame = comps_frame + bgkrnd_frame   # denoised frame = component activity + background
+								denoised_frame =  np.repeat(frame[:,:,None],3,axis=-1)
+								denoised_frame = np.minimum((denoised_frame*255.),255).astype('u1')
 
-									if ds_factor == 1:
-										self.roi_signal.emit(denoised_frame)
-									else:
-										res_denoised_frame = cv2.resize(denoised_frame, (512, 512), interpolation=cv2.INTER_CUBIC)
-										self.roi_signal.emit(res_denoised_frame)
+								if ds_factor == 1:
+									self.roi_signal.emit(denoised_frame)
+								else:
+									res_denoised_frame = cv2.resize(denoised_frame, (512, 512), interpolation=cv2.INTER_CUBIC)
+									self.roi_signal.emit(res_denoised_frame)
 #                                    print('generate denoise frame time:' + str("%.4f"%(time.time()-denoise_time)))
 
+							else:
+								if ds_factor == 1:
+									self.roi_signal.emit(frame_cor)
 								else:
-									if ds_factor == 1:
-										self.roi_signal.emit(frame_cor)
-									else:
-										res_frame_cor = cv2.resize(frame_cor, (512, 512), interpolation=cv2.INTER_CUBIC)
-										self.roi_signal.emit(res_frame_cor)
+									res_frame_cor = cv2.resize(frame_cor, (512, 512), interpolation=cv2.INTER_CUBIC)
+									self.roi_signal.emit(res_frame_cor)
 
-							  # refresh roi scatter
-								shift_ = [round(shift[0]), round(shift[1])]
-								if shift_ != [0,0]:
-									self.display_shift_time = time.time()
-									if self.display_shift == True: #denoiseOn == False:
-										self.refreshScatter_signal.emit(shift_)
-										print('display shift time:' + str("%.4f"%(time.time()-self.display_shift_time)))
+						  # refresh roi scatter
+							shift_ = [round(shift[0]), round(shift[1])]
+							if shift_ != [0,0]:
+								self.display_shift_time = time.time()
+								if self.display_shift == True: #denoiseOn == False:
+									self.refreshScatter_signal.emit(shift_)
+									print('display shift time:' + str("%.4f"%(time.time()-self.display_shift_time)))
 
-								self.thresh_signal.emit(self.ROIlist_threshold[:com_count])
-								LastPlot += 1
-						else:
+							self.thresh_signal.emit(self.ROIlist_threshold[:com_count])
 							LastPlot += 1
-					t_cnm +=1
+					else:
+						LastPlot += 1
+				t_cnm +=1
 
-				# else not using onACID
-				else:
-					temp_time = time.time()
-					self.roi_signal.emit(frame_in)
-					print('display time '+str("%.4f"%(time.time()-temp_time)))
-			except Exception as e:
-				print(e)
+			# else not using onACID
+			else:
+				temp_time = time.time()
+				self.roi_signal.emit(frame_in)
+				print('display time '+str("%.4f"%(time.time()-temp_time)))
+
 
 			# record timing
 			self.tottime.append(time.time() - t0)                       # store time for each frame
@@ -843,7 +825,8 @@ class Worker(QObject):
 			except Exception as e:
 				print(e)
 
-			# save sta traces to Temp folder - havent testing in live stream mode
+			# save sta traces
+			self.sta_traces = STATraceMaker.make_sta_file(file_full_name=save_path,pre_samples = p['staPreFrame'],post_samples = p['staPostFrame'])
 			sta_trial_avg = np.nanmean(self.sta_traces,1)
 			if(p['staAvgStopFrame']>p['staAvgStartFrame']):
 				sta_trial_avg_amp = np.nanmean(sta_trial_avg[:,p['staAvgStartFrame']+p['staPreFrame']:p['staAvgStopFrame']+p['staPreFrame']],1)
@@ -853,7 +836,7 @@ class Worker(QObject):
 			save_name = str(self.save_dir) + 'sta_traces.npy'
 			print('sta traces saved as: '+save_name)
 			np.save(save_name,self.sta_traces)
-
+			
 
 			# transfer data to main and show traces in plot tab
 #            self.c['test'] = 1
@@ -2717,7 +2700,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 	def updateSTA(self, sta_arr):
 		for i in range(0,len(sta_arr)):
-#            self.STA_labels[i].setForeground(QBrush(self.ROIlist[i]["ROIcolor"]))
 			self.STA_labels[i].setText(str('{0:.1f}'.format(sta_arr[i])))
 			self.Thresh_tableWidget.setItem(i,3,self.STA_labels[i])
 		print('updated sta value')
