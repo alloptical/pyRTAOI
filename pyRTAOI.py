@@ -31,6 +31,7 @@ import sys
 import random
 import os
 import glob
+import math
 # Qt
 import GUI
 from PyQt5.QtCore import Qt,QObject, pyqtSignal, QThread, QTimer, QRectF, QUrl,QPoint, QRect, QSize,QPointF,QSizeF, QSettings, QCoreApplication, QDir
@@ -425,12 +426,17 @@ class Worker(QObject):
 		sens_stim_idx = 0
 		LastPlot = 0
 		framesProc = self.framesProc
+		framesSkipped = []
 		refreshFrame = p['refreshFrame']
 		num_photostim = 0
 		current_target_idx = []
+		num_stim_targets = len(p['currentTargetX'])
 		last_target_idx = []
 		FLAG_TRIG_PHOTOSTIM = False
 		FLAG_SEND_COORDS = False
+		frames_post_photostim = 0
+		photo_duration = math.ceil(p['photoDuration']*0.001*30)+1 # in frames;  frame rate 30hz
+		print('frames with photostim = ' + str(photo_duration))
 
 		# local param
 		try:
@@ -528,6 +534,20 @@ class Worker(QObject):
 
 		# keep processing frames in qbuffer
 		while ((not p['FLAG_END_LOADING']) or (not qbuffer.empty())) and not STOP_JOB_FLAG:
+			# skip frames contaminated by photostim
+			if frames_post_photostim>0 and frames_post_photostim<photo_duration:
+				frames_post_photostim+=1
+				qbuffer.get(timeout = max_wait)
+				qbuffer.task_done()
+
+				framesSkipped.append(framesProc)
+				framesProc += 1
+
+				continue
+
+			elif frames_post_photostim == photo_duration:
+				frames_post_photostim = 0
+
 			# get data from queue
 			try:
 				frame_in = qbuffer.get(timeout = max_wait)
@@ -608,7 +628,7 @@ class Worker(QObject):
 										p['currentTargetX'].append(x*ds_factor)
 										p['currentTargetY'].append(y*ds_factor)
 										current_target_idx = range(com_count)
-										num_stim_targets = len(current_target_idx)
+										num_stim_targets = len(p['currentTargetX'])
 										self.sendCoords_signal.emit()
 										self.updateTargetROIs_signal.emit()
 										FLAG_SEND_COORDS = False
@@ -643,7 +663,7 @@ class Worker(QObject):
 					photostim_flag = self.RoiBuffer[:com_count, BufferPointer]-self.ROIlist_threshold[:com_count]
 					last_target_idx = np.copy(current_target_idx)
 					current_target_idx = np.nonzero(photostim_flag>0)
-					num_stim_targets = len(current_target_idx)
+					num_stim_targets = len(p['currentTargetX'])
 
 					if (num_stim_targets>0):
 						FLAG_TRIG_PHOTOSTIM = True
@@ -657,7 +677,7 @@ class Worker(QObject):
 					photostim_flag = self.ROIlist_threshold[:com_count] - self.RoiBuffer[:com_count, BufferPointer]
 					last_target_idx = np.copy(current_target_idx)
 					current_target_idx = np.nonzero(photostim_flag>0)
-					num_stim_targets = len(current_target_idx)
+					num_stim_targets = len(p['currentTargetX'])
 
 					if (num_stim_targets>0):
 						FLAG_TRIG_PHOTOSTIM = True
@@ -673,6 +693,7 @@ class Worker(QObject):
 						self.sendCoords_signal.emit()
 
 					# trigger spiral
+					print('sending photostim trigger')
 					p['NI_2D_ARRAY'][1,:] = NI_UNIT_POWER_ARRAY *np.polyval(power_polyfit_p,photoPowerPerCell*num_stim_targets)
 					self.sendPhotoStimTrig_signal.emit()
 					FLAG_TRIG_PHOTOSTIM = False
@@ -686,6 +707,7 @@ class Worker(QObject):
 						self.updateTargetROIs_signal.emit()
 						FLAG_SEND_COORDS = False
 					num_photostim +=1
+					frames_post_photostim =1
 
 				# Trigger sensory stimulation
 				if sens_stim_idx < self.num_stims:
@@ -793,6 +815,7 @@ class Worker(QObject):
 			save_dict['online_photo_frames'] = online_photo_frames
 			save_dict['online_photo_targets'] = online_photo_targets
 			save_dict['ds_factor'] = ds_factor
+			save_dict['framesSkipped'] = framesSkipped
 			if p['FLAG_STIM_TRIG_ENABLED'] :
 				save_dict['sensory_stim_frames'] = self.stim_frames
 			else:
@@ -836,7 +859,7 @@ class Worker(QObject):
 			save_name = str(self.save_dir) + 'sta_traces.npy'
 			print('sta traces saved as: '+save_name)
 			np.save(save_name,self.sta_traces)
-			
+
 
 			# transfer data to main and show traces in plot tab
 #            self.c['test'] = 1
@@ -1084,7 +1107,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.niPhotoStimFullTask.ao_channels.add_ao_voltage_chan(p['powerDaqDevice'],'photostim_power')
 			self.niPhotostimFullWriter = stream_writers.AnalogMultiChannelWriter(self.niPhotoStimFullTask.out_stream,auto_start = True)
 			self.niPhotoStimFullTask.timing.cfg_samp_clk_timing(rate = NI_SAMPLE_RATE,sample_mode= nidaqmx.constants.AcquisitionType.FINITE, samps_per_chan = max(NI_TTL_NUM_SAMPLES+1,NI_STIM_NUM_SAMPLES+1))
-			
+
 			init_output = np.zeros([2, max(NI_TTL_NUM_SAMPLES+1,NI_STIM_NUM_SAMPLES+1)])
 			init_output.ravel()[:len(self.daq_array)] = self.daq_array  # use ravel to data between array (fastest way)
 			init_output[1,:-1] = 1
@@ -1112,7 +1135,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 		# flag reading/streaming data
 		p['FLAG_END_LOADING'] = False
-		
+
 		# allow drag and drop
 		self.setAcceptDrops(True)
 
@@ -1304,14 +1327,14 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 		# reference movie
 		self.takeRefMovie_pushButton.clicked.connect(self.takeRefMovie)
-		
+
 		# calibration check
 		self.calcheck_pushButton.clicked.connect(self.calCheck)
 
 		# others
 		self.test_pushButton.clicked.connect(self.tempTest)
 		self.reset_pushButton.clicked.connect(self.resetAll)
-		
+
 		# auto add connects to update p and trial config plot whenever anything changes
 		widgets = (QComboBox, QCheckBox, QLineEdit, QSpinBox, QDoubleSpinBox)
 		for obj in self.findChildren(widgets):
@@ -1373,7 +1396,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		init_output[1,:-1] = 1
 		p['NI_2D_ARRAY'] = np.copy(init_output)
 		p['NI_UNIT_POWER_ARRAY'] = np.copy(init_output[1,:])
-		p['NI_2D_ARRAY'][1,:] = p['NI_UNIT_POWER_ARRAY'] *np.polyval(p['power_polyfit_p'],p['photoPowerPerCell'])*10
+		p['NI_2D_ARRAY'][1,:] = p['NI_UNIT_POWER_ARRAY'] *np.polyval(p['power_polyfit_p'],p['photoPowerPerCell'])
 
 		# reconfigure sample number on task
 		self.niPhotoStimFullTask.timing.cfg_samp_clk_timing(rate = p['NI_SAMPLE_RATE'],sample_mode= nidaqmx.constants.AcquisitionType.FINITE, samps_per_chan = max(NI_TTL_NUM_SAMPLES+1,NI_STIM_NUM_SAMPLES+1))
@@ -2950,7 +2973,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 		power_array = np.full(num_patterns,p['photoPowerPerCell'])
 		power_array[1::2] =0
-		
+
 		# show expected burnt locations
 		burntPen = pg.mkPen(color = (255,112,75), width = 2)
 		skipPen = pg.mkPen(color = (64,64,64), width = 2)
@@ -2962,7 +2985,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		self.Targetcontour_item.addPoints(x = burntx, y = burnty, pen = burntPen, size = self.RoiRadius*2+5)
 		self.Targetcontour_item.addPoints(x = skipx, y = skipy, pen = skipPen, size = self.RoiRadius*2)
 
-		
+
 		# confirm if start buring
 		msg = QMessageBox()
 		msg.setText("Start burning spots?")

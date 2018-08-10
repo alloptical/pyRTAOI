@@ -14,18 +14,15 @@ def make_sta_file(file_full_name = '',save_full_name = '', stim_frames = [], pre
 	# get file names
 	if file_full_name == '':
 		file_full_name = filedialog.askopenfilename()
+
 	print(file_full_name)
 
 	with open(file_full_name, 'rb') as f:
 		# file opened
 		file_data = _pickle.load(f)
 
-	p = Path(file_full_name)
-	file_dir = str(p.parents[0])
-	file_name = p.name
-	save_name = file_name.replace('.pkl','_sta.mat')
 	if save_full_name == '':
-		save_full_name = os.path.join(file_dir,save_name)
+		save_full_name = file_full_name.replace('.pkl','_sta.npy')
 
 
 	# get data
@@ -70,7 +67,7 @@ def make_sta_file(file_full_name = '',save_full_name = '', stim_frames = [], pre
 	print(trials.shape)
 
 	# save to file
-	np.save(save_name,trials)
+	np.save(save_full_name,trials)
 
 	return trials
 
