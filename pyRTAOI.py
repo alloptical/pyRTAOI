@@ -1802,42 +1802,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		frames_to_average = range(p['staAvgStartFrame']+p['staPreFrame'],p['staAvgStopFrame']+p['staPreFrame'])
 		self.sta_amp=STATraceMaker.plotSTAtraces(self.sta_traces,frames_to_average = frames_to_average) # load from temp file
 
-#		# load file in Temp folder
-#		try:
-#			filename = os.getcwd()+'/Temp/sta_traces.npy'
-#			sta_traces = np.load(filename)
-#		except:
-#			self.updateStatusBar('STA file not found')
-#			try:
-#				filename = str(QFileDialog.getOpenFileName(self, 'Select STA traces file', '', 'npy (*.npy);;All files (*.*)')[0])
-#			except:
-#				return
-#		sta_trial_avg = np.nanmean(sta_traces,1)
-#		sta_trial_avg_amp = np.nanmean(sta_trial_avg[:,p['staAvgStartFrame']+p['staPreFrame']:p['staAvgStopFrame']+p['staPreFrame']],1)
-#
-#
-#		num_rois = sta_traces.shape[0]
-#		num_trials = sta_traces.shape[1]
-#		plot_rows = np.ceil(np.sqrt(num_rois))
-#		plot_cols = np.ceil(30/plot_rows)
-#
-#
-#		fig,axs = plt.subplots(int(plot_rows),int(plot_cols),
-#							   facecolor='w', edgecolor='k', frameon=False)
-#		axs = axs.ravel()
-#		for i in range(num_rois):
-#			for j in range(num_trials):
-#				axs[i].plot(sta_traces[i,j,:],color = (.5,.5,.5))
-#			axs[i].plot(sta_trial_avg[i,:], color=(0,0,0))
-#			axs[i].set_title('roi'+str(i)+' amp = '+str("%.2f"%sta_trial_avg_amp[i]))
-#			axs[i].set_aspect('auto')
-#			axs[i].set_frame_on(False)
-#			axs[i].set_adjustable('box')
-#
-#		self.sta_amp = sta_trial_avg_amp
-#		print(self.sta_amp.shape)
-
-#        plt.show()
 		#  add figure to layout
 		self.staTracesFig = fig
 		self.staTracesCanvas = FigureCanvas(self.staTracesFig)

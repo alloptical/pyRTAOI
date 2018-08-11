@@ -1,3 +1,5 @@
+# copied scripts from STAMovieMaker 
+
 import os
 import glob
 import _pickle
@@ -6,6 +8,8 @@ from tkinter import filedialog
 from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib as mpl
+import colorsys
 
 root = tk.Tk()
 root.withdraw()
@@ -36,6 +40,16 @@ def make_sta_file(file_full_name = '',save_full_name = '', stim_frames = [],
 	frame_detected = [x[1] for x in cnm.time_neuron_added]
 	print(frame_detected)
 
+	if stim_frames ==[]:
+		try:
+			stim_frames = file_data[stim_frames_field]
+			stim_frames = [x+num_init_frames for x in stim_frames] # add number of initialisation frames, 500 is default
+			print('stim frames :')
+			print(stim_frames)
+		except Exception as e:
+			print('load stim frames error')
+			print(e)
+
 	# make STA template
 	sta_template = np.arange(-pre_samples, post_samples)
 	num_trials = len(stim_frames)
@@ -47,41 +61,41 @@ def make_sta_file(file_full_name = '',save_full_name = '', stim_frames = [],
 		C[i,range(frame_detected[i])] = np.nan
 
 
-	if stim_frames ==[]:
-		try:
-			stim_frames = file_data[stim_frames_field]
-			stim_frames = [x+num_init_frames for x in stim_frames] # add number of initialisation frames, 500 is default
-			print('stim frames :')
-			print(stim_frames)
-		except Exception as e:
-			print('load stim frames error')
-			print(e)
-
 	# plot trace and stim time
-	plot_range = np.arange(0,3500)
-	stim_trace = np.zeros(plot_range.shape)
-	stim_trace[stim_frames] = np.max(C)
+	plot_range = np.arange(stim_frames[0]-pre_samples,stim_frames[-1]+post_samples)
+	stim_trace = np.zeros(num_frames)
+	stim_trace[stim_frames] = np.nanmax(C)
 	plt.figure
-	plt.plot(np.transpose(C[:,plot_range]))
-	plt.plot(stim_trace,color='black')
+	for i in range(num_rois):
+		plt.plot(C[i,plot_range])
+	plt.plot(stim_trace[plot_range],color='black')
 	plt.show('hold')
 
+	# get raw sta traces
 	all_trials_sta_frames = []
 	for stim_frame_idx in stim_frames:
 		all_trials_sta_frames.append(sta_template + stim_frame_idx)
 
-	trials = np.zeros([num_rois, num_trials, len(sta_template)], dtype=np.float32)
+	trials = np.empty([num_rois, num_trials, len(sta_template)])
+	trials[:] = np.nan
+	norm_trials = np.copy(trials)
+	print(trials.shape)
 
 	for i in range(num_rois):
 		for j, trial_sta_frames in enumerate(all_trials_sta_frames):
 			for k, frame_idx in enumerate(trial_sta_frames):
 				trials[i,j,k] = C[i,frame_idx]
-	print(trials.shape)
+
+	# normalise by mean value during pre_sample
+	for i in range(num_rois):
+		for j in range(num_trials):
+			this_baseline = np.nanmean(trials[i,j,range(pre_samples)])
+			norm_trials[i,j,:] = [ value - this_baseline for value in trials[i,j,:]]
 
 	# save to file
-	np.save(save_full_name,trials)
+	np.save(save_full_name,norm_trials)
 
-	return trials
+	return norm_trials
 
 def plotSTAtraces(sta_traces=[],frames_to_avgerage = range(30,60)):
 	if sta_traces == []:
@@ -94,14 +108,16 @@ def plotSTAtraces(sta_traces=[],frames_to_avgerage = range(30,60)):
 				filename = str(QFileDialog.getOpenFileName(self, 'Select STA traces file', '', 'npy (*.npy);;All files (*.*)')[0])
 			except:
 				return
-
+	print(sta_traces.shape)
 	sta_trial_avg = np.nanmean(sta_traces,1)
 	sta_trial_avg_amp = np.nanmean(sta_trial_avg[:,frames_to_avgerage],1)
 
 	num_rois = sta_traces.shape[0]
 	num_trials = sta_traces.shape[1]
 	plot_rows = np.ceil(np.sqrt(num_rois))
-	plot_cols = np.ceil(30/plot_rows)
+	plot_cols = np.ceil((num_rois+1)/plot_rows)
+
+	trial_colors = get_trial_color(num_trials)
 
 
 	fig,axs = plt.subplots(int(plot_rows),int(plot_cols),
@@ -109,14 +125,39 @@ def plotSTAtraces(sta_traces=[],frames_to_avgerage = range(30,60)):
 	axs = axs.ravel()
 	for i in range(num_rois):
 		for j in range(num_trials):
-			axs[i].plot(sta_traces[i,j,:],color = (.5,.5,.5))
-		axs[i].plot(sta_trial_avg[i,:], color=(0,0,0))
+			axs[i].plot(sta_traces[i,j,:],color = trial_colors[j])
+		axs[i].plot(sta_trial_avg[i,:], color=(.3,.3,.3))
+
+		axs[i].set_title('ROI'+str(i))
+	axs[num_rois-1].get_xaxis().set_visible(True)
+
+	for i in range(num_rois+1):
 		axs[i].set_aspect('auto')
 		axs[i].set_frame_on(False)
 		axs[i].set_adjustable('box')
+		axs[i].get_xaxis().set_visible(False)
+
+	# show color map in the last plot
+	for i in range(num_trials):
+		axs[num_rois].bar(i,1,1,color= trial_colors[i])
+		axs[num_rois].get_yaxis().set_visible(False)
+		axs[num_rois].get_xaxis().set_visible(True)
+		axs[num_rois].set_xlabel('Trials')
+
+	for i in range(num_rois+1,int(plot_rows*plot_cols)):
+		fig.delaxes(axs[i])
 
 	plt.show('hold')
 	return sta_trial_avg_amp
+
+def get_trial_color(num_stims):
+	colors = []
+	for i in range(num_stims):
+		H = np.float32(i / (num_stims))
+		S = .4
+		V = .9
+		colors.append(colorsys.hsv_to_rgb(H,S,V))
+	return colors
 
 
 if __name__ == '__main__':
@@ -124,4 +165,5 @@ if __name__ == '__main__':
 	# stim_frames = stim_frames + 200
 	# sta_traces = make_sta_file(r'C:\Users\Zihui\Documents\Test movies\20171229_OG245_t-052_Cycle00001_Ch2_substack1-2700_DS_2.0_OnlineProc.pkl', stim_frames = stim_frames)
 	sta_traces = make_sta_file()
+	
 	plotSTAtraces(sta_traces)
