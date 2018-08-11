@@ -20643,3 +20643,70 @@ Status Code: -200220
 2018-08-10 18:16:43,485 - __main__ - INFO - Started application
 2018-08-10 18:16:43,485 - __main__ - INFO - Started application
 2018-08-10 18:16:43,485 - __main__ - INFO - Started application
+2018-08-11 10:56:56,600 - __main__ - INFO - Started application
+2018-08-11 12:02:12,711 - __main__ - INFO - Started application
+2018-08-11 12:02:12,711 - __main__ - INFO - Started application
+2018-08-11 12:06:54,410 - __main__ - INFO - Started application
+2018-08-11 12:06:54,410 - __main__ - INFO - Started application
+2018-08-11 12:06:54,410 - __main__ - INFO - Started application
+2018-08-11 12:12:57,790 - __main__ - INFO - Started application
+2018-08-11 12:12:57,790 - __main__ - INFO - Started application
+2018-08-11 12:12:57,790 - __main__ - INFO - Started application
+2018-08-11 12:12:57,790 - __main__ - INFO - Started application
+2018-08-11 12:15:54,069 - __main__ - INFO - Started application
+2018-08-11 12:15:54,069 - __main__ - INFO - Started application
+2018-08-11 12:15:54,069 - __main__ - INFO - Started application
+2018-08-11 12:15:54,069 - __main__ - INFO - Started application
+2018-08-11 12:15:54,069 - __main__ - INFO - Started application
+2018-08-11 12:18:23,598 - __main__ - INFO - Started application
+2018-08-11 12:18:23,598 - __main__ - INFO - Started application
+2018-08-11 12:18:23,598 - __main__ - INFO - Started application
+2018-08-11 12:18:23,598 - __main__ - INFO - Started application
+2018-08-11 12:18:23,598 - __main__ - INFO - Started application
+2018-08-11 12:18:23,598 - __main__ - INFO - Started application
+2018-08-11 15:00:06,456 - __main__ - INFO - Started application
+2018-08-11 15:00:06,456 - __main__ - INFO - Started application
+2018-08-11 15:00:06,456 - __main__ - INFO - Started application
+2018-08-11 15:00:06,456 - __main__ - INFO - Started application
+2018-08-11 15:00:06,456 - __main__ - INFO - Started application
+2018-08-11 15:00:06,456 - __main__ - INFO - Started application
+2018-08-11 15:00:06,456 - __main__ - INFO - Started application
+2018-08-11 16:22:56,066 - __main__ - INFO - Started application
+2018-08-11 16:22:56,185 - __main__ - ERROR - 'QPushButton' object has no attribute 'connect'
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 3125, in <module>
+    main(sys.argv)
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 3090, in main
+    window = MainWindow()
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 1150, in __init__
+    self.setConnects()
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 1308, in setConnects
+    self.loadProcData_pushButton.connect(self.loadProcData)
+AttributeError: 'QPushButton' object has no attribute 'connect'
+2018-08-11 16:24:54,889 - __main__ - INFO - Started application
+2018-08-11 16:24:54,889 - __main__ - INFO - Started application
+2018-08-11 16:24:54,917 - __main__ - ERROR - 'MainWindow' object has no attribute 'loadProcData'
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 3125, in <module>
+    main(sys.argv)
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 3090, in main
+    window = MainWindow()
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 1150, in __init__
+    self.setConnects()
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 1308, in setConnects
+    self.loadProcData_pushButton.clicked.connect(self.loadProcData)
+AttributeError: 'MainWindow' object has no attribute 'loadProcData'
+2018-08-11 16:24:54,917 - __main__ - ERROR - 'MainWindow' object has no attribute 'loadProcData'
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 3125, in <module>
+    main(sys.argv)
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 3090, in main
+    window = MainWindow()
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 1150, in __init__
+    self.setConnects()
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 1308, in setConnects
+    self.loadProcData_pushButton.clicked.connect(self.loadProcData)
+AttributeError: 'MainWindow' object has no attribute 'loadProcData'
+2018-08-11 16:25:24,343 - __main__ - INFO - Started application
+2018-08-11 16:25:24,343 - __main__ - INFO - Started application
+2018-08-11 16:25:24,343 - __main__ - INFO - Started application

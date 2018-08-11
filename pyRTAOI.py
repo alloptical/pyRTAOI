@@ -425,8 +425,11 @@ class Worker(QObject):
 		# local counts
 		sens_stim_idx = 0
 		LastPlot = 0
-		framesProc = self.framesProc
+		framesProc = self.framesProc # all frames
 		framesSkipped = []
+		framesCaiman = 0 # frames count passed to caiman
+		photo_stim_frames_caiman = []
+		stim_frames_caiman = []
 		refreshFrame = p['refreshFrame']
 		num_photostim = 0
 		current_target_idx = []
@@ -435,7 +438,7 @@ class Worker(QObject):
 		FLAG_TRIG_PHOTOSTIM = False
 		FLAG_SEND_COORDS = False
 		frames_post_photostim = 0
-		photo_duration = math.ceil(p['photoDuration']*0.001*30)+1 # in frames;  frame rate 30hz
+		photo_duration = math.ceil(p['photoDuration']*0.001*30)+2 # in frames;  frame rate 30hz
 		print('frames with photostim = ' + str(photo_duration))
 
 		# local param
@@ -549,6 +552,7 @@ class Worker(QObject):
 				frames_post_photostim = 0
 
 			# get data from queue
+			framesCaiman+=1
 			try:
 				frame_in = qbuffer.get(timeout = max_wait)
 			except Exception: # timeout exception
@@ -654,7 +658,6 @@ class Worker(QObject):
 					logger.exception(e)
 					print(self.RoiBuffer[:com_count,:])
 
-
 				# trigger photostim
 				if p['photoProtoInx'] == CONSTANTS.PHOTO_FIX_FRAMES and framesProc == photo_stim_frames[num_photostim] and num_photostim < self.num_stims:
 					FLAG_TRIG_PHOTOSTIM = True
@@ -708,12 +711,14 @@ class Worker(QObject):
 						FLAG_SEND_COORDS = False
 					num_photostim +=1
 					frames_post_photostim =1
+					photo_stim_frames_caiman.append(framesCaiman)
 
 				# Trigger sensory stimulation
 				if sens_stim_idx < self.num_stims:
 					if p['FLAG_STIM_TRIG_ENABLED'] and framesProc == stim_frames[sens_stim_idx]: # send TTL
 						self.sendTTLTrigger_signal.emit()
 						sens_stim_idx += 1
+						stim_frames_caiman.append(framesCaiman)
 
 				# Update display
 				if framesProc > refreshFrame-1: #frame_count>self.BufferLength-1:
@@ -814,6 +819,8 @@ class Worker(QObject):
 			save_dict['coms'] = coms
 			save_dict['online_photo_frames'] = online_photo_frames
 			save_dict['online_photo_targets'] = online_photo_targets
+			save_dict['photo_stim_frames_caiman'] = photo_stim_frames_caiman
+			save_dict['stim_frames_caiman'] = stim_frames_caiman
 			save_dict['ds_factor'] = ds_factor
 			save_dict['framesSkipped'] = framesSkipped
 			if p['FLAG_STIM_TRIG_ENABLED'] :
@@ -856,14 +863,14 @@ class Worker(QObject):
 				self.sta_amp_signal.emit(sta_trial_avg_amp[:self.com_count])
 			else:
 				self.status_signal.emit('Check sta average range')
-			save_name = str(self.save_dir) + 'sta_traces.npy'
-			print('sta traces saved as: '+save_name)
+			save_name = os.getcwd()+'/Temp/sta_traces.npy'
 			np.save(save_name,self.sta_traces)
+			print('sta traces saved as: '+save_name)
 
 
 			# transfer data to main and show traces in plot tab
 #            self.c['test'] = 1
-			self.transDataToMain_signal.emit(cnm2, accepted, t_cnm, sta_trial_avg)
+			self.transDataToMain_signal.emit(cnm2, accepted, t_cnm, sta_trial_avg_amp,self.sta_traces)
 
 			# delete big variables
 			del self.c
@@ -1298,6 +1305,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		self.plotSTAonMasks_pushButton.clicked.connect(lambda: self.plotSTAonMasks(self.sta_amp))
 		self.showComponents_pushButton.clicked.connect(lambda: self.plotSTAonMasks(None))
 		self.showFOV_pushButton.clicked.connect(self.showFOV)
+		self.loadProcData_pushButton.clicked.connect(self.loadProcData)
 
 		# triggers
 		self.enableStimTrigger_checkBox.clicked.connect(self.enableStimTrigger)
@@ -1781,42 +1789,53 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		cellMask2D = np.repeat(cellMask2D[:,:,None],3,axis=-1)
 		self.imageItem.setImage(cv2.resize(cellMask2D, (512, 512), interpolation=cv2.INTER_CUBIC))
 
+	def loadProcData(self):
+		stim_type = self.StaStimType_comboBox.currentIndex()
+		if stim_type == 0:
+			stim_frames_field = 'photo_stim_frames_caiman'
+		elif stim_type == 1:
+			stim_frames_field = 'stim_frames_caiman'
+
+		self.sta_traces = STATraceMaker.make_sta_file(stim_frames_field = stim_frames_field)
 
 	def plotSTA(self):
-		# load file in Temp folder
-		try:
-			filename = os.getcwd()+'/Temp/sta_traces.npy'
-			sta_traces = np.load(filename)
-		except:
-			self.updateStatusBar('STA file not found')
-			try:
-				filename = str(QFileDialog.getOpenFileName(self, 'Select STA traces file', '', 'npy (*.npy);;All files (*.*)')[0])
-			except:
-				return
-		sta_trial_avg = np.nanmean(sta_traces,1)
-		sta_trial_avg_amp = np.nanmean(sta_trial_avg[:,p['staAvgStartFrame']+p['staPreFrame']:p['staAvgStopFrame']+p['staPreFrame']],1)
+		frames_to_average = range(p['staAvgStartFrame']+p['staPreFrame'],p['staAvgStopFrame']+p['staPreFrame'])
+		self.sta_amp=STATraceMaker.plotSTAtraces(self.sta_traces,frames_to_average = frames_to_average) # load from temp file
 
-
-		num_rois = sta_traces.shape[0]
-		num_trials = sta_traces.shape[1]
-		plot_rows = np.ceil(np.sqrt(num_rois))
-		plot_cols = np.ceil(30/plot_rows)
-
-
-		fig,axs = plt.subplots(int(plot_rows),int(plot_cols),
-							   facecolor='w', edgecolor='k', frameon=False)
-		axs = axs.ravel()
-		for i in range(num_rois):
-			for j in range(num_trials):
-				axs[i].plot(sta_traces[i,j,:],color = (.5,.5,.5))
-			axs[i].plot(sta_trial_avg[i,:], color=(0,0,0))
-			axs[i].set_title('roi'+str(i)+' amp = '+str("%.2f"%sta_trial_avg_amp[i]))
-			axs[i].set_aspect('auto')
-			axs[i].set_frame_on(False)
-			axs[i].set_adjustable('box')
-
-		self.sta_amp = sta_trial_avg_amp
-		print(self.sta_amp.shape)
+#		# load file in Temp folder
+#		try:
+#			filename = os.getcwd()+'/Temp/sta_traces.npy'
+#			sta_traces = np.load(filename)
+#		except:
+#			self.updateStatusBar('STA file not found')
+#			try:
+#				filename = str(QFileDialog.getOpenFileName(self, 'Select STA traces file', '', 'npy (*.npy);;All files (*.*)')[0])
+#			except:
+#				return
+#		sta_trial_avg = np.nanmean(sta_traces,1)
+#		sta_trial_avg_amp = np.nanmean(sta_trial_avg[:,p['staAvgStartFrame']+p['staPreFrame']:p['staAvgStopFrame']+p['staPreFrame']],1)
+#
+#
+#		num_rois = sta_traces.shape[0]
+#		num_trials = sta_traces.shape[1]
+#		plot_rows = np.ceil(np.sqrt(num_rois))
+#		plot_cols = np.ceil(30/plot_rows)
+#
+#
+#		fig,axs = plt.subplots(int(plot_rows),int(plot_cols),
+#							   facecolor='w', edgecolor='k', frameon=False)
+#		axs = axs.ravel()
+#		for i in range(num_rois):
+#			for j in range(num_trials):
+#				axs[i].plot(sta_traces[i,j,:],color = (.5,.5,.5))
+#			axs[i].plot(sta_trial_avg[i,:], color=(0,0,0))
+#			axs[i].set_title('roi'+str(i)+' amp = '+str("%.2f"%sta_trial_avg_amp[i]))
+#			axs[i].set_aspect('auto')
+#			axs[i].set_frame_on(False)
+#			axs[i].set_adjustable('box')
+#
+#		self.sta_amp = sta_trial_avg_amp
+#		print(self.sta_amp.shape)
 
 #        plt.show()
 		#  add figure to layout
@@ -1842,7 +1861,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		print('gc: ', g)
 
 
-	def transDataToMain(self, cnm_struct, accepted, t, sta_amp, plot=True):
+	def transDataToMain(self, cnm_struct, accepted, t, sta_amp, sta_traces, plot=True):
 #        print('test')  # TODO: changing c inside worker automatically changes it inside mainwindow -- this is sent/shared somehow
 #        print(self.c['test'])
 #        self.cnm2 = cnm_struct
@@ -1850,6 +1869,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		self.accepted = accepted
 		self.t_cnm = t
 		self.sta_amp = sta_amp
+		self.sta_traces = sta_traces
 
 		if self.A_opsin.size:
 			print('Checking opsin overlap')

@@ -236,7 +236,7 @@
         <x>560</x>
         <y>260</y>
         <width>331</width>
-        <height>151</height>
+        <height>181</height>
        </rect>
       </property>
       <property name="title">
@@ -248,85 +248,11 @@
          <x>10</x>
          <y>20</y>
          <width>311</width>
-         <height>111</height>
+         <height>151</height>
         </rect>
        </property>
        <layout class="QGridLayout" name="gridLayout_8">
-        <item row="0" column="2">
-         <layout class="QGridLayout" name="gridLayout_7">
-          <item row="4" column="2">
-           <widget class="QPushButton" name="plotSTAonMasks_pushButton">
-            <property name="text">
-             <string>Show STA on ROIs</string>
-            </property>
-           </widget>
-          </item>
-          <item row="3" column="2">
-           <widget class="QPushButton" name="plotSTA_pushButton">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="minimumSize">
-             <size>
-              <width>0</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>Plot STA traces</string>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="2">
-           <widget class="QPushButton" name="showComponents_pushButton">
-            <property name="text">
-             <string>Show ROIs</string>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="0">
-           <widget class="QCheckBox" name="denoiseOn_checkBox">
-            <property name="text">
-             <string>Denoise</string>
-            </property>
-            <property name="checked">
-             <bool>true</bool>
-            </property>
-           </widget>
-          </item>
-          <item row="3" column="0">
-           <widget class="QCheckBox" name="displayOn_checkBox">
-            <property name="text">
-             <string>Display On</string>
-            </property>
-            <property name="checked">
-             <bool>true</bool>
-            </property>
-           </widget>
-          </item>
-          <item row="4" column="0">
-           <widget class="QCheckBox" name="plotOn_checkBox">
-            <property name="text">
-             <string>Plot On</string>
-            </property>
-            <property name="checked">
-             <bool>true</bool>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="3">
-           <widget class="QPushButton" name="showFOV_pushButton">
-            <property name="text">
-             <string>Show FOV</string>
-            </property>
-           </widget>
-          </item>
-         </layout>
-        </item>
-        <item row="1" column="2">
+        <item row="3" column="2">
          <layout class="QHBoxLayout" name="horizontalLayout">
           <item>
            <widget class="QLabel" name="label_16">
@@ -370,6 +296,108 @@
              </size>
             </property>
            </spacer>
+          </item>
+         </layout>
+        </item>
+        <item row="0" column="2">
+         <layout class="QGridLayout" name="gridLayout_7">
+          <item row="3" column="0">
+           <widget class="QCheckBox" name="displayOn_checkBox">
+            <property name="text">
+             <string>Display On</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="4" column="2">
+           <widget class="QPushButton" name="plotSTAonMasks_pushButton">
+            <property name="text">
+             <string>Show STA on ROIs</string>
+            </property>
+           </widget>
+          </item>
+          <item row="4" column="0">
+           <widget class="QCheckBox" name="plotOn_checkBox">
+            <property name="text">
+             <string>Plot On</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="2">
+           <widget class="QPushButton" name="showComponents_pushButton">
+            <property name="text">
+             <string>Show ROIs</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="3">
+           <widget class="QPushButton" name="showFOV_pushButton">
+            <property name="text">
+             <string>Show FOV</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="0">
+           <widget class="QCheckBox" name="denoiseOn_checkBox">
+            <property name="text">
+             <string>Denoise</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="2">
+           <widget class="QPushButton" name="plotSTA_pushButton">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="minimumSize">
+             <size>
+              <width>0</width>
+              <height>20</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>Plot STA traces</string>
+            </property>
+           </widget>
+          </item>
+          <item row="5" column="0">
+           <widget class="QLabel" name="label_38">
+            <property name="text">
+             <string>Stimulus type</string>
+            </property>
+           </widget>
+          </item>
+          <item row="5" column="3">
+           <widget class="QPushButton" name="loadProcData_pushButton">
+            <property name="text">
+             <string>Load from file</string>
+            </property>
+           </widget>
+          </item>
+          <item row="5" column="2">
+           <widget class="QComboBox" name="StaStimType_comboBox">
+            <item>
+             <property name="text">
+              <string>Photostim</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Sensory stim</string>
+             </property>
+            </item>
+           </widget>
           </item>
          </layout>
         </item>
@@ -1586,7 +1614,7 @@
           <item>
            <widget class="QSpinBox" name="photoPowerPerCell_spinBox">
             <property name="maximum">
-             <number>30</number>
+             <number>100</number>
             </property>
             <property name="singleStep">
              <number>0</number>
@@ -1814,6 +1842,22 @@
        </layout>
       </widget>
      </widget>
+     <zorder>ImageWindow</zorder>
+     <zorder>Prairie_groupBox</zorder>
+     <zorder>OfflineAnalysis_groupBox</zorder>
+     <zorder>DisplayOptions_groupBox</zorder>
+     <zorder>StimOptions_groupBox</zorder>
+     <zorder>caiman_groupBox</zorder>
+     <zorder>plotArea_graphicsLayoutWidget</zorder>
+     <zorder>Thresh_tableWidget</zorder>
+     <zorder>Blink_groupBox</zorder>
+     <zorder>gridLayoutWidget_8</zorder>
+     <zorder>groupBox</zorder>
+     <zorder>opsinMask_groupBox</zorder>
+     <zorder>config_groupBox</zorder>
+     <zorder>photostim_groupBox</zorder>
+     <zorder>run_groupBox</zorder>
+     <zorder>saveResultPath_lineEdit_2</zorder>
     </widget>
     <widget class="QWidget" name="tab_2">
      <attribute name="title">
