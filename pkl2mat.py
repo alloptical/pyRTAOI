@@ -47,6 +47,7 @@ def pkl2mat(file_full_name = '',save_full_name = ''):
     save_dict['noisyC'] = cnm.noisyC
 #    save_dict['deconvC'] = cnm.C_on
     save_dict['cnm_dims'] = cnm.dims
+    save_dict['time_added'] = cnm.time_neuron_added
     
     # params
     try:
@@ -59,7 +60,7 @@ def pkl2mat(file_full_name = '',save_full_name = ''):
         save_dict['merge_thresh'] = file_data['merge_thresh']
         save_dict['expected_comps'] = file_data['expected_comps']
     except:
-        print('Params were not saved')
+        print('Params are not saved')
     
     # other
     save_dict['cnm_N'] = cnm.N

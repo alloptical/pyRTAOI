@@ -68,7 +68,7 @@ from caiman.base.rois import extract_binary_masks_from_structural_channel
 #ref_movie_path = r'C:\Users\intrinsic\Desktop\samples\example1\init_results\20171229_OG245_t-052_Cycle00001_Ch2_substack1-200_init_seeded_DS_1.5.pkl'
 
 # example movies
-example = 8
+example = 7
 
 sample_folder = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples'
 example_folder = os.path.join(sample_folder, 'example' + str(example))
@@ -83,12 +83,12 @@ print('Ref movie path: ', ref_movie_path)
 movie_ext = ref_movie_path[-4:]
 
 if movie_ext  == '.tif':
-    K = 100
+    K = 20
     ds_factor = 1.5
     initbatch = 500
     minibatch_shape = 100
     gSig = (4,4)  # expected cell radius
-    expected_comps = 700
+    expected_comps = 200
     
     lenient = 0
     
@@ -101,7 +101,7 @@ if movie_ext  == '.tif':
         min_SNR = 2.5
         thresh_overlap = 0.2
     
-    merge_thresh = 0.95     # 0.85
+    merge_thresh = 0.85     # 0.85
     
     lframe, init_values = initialise(ref_movie_path, init_method='cnmf', K=K,
                                      ds_factor=ds_factor, gSig=gSig,
@@ -149,7 +149,7 @@ if visualise_init:
     A, C, b, f, YrA, sn = cnm_init.A, cnm_init.C, cnm_init.b, cnm_init.f, cnm_init.YrA, cnm_init.sn
     
     view_patches_bar([], scipy.sparse.coo_matrix(
-    A.tocsc()[:, :]), C[:, :], b, f, dims[0], dims[1], YrA=YrA[:, :], img=None)#Cn_init)
+    A.tocsc()[:, :]), C[:, :], b, f, dims[0], dims[1], YrA=YrA[:, :], img=None) #Cn_init)
 
 #%% Load c1v1 image and create a binary cell mask
 mask_file = r'C:\Users\intrinsic\Desktop\pyRTAOI2018\samples\example1\20171229_OG245_s-026_Cycle00001_Ch1_000001.ome.tif'
@@ -346,7 +346,7 @@ if visualise_init:
 #                                     thresh_cnn_min=0.8)
 
 #%% Remove any undesirable cells from initialisation
-inx = [0,1] # from visualisation
+inx = [1] # from visualisation
 cnm2.remove_components(inx) 
 
 
@@ -661,6 +661,8 @@ folder = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\tests on ri
 
 #file = '20180807_OG300_0002_DS_1.5_rtaoi.tif_DS_1.5_OnlineProc.pkl'
 file = '20180807_OG300_0004_DS_1.5_rtaoi_OnlineProc.pkl'
+
+file = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples\example1\pyrtaoi_results\20171229_OG245_t-052_Cycle00001_Ch2_substack1-1000_DS_1.5_rtaoi_OnlineProc.pkl'
 
 saveResultPath = os.path.join(folder,file)
 cnm_object = load_object(saveResultPath)

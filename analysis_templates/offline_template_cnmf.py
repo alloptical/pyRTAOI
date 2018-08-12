@@ -216,19 +216,6 @@ except: pass
 c, dview, n_processes = cm.cluster.setup_cluster(
     backend='local', n_processes=None, single_thread=False)
 
-#%% Normalise data
-#img_min = Y.min()                                   # minimum value of movie. Subtract it to make the data non-negative
-#Y -= img_min
-#img_norm = np.std(Y, axis=0)                        
-#img_norm += np.median(img_norm)                     # normalizing factor to equalize the FOV
-#Y = Y / img_norm[None, :, :]                        # normalize data
-#
-#_, d1, d2 = Y.shape
-#dims = (d1, d2)                                     # dimensions of FOV
-#Yr = Y.to_2D().T                                    # convert data into 2D array                                    
-#    
-#images = np.reshape(Yr.T, [T] + list(dims), order='F')
-
 #%% RUN CNMF ON PATCHES
 
 # First extract spatial and temporal components on patches and combine them

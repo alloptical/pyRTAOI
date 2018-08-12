@@ -174,6 +174,9 @@ def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1,
         n_processes = np.maximum(np.int(psutil.cpu_count()),1)
         images = np.reshape(Yr.T, [T] + list(dims), order='F')
         print(images.shape)
+        images.filename = ref_movie
+        print(images.filename)
+        #'movie' object has no attribute 'filename'
     
         cnm_init = cnmf.CNMF(n_processes, k=K, gSig=gSig,
                          merge_thresh=merge_thresh, p=p,

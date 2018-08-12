@@ -56,7 +56,7 @@ def npz2mat(file_full_name = '',save_full_name = ''):
         save_dict['rf'] = file_data['rf']
         save_dict['K'] = file_data['K']
     except:
-        print('Params were not saved')
+        print('Params are not saved')
 
     # other
     save_dict['cnm_N'] = file_data['cnm_N']
