@@ -33,12 +33,19 @@ def make_sta_file(file_full_name = '',save_full_name = '', stim_frames = [],
 
 	# get data
 	cnm = file_data['cnm2']
+	init_com_count = file_data['init_com_count']
+
 	C, f = cnm.C_on[cnm.gnb:cnm.M], cnm.C_on[:cnm.gnb]
 	cnm_C = C
-	print(C.shape)
-	print(cnm.time_neuron_added)
-	frame_detected = [x[1] for x in cnm.time_neuron_added]
+
+	# get frame detected
+	frame_detected_roi = [x[0] for x in cnm.time_neuron_added]
+	frame_detected_ = [x[1] for x in cnm.time_neuron_added]
+	first_new_roi_idx = [x for x in range(len(frame_detected_roi)-1) if np.diff(frame_detected_roi)[x] <0]
+	first_new_roi_idx = first_new_roi_idx[0]+1
+	frame_detected =[num_init_frames]*init_com_count +frame_detected_[first_new_roi_idx:]
 	print(frame_detected)
+
 
 	if stim_frames ==[]:
 		try:
@@ -110,6 +117,7 @@ def plotSTAtraces(sta_traces=[],frames_to_avgerage = range(30,60)):
 				return
 	print(sta_traces.shape)
 	sta_trial_avg = np.nanmean(sta_traces,1)
+
 	sta_trial_avg_amp = np.nanmean(sta_trial_avg[:,frames_to_avgerage],1)
 
 	num_rois = sta_traces.shape[0]
@@ -128,7 +136,7 @@ def plotSTAtraces(sta_traces=[],frames_to_avgerage = range(30,60)):
 			axs[i].plot(sta_traces[i,j,:],color = trial_colors[j])
 		axs[i].plot(sta_trial_avg[i,:], color=(.3,.3,.3))
 
-		axs[i].set_title('ROI'+str(i))
+		axs[i].set_title('ROI'+str(i+1))
 	axs[num_rois-1].get_xaxis().set_visible(True)
 
 	for i in range(num_rois+1):
@@ -139,7 +147,7 @@ def plotSTAtraces(sta_traces=[],frames_to_avgerage = range(30,60)):
 
 	# show color map in the last plot
 	for i in range(num_trials):
-		axs[num_rois].bar(i,1,1,color= trial_colors[i])
+		axs[num_rois].bar(i+1,1,1,color= trial_colors[i])
 		axs[num_rois].get_yaxis().set_visible(False)
 		axs[num_rois].get_xaxis().set_visible(True)
 		axs[num_rois].set_xlabel('Trials')
@@ -148,13 +156,14 @@ def plotSTAtraces(sta_traces=[],frames_to_avgerage = range(30,60)):
 		fig.delaxes(axs[i])
 
 	plt.show('hold')
+	print(sta_trial_avg_amp)
 	return sta_trial_avg_amp
 
 def get_trial_color(num_stims):
 	colors = []
 	for i in range(num_stims):
-		H = np.float32(i / (num_stims))
-		S = .4
+		H = np.float32(i / (num_stims+1))
+		S = .3
 		V = .9
 		colors.append(colorsys.hsv_to_rgb(H,S,V))
 	return colors
