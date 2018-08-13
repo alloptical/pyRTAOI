@@ -17,7 +17,7 @@ from caiman.utils.visualization import view_patches_bar, plot_contours
 folder = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\tests on rig\20180811\pyrtaoi_results'
 files = glob.glob(os.path.join(folder,'*.pkl'))
 
-file = files[0]  # choose file
+file = files[1]  # choose file
 unsaved = True
 
 save_figs=0
@@ -74,7 +74,7 @@ if unsaved:
     offset = 0
     if cnm2.N != len(cnm2.time_neuron_added):
         print('Some repeats in time_neuron_added: manually check and choose which values to keep!')
-        offset = 8
+        offset = 5   # set this to get the right values
     
     accepted_spotted = []
     for cell_ix in onacid_accepted_ix:
@@ -87,7 +87,7 @@ if unsaved:
     for cell_ix in rejected_ix:
 #        trace = C[cell_ix,:t_cnm]
 #        t_spotted = np.where(trace>0)[0][0] - cnm2.initbatch
-        t_spotted = cnm2.time_neuron_added[cell_ix+offfset][1] - cnm2.initbatch
+        t_spotted = cnm2.time_neuron_added[cell_ix+offset][1] - cnm2.initbatch
         rejected_spotted.append(t_spotted)
         
     all_spotted = np.sort(accepted_spotted+rejected_spotted)

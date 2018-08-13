@@ -643,7 +643,7 @@ class Worker(QObject):
     
                                 # add new ROI to photostim target, if required
                                 try:
-                                    if p['FLAG_BLINK_CONNECTED'] and p['FLAG_AUTO_ADD_TARGETS']:
+                                    if 1: #p['FLAG_BLINK_CONNECTED'] and p['FLAG_AUTO_ADD_TARGETS']:
                                         if opsin_positive:  # add target only if opsin present
                                             p['currentTargetX'].append(x*ds_factor)
                                             p['currentTargetY'].append(y*ds_factor)
@@ -1683,6 +1683,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
         self.removeMode_pushButton.setEnabled(True)
         self.removeMode_pushButton.setText('Remove selected')
+        self.removeModeOn = True
 
     def exitRemoveMode(self):
         if self.removeIdx:
@@ -1707,7 +1708,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
         for item in enable:
             item.setEnabled(True)
-
+            
+        self.removeModeOn = False
         print('Remove mode off')
 
 
@@ -1757,6 +1759,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
     def showFOV(self):
         try:
+            self.opsinMaskOn = False
             self.imageItem.setImage(cv2.resize(self.c['img_norm'],(512,512),interpolation=cv2.INTER_CUBIC)) # display FOV
         except Exception as e:
             print(e)
