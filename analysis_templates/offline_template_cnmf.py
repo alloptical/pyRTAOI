@@ -409,7 +409,7 @@ if not os.path.exists(results_folder):
 saved_data = os.path.join(results_folder, 'ex' + str(example) + '_cnmf_results_minSRN1.5.npz')
 
 np.savez(saved_data, A=cnm2.A, b=cnm2.b, C=cnm2.C, f=cnm2.f, YrA=cnm2.YrA, # YrA is residual signal
-         Y_r=cnm2.YrA+cnm2.C, Cn=Cn, dims=cnm2.dims, 
+         Y_r=cnm2.YrA + cnm2.C, Cn=Cn, dims=cnm2.dims, 
 #         F_dff=F_dff, 
 #         F_dff_no_noise=F_dff_no_noise,
          C_df=C_df, coms=coms, gnb=gnb,

@@ -36,7 +36,6 @@ class bLink(socket):
 	def add_prefix(self,prefix,xx):
 		Xmsg = bytes(";".join([str(x) for x in xx]),'utf-8')
 		Xmsg = bytes(prefix+str(len(Xmsg)).zfill(4),'utf-8')+ Xmsg
-		print(Xmsg)
 		return Xmsg
 
 # x y should change together - TO DO

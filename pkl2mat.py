@@ -42,26 +42,29 @@ def pkl2mat(file_full_name = '',save_full_name = ''):
     save_dict['cnm_b'] = b
     save_dict['cnm_C'] = C #cnm.C
     save_dict['cnm_f'] = f #cnm.f
+    save_dict['frame_added'] = [x[1] for x in cnm.time_neuron_added]
+    print(file_data['init_com_count'])
+    print([x for x in cnm.time_neuron_added])
+    print([x[1] for x in cnm.time_neuron_added])
+#    return
+
 
     # cell traces
     save_dict['noisyC'] = cnm.noisyC
-#    save_dict['deconvC'] = cnm.C_on
     save_dict['cnm_dims'] = cnm.dims
-    save_dict['time_added'] = cnm.time_neuron_added
-    
-    # params
     try:
-        save_dict['ds_factor'] = file_data['ds_factor']
-        save_dict['K'] = file_data['K']
-        save_dict['min_SNR'] = file_data['min_SNR']
-        save_dict['gSig'] = file_data['gSig']
-        save_dict['rval_thr'] = file_data['rval_thr']
-        save_dict['thresh_overlap'] = file_data['thresh_overlap']
-        save_dict['merge_thresh'] = file_data['merge_thresh']
-        save_dict['expected_comps'] = file_data['expected_comps']
+        save_dict['frame_extra_added'] = frame_extra_added
     except:
-        print('Params are not saved')
+        save_dict['frame_all_added'] = cnm.time_neuron_added  # should keep all info for cell idx in case of removing any
     
+    # copy parameters
+    param_names = ['ds_factor', 'photo_stim_frames_caiman','K','min_SNR','gSig','rval_thr','thresh_overlap','merge_thresh','expected_comps']
+    for param in param_names:
+        try:
+            save_dict[param] = file_data[param]
+        except:
+            print('Parameter not found:'+param)
+
     # other
     save_dict['cnm_N'] = cnm.N
     save_dict['cnm_gnb'] = cnm.gnb

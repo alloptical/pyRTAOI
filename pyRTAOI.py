@@ -10,57 +10,31 @@ SPYDER HAS NO AUTOSAVE FUNCTION!  (only autosaves when script is run)
 CAREFUL WHEN USING 'REPLACE ALL' - IT WILL QUIT, WITHOUT SAVING!!
 
 
- TO DO:
-0. data stream stopped in the middle of a movie - not polling data from buffer fast enough
+TO DO    log this to Notes ToDo_log when it's done and tested
 
-    0.1 nested thread - read data and emit signal when the correct number of sample is collected - bad idea
-        - saved in pyRTAOI-20180620_1; this guaranteed data streaming from PV but it takes more time to process one frame, 35 ms without nested thread; 60 ms with
-    0.2 use queue to communicate between worker and streamer - done
-        - saved in pyRTAOI-20180620_2; < 20 ms when running offline; need to test on rig
-    0.3 use gpu for motion correction? - caiman motion correction is below 10 ms; good enough
-
-    - down sample by 2 kept up with 30Hz image stream
-
-1. log data for offline anaysis - photostimulation targets and frame idx; save online analysis result - done, need test
-    offline analysis - convert cnmf results to .mat file - done
-
+1. log data for offline anaysis - keep checking if everything is saved out
 2. deal with zoom - check
-3. mark point setting for changing photostim power - done
-    control voltage = (outMax/displayMax)*PV value; where outMax and displayMax are defined in prairie view configuration.xml
-    need to map power to voltage - done
-    send volt to pockels via ni card -  consider outsource it to holoblink?
-
-4. Plot STA dF/F - send triggers - check
-5. threshold sometimes becomes Inf - check
-6. auto initialisation - take reference movie and load - done
 7. photostim protocol - done, need to test on rig
-8. delete target by right clicking  - done by left click
-9. some memory leak - every time the app is run, memory increases by ~3-4 % - mostly solved by explicit deleting of big variables
-
-10. release gpu memory after one movie - done
 11. daq task issues - 'the specified resource is reserved error' - this only happens when triggering online; need to restart spyder after one run
+16. deal with photostim artifect:
+    is caiman affacted?? need to interpolate or skip frames with photostim if it is!
 
-----
-12. add option to save out motion-corrected movie by image-saver and by worker (when online photostim is not enabled) - done
-13. save out detected events in ROIs for making trigger-triggered average frames
-
+UPDATE REV40 PV SETTINGS MAX VOLTAGE FOR PHOTOSTIM CONTROL!!!
 
 # other notes:
 - numpy.append is slower than list.append, so avoid using it in loops but there's not much difference if just appending a single value
-    --> changed np arrays to lists for target info
-
 - pkl files are slower to load than npz
-
 
 '''
 
 import sys
 import random
 import os
-
+import glob
+import math
 # Qt
 import GUI
-from PyQt5.QtCore import Qt,QObject, pyqtSignal, QThread, QTimer, QRectF, QUrl,QPoint, QRect, QSize,QPointF,QSizeF, QSettings, QCoreApplication
+from PyQt5.QtCore import Qt,QObject, pyqtSignal, QThread, QTimer, QRectF, QUrl,QPoint, QRect, QSize,QPointF,QSizeF, QSettings, QCoreApplication, QDir
 from PyQt5.QtWidgets import (QComboBox, QCheckBox, QLineEdit, QSpinBox, QLabel,
                              QDoubleSpinBox, QFileDialog, QApplication, QWidget,
                              QDesktopWidget, QMainWindow, QMessageBox, QTableWidgetItem)
@@ -128,7 +102,7 @@ from queue import Queue
 from loadPowerFile import get_power_params
 
 # sta
-from utils import sta
+from utils import STATraceMaker
 
 # configure logging
 logger = logging.getLogger(__name__)
@@ -282,9 +256,7 @@ class DataStream(QObject):
 #                    print('convert time:' + str("%.4f"%(time.time()-recv_time)))
 
                     # put frame in global queue
-#                    qcopy_time = time.time()
                     qbuffer.put(thisFrame.copy().astype(np.float32))
-#                    print('frame to queue:' + str("%.4f"%(time.time()-qcopy_time)))
                     self.framesRecv += 1
                     print('frames recv ='+str(self.framesRecv))
                     incorrectCount = 0
@@ -398,8 +370,6 @@ class Worker(QObject):
         print('worker pl empty? ' + str(self.pl == []))
 
         # sta traces
-        self.sta_traces = np.zeros([p['MaxNumROIs'],p['numberStims'],p['staPreFrame']+p['staPostFrame']])
-        self.sta_traces.fill(np.nan)
         p['stimStopFrame'] = p['stimStartFrame']+p['numberStims']*p['interStimInterval']+p['staPreFrame']
         self.stim_frames = np.arange(p['stimStartFrame'],p['stimStopFrame']+1,p['interStimInterval'])
 
@@ -417,12 +387,11 @@ class Worker(QObject):
         if self.c == {}:
             self.UseONACID = False
             print('No reference movie provided')
-            
+
         if self.pl == []:
             print('No Prairie object provided')
 
         # initialise sta
-        self.sta_start_frames = self.stim_frames -p['staPreFrame']
         self.photo_stim_frames = self.stim_frames + p['photoWaitFrames']
         self.flag_sta_recording = False
         self.sta_frame_idx = 0
@@ -454,26 +423,32 @@ class Worker(QObject):
 #%% process frame
     def work(self):
         # local counts
-        sta_stim_idx = 0
-        sta_frame_idx = 0
+        sens_stim_idx = 0
         LastPlot = 0
-        framesProc = self.framesProc
+        framesProc = self.framesProc # all frames
+        framesSkipped = []
+        framesCaiman = 0 # frames count passed to caiman
+        photo_stim_frames_caiman = []
+        stim_frames_caiman = []
         refreshFrame = p['refreshFrame']
         num_photostim = 0
         current_target_idx = []
+        num_stim_targets = len(p['currentTargetX'])
         last_target_idx = []
         FLAG_TRIG_PHOTOSTIM = False
         FLAG_SEND_COORDS = False
+        frames_post_photostim = 0
+        photo_duration = math.ceil(p['photoDuration']*0.001*30)+2 # in frames;  frame rate 30hz
+        print('frames with photostim = ' + str(photo_duration))
 
         # local param
         try:
             FLAG_USE_ONACID = self.UseONACID
             FLAG_SAVE_TIFF = p['saveAsTiff']
             BufferPointer = self.BufferPointer
-            sta_start_frames = self.sta_start_frames
             photo_stim_frames = self.photo_stim_frames # predefined fixed frames
             stim_frames = self.stim_frames # stim at fixed intervals
-    
+
             # Local buffer for recording online protocol
             online_photo_frames = []
             online_photo_targets = []
@@ -491,7 +466,7 @@ class Worker(QObject):
         if FLAG_USE_ONACID:
             # Use locally scoped variables to speed up
             self.status_signal.emit('Using OnACID')
-    
+
             # Extract initialisation parameters
             mot_corr = True # hard coded now; using motion correction from onacid
             cnm2 = self.c['cnm2'] #deepcopy(cnm_init)
@@ -500,29 +475,29 @@ class Worker(QObject):
             ds_factor = self.c['ds_factor']
             dims = self.c['cnm_init'].dims
             keep_prev = self.c['keep_prev']
-            
+
             # Define OnACID parameters
             max_shift = np.ceil(10./ds_factor).astype('int')  # max shift allowed
             accepted = [ix+cnm2.gnb for ix in cnm2.accepted]
             rejected_count = cnm2.N - len(accepted)
             expect_components = True
             com_count = len(accepted) #self.c['cnm2'].N
-            initbatch = cnm2.initbatch
-            new_spotted = []
-            K_init = self.c['K_init']
+            init_t = cnm2.initbatch
 #            com_count = self.com_count
-            
+            K_init = self.c['K_init']
+
             # Local record of all roi coords
             print('number of initial rois '+str(len(accepted)))
             ROIx = np.asarray([item.get("ROIx") for item in self.ROIlist[:com_count]])   # could also predefine ROIx/y as arrays of bigger size (e.g. 100) and fill them in instad of append
             ROIy = np.asarray([item.get("ROIy") for item in self.ROIlist[:com_count]])
-            
+
             # Keep or discard previous online cells if rerunning OnACID
             keep_full_traces = True  # keep full trace history of the previous session (may be necessary for deconv of last minibatch, otherwise errors possible)
             if keep_prev:
                 coms_init = self.c['coms']
                 if keep_full_traces:
                     t_cnm = cnm2.t
+                    init_t = t_cnm
 #                else:
 ##                    mbs = cnm2.minibatch_shape
 #                    init_shape = cnm2.initbatch
@@ -532,9 +507,12 @@ class Worker(QObject):
             else:
                 coms_init = self.c['coms_init']
                 t_cnm = cnm2.initbatch
-                
-            coms = coms_init.copy()
             
+            coms = coms_init.copy()
+#            frame_extra_added = [t_cnm for cell in range(com_count)]
+            frame_extra_added = []
+            
+
             # Extract opsin mask info constructed from c1v1 image
             try:
                 opsin_mask = self.c['opsin_mask']
@@ -547,7 +525,7 @@ class Worker(QObject):
                 opsin_positive = True  # default for when no opsin mask
                 print(e)
 
-        
+
         # prepare to save frames to tiff file
         if FLAG_SAVE_TIFF:
             try:
@@ -556,126 +534,138 @@ class Worker(QObject):
             except Exception as e:
                 print('tiffwriter error:' + e)
                 FLAG_SAVE_TIFF = False
-                
-        
+
+
         if p['FLAG_OFFLINE']:
-            max_wait = None  # wait until video loaded and buffer starts filling
+            max_wait = None  # wait till video loaded and buffer starts filling
         else:
             max_wait = 10 # timeout
-
-
+        
         # keep processing frames in qbuffer
         while ((not p['FLAG_END_LOADING']) or (not qbuffer.empty())) and not STOP_JOB_FLAG:
+            # skip frames contaminated by photostim
+            if frames_post_photostim>0 and frames_post_photostim<photo_duration:
+                frames_post_photostim+=1
+                qbuffer.get(timeout = max_wait)
+                qbuffer.task_done()
+
+                framesSkipped.append(framesProc)
+                framesProc += 1
+
+                continue
+
+            elif frames_post_photostim == photo_duration:
+                frames_post_photostim = 0
+
             # get data from queue
+            framesCaiman+=1
             try:
                 frame_in = qbuffer.get(timeout = max_wait)
             except Exception: # timeout exception
                 print('Timeout Exception: empty qbuffer')
                 break # this may be a problem for online too? stops reading the stream completely if timeout happens
 
-            try:
-                t0 = time.time()
-                framesProc = framesProc+1
-    
-                if FLAG_USE_ONACID:
-                    # move trace buffer pointer
-                    if BufferPointer==self.BufferLength-1:
-                        BufferPointer = 0
-                    else:
-                        BufferPointer +=1
-    
-                    # process current frame
-                    if ds_factor > 1:
-                        frame_in = cv2.resize(frame_in, img_norm.shape[::-1])   # downsampling
-    
-                    frame_in -= img_min                                       # make data non-negative
-    
-                    if mot_corr:                                            # motion correct
+            t0 = time.time()
+            framesProc = framesProc+1
+
+            if FLAG_USE_ONACID:
+                # move trace buffer pointer
+                if BufferPointer==self.BufferLength-1:
+                    BufferPointer = 0
+                else:
+                    BufferPointer +=1
+
+                # process current frame
+                if ds_factor > 1:
+                    frame_in = cv2.resize(frame_in, img_norm.shape[::-1])   # downsampling
+
+                frame_in -= img_min                                       # make data non-negative
+
+                if mot_corr:                                            # motion correct
 #                        mot_corr_start = time.time()
-                        templ = cnm2.Ab.dot(cnm2.C_on[:cnm2.M, t_cnm - 1]).reshape(cnm2.dims, order='F') * img_norm
-                        frame_cor, shift = motion_correct_iteration_fast(frame_in, templ, max_shift, max_shift)
-                        self.shifts.append(shift)
-    
+                    templ = cnm2.Ab.dot(cnm2.C_on[:cnm2.M, t_cnm - 1]).reshape(cnm2.dims, order='F') * img_norm
+                    frame_cor, shift = motion_correct_iteration_fast(frame_in, templ, max_shift, max_shift)
+                    self.shifts.append(shift)
+
 #                        print('caiman motion correction time:' + str("%.4f"%(time.time()-mot_corr_start)))
-                    else:
-                        frame_cor = frame_in
-    
-                    frame_cor = frame_cor / img_norm                            # normalize data-frame
-                    cnm2.fit_next(t_cnm, frame_cor.reshape(-1, order='F'))      # run OnACID on this frame
-    
-                    # detect new compunents
-                    if expect_components:
-                        update_comp_time = time.time()
-                        if cnm2.N - (com_count+rejected_count) == 1:
-                            new_spotted.append(t_cnm-initbatch)
-                            new_coms = com(cnm2.Ab[:, -1], dims[0], dims[1])[0]
-    
-                            # Check for repeated components
-                            close = abs(coms - new_coms) < self.dist_thresh/ds_factor
-                            repeated = any(np.all(close,axis=1))
-    
-                            if repeated == False: # add component to ROI
-                                coms = np.vstack((coms, new_coms))
-                                y, x = new_coms   # reversed
-                                ROIx = np.append(ROIx,x*ds_factor)  # ~0.11 ms // filling in empty array: ~0.07 ms
-                                ROIy = np.append(ROIy,y*ds_factor)
-    
-                                com_count += 1
-                                accepted.append(cnm2.N)
-                                print('New cell detected (' + str(cnm2.N-rejected_count) + ')')
-    
-                                # Check cell for c1v1
-    #                            tt = time_()
-                                if opsin_mask.size:
-                                    cell_A = np.array(cnm2.Ab[:,-1].todense())
-                                    cell_mask = (np.reshape(cell_A, dims, order='F') > 0).astype('int')
-                                    cell_pix = sum(sum(cell_mask == 1))
-    
-                                    inter = cv2.bitwise_and(opsin_mask, cell_mask)
-                                    inter_pix = sum(sum(inter))
-                                    cell_overlap = inter_pix/cell_pix
-    
-                                    overlap.append(cell_overlap)
-                                    opsin_positive = cell_overlap > opsin_thresh
-                                    opsin.append(opsin_positive)
-    #                                cnm2.opsin.append(cell_overlap > opsin_thresh)
-    #                            print(time_()-tt)
-    
-                                # add new ROI to photostim target, if required
-                                try:
-                                    if 1: #p['FLAG_BLINK_CONNECTED'] and p['FLAG_AUTO_ADD_TARGETS']:
-                                        if opsin_positive:  # add target only if opsin present
-                                            p['currentTargetX'].append(x*ds_factor)
-                                            p['currentTargetY'].append(y*ds_factor)
-                                            current_target_idx = range(com_count)
-                                            num_stim_targets = len(current_target_idx)
-                                            self.sendCoords_signal.emit()
-                                            self.updateTargetROIs_signal.emit()
-                                            FLAG_SEND_COORDS = False
-    
-                                    self.getROImask_signal.emit(x,y) # add roi coords to list in main
-                                    print('add new component time:' + str("%.4f"%(time.time()-update_comp_time)))
-                                except Exception as e:
-                                    print(e)
-    
-                                if com_count == p['MaxNumROIs']:
-                                    expect_components = False
-                                    print('Not accepting more components')
-                            else:
-                                print('Repeated component found!')
-                                rejected_count += 1
-    
-                    # add data to buffer
-                    try:
-                        self.RoiBuffer[:com_count, BufferPointer] = cnm2.C_on[accepted,t_cnm] # cnm2.noisyC is without deconvolution
-                        self.ROIlist_threshold[:com_count] = np.nanmean(self.RoiBuffer[:com_count,:], axis=1) + 3*np.nanstd(self.RoiBuffer[:com_count,:], axis=1)
-                    except Exception as e:
-                        print(e)
-                        logger.exception(e)
-                        print(self.RoiBuffer[:com_count,:])
-    
-    
-    
+
+                else:
+                    frame_cor = frame_in
+
+                frame_cor = frame_cor / img_norm                            # normalize data-frame
+                cnm2.fit_next(t_cnm, frame_cor.reshape(-1, order='F'))      # run OnACID on this frame
+
+                # detect new compunents
+                if expect_components:
+                    update_comp_time = time.time()
+                    if cnm2.N - (com_count+rejected_count) == 1:
+                        frame_extra_added.append(t_cnm-init_t)
+                        new_coms = com(cnm2.Ab[:, -1], dims[0], dims[1])[0]
+
+                        # Check for repeated components
+                        close = abs(coms - new_coms) < self.dist_thresh/ds_factor
+                        repeated = any(np.all(close,axis=1))
+
+                        if repeated == False: # add component to ROI
+                            coms = np.vstack((coms, new_coms))
+                            y, x = new_coms   # reversed
+                            ROIx = np.append(ROIx,x*ds_factor)  # ~0.11 ms // filling in empty array: ~0.07 ms
+                            ROIy = np.append(ROIy,y*ds_factor)
+
+                            com_count += 1
+                            accepted.append(cnm2.N)
+                            print('New cell detected (' + str(cnm2.N-rejected_count) + ')')
+
+                            # Check cell for c1v1
+#                            tt = time_()
+                            if opsin_mask.size:
+                                cell_A = np.array(cnm2.Ab[:,-1].todense())
+                                cell_mask = (np.reshape(cell_A, dims, order='F') > 0).astype('int')
+                                cell_pix = sum(sum(cell_mask == 1))
+
+                                inter = cv2.bitwise_and(opsin_mask, cell_mask)
+                                inter_pix = sum(sum(inter))
+                                cell_overlap = inter_pix/cell_pix
+
+                                overlap.append(cell_overlap)
+                                opsin_positive = cell_overlap > opsin_thresh
+                                opsin.append(opsin_positive)
+#                                cnm2.opsin.append(cell_overlap > opsin_thresh)
+#                            print(time_()-tt)
+
+                            # add new ROI to photostim target, if required
+                            try:
+                                if p['FLAG_BLINK_CONNECTED'] and p['FLAG_AUTO_ADD_TARGETS']:
+                                    if opsin_positive:  # add target only if opsin present
+                                        p['currentTargetX'].append(x*ds_factor)
+                                        p['currentTargetY'].append(y*ds_factor)
+                                        current_target_idx = range(com_count)
+                                        num_stim_targets = len(p['currentTargetX'])
+                                        self.sendCoords_signal.emit()
+                                        self.updateTargetROIs_signal.emit()
+                                        FLAG_SEND_COORDS = False
+
+                                self.getROImask_signal.emit(x,y) # add roi coords to list in main
+                                print('add new component time:' + str("%.4f"%(time.time()-update_comp_time)))
+                            except Exception as e:
+                                print(e)
+
+                            if com_count == p['MaxNumROIs']:
+                                expect_components = False
+                                print('Not accepting more components')
+                        else:
+                            print('Repeated component found!')
+                            rejected_count += 1
+
+                # add data to buffer
+                try:
+                    self.RoiBuffer[:com_count, BufferPointer] = cnm2.C_on[accepted,t_cnm] # cnm2.noisyC is without deconvolution
+                    self.ROIlist_threshold[:com_count] = np.nanmean(self.RoiBuffer[:com_count,:], axis=1) + 3*np.nanstd(self.RoiBuffer[:com_count,:], axis=1)
+                except Exception as e:
+                    print(e)
+                    logger.exception(e)
+                    print(self.RoiBuffer[:com_count,:])
+
                 # trigger photostim
                 if p['photoProtoInx'] == CONSTANTS.PHOTO_FIX_FRAMES and framesProc == photo_stim_frames[num_photostim] and num_photostim < self.num_stims:
                     FLAG_TRIG_PHOTOSTIM = True
@@ -684,7 +674,7 @@ class Worker(QObject):
                     photostim_flag = self.RoiBuffer[:com_count, BufferPointer]-self.ROIlist_threshold[:com_count]
                     last_target_idx = np.copy(current_target_idx)
                     current_target_idx = np.nonzero(photostim_flag>0)
-                    num_stim_targets = len(current_target_idx)
+                    num_stim_targets = len(p['currentTargetX'])
 
                     if (num_stim_targets>0):
                         FLAG_TRIG_PHOTOSTIM = True
@@ -698,7 +688,7 @@ class Worker(QObject):
                     photostim_flag = self.ROIlist_threshold[:com_count] - self.RoiBuffer[:com_count, BufferPointer]
                     last_target_idx = np.copy(current_target_idx)
                     current_target_idx = np.nonzero(photostim_flag>0)
-                    num_stim_targets = len(current_target_idx)
+                    num_stim_targets = len(p['currentTargetX'])
 
                     if (num_stim_targets>0):
                         FLAG_TRIG_PHOTOSTIM = True
@@ -714,6 +704,7 @@ class Worker(QObject):
                         self.sendCoords_signal.emit()
 
                     # trigger spiral
+                    print('sending photostim trigger')
                     p['NI_2D_ARRAY'][1,:] = NI_UNIT_POWER_ARRAY *np.polyval(power_polyfit_p,photoPowerPerCell*num_stim_targets)
                     self.sendPhotoStimTrig_signal.emit()
                     FLAG_TRIG_PHOTOSTIM = False
@@ -727,80 +718,72 @@ class Worker(QObject):
                         self.updateTargetROIs_signal.emit()
                         FLAG_SEND_COORDS = False
                     num_photostim +=1
+                    frames_post_photostim =1
+                    photo_stim_frames_caiman.append(framesCaiman)
 
-                # Sta recording and sensory stim - not necessary to do online, move it elsewhere
-                if sta_stim_idx < self.num_stims:
-                    if p['FLAG_STIM_TRIG_ENABLED'] and framesProc == stim_frames[sta_stim_idx]: # send TTL
+                # Trigger sensory stimulation
+                if sens_stim_idx < self.num_stims:
+                    if p['FLAG_STIM_TRIG_ENABLED'] and framesProc == stim_frames[sens_stim_idx]: # send TTL
                         self.sendTTLTrigger_signal.emit()
+                        sens_stim_idx += 1
+                        stim_frames_caiman.append(framesCaiman)
 
-                    if not self.flag_sta_recording:
-                        if framesProc == sta_start_frames[sta_stim_idx]:
-                            self.flag_sta_recording = True
-                            sta_frame_idx = 0
-                    else:
-                        self.sta_traces[:com_count,sta_stim_idx,sta_frame_idx] = cnm2.C_on[accepted,t_cnm]
-#                        sta_frame_idx +=1
-                        if sta_frame_idx == self.sta_trace_length:
-                            self.flag_sta_recording = False
-                            sta_stim_idx += 1
-    
-                    # Update display
-                    if framesProc > refreshFrame-1: #frame_count>self.BufferLength-1:
-                        if LastPlot == refreshFrame:
-                            if p['plotOn']:
-                                plot_time = time.time()
-                                self.refreshPlot_signal.emit(self.RoiBuffer[:com_count,:])
-                                print('update plot time = ' +str(time.time()-plot_time))
-                            LastPlot = 0
-    
-                        elif LastPlot == refreshFrame-1:
-                            if p['displayOn']:
-                                # display current frame
-                                if p['denoiseOn']:
+                # Update display
+                if framesProc > refreshFrame-1: #frame_count>self.BufferLength-1:
+                    if LastPlot == refreshFrame:
+                        if p['plotOn']:
+                            plot_time = time.time()
+                            self.refreshPlot_signal.emit(self.RoiBuffer[:com_count,:])
+                            print('update plot time = ' +str(time.time()-plot_time))
+                        LastPlot = 0
+
+                    elif LastPlot == refreshFrame-1:
+                        if p['displayOn']:
+                            # display current frame
+                            if p['denoiseOn']:
 #                                    denoise_time = time.time()
-                                    A, b = cnm2.Ab[:, cnm2.gnb:], cnm2.Ab[:, :cnm2.gnb].toarray()
-                                    C_t, f_t = cnm2.C_on[cnm2.gnb:cnm2.M, t_cnm], cnm2.C_on[:cnm2.gnb, t_cnm]
-                                    comps_frame = A.dot(C_t).reshape(cnm2.dims, order = 'F')*img_norm/np.max(img_norm)
-                                    bgkrnd_frame = b.dot(f_t).reshape(cnm2.dims, order = 'F')*img_norm/np.max(img_norm)
-                                    frame = comps_frame + bgkrnd_frame   # denoised frame = component activity + background
-                                    denoised_frame =  np.repeat(frame[:,:,None],3,axis=-1)
-                                    denoised_frame = np.minimum((denoised_frame*255.),255).astype('u1')
-    
-                                    if ds_factor == 1:
-                                        self.roi_signal.emit(denoised_frame)
-                                    else:
-                                        res_denoised_frame = cv2.resize(denoised_frame, (512, 512), interpolation=cv2.INTER_CUBIC)
-                                        self.roi_signal.emit(res_denoised_frame)
-#                                    print('generate denoise frame time:' + str("%.4f"%(time.time()-denoise_time)))
-    
-                                else:
-                                    if ds_factor == 1:
-                                        self.roi_signal.emit(frame_cor)
-                                    else:
-                                        res_frame_cor = cv2.resize(frame_cor, (512, 512), interpolation=cv2.INTER_CUBIC)
-                                        self.roi_signal.emit(res_frame_cor)
-    
-                              # refresh roi scatter
-                                shift_ = [round(shift[0]), round(shift[1])]
-                                if shift_ != [0,0]:
-                                    self.display_shift_time = time.time()
-                                    if self.display_shift == True: #denoiseOn == False:
-                                        self.refreshScatter_signal.emit(shift_)
-                                        print('display shift time:' + str("%.4f"%(time.time()-self.display_shift_time)))
-    
-                                self.thresh_signal.emit(self.ROIlist_threshold[:com_count])
-                                LastPlot += 1
-                        else:
-                            LastPlot += 1
-                    t_cnm +=1
+                                A, b = cnm2.Ab[:, cnm2.gnb:], cnm2.Ab[:, :cnm2.gnb].toarray()
+                                C_t, f_t = cnm2.C_on[cnm2.gnb:cnm2.M, t_cnm], cnm2.C_on[:cnm2.gnb, t_cnm]
+                                comps_frame = A.dot(C_t).reshape(cnm2.dims, order = 'F')*img_norm/np.max(img_norm)
+                                bgkrnd_frame = b.dot(f_t).reshape(cnm2.dims, order = 'F')*img_norm/np.max(img_norm)
+                                frame = comps_frame + bgkrnd_frame   # denoised frame = component activity + background
+                                denoised_frame =  np.repeat(frame[:,:,None],3,axis=-1)
+                                denoised_frame = np.minimum((denoised_frame*255.),255).astype('u1')
 
-                # else not using onACID
-                else:
-                    temp_time = time.time()
-                    self.roi_signal.emit(frame_in)
-                    print('display time '+str("%.4f"%(time.time()-temp_time)))
-            except Exception as e:
-                print(e)
+                                if ds_factor == 1:
+                                    self.roi_signal.emit(denoised_frame)
+                                else:
+                                    res_denoised_frame = cv2.resize(denoised_frame, (512, 512), interpolation=cv2.INTER_CUBIC)
+                                    self.roi_signal.emit(res_denoised_frame)
+#                                    print('generate denoise frame time:' + str("%.4f"%(time.time()-denoise_time)))
+
+                            else:
+                                if ds_factor == 1:
+                                    self.roi_signal.emit(frame_cor)
+                                else:
+                                    res_frame_cor = cv2.resize(frame_cor, (512, 512), interpolation=cv2.INTER_CUBIC)
+                                    self.roi_signal.emit(res_frame_cor)
+
+                          # refresh roi scatter
+                            shift_ = [round(shift[0]), round(shift[1])]
+                            if shift_ != [0,0]:
+                                self.display_shift_time = time.time()
+                                if self.display_shift == True: #denoiseOn == False:
+                                    self.refreshScatter_signal.emit(shift_)
+                                    print('display shift time:' + str("%.4f"%(time.time()-self.display_shift_time)))
+
+                            self.thresh_signal.emit(self.ROIlist_threshold[:com_count])
+                            LastPlot += 1
+                    else:
+                        LastPlot += 1
+                t_cnm +=1
+
+            # else not using onACID
+            else:
+                temp_time = time.time()
+                self.roi_signal.emit(frame_in)
+                print('display time '+str("%.4f"%(time.time()-temp_time)))
+
 
             # record timing
             self.tottime.append(time.time() - t0)                       # store time for each frame
@@ -818,7 +801,7 @@ class Worker(QObject):
 
         if FLAG_SAVE_TIFF:
             MyTiffwriter.close()
-        
+
         if self.UseONACID:
             self.BufferPointer = BufferPointer
             self.BufferPointer = 0
@@ -837,15 +820,19 @@ class Worker(QObject):
 
             save_dict = dict()
             save_dict['cnm2'] = cnm2  # opsin info a part of cnm struct for now
-            save_dict['K'] = K_init # store in case any cells removed from init file
+            save_dict['init_com_count'] = K_init # com_count from init file (in case any cells removed from init file)
             save_dict['accepted'] = accepted  # accepted currently stored inside cnm2 as well
-            save_dict['new_spotted'] = new_spotted
+            save_dict['frame_extra_added'] = frame_extra_added
             save_dict['t_cnm'] = t_cnm
             save_dict['tottime'] = self.tottime
             save_dict['coms'] = coms
+            save_dict['ds_factor'] = ds_factor
+            
             save_dict['online_photo_frames'] = online_photo_frames
             save_dict['online_photo_targets'] = online_photo_targets
-            save_dict['ds_factor'] = ds_factor
+            save_dict['photo_stim_frames_caiman'] = photo_stim_frames_caiman
+            save_dict['stim_frames_caiman'] = stim_frames_caiman
+            save_dict['framesSkipped'] = framesSkipped
             if p['FLAG_STIM_TRIG_ENABLED'] :
                 save_dict['sensory_stim_frames'] = self.stim_frames
             else:
@@ -861,45 +848,39 @@ class Worker(QObject):
             try:
                 print('Saving onacid output')
                 save_separately = True # temp flag to save in a new folder inside movie folder
-                daytimestr = time.strftime("%Y%m%d_%H%M%S")
+                daytimestr = time.strftime("%Y%m%d-%H%M%S")
                 timestr = daytimestr[-6:]
 
                 if save_separately:
-                    if self.FLAG_PV_CONNECTED:
-                        filename = os.path.basename(self.movie_name)[:-4] + '_OnlineProc.pkl'
-                    else:
-                        filename = os.path.basename(self.movie_name)[:-4] + '_OnlineProc_' + daytimestr + '.pkl'
-                        
+                    filename = os.path.basename(self.movie_name)[:-4] + '_OnlineProc_' + timestr + '.pkl'
                     movie_folder = os.path.dirname(self.movie_name)
                     save_folder = os.path.join(movie_folder, 'pyrtaoi_results')  # save init result in a separate folder
-                    
                     if not os.path.exists(save_folder):
                         os.makedirs(save_folder)
                     save_path = os.path.join(save_folder, filename)
-                    
                 else:
-                    save_path = self.movie_name[:-4] + '_OnlineProc.pkl'   # save results in the same folder
-                    
-                print('OnACID result saved as: ' + save_path)
+                    save_path = self.movie_name[:-4] + '_OnlineProc_' + timestr + '.pkl'   # save results in the same folder
+                print('OnACID result saved as:' + save_path)
                 save_object(save_dict, save_path)
             except Exception as e:
                 print(e)
 
-            # save sta traces to Temp folder - havent testing in live stream mode
+            # save sta traces
+            self.sta_traces = STATraceMaker.make_sta_file(file_full_name=save_path,pre_samples = p['staPreFrame'],post_samples = p['staPostFrame'])
             sta_trial_avg = np.nanmean(self.sta_traces,1)
             if(p['staAvgStopFrame']>p['staAvgStartFrame']):
                 sta_trial_avg_amp = np.nanmean(sta_trial_avg[:,p['staAvgStartFrame']+p['staPreFrame']:p['staAvgStopFrame']+p['staPreFrame']],1)
                 self.sta_amp_signal.emit(sta_trial_avg_amp[:com_count])
             else:
                 self.status_signal.emit('Check sta average range')
-            save_name = str(self.save_dir) + 'sta_traces.npy'
-            print('sta traces saved as: '+save_name)
+            save_name = os.getcwd()+'/Temp/sta_traces.npy'
             np.save(save_name,self.sta_traces)
+            print('sta traces saved as: '+save_name)
 
 
             # transfer data to main and show traces in plot tab
 #            self.c['test'] = 1
-            self.transDataToMain_signal.emit(cnm2, accepted, t_cnm, sta_trial_avg)
+            self.transDataToMain_signal.emit(cnm2, accepted, t_cnm, sta_trial_avg_amp,self.sta_traces)
 
             # delete big variables
             del self.c
@@ -1074,7 +1055,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         self.photoProtoInx = CONSTANTS.PHOTO_NONE
 
         # make dir to save data temporally
-        p['temp_save_dir'] = os.path.join(os.path.dirname(__file__),'/Temp/')
+        p['temp_save_dir'] = os.getcwd()+'/Temp/'
         if not os.path.exists(p['temp_save_dir']):
             os.makedirs(p['temp_save_dir'])
         p['saveResultPath'] = p['temp_save_dir'] +str('temp.pkl')
@@ -1082,7 +1063,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
         # power control
         self.POWER_CONTROL_READY = False
-
 
         # get gui elements
         self.getValues()
@@ -1134,7 +1114,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
         try: # photo stim
             # single-channel writer - only send triggers
-            self.niPhotoStimTask.ao_channels.add_ao_voltage_chan('Dev5/ao2','photostim_simple_trig') # hard coded for now
+            self.niPhotoStimTask.ao_channels.add_ao_voltage_chan('Dev5/ao2','photostim_simple_trig') # hard coded
             self.niPhotoStimWriter= stream_writers.AnalogSingleChannelWriter(self.niPhotoStimTask.out_stream,True)
             self.niPhotoStimWriter.write_one_sample(0,10.0)
             print('single channel photostim trigger set')
@@ -1145,18 +1125,17 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             self.niPhotostimFullWriter = stream_writers.AnalogMultiChannelWriter(self.niPhotoStimFullTask.out_stream,auto_start = True)
             self.niPhotoStimFullTask.timing.cfg_samp_clk_timing(rate = NI_SAMPLE_RATE,sample_mode= nidaqmx.constants.AcquisitionType.FINITE, samps_per_chan = max(NI_TTL_NUM_SAMPLES+1,NI_STIM_NUM_SAMPLES+1))
 
-
             init_output = np.zeros([2, max(NI_TTL_NUM_SAMPLES+1,NI_STIM_NUM_SAMPLES+1)])
             init_output.ravel()[:len(self.daq_array)] = self.daq_array  # use ravel to data between array (fastest way)
             init_output[1,:-1] = 1
             p['NI_2D_ARRAY'] = np.copy(init_output)
             p['NI_UNIT_POWER_ARRAY'] = np.copy(init_output[1,:])
             p['NI_2D_ARRAY'][1,:] = p['NI_UNIT_POWER_ARRAY'] *np.polyval(p['power_polyfit_p'],p['photoPowerPerCell']) # single cell power
-            self.niPhotostimFullWriter.write_many_sample(init_output)
-            while(not self.niPhotoStimFullTask.is_task_done()):
-                pass
-            self.niPhotoStimFullTask.stop()
-            self.niPhotostimFullWriter = stream_writers.AnalogMultiChannelWriter(self.niPhotoStimFullTask.out_stream,auto_start = True)
+#            self.niPhotostimFullWriter.write_many_sample(init_output)
+#            while(not self.niPhotoStimFullTask.is_task_done()):
+#                pass
+#            self.niPhotoStimFullTask.stop()
+#            self.niPhotostimFullWriter = stream_writers.AnalogMultiChannelWriter(self.niPhotoStimFullTask.out_stream,auto_start = True)
             print('multi channel photostim trigger set')
             self.POWER_CONTROL_READY = True
 
@@ -1174,13 +1153,15 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         # flag reading/streaming data
         p['FLAG_END_LOADING'] = False
 
+        # allow drag and drop
+        self.setAcceptDrops(True)
+
         # signal/slot connections
         self.setConnects()
 
         # methods for elements within MainWindow
         self.ImageWindow.enterEvent = self.displayOpsinImg.__get__(self.ImageWindow)  # ImageWindow when opsinMaskOn
         self.ImageWindow.leaveEvent = self.displayOpsinMask.__get__(self.ImageWindow)
-        
         self.figCanvas.keyPressEvent = self.arrow_key_image_control.__get__(self.figCanvas) # changing cell display in the plot tab with arrows
 
 
@@ -1304,8 +1285,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             self.updateImage(cv2.resize(np.squeeze(self.opsin_mask).astype('u1'), (512, 512), interpolation=cv2.INTER_CUBIC))
 
     def tempTest(self):
-        print('button clicked')
-        self.plotSTAonMasks()
+        print('test button clicked')
+
 
     def setConnects(self):
         # load and save
@@ -1321,7 +1302,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         self.loadConfig_pushButton.clicked.connect(self.loadConfig)
         self.saveResult_pushButton.clicked.connect(self.saveResults)
         self.browseResultPath_pushButton.clicked.connect(self.browseResultPath)
-
         self.removeMode_pushButton.clicked.connect(self.removeModeController)
 
         # start worker
@@ -1335,6 +1315,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         self.plotSTAonMasks_pushButton.clicked.connect(lambda: self.plotSTAonMasks(self.sta_amp))
         self.showComponents_pushButton.clicked.connect(lambda: self.plotSTAonMasks(None))
         self.showFOV_pushButton.clicked.connect(self.showFOV)
+        self.loadProcData_pushButton.clicked.connect(self.loadProcData)
 
         # triggers
         self.enableStimTrigger_checkBox.clicked.connect(self.enableStimTrigger)
@@ -1364,6 +1345,9 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
         # reference movie
         self.takeRefMovie_pushButton.clicked.connect(self.takeRefMovie)
+
+        # calibration check
+        self.calcheck_pushButton.clicked.connect(self.calCheck)
 
         # others
         self.test_pushButton.clicked.connect(self.tempTest)
@@ -1430,7 +1414,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         init_output[1,:-1] = 1
         p['NI_2D_ARRAY'] = np.copy(init_output)
         p['NI_UNIT_POWER_ARRAY'] = np.copy(init_output[1,:])
-        p['NI_2D_ARRAY'][1,:] = p['NI_UNIT_POWER_ARRAY'] *np.polyval(p['power_polyfit_p'],p['photoPowerPerCell'])*10
+        p['NI_2D_ARRAY'][1,:] = p['NI_UNIT_POWER_ARRAY'] *np.polyval(p['power_polyfit_p'],p['photoPowerPerCell'])
 
         # reconfigure sample number on task
         self.niPhotoStimFullTask.timing.cfg_samp_clk_timing(rate = p['NI_SAMPLE_RATE'],sample_mode= nidaqmx.constants.AcquisitionType.FINITE, samps_per_chan = max(NI_TTL_NUM_SAMPLES+1,NI_STIM_NUM_SAMPLES+1))
@@ -1446,7 +1430,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         try:
             save_dict = dict()
             save_dict['cnm2'] = self.c['cnm2'] #self.cnm2
-            save_dict['K'] = self.c['K_init']
+            save_dict['com_count_init'] = self.K_init
             save_dict['accepted'] = self.accepted
             save_dict['t_cnm'] = self.t_cnm
             save_object(save_dict, p['saveResultPath'])
@@ -1502,7 +1486,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             self.TargetX = [] # all target coords
             self.TargetY = []
             p['ExtraTargetX'] = [] #selected targets (not in the ROIlist) -- TODO
-            p['ExtraTargetY'] = [] 
+            p['ExtraTargetY'] = []
             p['currentTargetX'] = [] # keep track of what is currently on SLM
             p['currentTargetY'] = []
 
@@ -1542,7 +1526,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             self.thisROIIdx = 0
             self.resetROIlist()
             self.deleteTextItems()
-            
+
             self.IsOffline_radioButton.setChecked(False)
             self.IsOffline_radioButton.setEnabled(False)
 
@@ -1551,7 +1535,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
             # clear table
             self.updateTable()
-            
+
             # clear plots and images
             self.plotItem.clear()
             self.resetMask()
@@ -1580,6 +1564,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         print('bl created')
         if self.bl.CONNECTED:
             p['FLAG_BLINK_CONNECTED'] = True
+            self.updateStatusBar('Blink connected')
         print('bl connected = '+str(self.bl.CONNECTED))
 
 
@@ -1660,6 +1645,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         # redraw targeted rois in imaging window - to do: draw what is saved in p
         self.Targetcontour_item.clear()
         self.Targetcontour_item.addPoints(x = p['currentTargetX'], y = p['currentTargetY'], pen = self.TargetPen, size = self.RoiRadius*2+5)
+        print('target rois updated on')
 
     def removeModeController(self):
         self.removeModeOn = not self.removeModeOn
@@ -1683,7 +1669,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
         self.removeMode_pushButton.setEnabled(True)
         self.removeMode_pushButton.setText('Remove selected')
-        self.removeModeOn = True
 
     def exitRemoveMode(self):
         if self.removeIdx:
@@ -1708,8 +1693,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
         for item in enable:
             item.setEnabled(True)
-            
-        self.removeModeOn = False
+
         print('Remove mode off')
 
 
@@ -1759,7 +1743,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
     def showFOV(self):
         try:
-            self.opsinMaskOn = False
+            self.opsinMaskOn = True
             self.imageItem.setImage(cv2.resize(self.c['img_norm'],(512,512),interpolation=cv2.INTER_CUBIC)) # display FOV
         except Exception as e:
             print(e)
@@ -1769,7 +1753,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         # show cells detected by caiman
         # make a image with sta levels
         self.opsinMaskOn = False
-
+        
 #        cnm = self.proc_cnm
         cnm = self.c['cnm2']
 
@@ -1816,46 +1800,19 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         cellMask2D = np.repeat(cellMask2D[:,:,None],3,axis=-1)
         self.imageItem.setImage(cv2.resize(cellMask2D, (512, 512), interpolation=cv2.INTER_CUBIC))
 
+    def loadProcData(self):
+        stim_type = self.StaStimType_comboBox.currentIndex()
+        if stim_type == 0:
+            stim_frames_field = 'photo_stim_frames_caiman'
+        elif stim_type == 1:
+            stim_frames_field = 'stim_frames_caiman'
+
+        self.sta_traces = STATraceMaker.make_sta_file(stim_frames_field = stim_frames_field)
 
     def plotSTA(self):
-        # load file in Temp folder
-        try:
-            dirname = dirname = os.path.dirname(__file__)
-            print(dirname)
-            filename = os.path.join(dirname,'/Temp/sta_traces.npy')
-            sta_traces = np.load(filename)
-        except:
-            self.updateStatusBar('STA file not found')
-            try:
-                filename = str(QFileDialog.getOpenFileName(self, 'Select STA traces file', '', 'npy (*.npy);;All files (*.*)')[0])
-            except:
-                return
-        sta_trial_avg = np.nanmean(sta_traces,1)
-        sta_trial_avg_amp = np.nanmean(sta_trial_avg[:,p['staAvgStartFrame']+p['staPreFrame']:p['staAvgStopFrame']+p['staPreFrame']],1)
+        frames_to_average = range(p['staAvgStartFrame']+p['staPreFrame'],p['staAvgStopFrame']+p['staPreFrame'])
+        self.sta_amp=STATraceMaker.plotSTAtraces(self.sta_traces,frames_to_average = frames_to_average) # load from temp file
 
-
-        num_rois = sta_traces.shape[0]
-        num_trials = sta_traces.shape[1]
-        plot_rows = np.ceil(np.sqrt(num_rois))
-        plot_cols = np.ceil(30/plot_rows)
-
-
-        fig,axs = plt.subplots(int(plot_rows),int(plot_cols),
-                               facecolor='w', edgecolor='k', frameon=False)
-        axs = axs.ravel()
-        for i in range(num_rois):
-            for j in range(num_trials):
-                axs[i].plot(sta_traces[i,j,:],color = (.5,.5,.5))
-            axs[i].plot(sta_trial_avg[i,:], color=(0,0,0))
-            axs[i].set_title('roi'+str(i)+' amp = '+str("%.2f"%sta_trial_avg_amp[i]))
-            axs[i].set_aspect('auto')
-            axs[i].set_frame_on(False)
-            axs[i].set_adjustable('box')
-
-        self.sta_amp = sta_trial_avg_amp
-        print(self.sta_amp.shape)
-
-#        plt.show()
         #  add figure to layout
         self.staTracesFig = fig
         self.staTracesCanvas = FigureCanvas(self.staTracesFig)
@@ -1879,7 +1836,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         print('gc: ', g)
 
 
-    def transDataToMain(self, cnm_struct, accepted, t, sta_amp, plot=True):
+    def transDataToMain(self, cnm_struct, accepted, t, sta_amp, sta_traces, plot=True):
 #        print('test')  # TODO: changing c inside worker automatically changes it inside mainwindow -- this is sent/shared somehow
 #        print(self.c['test'])
 #        self.cnm2 = cnm_struct
@@ -1887,6 +1844,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         self.accepted = accepted
         self.t_cnm = t
         self.sta_amp = sta_amp
+        self.sta_traces = sta_traces
 
         if self.A_opsin.size:
             print('Checking opsin overlap')
@@ -2047,11 +2005,11 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
     def loadMask(self):
         self.updateStatusBar('')
-        
+
         mask_path = str(QFileDialog.getOpenFileName(self, 'Load reference', '', 'PKL (*.pkl);;NPZ (*.npz)')[0])
         self.mask_path = mask_path
         self.movie_folder = os.path.dirname(os.path.dirname(self.mask_path))
-        
+
         if self.mask_path:
             loaded_mask_ext = os.path.splitext(self.mask_path)[1]
 
@@ -2068,7 +2026,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             data_loaded = np.load(self.mask_path)
             try:
                 A_loaded = data_loaded['cnm_A']
-            except: 
+            except:
                 try:
                     A_loaded = data_loaded['A']
                 except:
@@ -2081,7 +2039,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             data_loaded = load_object(self.mask_path)
 #            if 'cnm_init' in list(data_loaded.keys()):
 #                init_file = True
-#            else: 
+#            else:
 #                init_file = False
             try:
                 if init_file:
@@ -2099,7 +2057,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
         if issparse(A_loaded):
             A_loaded = np.array(A_loaded.todense())
-            
+
         self.A_loaded = np.array(A_loaded)
 
 
@@ -2112,7 +2070,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                 self.updateStatusBar('Mask dimension mismatch. Change downsampling to ' + str(512/dims[0])[:4] +
                                      ' or select a different mask')
                 return
-            
+
             try:
                 self.opsinMaskOn = False
                 self.dims = dims
@@ -2138,12 +2096,12 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             self.updateStatusBar('No reference movie selected!')
             return
 
-        
+
         # init parameters
-        if movie_ext == '.tif':    
+        if movie_ext == '.tif':
             ds_factor = self.dsFactor_doubleSpinBox.value()
             K = self.InitNumROIs_spinBox.value()
-        
+
             cell_radius = self.cellRadius_spinBox_2.value()
             gSig = (cell_radius, cell_radius)
             min_SNR = self.minSNR_doubleSpinBox.value()
@@ -2162,8 +2120,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             if movie_ext == '.tif':
                 K = self.InitNumROIs_spinBox.value()
                 print('Starting CNMF initialisation with tiff file')
-                lframe, init_values = initialise(self.ref_movie_path, init_method='cnmf', 
-                                                 K=K, gSig=gSig, initbatch=500, 
+                lframe, init_values = initialise(self.ref_movie_path, init_method='cnmf',
+                                                 K=K, gSig=gSig, initbatch=500,
                                                  ds_factor=ds_factor, rval_thr=rval_thr,
                                                  thresh_overlap=thresh_overlap,
                                                  save_init=True, mot_corr=True,
@@ -2244,7 +2202,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
         if self.MaxNumROIs_spinBox.value() < K+5:
             self.MaxNumROIs_spinBox.setValue(K+10)
-            
+
         if movie_ext == '.pkl':
             cnm = init_values['cnm_init']
             cell_radius = cnm.gSig[0]*ds_factor
@@ -2254,15 +2212,15 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             try:
                 min_SNR = init_values['min_SNR']
             except:
-                min_SNR = 2.5 # default    
-            
+                min_SNR = 2.5 # default
+
             self.cellRadius_spinBox_2.setValue(cell_radius)
             self.rval_thresh_doubleSpinBox.setValue(rval_thr)
             self.merge_thresh_doubleSpinBox.setValue(merge_thresh)
             self.overlap_thresh_doubleSpinBox.setValue(thresh_overlap)
             self.minSNR_doubleSpinBox.setValue(min_SNR)
-                
-        
+
+
         self.cell_radius = cell_radius
 #        self.gSig = (cell_radius, cell_radius)
         self.min_SNR = min_SNR
@@ -2270,6 +2228,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         self.merge_thresh = merge_thresh
         self.thresh_overlap = thresh_overlap
         self.ds_factor = ds_factor
+        self.K_init = K
 
         self.c = init_values
         self.c['cnm2'] = cnm2
@@ -2310,7 +2269,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
     def updateInitialisation(self):
         keep_idx = list(set(range(self.thisROIIdx)) - set(self.removeIdx))
-        
+
         # reset previous settings
         self.ROIcontour_item.clear()
         self.thisROIIdx = 0
@@ -2408,7 +2367,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
         else:
             self.updateStatusBar('No opsin image loaded!')
-            
+
 
     def checkOpsin(self, Ain=None):
         if Ain is None:
@@ -2468,7 +2427,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         try:
             if self.A_opsin.size and self.c != {}:
                 self.checkOpsin()  # for overlap update
-
                 # visualise all comps
                 summed_A = np.hstack((self.A_opsin, self.onacid_mask))
                 summed_mask = np.reshape(np.array(summed_A.sum(axis=1)), self.dims, order='F')
@@ -2611,13 +2569,13 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
     def clickRun(self):
         global STOP_JOB_FLAG
         STOP_JOB_FLAG = False
-        
+
         if not qbuffer.empty():
 #                qbuffer.clear()  # error: 'Queue' object has no attribute 'clear'
             with qbuffer.mutex:
                 qbuffer.queue.clear()
                 print('qbuffer cleared!')
-        
+
         # connect to pv if not offline
         if (not self.IsOffline) and (not self.FLAG_PV_CONNECTED):
             self.connectPV
@@ -2633,9 +2591,9 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         if self.IsOffline or self.FLAG_PV_CONNECTED: # p['UseONACID'] or self.FLAG_PV_CONNECTED
             try: self.resetFigure()
             except: pass
-        
+
             self.c['keep_prev'] = False # default
-    
+
             if self.c['cnm2'].t > self.c['cnm2'].initbatch: # self.cnm2:
                 msg = QMessageBox()
                 msg.setText("Run again?")
@@ -2657,7 +2615,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                         self.c['keep_prev'] = True
                 else:
                     return
-    
+
             self.deleteTextItems()
 
             if self.opsinMaskOn:
@@ -2682,7 +2640,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
             def resetstreamObject():
                 self.streamObject = None
-                
+
 
             kwargs = {"caiman": self.c,"prairie": self.pl,"ROIlist":self.ROIlist}
             self.workerObject = Worker(**kwargs)
@@ -2761,7 +2719,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
     def updateSTA(self, sta_arr):
         for i in range(0,len(sta_arr)):
-#            self.STA_labels[i].setForeground(QBrush(self.ROIlist[i]["ROIcolor"]))
             self.STA_labels[i].setText(str('{0:.1f}'.format(sta_arr[i])))
             self.Thresh_tableWidget.setItem(i,3,self.STA_labels[i])
         print('updated sta value')
@@ -2823,7 +2780,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
     def stop_thread(self):  # TODO: aborting t-series correct? when aborted, no return from prairie so disabled waiting
 
         p['FLAG_END_LOADING'] = True
-        
+
 #        self.stop_pushButton.clicked.disconnect(self.stop_thread)
 #        print('disconnected')
 
@@ -2839,7 +2796,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                 self.streamThread.quit()
                 self.streamThread.wait()
         except: pass
-    
+
         try:
             if self.workerObject:
                 self.workerObject.stop()
@@ -2922,7 +2879,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 #        del self.cnm2
 #        del self.proc_cnm
 #            p = {}
-        
+
         plt.close('all')
 
         # delete all locals
@@ -2989,6 +2946,113 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                     continue
 
             self.getValues()
+
+    def calCheck(self):
+        # burn patterns of spots in a sequence; even patterns are blanked out (0 power on sample)
+        ERROR_FLAG = False
+        current_dir = os.getcwd()
+        print(current_dir)
+        pattern_dir = current_dir+'/Patterns'
+#        pattern_dir =r"C:\Users\User\Desktop\pyRTAOI-rig\Patterns"
+        file_list = glob.glob(os.path.join(pattern_dir,'*.tif'))
+        num_patterns = len(file_list)
+        xcoord_list = []
+        ycoord_list = []
+
+        for file_name in file_list:
+            this_pattern = tifffile.imread(file_name)
+            this_coords = np.where(this_pattern==255)
+            xcoord_list.append(this_coords[1])
+            ycoord_list.append(this_coords[0])
+
+        print(str(num_patterns)+' patterns loaded')
+
+        power_array = np.full(num_patterns,p['photoPowerPerCell'])
+        power_array[1::2] =0
+
+        # show expected burnt locations
+        burntPen = pg.mkPen(color = (255,112,75), width = 2)
+        skipPen = pg.mkPen(color = (64,64,64), width = 2)
+        skipx = [item for sublist in xcoord_list[1::2] for item in sublist ]
+        skipy = [item for sublist in ycoord_list[1::2] for item in sublist ]
+        burntx =  [item for sublist in xcoord_list[::2] for item in sublist ]
+        burnty =  [item for sublist in ycoord_list[::2] for item in sublist ]
+        self.Targetcontour_item.clear()
+        self.Targetcontour_item.addPoints(x = burntx, y = burnty, pen = burntPen, size = self.RoiRadius*2+5)
+        self.Targetcontour_item.addPoints(x = skipx, y = skipy, pen = skipPen, size = self.RoiRadius*2)
+
+
+        # confirm if start buring
+        msg = QMessageBox()
+        msg.setText("Start burning spots?")
+        msg.setWindowTitle('calCheck Message')
+        msg.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+        retval = msg.exec_()
+        if(retval==QMessageBox.Cancel):
+            ERROR_FLAG = True
+            self.Targetcontour_item.clear()
+            return
+        # send to blink and trigger photostim
+        for i in range (num_patterns):
+            p['currentTargetX'] = xcoord_list[i]
+            p['currentTargetY'] = ycoord_list[i]
+            num_stim_targets = len(xcoord_list[i])
+
+            send_start = time.time()
+            if p['FLAG_BLINK_CONNECTED']:
+                self.sendCoords()
+                print('coords sent')
+            else:
+                ERROR_FLAG = True
+            print('send coords time'+ str("%.4f"%(time.time()-send_start)))
+
+
+            if (not ERROR_FLAG) and self.POWER_CONTROL_READY:
+                print('total power:'+str(power_array[i]*num_stim_targets))
+                try:
+                    if power_array[i]==0:
+                        p['NI_2D_ARRAY'][1,:] = p['NI_UNIT_POWER_ARRAY']*0
+                    else:
+                        p['NI_2D_ARRAY'][1,:] = p['NI_UNIT_POWER_ARRAY']*np.polyval(p['power_polyfit_p'],power_array[i]*num_stim_targets)
+                    self.sendPhotoStimTrigger()
+                except Exception as e:
+                    print(e)
+                    ERROR_FLAG = True
+                print('stim trigger sent')
+            else:
+                ERROR_FLAG = True
+
+            if not ERROR_FLAG:
+                print('pattern'+str(i)+' stimulated')
+            else:
+                print('calcheck error, check daq and/or blink connection!')
+
+#%% drag drop
+    def dragEnterEvent( self, event ):
+        data = event.mimeData()
+        urls = data.urls()
+        if ( urls and urls[0].scheme() == 'file' ):
+            event.acceptProposedAction()
+
+    def dragMoveEvent( self, event ):
+        data = event.mimeData()
+        urls = data.urls()
+        if ( urls and urls[0].scheme() == 'file' ):
+            event.acceptProposedAction()
+
+    def dropEvent( self, event ):
+        data = event.mimeData()
+        urls = data.urls()
+        if ( urls and urls[0].scheme() == 'file' ):
+            # for some reason, this doubles up the intro slash
+            if os.name == 'nt':
+                filepath = str(urls[0].path()[1:])
+            else:
+                filepath = str(urls[0].path())
+            droppedIMG = cv2.imread(filepath,cv2.IMREAD_ANYDEPTH)
+            self.imageItem.setImage(cv2.resize(droppedIMG,(512,512),interpolation=cv2.INTER_CUBIC))
+            self.opsinMaskOn = False
+            print('current image:'+str(filepath))
 
 
 #%%

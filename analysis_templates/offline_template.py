@@ -89,7 +89,7 @@ if movie_ext  == '.tif':
     minibatch_shape = 100
     gSig = (4,4)  # expected cell radius
     expected_comps = 200
-    
+
     lenient = 0
     
     if lenient:
@@ -597,10 +597,12 @@ if save_results:
              tottime=tottime,
              shifts=shifts)
 
-#%% Reload and unpack saved npz data
+#%% Reload and unpack saved data
 file = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples\example1\offline_results\ex1_cnmf_results.npz'
 npz_datafile = np.load(file)
 locals().update(npz_datafile)
+
+#%%
 #A = npz_datafile['cnm_A']
 
 #%% Save results (whole cnm object) as pkl
@@ -667,16 +669,14 @@ file = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples\examp
 saveResultPath = os.path.join(folder,file)
 cnm_object = load_object(saveResultPath)
 
-locals().update(cnm_object)
+cnm2 = cnm_object['cnm2']
+t = cnm_object['t_cnm']
+epochs = 1
 
-#cnm2 = cnm_object['cnm2']
-#t = cnm_object['t_cnm']
-#epochs = 1
-#
-#C, f = cnm2.C_on[cnm2.gnb:cnm2.M], cnm2.C_on[:cnm2.gnb]
+C, f = cnm2.C_on[cnm2.gnb:cnm2.M], cnm2.C_on[:cnm2.gnb]
 
 #%% Load pkl init object
-saved_pkl = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples\example1\offline_results\ex1_onacid_results_ds_1.5.pkl'
+saved_pkl = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples\example1\init_results\20171229_OG245_t-052_Cycle00001_Ch2_init_cnmf_DS_1.5.pkl'
 pkl_datafile = load_object(saved_pkl)
 
 #mask = pkl_datafile['cnm_init'].A # access mask
