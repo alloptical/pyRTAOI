@@ -53,7 +53,7 @@ def pkl2mat(file_full_name = '',save_full_name = ''):
     save_dict['noisyC'] = cnm.noisyC
     save_dict['cnm_dims'] = cnm.dims
     try:
-        save_dict['frame_extra_added'] = frame_extra_added
+        save_dict['frame_extra_added'] = file_data['frame_extra_added']
     except:
         save_dict['frame_all_added'] = cnm.time_neuron_added  # should keep all info for cell idx in case of removing any
     

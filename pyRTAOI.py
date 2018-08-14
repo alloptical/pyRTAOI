@@ -354,8 +354,8 @@ class Worker(QObject):
     sendTTLTrigger_signal    = pyqtSignal()
     sendCoords_signal        = pyqtSignal(name = 'sendCoordsSignal')
     sendPhotoStimTrig_signal = pyqtSignal()
-    getROImask_signal        = pyqtSignal(object, object, name = 'getROImaskSignal')
-    transDataToMain_signal   = pyqtSignal(object,object,object,object,name = 'transDataToMain')
+    getROImask_signal        = pyqtSignal(object, object,name = 'getROImaskSignal')
+    transDataToMain_signal   = pyqtSignal(object,object,object,object,object,name = 'transDataToMain')
     updateTargetROIs_signal  = pyqtSignal()
     finished_signal          = pyqtSignal()
 
@@ -403,9 +403,12 @@ class Worker(QObject):
         self.RoiBuffer = p['RoiBuffer']
         self.BufferPointer = p['BufferPointer']
         self.ROIlist_threshold = np.zeros(p['MaxNumROIs'])
+
+        self.T1 = self.c['T1']
+        self.online_C = np.zeros_like(self.c['cnm2'].C_on)
+
         self.dist_thresh = 21 # reject new rois too close to existing rois
         self.display_shift = False  # option to display motion correction shift
-
         self.tottime = []
 
         # lateral motion
@@ -478,13 +481,14 @@ class Worker(QObject):
 
             # Define OnACID parameters
             max_shift = np.ceil(10./ds_factor).astype('int')  # max shift allowed
-            accepted = [ix+cnm2.gnb for ix in cnm2.accepted]
+            accepted = [ix+cnm2.gnb for ix in cnm2.accepted] # count from 1 for easy C_on access
             rejected_count = cnm2.N - len(accepted)
             expect_components = True
             com_count = len(accepted) #self.c['cnm2'].N
             init_t = cnm2.initbatch
 #            com_count = self.com_count
             K_init = self.c['K_init']
+            
 
             # Local record of all roi coords
             print('number of initial rois '+str(len(accepted)))
@@ -503,12 +507,14 @@ class Worker(QObject):
 #                    init_shape = cnm2.initbatch
 #                    t_cnm = init_shape # + mbs
 ##                    cnm2.C_on[:cnm2.N+cnm2.gnb,init_shape:t_cnm] = cnm2.C_on[:cnm2.N+cnm2.gnb,-mbs:]
-#                    cnm2.C_on[:cnm2.N+cnm2.gnb,t_cnm:] = 0  # clears previous results -- should keep at least last minibatch if clearing
+#                    cnm2.C_on[:cnm2.N+cnm2.gnb,t_cnm:] = 0  # clears previous results -- should keep at least the last minibatch if clearing
             else:
                 coms_init = self.c['coms_init']
                 t_cnm = cnm2.initbatch
             
             coms = coms_init.copy()
+            self.online_C[:com_count,:init_t] = self.c['cnm2'].C_on[accepted,:init_t] # fill the init_t trace frames with init results
+            
 #            frame_extra_added = [t_cnm for cell in range(com_count)]
             frame_extra_added = []
             
@@ -582,12 +588,12 @@ class Worker(QObject):
                 frame_in -= img_min                                       # make data non-negative
 
                 if mot_corr:                                            # motion correct
-#                        mot_corr_start = time.time()
+                    mot_corr_start = time.time()
                     templ = cnm2.Ab.dot(cnm2.C_on[:cnm2.M, t_cnm - 1]).reshape(cnm2.dims, order='F') * img_norm
                     frame_cor, shift = motion_correct_iteration_fast(frame_in, templ, max_shift, max_shift)
                     self.shifts.append(shift)
 
-#                        print('caiman motion correction time:' + str("%.4f"%(time.time()-mot_corr_start)))
+                    print('caiman motion correction time:' + str("%.4f"%(time.time()-mot_corr_start)))
 
                 else:
                     frame_cor = frame_in
@@ -659,7 +665,9 @@ class Worker(QObject):
 
                 # add data to buffer
                 try:
-                    self.RoiBuffer[:com_count, BufferPointer] = cnm2.C_on[accepted,t_cnm] # cnm2.noisyC is without deconvolution
+                    curr_signal =  cnm2.C_on[accepted,t_cnm] # cnm2.noisyC is without deconvolution
+                    self.RoiBuffer[:com_count, BufferPointer] = curr_signal
+                    self.online_C[:com_count, t_cnm] = curr_signal # record the buffer values for offline analysis
                     self.ROIlist_threshold[:com_count] = np.nanmean(self.RoiBuffer[:com_count,:], axis=1) + 3*np.nanstd(self.RoiBuffer[:com_count,:], axis=1)
                 except Exception as e:
                     print(e)
@@ -820,11 +828,14 @@ class Worker(QObject):
 
             save_dict = dict()
             save_dict['cnm2'] = cnm2  # opsin info a part of cnm struct for now
+            save_dict['online_C']  = self.online_C
             save_dict['init_com_count'] = K_init # com_count from init file (in case any cells removed from init file)
+            save_dict['online_com_count'] = com_count
             save_dict['accepted'] = accepted  # accepted currently stored inside cnm2 as well
             save_dict['frame_extra_added'] = frame_extra_added
             save_dict['t_cnm'] = t_cnm
             save_dict['tottime'] = self.tottime
+            save_dict['shifts'] = self.shifts
             save_dict['coms'] = coms
             save_dict['ds_factor'] = ds_factor
             
@@ -860,33 +871,36 @@ class Worker(QObject):
                     save_path = os.path.join(save_folder, filename)
                 else:
                     save_path = self.movie_name[:-4] + '_OnlineProc_' + timestr + '.pkl'   # save results in the same folder
-                print('OnACID result saved as:' + save_path)
+                print('OnACID result is being saved as: ' + save_path)
                 save_object(save_dict, save_path)
             except Exception as e:
                 print(e)
 
-            # save sta traces
-            self.sta_traces = STATraceMaker.make_sta_file(file_full_name=save_path,pre_samples = p['staPreFrame'],post_samples = p['staPostFrame'])
-            sta_trial_avg = np.nanmean(self.sta_traces,1)
-            if(p['staAvgStopFrame']>p['staAvgStartFrame']):
-                sta_trial_avg_amp = np.nanmean(sta_trial_avg[:,p['staAvgStartFrame']+p['staPreFrame']:p['staAvgStopFrame']+p['staPreFrame']],1)
-                self.sta_amp_signal.emit(sta_trial_avg_amp[:com_count])
-            else:
-                self.status_signal.emit('Check sta average range')
-            save_name = os.getcwd()+'/Temp/sta_traces.npy'
-            np.save(save_name,self.sta_traces)
-            print('sta traces saved as: '+save_name)
-
+            try:
+                # save sta traces
+                self.sta_traces = STATraceMaker.make_sta_file(file_full_name=save_path,pre_samples = p['staPreFrame'],post_samples = p['staPostFrame'])   # some issue here? list index out of range
+                sta_trial_avg = np.nanmean(self.sta_traces,1)
+                if(p['staAvgStopFrame']>p['staAvgStartFrame']):
+                    sta_trial_avg_amp = np.nanmean(sta_trial_avg[:,p['staAvgStartFrame']+p['staPreFrame']:p['staAvgStopFrame']+p['staPreFrame']],1)
+                    self.sta_amp_signal.emit(sta_trial_avg_amp[:com_count])
+                else:
+                    self.status_signal.emit('Check sta average range')
+                save_name = os.getcwd()+'/Temp/sta_traces.npy'
+                np.save(save_name, self.sta_traces)
+                print('sta traces saved as: ' + save_name)
+            except Exception as e:
+                print(e)
+                self.sta_traces = []
+                sta_trial_avg_amp = 0
 
             # transfer data to main and show traces in plot tab
 #            self.c['test'] = 1
-            self.transDataToMain_signal.emit(cnm2, accepted, t_cnm, sta_trial_avg_amp,self.sta_traces)
+            self.transDataToMain_signal.emit(cnm2, accepted, t_cnm, sta_trial_avg_amp, self.sta_traces)
 
             # delete big variables
             del self.c
             del ROIx
             del ROIy
-#        del self.pl
 
         # finishing
         self.finished_signal.emit()

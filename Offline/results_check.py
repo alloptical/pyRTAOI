@@ -14,12 +14,12 @@ from caiman.utils.visualization import view_patches_bar, plot_contours
 #%% Load pkl-ed cnm object
 
 # online recordings
-folder = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\tests on rig\20180811\pyrtaoi_results'
-files = glob.glob(os.path.join(folder,'*.pkl'))
+#folder = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\tests on rig\20180811\pyrtaoi_results'
+folder = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples\example1\pyrtaoi_results'
+files = glob.glob(os.path.join(folder,'*132814.pkl'))
 
-file = files[1]  # choose file
+file = files[0]  # choose file
 unsaved = True
-
 save_figs=0
 
 # example of 'correct' file i.e. with new_spotted data
@@ -242,3 +242,42 @@ pl.subplot(122)
 pl.plot(noisyC[cell+1,:],'b',label='noisyC')
 pl.legend()
 pl.ylim(y_min, y_max)
+
+#%% Check photostim frames and effects on traces
+for cell in range(init_com_count,cnm2.N):
+#cell = 10
+    pl.figure(); pl.plot(C[cell,:])
+    
+    for frame in framesSkipped:
+        pl.axvline(x=frame+cnm2.initbatch,color='r')
+        
+#%% Check online traces
+pl.close('all')
+
+save_plots = 0
+
+#if unsaved:
+#    [x[1] for x in cnm.time_neuron_added]
+#    spotted = deepcopy(new_spotted)
+#    spotted.reverse()
+    
+spotted = list(all_spotted.copy() + cnm2.initbatch)
+spotted.reverse()
+
+for cell in accepted: # range(cnm2.N):
+    pl.figure()
+    
+    pl.subplot(311); pl.plot(cnm2.noisyC[cell+1,:t_cnm]); pl.ylabel('noisyC')
+    pl.title('cell ' + str(cell));
+    ylim_ = pl.ylim()
+    pl.subplot(312); pl.plot(cnm2.C_on[cell+1,:t_cnm]); pl.ylabel('C_on')
+    pl.ylim(ylim_)
+    pl.subplot(313); pl.plot(online_C[cell,:t_cnm]); pl.ylabel('RoiBuffer')
+    pl.ylim(ylim_)
+    if cell >= K:
+        fr = spotted.pop()
+        pl.plot([fr, fr], pl.ylim(), 'r')
+        
+    if save_plots:
+        pl.savefig(folder + '\cell_' + str(cell))
+        pl.close()
