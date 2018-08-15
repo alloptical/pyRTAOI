@@ -14,17 +14,18 @@ from caiman.utils.visualization import view_patches_bar, plot_contours
 #%% Load pkl-ed cnm object
 
 # online recordings
-#folder = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\tests on rig\20180811\pyrtaoi_results'
-folder = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples\example1\pyrtaoi_results'
-files = glob.glob(os.path.join(folder,'*132814.pkl'))
+folder = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\tests on rig\20180811\pyrtaoi_results'
 
-file = files[0]  # choose file
-unsaved = True
-save_figs=0
+files = sorted(glob.glob(os.path.join(folder,'*.pkl')))
 
-# example of 'correct' file i.e. with new_spotted data
+file = files[1]  # choose file
+
+unsaved = 1
+save_figs = 0
+
+# example of 'correct' file i.e. with frame_extra_added data
 #file = r'//live.rd.ucl.ac.uk/ritd-ag-project-rd00g6-mhaus91/forPat/samples/example1\pyrtaoi_results\20171229_OG245_t-052_Cycle00001_Ch2_substack1-2700_DS_1.5_rtaoi_OnlineProc_20180808_144712.pkl'
-#unsaved = False
+#unsaved = 0
 
 cnm_object = load_object(file)
 locals().update(cnm_object)
@@ -41,18 +42,17 @@ Y_r=cnm2.YrA + cnm2.C # raw signal
 #%% Visualise OnACID output
 view_patches_bar([], A, C, b, f, dims[0], dims[1], YrA=YrA, img=None) #img=Cn for background frame, None for cell mask
 
-#%% Compare new_spotted with time neuron added
+#%% Compare frame_extra_added with time neuron added
 if not unsaved:
     time_added = [time[1]-cnm2.initbatch for time in cnm2.time_neuron_added]
     
-    diff = np.array(time_added)[2+K:] - np.array(new_spotted)  # for some reason time added for 3 and 4 repeated for that example
+    diff = np.array(time_added)[2+K:] - np.array(frame_extra_added)  # for some reason time added for 3 and 4 repeated for that example
     print(diff)  # all 0s - good
 
 #%% Extract info on cells to get frame-by-frame time
-if unsaved:
-    try:
-        K = init_com_count
-    except: pass
+try:
+    K = init_com_count
+except: pass
 
 #    if file == files[2]:  # last file: incorrect K value saved for 0807 session
 #        K = 9
@@ -74,7 +74,7 @@ if unsaved:
     offset = 0
     if cnm2.N != len(cnm2.time_neuron_added):
         print('Some repeats in time_neuron_added: manually check and choose which values to keep!')
-        offset = 5   # set this to get the right values
+        offset = 8   # set this to get the right values
     
     accepted_spotted = []
     for cell_ix in onacid_accepted_ix:
@@ -92,20 +92,26 @@ if unsaved:
         
     all_spotted = np.sort(accepted_spotted+rejected_spotted)
     
-# if new_spotted saved
+# if frame_extra_added saved
 else:
+    try:
+        frame_extra_added = frame_added[K:]
+    except: pass
+
     accepted_spotted = []
     rejected_spotted = []
-    all_spotted = new_spotted
+    all_spotted = np.array(frame_extra_added)
     
     i = 0;
     for cell_ix in onacid_cells_ix:
-        print(cell_ix)
         if cell_ix in accepted_ix:
-            accepted_spotted.append(new_spotted[i])
+            accepted_spotted.append(frame_extra_added[i])
         elif cell_ix in rejected_ix:
-            rejected_spotted.append(new_spotted[i])
+            rejected_spotted.append(frame_extra_added[i])
         i += 1
+    
+    accepted_spotted = np.array(accepted_spotted)
+    rejected_spotted = np.array(rejected_spotted)
 
 #%% Plot time of each frame to see the delay introduced by various functionalities
 tottime = np.array(tottime)
@@ -128,13 +134,6 @@ height = root.winfo_screenheight()
 
 display_unsaved = 1
 if not unsaved: display_unsaved = 0;
-#
-#font = {'family' : 'normal',
-##        'weight' : 'bold',
-#        'size'   : 18}
-#
-#pl.rc('font', **font)
-
 
 font = 18
 mark = 10
@@ -147,12 +146,12 @@ pl.plot(gui_update, np.ones([int((t_cnm-cnm2.initbatch)/gui_refresh),1])*9.5, 'y
 
 distinguish = 0 # flag for whether to distinguish between accepted and rejected cells
 
-if display_unsaved:
-    if distinguish:
-        pl.plot(accepted_spotted,np.ones([len(accepted_spotted),1])*11,'g*', markersize=mark, label='New accepted cell detected')
-        pl.plot(rejected_spotted,np.ones([len(rejected_spotted),1])*11,'r*', markersize=mark, label='New rejected cell detected')
-    else:
-        pl.plot(all_spotted,np.ones([len(all_spotted),1])*11,'g*', markersize=mark, label='New cell detected')
+#if display_unsaved:
+if distinguish:
+    pl.plot(accepted_spotted,np.ones([len(accepted_spotted),1])*11,'g*', markersize=mark, label='New accepted cell detected')
+    pl.plot(rejected_spotted,np.ones([len(rejected_spotted),1])*11,'r*', markersize=mark, label='New rejected cell detected')
+else:
+    pl.plot(all_spotted,np.ones([len(all_spotted),1])*80,'g*', markersize=6, label='New cell detected')
         
 
 pl.title('Time per frame for the online pipeline\n' + r'$mean = ' + str(mean_rate)[:4] + '\pm' + str(std_time)[:3] + ' ms$',fontsize=font)
@@ -244,25 +243,36 @@ pl.legend()
 pl.ylim(y_min, y_max)
 
 #%% Check photostim frames and effects on traces
+pl.close('all')
+
 for cell in range(init_com_count,cnm2.N):
 #cell = 10
     pl.figure(); pl.plot(C[cell,:])
+    pl.title('Cell ' + str(cell))
     
-    for frame in framesSkipped:
+    try:
+        frames_skipped = framesSkipped
+    except: pass
+    
+    for frame in frames_skipped:
         pl.axvline(x=frame+cnm2.initbatch,color='r')
+        
+# also check neuropil signal
+pl.figure(); pl.plot(cnm2.C_on[0,:t_cnm])
+pl.title('Neuropil signal')
+for frame in frames_skipped:
+    pl.axvline(x=frame+cnm2.initbatch,color='r')
         
 #%% Check online traces
 pl.close('all')
 
 save_plots = 0
 
-#if unsaved:
-#    [x[1] for x in cnm.time_neuron_added]
-#    spotted = deepcopy(new_spotted)
-#    spotted.reverse()
-    
-spotted = list(all_spotted.copy() + cnm2.initbatch)
+spotted = list(accepted_spotted.copy() + cnm2.initbatch)  # accepted for now because online traces are only of those accepted
 spotted.reverse()
+
+i = 0; # separate counter for online_C
+
 
 for cell in accepted: # range(cnm2.N):
     pl.figure()
@@ -272,12 +282,26 @@ for cell in accepted: # range(cnm2.N):
     ylim_ = pl.ylim()
     pl.subplot(312); pl.plot(cnm2.C_on[cell+1,:t_cnm]); pl.ylabel('C_on')
     pl.ylim(ylim_)
-    pl.subplot(313); pl.plot(online_C[cell,:t_cnm]); pl.ylabel('RoiBuffer')
-    pl.ylim(ylim_)
+    
+    try:
+        if store_all_online:
+            pl.subplot(313); pl.plot(online_C[cell,:t_cnm]); pl.ylabel('online_C')
+        else:
+            pl.subplot(313); pl.plot(online_C[i,:t_cnm]); pl.ylabel('online_C')
+            i += 1;
+        pl.ylim(ylim_)
+    except: pass
     if cell >= K:
         fr = spotted.pop()
-        pl.plot([fr, fr], pl.ylim(), 'r')
+        print(fr)
+        pl.plot([fr, fr], pl.ylim(), 'r')   # something off with plotting this time now
         
     if save_plots:
-        pl.savefig(folder + '\cell_' + str(cell))
+#        subfolder = 'on_cell_plots' # 'off_cell_plots' # 
+#        save_folder = os.path.join(folder, subfolder)
+        save_folder = folder
+        if not os.path.exists(save_folder):
+            os.makedirs(save_folder)
+            
+        pl.savefig(os.path.join(save_folder, 'cell_' + str(cell)))
         pl.close()

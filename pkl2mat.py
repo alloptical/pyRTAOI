@@ -42,12 +42,12 @@ def pkl2mat(file_full_name = '',save_full_name = ''):
     save_dict['cnm_b'] = b
     save_dict['cnm_C'] = C #cnm.C
     save_dict['cnm_f'] = f #cnm.f
-    save_dict['frame_added'] = [x[1] for x in cnm.time_neuron_added]
-    print(file_data['init_com_count'])
-    print([x for x in cnm.time_neuron_added])
-    print([x[1] for x in cnm.time_neuron_added])
+#    save_dict['frame_added'] = [x[1] for x in cnm.time_neuron_added]
+#    print(file_data['init_com_count'])
+#    print([x for x in cnm.time_neuron_added])
+#    print([x[1] for x in cnm.time_neuron_added])
 #    return
-
+    save_dict['frame_added'] = file_data['frame_added'] # added record of new cells in pyrtaoi
 
     # cell traces
     save_dict['noisyC'] = cnm.noisyC

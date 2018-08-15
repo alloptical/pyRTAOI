@@ -68,7 +68,7 @@ from caiman.base.rois import extract_binary_masks_from_structural_channel
 #ref_movie_path = r'C:\Users\intrinsic\Desktop\samples\example1\init_results\20171229_OG245_t-052_Cycle00001_Ch2_substack1-200_init_seeded_DS_1.5.pkl'
 
 # example movies
-example = 7
+example = 4
 
 sample_folder = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples'
 example_folder = os.path.join(sample_folder, 'example' + str(example))
@@ -83,11 +83,11 @@ print('Ref movie path: ', ref_movie_path)
 movie_ext = ref_movie_path[-4:]
 
 if movie_ext  == '.tif':
-    K = 20
+    K = 5
     ds_factor = 1.5
     initbatch = 500
     minibatch_shape = 100
-    gSig = (4,4)  # expected cell radius
+    gSig = (10,10)  # expected cell radius
     expected_comps = 200
 
     lenient = 0
@@ -393,7 +393,7 @@ print('Loading video')
 try:
     print(Y_.shape)
 except:
-    Y_ = cm.load(movie_path, subindices=slice(initbatch,T1,None)) # 0,T1,None
+    Y_ = cm.load(movie_path, subindices=slice(initbatch,1000,None)) # 0,T1,None
     
 print('Video loaded')
 

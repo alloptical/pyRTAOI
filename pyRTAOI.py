@@ -429,7 +429,7 @@ class Worker(QObject):
         sens_stim_idx = 0
         LastPlot = 0
         framesProc = self.framesProc # all frames
-        framesSkipped = []
+        frames_skipped = []
         framesCaiman = 0 # frames count passed to caiman
         photo_stim_frames_caiman = []
         stim_frames_caiman = []
@@ -477,11 +477,12 @@ class Worker(QObject):
             img_min = self.c['img_min'].copy().astype(np.float32)
             ds_factor = self.c['ds_factor']
             dims = self.c['cnm_init'].dims
+            gnb = cnm2.gnb
             keep_prev = self.c['keep_prev']
 
             # Define OnACID parameters
             max_shift = np.ceil(10./ds_factor).astype('int')  # max shift allowed
-            accepted = [ix+cnm2.gnb for ix in cnm2.accepted] # count from 1 for easy C_on access
+            accepted = [ix+gnb for ix in cnm2.accepted] # count from 1 for easy C_on access
             rejected_count = cnm2.N - len(accepted)
             expect_components = True
             com_count = len(accepted) #self.c['cnm2'].N
@@ -511,9 +512,17 @@ class Worker(QObject):
             else:
                 coms_init = self.c['coms_init']
                 t_cnm = cnm2.initbatch
-            
+                
             coms = coms_init.copy()
-            self.online_C[:com_count,:init_t] = self.c['cnm2'].C_on[accepted,:init_t] # fill the init_t trace frames with init results
+
+
+            store_all_online = True # if True store online traces of both accepted and rejected cells
+            
+             # fill the init_t trace frames with init results (optional)
+            if store_all_online:
+                self.online_C[:cnm2.N,:init_t] = cnm2.C_on[gnb:cnm2.N+gnb,:init_t]
+            else:
+                self.online_C[:com_count,:init_t] = cnm2.C_on[accepted,:init_t]
             
 #            frame_extra_added = [t_cnm for cell in range(com_count)]
             frame_extra_added = []
@@ -555,7 +564,7 @@ class Worker(QObject):
                 qbuffer.get(timeout = max_wait)
                 qbuffer.task_done()
 
-                framesSkipped.append(framesProc)
+                frames_skipped.append(framesProc)
                 framesProc += 1
 
                 continue
@@ -665,10 +674,15 @@ class Worker(QObject):
 
                 # add data to buffer
                 try:
-                    curr_signal =  cnm2.C_on[accepted,t_cnm] # cnm2.noisyC is without deconvolution
-                    self.RoiBuffer[:com_count, BufferPointer] = curr_signal
-                    self.online_C[:com_count, t_cnm] = curr_signal # record the buffer values for offline analysis
+#                    curr_signal = cnm2.C_on[accepted, t_cnm] # cnm2.noisyC is without deconvolution
+                    self.RoiBuffer[:com_count, BufferPointer] = cnm2.C_on[accepted, t_cnm]
                     self.ROIlist_threshold[:com_count] = np.nanmean(self.RoiBuffer[:com_count,:], axis=1) + 3*np.nanstd(self.RoiBuffer[:com_count,:], axis=1)
+                    
+                     # record the buffer values for offline analysis
+                    if store_all_online:
+                        self.online_C[:cnm2.N, t_cnm] = cnm2.C_on[gnb:cnm2.N+gnb, t_cnm]  # store also background signal?
+                    else:
+                        self.online_C[:com_count, t_cnm] = cnm2.C_on[accepted, t_cnm]                    
                 except Exception as e:
                     print(e)
                     logger.exception(e)
@@ -822,6 +836,9 @@ class Worker(QObject):
             self.c['coms'] = coms
             if opsin_mask.size:
                 cnm2.opsin = opsin
+                
+            frame_added_init = np.ones(10).astype('int')*cnm2.initbatch
+            frame_added = np.concatenate((frame_added_init, frame_extra_added))
 
             # save results to Temp folder
             self.movie_name = p['currentMoviePath']
@@ -832,18 +849,21 @@ class Worker(QObject):
             save_dict['init_com_count'] = K_init # com_count from init file (in case any cells removed from init file)
             save_dict['online_com_count'] = com_count
             save_dict['accepted'] = accepted  # accepted currently stored inside cnm2 as well
-            save_dict['frame_extra_added'] = frame_extra_added
+#            save_dict['frame_extra_added'] = frame_extra_added
+            save_dict['frame_added'] = frame_added
             save_dict['t_cnm'] = t_cnm
             save_dict['tottime'] = self.tottime
             save_dict['shifts'] = self.shifts
             save_dict['coms'] = coms
             save_dict['ds_factor'] = ds_factor
+            save_dict['Cn'] = self.c['Cn_init']  # for easier offline check
             
             save_dict['online_photo_frames'] = online_photo_frames
             save_dict['online_photo_targets'] = online_photo_targets
             save_dict['photo_stim_frames_caiman'] = photo_stim_frames_caiman
             save_dict['stim_frames_caiman'] = stim_frames_caiman
-            save_dict['framesSkipped'] = framesSkipped
+            save_dict['frames_skipped'] = frames_skipped
+            
             if p['FLAG_STIM_TRIG_ENABLED'] :
                 save_dict['sensory_stim_frames'] = self.stim_frames
             else:
@@ -876,9 +896,9 @@ class Worker(QObject):
             except Exception as e:
                 print(e)
 
-            try:
+            try:  # some issue here sometimes? list index out of range for STATraceMaker.make_sta_file line
                 # save sta traces
-                self.sta_traces = STATraceMaker.make_sta_file(file_full_name=save_path,pre_samples = p['staPreFrame'],post_samples = p['staPostFrame'])   # some issue here? list index out of range
+                self.sta_traces = STATraceMaker.make_sta_file(file_full_name=save_path,pre_samples = p['staPreFrame'],post_samples = p['staPostFrame'])
                 sta_trial_avg = np.nanmean(self.sta_traces,1)
                 if(p['staAvgStopFrame']>p['staAvgStartFrame']):
                     sta_trial_avg_amp = np.nanmean(sta_trial_avg[:,p['staAvgStartFrame']+p['staPreFrame']:p['staAvgStopFrame']+p['staPreFrame']],1)
@@ -1835,7 +1855,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 
     def resetFigure(self):
-        plt.close('all')
+#        plt.close('all')
 
         self.ax1.cla()
         self.ax2.cla()
@@ -2645,6 +2665,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             self.overlap_thresh_doubleSpinBox.setValue(self.thresh_overlap)
 
             self.getValues()
+            self.updateTable()
 
             # connect stop_thread to stop button when analysis running
             self.stop_pushButton.clicked.connect(self.stop_thread)
