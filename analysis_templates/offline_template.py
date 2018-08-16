@@ -694,13 +694,12 @@ epochs = 1
 C, f = cnm2.C_on[cnm2.gnb:cnm2.M], cnm2.C_on[:cnm2.gnb]
 
 #%% Load pkl init object
-saved_pkl = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples\example1\init_results\20171229_OG245_t-052_Cycle00001_Ch2_init_cnmf_DS_1.5.pkl'
-pkl_datafile = load_object(saved_pkl)
+saved_pkl = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples\example1\init_results\20171229_OG245_t-052_Cycle00001_Ch2_substack1-200_init_seeded_DS_1.5_161139_filtered.pkl'
+init_values = load_object(saved_pkl)
 
 #mask = pkl_datafile['cnm_init'].A # access mask
 
 #%%
-init_values = pkl_datafile
 idx_components = init_values['idx_components']
 path_to_cnn_residual = os.path.join(caiman_datadir(), 'model', 'cnn_model_online.h5')
 

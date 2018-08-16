@@ -2312,11 +2312,11 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 #        self.c['removed_idx'] = []
         self.c['K_init'] = K
 
-        if idx_components is not None:
-            coms = self.c['coms_init']
+        coms = self.c['coms_init'].copy()
+        if idx_components is not None:            
             self.c['coms_init'] = coms[idx_components]
-
-
+            
+        self.c['coms_init_orig'] = coms
         self.dims = init_values['cnm_init'].dims
         self.InitNumROIs = K
         self.opsinMaskOn = False
@@ -2386,10 +2386,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             self.plotOnacidTraces(t=cnm_init.initbatch)
 
         # after new roi list initialised
-#            print('target idx list', self.TargetIdx)
         for idx in sorted(self.removeIdx, reverse=True):
             if idx in self.TargetIdx:
-#                    print('idx', idx)
                 self.TargetIdx.remove(idx)
             self.TargetIdx = [target-1 if target>idx else target for target in self.TargetIdx]
 
@@ -2397,25 +2395,59 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             self.checkOpsin()
 
         self.updateTargets()
-        self.updateStatusBar('Removed cells: ' + str([value+1 for value in self.removeIdx])[1:-1])
+#        self.updateStatusBar('Removed cells: ' + str([value+1 for value in self.removeIdx])[1:-1])
+        self.updateStatusBar('Removed ' + str(len(self.removeIdx)) + ' cells')
 
-        # save new init object
-        save_new_init = 0
-        
-        if save_new_init:
-            init_values_new = deepcopy(self.c)  # copy to not mess with self.c
-            init_values_new['idx_components'] = idx_keep # will be used during prepare_object to keep only cells of interest
-            #TODO: keep coms_init_orig somewhere to compare new object with for storing orig indeces of removed objects?
-            del init_values_new['cnm2']
-            init_values_new['removed_idx'] = self.removeIdx
+        # store the indices of cells removed from orig init file
+        try:
+            coms_init_orig = self.c['coms_init_orig']
+            orig_keep_idx = []
             
-            filename = p['refMoviePath'][:-4] + 'filtered.pkl'
-            init_folder = os.path.join(self.movie_folder, 'init_results')  # save init results in a separate folder            
-            save_path = os.path.join(init_folder, filename)
-            save_object(init_values_new, save_path)
-            print('New init file saved as ' + save_path)
+            for pair in self.c['coms_init'] :
+                idx = np.where(pair == coms_init_orig)[0]
+                if idx[0] == idx[1]:
+                    orig_keep_idx.append(idx[0])
+                else:
+                    print('Different indeces - check')
             
-            del init_values_new # free memory after saving
+            orig_K = coms_init_orig.shape[0]
+            orig_remove_idx = list(set(range(orig_K)) - set(orig_keep_idx))
+            
+            print('orig keep', orig_keep_idx)
+            print('orig remove', orig_remove_idx)
+            
+            try:
+                if self.c['CNN_filter']:
+                    cnn_remove_idx = self.c['cnn_removed_idx']
+#                    cnn_remove_idx = list(set(range(orig_K))-set(self.c['idx_components']))
+                    orig_remove_idx = list(set(orig_remove_idx) - set(cnn_remove_idx))  # keep manually removed indeces here only
+                    print('manual remove', orig_remove_idx)
+                    
+            except Exception as e: print(e)
+    
+            # save new init object
+            save_new_init = 1
+            
+            if save_new_init:
+                init_values_new = deepcopy(self.c)  # copy to avoid messing with self.c
+                init_values_new['idx_components'] = orig_keep_idx   # will be used during prepare_object to keep only cells of interest
+                init_values_new['removed_idx'] = orig_remove_idx   # also store for refeference
+                init_values_new['coms_init'] = self.c['coms_init_orig']  # keep the original
+                del init_values_new['cnm2']
+                
+#                filename = os.path.basename(p['refMoviePath'])[:-4] + '_filtered.pkl'
+#                init_folder = os.path.join(self.movie_folder, 'init_results')  # save init results in a separate folder            
+#                save_path = os.path.join(init_folder, filename)
+                
+                save_path = self.c['save_path'][:-4] + '_filtered.pkl'
+                init_values_new['save_path'] = save_path
+                
+                print('Saving new init file as ' + str(save_path))
+                save_object(init_values_new, save_path)
+                
+                del init_values_new   # free memory after saving
+        except Exception as e:
+            print(e)
         
         # clear removeIdx array
         self.removeIdx = []
@@ -2790,7 +2822,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             self.updateStatusBar('stream started')
 
         else:
-            self.updateStatusBar('No initialisation provided and PV not connected')
+            self.updateStatusBar('No initialisation provided or PV not connected')
             return
 
 
