@@ -228,6 +228,7 @@ def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1,
     # Find centre and radius for cells detected
     coms_init = com(cnm_init.A, d1, d2)
     
+    
     if CNN_filter:
         print('Filtering the components')
         A = cnm_init.A
@@ -237,13 +238,17 @@ def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1,
 
         idx_keep = np.where(predictions[:, 1] >= thresh_cnn)[0].tolist()
 #        coms_init = coms_init[idx_keep]
-
+        
 
     # Setting idx_components to select which cells are kept
     if CNN_filter:
         idx_components=idx_keep
+        K_orig = cnm_init.A.shape[-1]
+        K = len(idx_components)
     else:
         idx_components=None
+        K = cnm_init.A.shape[-1]    # store actual K value detected
+
 
     if ds_factor == 1:
         last_frame = Y[-1]
@@ -273,13 +278,16 @@ def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1,
 
     if CNN_filter:
         init_values['thresh_cnn'] = thresh_cnn
+        init_values['K_orig'] = K_orig
     
     if save_init:
         cnm_init.dview = None
-        save_separately = True # temp flag to save in a folder inside movie folder
+        save_separately = True # flag to save in a folder inside movie folder
+        daytimestr = time.strftime("%Y%m%d-%H%M%S")
+        timestr = daytimestr[-6:]
         
         if save_separately:
-            filename = os.path.basename(ref_movie)[:-4] + '_init_' + init_method + '_DS_' + str(ds_factor) + '.pkl'
+            filename = os.path.basename(ref_movie)[:-4] + '_init_' + init_method + '_DS_' + str(ds_factor) + '_' + timestr + '.pkl'
             movie_folder = os.path.dirname(ref_movie)            
             init_folder = os.path.join(movie_folder, 'init_results')  # save init results in a separate folder
             
@@ -288,7 +296,7 @@ def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1,
                 
             save_path = os.path.join(init_folder, filename)
         else:
-            save_path  = ref_movie[:-4] + '_init_' + init_method + '_DS_' + str(ds_factor) + '.pkl'
+            save_path  = ref_movie[:-4] + '_init_' + init_method + '_DS_' + str(ds_factor) + '_' + timestr +'.pkl'
         
         save_object(init_values, save_path)
         print('Init file saved as ' + save_path)

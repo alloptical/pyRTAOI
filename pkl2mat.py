@@ -52,10 +52,11 @@ def pkl2mat(file_full_name = '',save_full_name = ''):
     # cell traces
     save_dict['noisyC'] = cnm.noisyC
     save_dict['cnm_dims'] = cnm.dims
-    try:
-        save_dict['frame_extra_added'] = file_data['frame_extra_added']
-    except:
-        save_dict['frame_all_added'] = cnm.time_neuron_added  # should keep all info for cell idx in case of removing any
+    
+#    try:
+#        save_dict['frame_extra_added'] = file_data['frame_extra_added']
+#    except:
+#        save_dict['frame_all_added'] = cnm.time_neuron_added  # should keep all info for cell idx in case of removing any
     
     # copy parameters
     param_names = ['ds_factor', 'photo_stim_frames_caiman','K','min_SNR','gSig','rval_thr','thresh_overlap','merge_thresh','expected_comps']

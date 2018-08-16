@@ -6,6 +6,8 @@ import tkinter as tk
 import copy
 import numpy as np
 import matplotlib.pyplot as pl
+import cv2
+from scipy.sparse import issparse
 
 import caiman as cm
 from caiman.utils.utils import load_object
@@ -34,13 +36,58 @@ A, b = cnm2.Ab[:, cnm2.gnb:cnm2.M], cnm2.Ab[:, :cnm2.gnb]
 C, f = cnm2.C_on[cnm2.gnb:cnm2.M,:t_cnm], cnm2.C_on[:cnm2.gnb,:t_cnm]
 dims = cnm2.dims
 
+# Convert A to numpy array
+if issparse(A):
+    A = np.array(A.todense())
+else:
+    A = np.array(A)
+
 #YrA=cnm2.YrA # residual signal
 noisyC = cnm2.noisyC[:,:t_cnm]
 YrA = noisyC[cnm2.gnb:cnm2.M] - C
 Y_r=cnm2.YrA + cnm2.C # raw signal
 
+try:
+    frames_skipped = framesSkipped
+except: pass
+
 #%% Visualise OnACID output
 view_patches_bar([], A, C, b, f, dims[0], dims[1], YrA=YrA, img=None) #img=Cn for background frame, None for cell mask
+
+#%% Check cell mask and init coms
+cell_mask = np.reshape(np.array(A.mean(axis=1)), dims, order='F')
+#cell_mask = np.reshape(A[:,1], (d1,d2), order='F') # for single cells
+
+cell_mask_ = cv2.resize(cell_mask, (512, 512), interpolation=cv2.INTER_CUBIC)
+pl.figure();
+pl.imshow(cell_mask_)
+
+coms_ = coms*ds_factor
+for cell in range(init_com_count):
+    x = coms_[cell,1]
+    y = coms_[cell,0]
+    pl.plot(x, y, '.r')
+    pl.text(x-10, y-10, str(cell), fontsize=12)
+
+#pl.plot(coms_[:init_com_count,1], coms_[:init_com_count,0], '.r')
+
+#vmax = np.percentile(cell_mask_, 95)
+#pl.imshow(cell_mask_, interpolation='None', cmap=pl.cm.gray, vmax=vmax)  # for more 'binarised' look
+    
+#%% Find original indeces of cells deleted
+coms_init_orig = c['coms_init']
+
+orig_keep_idx = []
+
+for pair in coms_init:
+    idx = np.where(pair == coms_init_orig)[0]
+    if idx[0] == idx[1]:
+        orig_keep_idx.append(idx[0])
+    else:
+        print('Different indeces - check')
+
+orig_K = coms_init_orig.shape[0]
+orig_removed_idx = list(set(range(orig_K)) - set(orig_keep_idx))
 
 #%% Compare frame_extra_added with time neuron added
 if not unsaved:
@@ -254,13 +301,13 @@ for cell in range(init_com_count,cnm2.N):
         frames_skipped = framesSkipped
     except: pass
     
-    for frame in frames_skipped:
+    for frame in photo_stim_frames_caiman:
         pl.axvline(x=frame+cnm2.initbatch,color='r')
         
 # also check neuropil signal
 pl.figure(); pl.plot(cnm2.C_on[0,:t_cnm])
 pl.title('Neuropil signal')
-for frame in frames_skipped:
+for frame in photo_stim_frames_caiman:
     pl.axvline(x=frame+cnm2.initbatch,color='r')
         
 #%% Check online traces
@@ -271,7 +318,7 @@ save_plots = 0
 spotted = list(accepted_spotted.copy() + cnm2.initbatch)  # accepted for now because online traces are only of those accepted
 spotted.reverse()
 
-i = 0; # separate counter for online_C
+i = 0; # separate counter for online_C if online_C saves only accepted traces
 
 
 for cell in accepted: # range(cnm2.N):

@@ -740,7 +740,7 @@ class Worker(QObject):
                         self.updateTargetROIs_signal.emit()
                         FLAG_SEND_COORDS = False
                     num_photostim +=1
-                    frames_post_photostim =1
+                    frames_post_photostim = 1
                     photo_stim_frames_caiman.append(framesCaiman)
 
                 # Trigger sensory stimulation
@@ -856,7 +856,11 @@ class Worker(QObject):
             save_dict['shifts'] = self.shifts
             save_dict['coms'] = coms
             save_dict['ds_factor'] = ds_factor
-            save_dict['Cn'] = self.c['Cn_init']  # for easier offline check
+            
+            # for easier offline check
+            save_dict['Cn'] = self.c['Cn_init']
+            save_dict['img_norm'] = img_norm
+            save_dict['img_min'] = img_min
             
             save_dict['online_photo_frames'] = online_photo_frames
             save_dict['online_photo_targets'] = online_photo_targets
@@ -1225,13 +1229,50 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
     def updateTable(self):
         self.Thresh_tableWidget.clear()  # empty the table
         self.Thresh_tableWidget.setHorizontalHeaderLabels(['X','Y','Threshold','STA'])  # column names disappear with clearing
-
+        self.Thresh_tableWidget.setColumnCount(4)
+    
+        if self.thisROIIdx > self.MaxNumROIs:  # do not allow to miss detected cells
+            self.MaxNumROIs = self.thisROIIdx + 10
+            print('Extending max num ROIs to ' + str(self.MaxNumROIs))
+            self.MaxNumROIs_spinBox.setValue(self.MaxNumROIs)
+        
         NumROIs = self.MaxNumROIs
         self.Thresh_tableWidget.setRowCount(NumROIs)
         self.Thresh_labels = [QTableWidgetItem() for i in range(NumROIs)]
         self.STA_labels = [QTableWidgetItem() for i in range(NumROIs)]
         self.X_labels = [QTableWidgetItem() for i in range(NumROIs)]
         self.Y_labels = [QTableWidgetItem() for i in range(NumROIs)]
+        
+#        self.ROIcontour_item.clear()
+        
+        # if ROIs present, refill the table
+#        self.ALL_ROI_SELECTED = False
+        
+        for ROIIdx in range(self.thisROIIdx):
+            
+#            if ROIIdx == self.MaxNumROIs:
+#                self.ALL_ROI_SELECTED = True
+#                print('All allowed ROIs selected!')
+#                break
+                
+            thisROIx = self.ROIlist[ROIIdx]["ROIx"]
+            thisROIy = self.ROIlist[ROIIdx]["ROIy"]
+            qcolor = self.ROIlist[ROIIdx]["ROIcolor"]
+
+#            self.ROIcontour_item.addPoints(x = [thisROIx], y = [thisROIy], pen = pg.mkPen(qcolor, width=2), size = self.RoiRadius*2)
+
+            tempbrush = QBrush(qcolor)
+            self.X_labels[ROIIdx].setForeground(tempbrush)
+            self.Y_labels[ROIIdx].setForeground(tempbrush)
+            self.Thresh_labels[ROIIdx].setForeground(tempbrush)
+
+            self.X_labels[ROIIdx].setText(str('{:.0f}'.format(thisROIx)))
+            self.Y_labels[ROIIdx].setText(str('{:.0f}'.format(thisROIy)))
+
+            self.Thresh_tableWidget.setItem(ROIIdx,0,self.X_labels[ROIIdx])
+            self.Thresh_tableWidget.setItem(ROIIdx,1,self.Y_labels[ROIIdx])
+            self.Thresh_tableWidget.setItem(ROIIdx,2,self.Thresh_labels[ROIIdx])
+            
 
     def showMousePosition(self,event):
         x = event.x()
@@ -1431,7 +1472,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         p['photoProtoInx'] = self.photoProtoInx
 
 #        self.ds_factor = p['dsFactor']
-        self.MaxNumROIs = p['MaxNumROIs']
+#        self.MaxNumROIs = p['MaxNumROIs']
         self.flipRowChanged()
         self.currentZoomChanged()
 
@@ -2236,6 +2277,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
         if self.MaxNumROIs_spinBox.value() < K+5:
             self.MaxNumROIs_spinBox.setValue(K+10)
+            
+        self.MaxNumROIs = self.MaxNumROIs_spinBox.value()
 
         if movie_ext == '.pkl':
             cnm = init_values['cnm_init']
@@ -2266,7 +2309,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
         self.c = init_values
         self.c['cnm2'] = cnm2
-        self.c['removed_idx'] = []
+#        self.c['removed_idx'] = []
         self.c['K_init'] = K
 
         if idx_components is not None:
@@ -2302,7 +2345,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 
     def updateInitialisation(self):
-        keep_idx = list(set(range(self.thisROIIdx)) - set(self.removeIdx))
+        idx_keep = list(set(range(self.thisROIIdx)) - set(self.removeIdx))
 
         # reset previous settings
         self.ROIcontour_item.clear()
@@ -2323,7 +2366,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         self.c['cnm2'].accepted = self.c['cnm2'].accepted[:K] # all cells accepted post initialisation
 
         coms = self.c['coms_init']
-        self.c['coms_init'] = coms[keep_idx]
+        self.c['coms_init'] = coms[idx_keep]
 
         self.InitNumROIs_spinBox.setValue(K)
         self.InitNumROIs = K
@@ -2356,6 +2399,25 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         self.updateTargets()
         self.updateStatusBar('Removed cells: ' + str([value+1 for value in self.removeIdx])[1:-1])
 
+        # save new init object
+        save_new_init = 0
+        
+        if save_new_init:
+            init_values_new = deepcopy(self.c)  # copy to not mess with self.c
+            init_values_new['idx_components'] = idx_keep # will be used during prepare_object to keep only cells of interest
+            #TODO: keep coms_init_orig somewhere to compare new object with for storing orig indeces of removed objects?
+            del init_values_new['cnm2']
+            init_values_new['removed_idx'] = self.removeIdx
+            
+            filename = p['refMoviePath'][:-4] + 'filtered.pkl'
+            init_folder = os.path.join(self.movie_folder, 'init_results')  # save init results in a separate folder            
+            save_path = os.path.join(init_folder, filename)
+            save_object(init_values_new, save_path)
+            print('New init file saved as ' + save_path)
+            
+            del init_values_new # free memory after saving
+        
+        # clear removeIdx array
         self.removeIdx = []
 
 
@@ -2664,8 +2726,11 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             self.merge_thresh_doubleSpinBox.setValue(self.merge_thresh)
             self.overlap_thresh_doubleSpinBox.setValue(self.thresh_overlap)
 
+            if self.MaxNumROIs_spinBox.value() != self.MaxNumROIs:
+                self.MaxNumROIs = self.MaxNumROIs_spinBox.value()
+                self.updateTable()
+                
             self.getValues()
-            self.updateTable()
 
             # connect stop_thread to stop button when analysis running
             self.stop_pushButton.clicked.connect(self.stop_thread)

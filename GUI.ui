@@ -745,22 +745,6 @@
             </property>
            </widget>
           </item>
-          <item row="1" column="4">
-           <widget class="QPushButton" name="loadMask_pushButton">
-            <property name="enabled">
-             <bool>true</bool>
-            </property>
-            <property name="text">
-             <string>Load mask</string>
-            </property>
-            <property name="iconSize">
-             <size>
-              <width>14</width>
-              <height>14</height>
-             </size>
-            </property>
-           </widget>
-          </item>
           <item row="12" column="2">
            <widget class="QSpinBox" name="cellRadius_spinBox_2">
             <property name="minimum">
@@ -921,6 +905,22 @@
            <widget class="QCheckBox" name="saveAsTiff_checkBox">
             <property name="text">
              <string>Save tiff</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="4">
+           <widget class="QPushButton" name="loadMask_pushButton">
+            <property name="enabled">
+             <bool>true</bool>
+            </property>
+            <property name="text">
+             <string>Load mask</string>
+            </property>
+            <property name="iconSize">
+             <size>
+              <width>14</width>
+              <height>14</height>
+             </size>
             </property>
            </widget>
           </item>

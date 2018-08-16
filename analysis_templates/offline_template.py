@@ -80,6 +80,8 @@ print('Ref movie path: ', ref_movie_path)
 
 #ref_movie_path = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples\example8\init_results\20180107_OG242_t-001_Cycle00001_Ch2_init_cnmf_DS_1.5.pkl'
 
+ref_movie_path = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\tests on rig\20180811\init_results\20180811_OG300_t_0003_rtaoi_init_seeded_DS_2.0.pkl'
+
 movie_ext = ref_movie_path[-4:]
 
 if movie_ext  == '.tif':
@@ -134,10 +136,9 @@ initbatch = cnm_init.initbatch
 NumROIs = c['expected_comps'] # as set in the interface OR c['expected_comps']
 N_samples = c['N_samples']
 K = c['K']
-coms_init = c['coms_init']
 Yr = c['Yr']
 coms_init = c['coms_init']
-
+idx_components = init_values['idx_components']
 
 #%% Visualise the results of initialisation
 visualise_init = True
@@ -255,6 +256,7 @@ coms_init = c['coms_init']
 Yr = c['Yr']
 coms_init = c['coms_init']
 
+
 #%% Filter seeded
 A, C, b, f, YrA, sn = cnm_init.A, cnm_init.C, cnm_init.b, cnm_init.f, cnm_init.YrA, cnm_init.sn
 
@@ -277,11 +279,16 @@ A, C = A[:, predictions[:, 1] >=
 noisyC = cnm_init.Cin # [cnm_init.gnb:cnm_init.A.shape[-1]+1] #cnm2.noisyC[cnm2.gnb:cnm2.M]
 YrA = noisyC[predictions[:, 1] >= thresh_cnn] - C
 
+idx_components = ind_keep
+
+#%% Optionally discard additional cells
+
+
 #%% Prepare object for OnACID
 
 # Setting idx_components to ind_keep to select only cells that passed filtering (None means all kept)
 try:
-    idx_components = ind_keep
+    idx_components
     coms_init = coms_init[idx_components]
 except:
     idx_components = None
@@ -385,15 +392,19 @@ cnm2.thresh_CNN_noisy = 0.5
 epochs = 1
 cnm2.Ab_epoch = []                       # save the shapes at the end of each epoch
 
+photostim = True # if True, some frames will be dropped
+if photostim:
+    print('Load frames_skipped before running onacid')
+
 #%% Run OnACID multiple times (epochs)
-#movie_path = r'C:\Users\intrinsic\caiman_data\sample_vid\stimulated_test\20170329_OG151_t-008_Substack (1-3000)--(500-3000).tif'
-movie_path = ref_movie_path
+movie_path = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\tests on rig\20180811\20180811_OG300_t-004_Cycle00001_Ch2.tif'
+#movie_path = ref_movie_path
 
 print('Loading video')
 try:
     print(Y_.shape)
 except:
-    Y_ = cm.load(movie_path, subindices=slice(initbatch,1000,None)) # 0,T1,None
+    Y_ = cm.load(movie_path, subindices=slice(initbatch,T1,None))
     
 print('Video loaded')
 
@@ -403,6 +414,10 @@ for iter in range(epochs):
         
         if np.isnan(np.sum(frame)):
             raise Exception('Frame ' + str(frame_count) + ' contains nan')
+            
+        if photostim:
+            if frame_count in frames_skipped:  # discard photostim frames
+                continue
         
         frame_ = frame.copy().astype(np.float32)
         if ds_factor > 1:
@@ -558,6 +573,9 @@ b_trace = [osi.b for osi in cnm2.OASISinstances] if hasattr(
 deconvolved = [osi.s for osi in cnm2.OASISinstances]
 
 coms_post = com(A, *dims)
+
+frame_added_init = np.ones(K).astype('int')*cnm2.initbatch
+frame_added = np.concatenate((frame_added_init, new_spotted))
 
 #%% Visualise OnACID output
 pl.figure()
