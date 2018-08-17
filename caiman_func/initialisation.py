@@ -292,7 +292,7 @@ def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1,
         
         daytimestr = time.strftime("%Y%m%d-%H%M%S")
         timestr = daytimestr[-6:]
-        save_time = True # include time when saving to avoid overwriting
+        save_time = True # include time when saving to avoid overwriting when repeating offline
         
         if save_separately:
             if save_time:

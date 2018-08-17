@@ -79,12 +79,13 @@ coms_init_orig = c['coms_init']
 
 orig_keep_idx = []
 
-for pair in coms_init:
+for pair in coms: # coms_init
     idx = np.where(pair == coms_init_orig)[0]
-    if idx[0] == idx[1]:
-        orig_keep_idx.append(idx[0])
-    else:
-        print('Different indeces - check')
+    if idx.size:
+        if idx[0] == idx[1]:
+            orig_keep_idx.append(idx[0])
+        else:
+            print('Different indeces - check')
 
 orig_K = coms_init_orig.shape[0]
 orig_removed_idx = list(set(range(orig_K)) - set(orig_keep_idx))

@@ -287,6 +287,7 @@ class DataStream(QObject):
             if p['moviePath'] != 'U:/simulate_movie/20170823.tif':
                 print('Loading video')
                 Y_ = cm.load(p['moviePath'], subindices=slice(0,10000,None))
+                print(Y_.shape)
                 print('Video loaded')
             else:
                 print('No video provided!')
@@ -428,7 +429,7 @@ class Worker(QObject):
         # local counts
         sens_stim_idx = 0
         LastPlot = 0
-        framesProc = self.framesProc # all frames
+        framesProc = self.framesProc # all online frames
         frames_skipped = []
         framesCaiman = 0 # frames count passed to caiman
         photo_stim_frames_caiman = []
@@ -502,7 +503,6 @@ class Worker(QObject):
                 coms_init = self.c['coms']
                 if keep_full_traces:
                     t_cnm = cnm2.t
-                    init_t = t_cnm
 #                else:
 ##                    mbs = cnm2.minibatch_shape
 #                    init_shape = cnm2.initbatch
@@ -513,10 +513,11 @@ class Worker(QObject):
                 coms_init = self.c['coms_init']
                 t_cnm = cnm2.initbatch
                 
+            init_t = t_cnm
             coms = coms_init.copy()
-
-
+            
             store_all_online = True # if True store online traces of both accepted and rejected cells
+            frame_extra_added = []
             
              # fill the init_t trace frames with init results (optional)
             if store_all_online:
@@ -524,10 +525,6 @@ class Worker(QObject):
             else:
                 self.online_C[:com_count,:init_t] = cnm2.C_on[accepted,:init_t]
             
-#            frame_extra_added = [t_cnm for cell in range(com_count)]
-            frame_extra_added = []
-            
-
             # Extract opsin mask info constructed from c1v1 image
             try:
                 opsin_mask = self.c['opsin_mask']
@@ -571,6 +568,26 @@ class Worker(QObject):
 
             elif frames_post_photostim == photo_duration:
                 frames_post_photostim = 0
+                
+            # offline only: to skip photostim frames
+#            photostim_movie = 1
+#            if photostim_movie:
+#                if p['FLAG_OFFLINE']:
+#                    # add these manually
+#                    photo_duration = 6
+#                    online_photo_frames = [200,350,500,650,800,950,1100,1250,1400,1550,1700,1850,2000,2150,2300]
+#                    frames_s = []
+#                    for frame in online_photo_frames:
+#                        frames_s = frames_s + list(np.arange(frame,frame+photo_duration))
+#                        
+#                    if framesProc in frames_s:
+#                        qbuffer.get(timeout = max_wait)
+#                        qbuffer.task_done()
+#                        
+#                        print('photostim frame: ', framesProc)
+#                        framesProc += 1
+##                        time.sleep(1)
+#                        continue
 
             # get data from queue
             framesCaiman+=1
@@ -578,7 +595,7 @@ class Worker(QObject):
                 frame_in = qbuffer.get(timeout = max_wait)
             except Exception: # timeout exception
                 print('Timeout Exception: empty qbuffer')
-                break # this may be a problem for online too? stops reading the stream completely if timeout happens
+                break # this may be a problem for online too? stops reading the stream completely if timeout happens. continue?
 
             t0 = time.time()
             framesProc = framesProc+1
@@ -2128,10 +2145,18 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                 self.resetMask()
                 return
             dims = cnm.dims
+            
+        try:
+            idx_components = data_loaded['idx_components']  # only display accepted cells
+        except:
+            idx_components = None
 
 
         if issparse(A_loaded):
             A_loaded = np.array(A_loaded.todense())
+            
+        if idx_components:
+            A_loaded = A_loaded[:,idx_components]
 
         self.A_loaded = np.array(A_loaded)
 
@@ -2145,7 +2170,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                 self.updateStatusBar('Mask dimension mismatch. Change downsampling to ' + str(512/dims[0])[:4] +
                                      ' or select a different mask')
                 return
-
             try:
                 self.opsinMaskOn = False
                 self.dims = dims
@@ -2162,189 +2186,192 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 
     def initialiseCaiman(self):
-        self.deleteTextItems()
-
-        if self.ref_movie_path:
-            movie_ext = os.path.splitext(p['refMoviePath'])[1]
-            self.updateStatusBar('Initialising...')
-        else:
-            self.updateStatusBar('No reference movie selected!')
-            return
-
-
-        # init parameters
-        if movie_ext == '.tif':
-            ds_factor = self.dsFactor_doubleSpinBox.value()
-            K = self.InitNumROIs_spinBox.value()
-
-            cell_radius = self.cellRadius_spinBox_2.value()
-            gSig = (cell_radius, cell_radius)
-            min_SNR = self.minSNR_doubleSpinBox.value()
-            rval_thr = self.rval_thresh_doubleSpinBox.value()  # for component quality
-            merge_thresh = self.merge_thresh_doubleSpinBox.value()
-            thresh_overlap = self.overlap_thresh_doubleSpinBox.value()
-
-
-        # init method to be used
-        opsin_seeded = self.UseOpsinMask_radioButton.isChecked()
-        mask_seeded = self.UseOnacidMask_radioButton.isChecked()
-        cnmf_init = not (opsin_seeded or mask_seeded)
-
-        # process image or load from pkl file directly
-        if cnmf_init:
+        try:
+            self.deleteTextItems()
+    
+            if self.ref_movie_path:
+                movie_ext = os.path.splitext(p['refMoviePath'])[1]
+                self.updateStatusBar('Initialising...')
+            else:
+                self.updateStatusBar('No reference movie selected!')
+                return
+    
+    
+            # init parameters
             if movie_ext == '.tif':
+                ds_factor = self.dsFactor_doubleSpinBox.value()
                 K = self.InitNumROIs_spinBox.value()
-                print('Starting CNMF initialisation with tiff file')
-                lframe, init_values = initialise(self.ref_movie_path, init_method='cnmf',
-                                                 K=K, gSig=gSig, initbatch=500,
-                                                 ds_factor=ds_factor, rval_thr=rval_thr,
-                                                 thresh_overlap=thresh_overlap,
-                                                 save_init=True, mot_corr=True,
-                                                 merge_thresh=merge_thresh,
-                                                 decay_time=0.2, min_SNR=min_SNR)
-
-            elif movie_ext == '.pkl':
-                print('Loading initialisation file')
-                init_values = load_object(self.ref_movie_path)
-                ds_factor = init_values['ds_factor']
-                self.dsFactor_doubleSpinBox.setValue(ds_factor)
-
-
-        elif opsin_seeded:
-            if self.A_opsin.size:
+    
+                cell_radius = self.cellRadius_spinBox_2.value()
+                gSig = (cell_radius, cell_radius)
+                min_SNR = self.minSNR_doubleSpinBox.value()
+                rval_thr = self.rval_thresh_doubleSpinBox.value()  # for component quality
+                merge_thresh = self.merge_thresh_doubleSpinBox.value()
+                thresh_overlap = self.overlap_thresh_doubleSpinBox.value()
+    
+    
+            # init method to be used
+            opsin_seeded = self.UseOpsinMask_radioButton.isChecked()
+            mask_seeded = self.UseOnacidMask_radioButton.isChecked()
+            cnmf_init = not (opsin_seeded or mask_seeded)
+    
+            # process image or load from pkl file directly
+            if cnmf_init:
                 if movie_ext == '.tif':
-                    expected_dim = int(512/ds_factor)
-                    mask_dim = int(np.sqrt(self.A_opsin.shape[0]))
-                    equal_size = mask_dim == expected_dim
-                    if not equal_size:
-                        print('Change of donwsampling detected; resizing opsin mask')
-                        self.createOpsinMask()
-
-                    print('Starting seeded initialisation using the opsin mask')
-                    lframe, init_values = initialise(self.ref_movie_path, init_method='seeded',
-                                                     Ain=self.A_opsin, gSig=gSig,
-                                                     ds_factor=ds_factor, initbatch=500,
-                                                     rval_thr=rval_thr, merge_thresh=merge_thresh,
+                    K = self.InitNumROIs_spinBox.value()
+                    print('Starting CNMF initialisation with tiff file')
+                    lframe, init_values = initialise(self.ref_movie_path, init_method='cnmf',
+                                                     K=K, gSig=gSig, initbatch=500,
+                                                     ds_factor=ds_factor, rval_thr=rval_thr,
                                                      thresh_overlap=thresh_overlap,
                                                      save_init=True, mot_corr=True,
-                                                     min_SNR=min_SNR, CNN_filter=True)
-
+                                                     merge_thresh=merge_thresh,
+                                                     decay_time=0.2, min_SNR=min_SNR)
+    
+                elif movie_ext == '.pkl':
+                    print('Loading initialisation file')
+                    init_values = load_object(self.ref_movie_path)
+                    ds_factor = init_values['ds_factor']
+                    self.dsFactor_doubleSpinBox.setValue(ds_factor)
+    
+    
+            elif opsin_seeded:
+                if self.A_opsin.size:
+                    if movie_ext == '.tif':
+                        expected_dim = int(512/ds_factor)
+                        mask_dim = int(np.sqrt(self.A_opsin.shape[0]))
+                        equal_size = mask_dim == expected_dim
+                        if not equal_size:
+                            print('Change of donwsampling detected; resizing opsin mask')
+                            self.createOpsinMask()
+    
+                        print('Starting seeded initialisation using the opsin mask')
+                        lframe, init_values = initialise(self.ref_movie_path, init_method='seeded',
+                                                         Ain=self.A_opsin, gSig=gSig,
+                                                         ds_factor=ds_factor, initbatch=500,
+                                                         rval_thr=rval_thr, merge_thresh=merge_thresh,
+                                                         thresh_overlap=thresh_overlap,
+                                                         save_init=True, mot_corr=True,
+                                                         min_SNR=min_SNR, CNN_filter=True)
+    
+                    else:
+                        self.updateStatusBar('A non-tif file was provided - select a tif movie to initialise with a mask')
+                        return
+                else:
+                    self.updateStatusBar('No opsin mask created!')
+    
+    
+            elif mask_seeded:
+                if movie_ext == '.tif':
+                    expected_dim = int(512/ds_factor)
+                    mask_dim = int(np.sqrt(self.A_loaded.shape[0]))
+                    equal_size = mask_dim == expected_dim
+                    if not equal_size:
+                        self.updateStatusBar('Mask dimension mismatch. Change downsampling back to ' + str(512/mask_dim)[:4] +
+                                             ' or select a different mask')
+                        return
+    
+                    print('Starting seeded initialisation using the mask provided')
+                    lframe, init_values = initialise(self.ref_movie_path, init_method='seeded', Ain=self.A_loaded,
+                                                     ds_factor=ds_factor, initbatch=500, rval_thr=0.85,
+                                                     thresh_overlap=0.1, save_init=True, mot_corr=True,
+                                                     merge_thresh=0.85)
+    
                 else:
                     self.updateStatusBar('A non-tif file was provided - select a tif movie to initialise with a mask')
                     return
-            else:
-                self.updateStatusBar('No opsin mask created!')
+    
+            # Prepare object for OnACID
+            idx_components = init_values['idx_components']
+            path_to_cnn_residual = os.path.join(caiman_datadir(), 'model', 'cnn_model_online.h5')
+    
+            cnm2 = deepcopy(init_values['cnm_init'])
+            cnm2._prepare_object(np.asarray(init_values['Yr']), init_values['T1'],
+                                 init_values['expected_comps'], idx_components=idx_components,
+                                 min_num_trial=2, N_samples_exceptionality=int(init_values['N_samples']),
+                                 path_to_model=path_to_cnn_residual)
+    
+            cnm2.opsin = None
+            cnm2.accepted = list(range(0,cnm2.N))
+            cnm2.t = cnm2.initbatch
+    
+            # Extract number of cells detected
+            K = cnm2.N
+            self.InitNumROIs_spinBox.setValue(K)
+            print('Number of components initialised: ' + str(K))
+    
+            if self.MaxNumROIs_spinBox.value() < K+5:
+                self.MaxNumROIs_spinBox.setValue(K+10)
+                
+            self.MaxNumROIs = self.MaxNumROIs_spinBox.value()
+    
+            if movie_ext == '.pkl':
+                cnm = init_values['cnm_init']
+                cell_radius = cnm.gSig[0]*ds_factor
+                rval_thr = cnm.rval_thr
+                merge_thresh = cnm.merge_thresh
+                thresh_overlap = cnm.thresh_overlap
+                try:
+                    min_SNR = init_values['min_SNR']
+                except:
+                    min_SNR = 2.5 # default
+    
+                self.cellRadius_spinBox_2.setValue(cell_radius)
+                self.rval_thresh_doubleSpinBox.setValue(rval_thr)
+                self.merge_thresh_doubleSpinBox.setValue(merge_thresh)
+                self.overlap_thresh_doubleSpinBox.setValue(thresh_overlap)
+                self.minSNR_doubleSpinBox.setValue(min_SNR)
+    
+    
+            self.cell_radius = cell_radius
+    #        self.gSig = (cell_radius, cell_radius)
+            self.min_SNR = min_SNR
+            self.rval_thr = rval_thr
+            self.merge_thresh = merge_thresh
+            self.thresh_overlap = thresh_overlap
+            self.ds_factor = ds_factor
+            self.K_init = K
+    
+            self.c = init_values
+            self.c['cnm2'] = cnm2
+    #        self.c['removed_idx'] = []
+            self.c['K_init'] = K
+    
+            coms = self.c['coms_init'].copy()
+            if idx_components is not None:            
+                self.c['coms_init'] = coms[idx_components]
+                
+            self.c['coms_init_orig'] = coms
+            self.dims = init_values['cnm_init'].dims
+            self.InitNumROIs = K
+            self.opsinMaskOn = False
+            self.imageItem.setImage(cv2.resize(self.c['img_norm'],(512,512),interpolation=cv2.INTER_CUBIC)) # display FOV
+    
+            if self.A_opsin.size:
+                print('Checking opsin overlap')
+                self.checkOpsin()
+    
+            self.initialiseROI()
+            for i in range(K):
+                y, x = init_values['coms_init'][i]  # reversed
+                self.getROImask(thisROIx = x, thisROIy = y)
+    
+            self.UseONACID_checkBox.setEnabled(True)
+            self.UseONACID_checkBox.setChecked(True)
+            if self.selectAll_checkBox.isChecked():
+                self.selectAllROIs()
+    
+            self.updateStatusBar('Initialision completed')
+            show_traces = 1
+            if show_traces:
+                self.showROIIdx()
+                cnm_init = init_values['cnm_init']
+                self.plotOnacidTraces(t=cnm_init.initbatch)
+        except Exception as e:
+            print(e)
 
 
-        elif mask_seeded:
-            if movie_ext == '.tif':
-                expected_dim = int(512/ds_factor)
-                mask_dim = int(np.sqrt(self.A_loaded.shape[0]))
-                equal_size = mask_dim == expected_dim
-                if not equal_size:
-                    self.updateStatusBar('Mask dimension mismatch. Change downsampling back to ' + str(512/mask_dim)[:4] +
-                                         ' or select a different mask')
-                    return
-
-                print('Starting seeded initialisation using the mask provided')
-                lframe, init_values = initialise(self.ref_movie_path, init_method='seeded', Ain=self.A_loaded,
-                                                 ds_factor=ds_factor, initbatch=500, rval_thr=0.85,
-                                                 thresh_overlap=0.1, save_init=True, mot_corr=True,
-                                                 merge_thresh=0.85)
-
-            else:
-                self.updateStatusBar('A non-tif file was provided - select a tif movie to initialise with a mask')
-                return
-
-        # Prepare object for OnACID
-        idx_components = init_values['idx_components']
-        path_to_cnn_residual = os.path.join(caiman_datadir(), 'model', 'cnn_model_online.h5')
-
-        cnm2 = deepcopy(init_values['cnm_init'])
-        cnm2._prepare_object(np.asarray(init_values['Yr']), init_values['T1'],
-                             init_values['expected_comps'], idx_components=idx_components,
-                             min_num_trial=2, N_samples_exceptionality=int(init_values['N_samples']),
-                             path_to_model=path_to_cnn_residual)
-
-        cnm2.opsin = None
-        cnm2.accepted = list(range(0,cnm2.N))
-        cnm2.t = cnm2.initbatch
-
-        # Extract number of cells detected
-        K = cnm2.N
-        self.InitNumROIs_spinBox.setValue(K)
-        print('Number of components initialised: ' + str(K))
-
-        if self.MaxNumROIs_spinBox.value() < K+5:
-            self.MaxNumROIs_spinBox.setValue(K+10)
-            
-        self.MaxNumROIs = self.MaxNumROIs_spinBox.value()
-
-        if movie_ext == '.pkl':
-            cnm = init_values['cnm_init']
-            cell_radius = cnm.gSig[0]*ds_factor
-            rval_thr = cnm.rval_thr
-            merge_thresh = cnm.merge_thresh
-            thresh_overlap = cnm.thresh_overlap
-            try:
-                min_SNR = init_values['min_SNR']
-            except:
-                min_SNR = 2.5 # default
-
-            self.cellRadius_spinBox_2.setValue(cell_radius)
-            self.rval_thresh_doubleSpinBox.setValue(rval_thr)
-            self.merge_thresh_doubleSpinBox.setValue(merge_thresh)
-            self.overlap_thresh_doubleSpinBox.setValue(thresh_overlap)
-            self.minSNR_doubleSpinBox.setValue(min_SNR)
-
-
-        self.cell_radius = cell_radius
-#        self.gSig = (cell_radius, cell_radius)
-        self.min_SNR = min_SNR
-        self.rval_thr = rval_thr
-        self.merge_thresh = merge_thresh
-        self.thresh_overlap = thresh_overlap
-        self.ds_factor = ds_factor
-        self.K_init = K
-
-        self.c = init_values
-        self.c['cnm2'] = cnm2
-#        self.c['removed_idx'] = []
-        self.c['K_init'] = K
-
-        coms = self.c['coms_init'].copy()
-        if idx_components is not None:            
-            self.c['coms_init'] = coms[idx_components]
-            
-        self.c['coms_init_orig'] = coms
-        self.dims = init_values['cnm_init'].dims
-        self.InitNumROIs = K
-        self.opsinMaskOn = False
-        self.imageItem.setImage(cv2.resize(self.c['img_norm'],(512,512),interpolation=cv2.INTER_CUBIC)) # display FOV
-
-        if self.A_opsin.size:
-            print('Checking opsin overlap')
-            self.checkOpsin()
-
-        self.initialiseROI()
-        for i in range(K):
-            y, x = init_values['coms_init'][i]  # reversed
-            self.getROImask(thisROIx = x, thisROIy = y)
-
-        self.UseONACID_checkBox.setEnabled(True)
-        self.UseONACID_checkBox.setChecked(True)
-        if self.selectAll_checkBox.isChecked():
-            self.selectAllROIs()
-
-        self.updateStatusBar('Initialision completed')
-        show_traces = 1
-        if show_traces:
-            self.showROIIdx()
-            cnm_init = init_values['cnm_init']
-            self.plotOnacidTraces(t=cnm_init.initbatch)
-
-
-    def updateInitialisation(self):
+    def updateInitialisation(self, save_init=True):
         idx_keep = list(set(range(self.thisROIIdx)) - set(self.removeIdx))
 
         # reset previous settings
@@ -2362,14 +2389,13 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         K = self.c['cnm2'].N
         print('new K:', K)
         self.c['K_init'] = K
+        self.InitNumROIs_spinBox.setValue(K)
+        self.InitNumROIs = K
 
         self.c['cnm2'].accepted = self.c['cnm2'].accepted[:K] # all cells accepted post initialisation
 
         coms = self.c['coms_init']
         self.c['coms_init'] = coms[idx_keep]
-
-        self.InitNumROIs_spinBox.setValue(K)
-        self.InitNumROIs = K
 
         if self.MaxNumROIs_spinBox.value() < K+5:
             self.MaxNumROIs_spinBox.setValue(K+10)
@@ -2408,38 +2434,28 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                 if idx[0] == idx[1]:
                     orig_keep_idx.append(idx[0])
                 else:
-                    print('Different indeces - check')
+                    print('Different indeces - check')  # this should never be a problem
             
             orig_K = coms_init_orig.shape[0]
             orig_remove_idx = list(set(range(orig_K)) - set(orig_keep_idx))
             
-            print('orig keep', orig_keep_idx)
-            print('orig remove', orig_remove_idx)
-            
             try:
                 if self.c['CNN_filter']:
                     cnn_remove_idx = self.c['cnn_removed_idx']
-#                    cnn_remove_idx = list(set(range(orig_K))-set(self.c['idx_components']))
-                    orig_remove_idx = list(set(orig_remove_idx) - set(cnn_remove_idx))  # keep manually removed indeces here only
-                    print('manual remove', orig_remove_idx)
-                    
+                    orig_remove_idx = list(set(orig_remove_idx) - set(cnn_remove_idx))  # keep manually removed indeces here only                   
             except Exception as e: print(e)
     
             # save new init object
-            save_new_init = 1
-            
-            if save_new_init:
+            if save_init:
                 init_values_new = deepcopy(self.c)  # copy to avoid messing with self.c
                 init_values_new['idx_components'] = orig_keep_idx   # will be used during prepare_object to keep only cells of interest
-                init_values_new['removed_idx'] = orig_remove_idx   # also store for refeference
+                init_values_new['removed_idx'] = orig_remove_idx   # manually removed cells
+                init_values_new['K_init'] = K
                 init_values_new['coms_init'] = self.c['coms_init_orig']  # keep the original
                 del init_values_new['cnm2']
                 
-#                filename = os.path.basename(p['refMoviePath'])[:-4] + '_filtered.pkl'
-#                init_folder = os.path.join(self.movie_folder, 'init_results')  # save init results in a separate folder            
-#                save_path = os.path.join(init_folder, filename)
-                
                 save_path = self.c['save_path'][:-4] + '_filtered.pkl'
+#                save_path = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\tests on rig\20180811\init_results\20180811_OG300_t_0003_rtaoi_init_seeded_DS_2.0_filtered.pkl'
                 init_values_new['save_path'] = save_path
                 
                 print('Saving new init file as ' + str(save_path))
@@ -2738,7 +2754,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                         curr_count = self.c['cnm2'].N
                         self.c['cnm2'].t = self.c['cnm2'].initbatch
                         self.removeIdx = np.arange(self.c['K_init'],curr_count)
-                        self.updateInitialisation()
+                        self.updateInitialisation(save_init=False)
                     else:
                         self.c['keep_prev'] = True
                 else:

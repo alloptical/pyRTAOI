@@ -35,7 +35,7 @@ def make_sta_file(file_full_name = '',save_full_name = '', stim_frames = [],
     cnm = file_data['cnm2']
     init_com_count = file_data['init_com_count']
 
-    cnm_C, f = cnm.C_on[cnm.gnb:cnm.M], cnm.C_on[:cnm.gnb]
+    C, f = cnm.C_on[cnm.gnb:cnm.M], cnm.C_on[:cnm.gnb]
 #    cnm_C = C
 
     # get frame detected

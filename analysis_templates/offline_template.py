@@ -68,7 +68,7 @@ from caiman.base.rois import extract_binary_masks_from_structural_channel
 #ref_movie_path = r'C:\Users\intrinsic\Desktop\samples\example1\init_results\20171229_OG245_t-052_Cycle00001_Ch2_substack1-200_init_seeded_DS_1.5.pkl'
 
 # example movies
-example = 4
+example = 1
 
 sample_folder = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples'
 example_folder = os.path.join(sample_folder, 'example' + str(example))
@@ -78,14 +78,12 @@ if len(files)==1:
     ref_movie_path = files[0]
 print('Ref movie path: ', ref_movie_path)
 
-#ref_movie_path = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples\example8\init_results\20180107_OG242_t-001_Cycle00001_Ch2_init_cnmf_DS_1.5.pkl'
-
 ref_movie_path = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\tests on rig\20180811\init_results\20180811_OG300_t_0003_rtaoi_init_seeded_DS_2.0.pkl'
 
 movie_ext = ref_movie_path[-4:]
 
 if movie_ext  == '.tif':
-    K = 5
+    K = 30
     ds_factor = 1.5
     initbatch = 500
     minibatch_shape = 100
@@ -97,7 +95,7 @@ if movie_ext  == '.tif':
     if lenient:
         rval_thr = 0.7
         min_SNR = 1
-        thresh_overlap = 0.2 # 0.5
+        thresh_overlap = 0.2
     else:
         rval_thr = 0.8
         min_SNR = 2.5
@@ -254,7 +252,6 @@ N_samples = c['N_samples']
 K = c['K']
 coms_init = c['coms_init']
 Yr = c['Yr']
-coms_init = c['coms_init']
 
 
 #%% Filter seeded
@@ -281,15 +278,31 @@ YrA = noisyC[predictions[:, 1] >= thresh_cnn] - C
 
 idx_components = ind_keep
 
-#%% Optionally discard additional cells
+#%% Detect manually removed cells if not done online
+coms_init_orig = c['coms_init']
 
+orig_keep_idx = []
+
+for pair in coms:  # coms are the final results
+    idx = np.where(pair == coms_init_orig)[0]
+    if idx.size:
+        if idx[0] == idx[1]:
+            orig_keep_idx.append(idx[0])
+        else:
+            print('Different indeces - check')
+
+orig_K = coms_init_orig.shape[0]
+orig_removed_idx = list(set(range(orig_K)) - set(orig_keep_idx))
+
+idx_components = orig_keep_idx
+print('Keeping ' + str(len(idx_components)) + ' cells post initialisation')
 
 #%% Prepare object for OnACID
 
 # Setting idx_components to ind_keep to select only cells that passed filtering (None means all kept)
 try:
     idx_components
-    coms_init = coms_init[idx_components]
+    coms_init = c['coms_init'][idx_components]
 except:
     idx_components = None
     
@@ -304,6 +317,8 @@ cnm2._prepare_object(np.asarray(c['Yr']), c['T1'], c['expected_comps'], idx_comp
                          path_to_model=path_to_cnn_residual)#,
 #                         sniper_mode=False, use_peak_max=False, q=0.5) # default
 
+print('cnm2 object prepared has ' + str(cnm2.N) + ' cells')
+print('cell indices kept: ', idx_components)
 
 #%% Store info on opsin as object property
 if opsin_seeded:
@@ -356,6 +371,68 @@ if visualise_init:
 inx = [1] # from visualisation
 cnm2.remove_components(inx) 
 
+#%% create a function for plotting results in real time if needed -- doesn't work that well sometimes
+resize_fact = ds_factor
+#movie_path =  r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\tests on rig\20180811\20180811_OG300_t-003_Cycle00001_Ch2.tif'
+movie_path = ref_movie_path # if tif file
+
+Y = cm.load(movie_path, subindices=slice(0, initbatch, None)).astype(np.float32)
+Y = Y.astype(np.float32)
+bnd_Y = np.percentile(Y,(0.001,100-0.001))  # plotting boundaries for Y
+bnd_AC = bnd_AC = np.percentile(A.dot(C),(0.001,100-0.005))
+show_residuals = 0
+
+if show_residuals:
+    caption = 'Mean Residual Buffer'
+else:
+    caption = 'Identified Components'
+captions = ['Raw Data', 'Inferred Activity', caption, 'Denoised Data']
+
+
+def create_frame(cnm2, img_norm, captions):
+    A, b = cnm2.Ab[:, cnm2.gnb:], cnm2.Ab[:, :cnm2.gnb].toarray()
+    C, f = cnm2.C_on[cnm2.gnb:cnm2.M, :], cnm2.C_on[:cnm2.gnb, :]
+    # inferred activity due to components (no background)
+    frame_plot = (frame_cor.copy() - bnd_Y[0])/np.diff(bnd_Y)
+    comps_frame = A.dot(C[:, t - 1]).reshape(cnm2.dims, order='F')        
+    bgkrnd_frame = b.dot(f[:, t - 1]).reshape(cnm2.dims, order='F')  # denoised frame (components + background)
+    denoised_frame = comps_frame + bgkrnd_frame
+    denoised_frame = (denoised_frame.copy() - bnd_Y[0])/np.diff(bnd_Y)
+    comps_frame = (comps_frame.copy() - bnd_AC[0])/np.diff(bnd_AC)
+
+    if show_residuals:
+        #all_comps = np.reshape(cnm2.Yres_buf.mean(0), cnm2.dims, order='F')
+        all_comps = np.reshape(cnm2.mean_buff, cnm2.dims, order='F')
+        all_comps = np.minimum(np.maximum(all_comps, 0)*2 + 0.25, 255)
+    else:
+        all_comps = np.array(A.sum(-1)).reshape(cnm2.dims, order='F')
+                                              # spatial shapes
+    frame_comp_1 = cv2.resize(np.concatenate([frame_plot, all_comps * 1.], axis=-1),
+                              (2 * np.int(cnm2.dims[1] * resize_fact), np.int(cnm2.dims[0] * resize_fact)))
+    frame_comp_2 = cv2.resize(np.concatenate([comps_frame, denoised_frame], axis=-1), 
+                              (2 * np.int(cnm2.dims[1] * resize_fact), np.int(cnm2.dims[0] * resize_fact)))
+    frame_pn = np.concatenate([frame_comp_1, frame_comp_2], axis=0).T
+    vid_frame = np.repeat(frame_pn[:, :, None], 3, axis=-1)
+    vid_frame = np.minimum((vid_frame * 255.), 255).astype('u1')
+
+    if show_residuals and cnm2.ind_new:
+        add_v = np.int(cnm2.dims[1]*resize_fact)
+        for ind_new in cnm2.ind_new:
+            cv2.rectangle(vid_frame,(int(ind_new[0][1]*resize_fact),int(ind_new[1][1]*resize_fact)+add_v),
+                                         (int(ind_new[0][0]*resize_fact),int(ind_new[1][0]*resize_fact)+add_v),(255,0,255),2)
+
+    cv2.putText(vid_frame, captions[0], (5, 20), fontFace=5, fontScale=0.8, color=(
+        0, 255, 0), thickness=1)
+    cv2.putText(vid_frame, captions[1], (np.int(
+        cnm2.dims[0] * resize_fact) + 5, 20), fontFace=5, fontScale=0.8, color=(0, 255, 0), thickness=1)
+    cv2.putText(vid_frame, captions[2], (5, np.int(
+        cnm2.dims[1] * resize_fact) + 20), fontFace=5, fontScale=0.8, color=(0, 255, 0), thickness=1)
+    cv2.putText(vid_frame, captions[3], (np.int(cnm2.dims[0] * resize_fact) + 5, np.int(
+        cnm2.dims[1] * resize_fact) + 20), fontFace=5, fontScale=0.8, color=(0, 255, 0), thickness=1)
+    cv2.putText(vid_frame, 'Frame = ' + str(t), (vid_frame.shape[1] // 2 - vid_frame.shape[1] //
+                                                 10, vid_frame.shape[0] - 20), fontFace=5, fontScale=0.8, color=(0, 255, 255), thickness=1)
+    return vid_frame
+
 
 #%% Define OnACID parameters
 NumROIs = cnm2.expected_comps # temp
@@ -394,7 +471,13 @@ cnm2.Ab_epoch = []                       # save the shapes at the end of each ep
 
 photostim = True # if True, some frames will be dropped
 if photostim:
-    print('Load frames_skipped before running onacid')
+    try:
+#        frames_skipped_ = [frame+1 for frame in frames_skipped]  # try?
+        print('Photostim recording; some frames will be skipped')
+    except: 
+        print('Load frames_skipped before running onacid')
+        
+play_reconstr = False
 
 #%% Run OnACID multiple times (epochs)
 movie_path = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\tests on rig\20180811\20180811_OG300_t-004_Cycle00001_Ch2.tif'
@@ -404,7 +487,10 @@ print('Loading video')
 try:
     print(Y_.shape)
 except:
-    Y_ = cm.load(movie_path, subindices=slice(initbatch,T1,None))
+    if ref_movie_path == movie_path:
+        Y_ = cm.load(movie_path, subindices=slice(initbatch,T1,None))
+    else:
+        Y_ = cm.load(movie_path, subindices=slice(0,T1,None))
     
 print('Video loaded')
 
@@ -509,6 +595,22 @@ for iter in range(epochs):
             ind_rem = np.where(prd[:, 1] < rm_thr)[0].tolist()
             cnm2.remove_components(ind_rem)
             print('Removing '+str(len(ind_rem))+' components')
+            
+        if play_reconstr:                                               # generate movie with the results
+            vid_frame = create_frame(cnm2, img_norm, captions)
+#                    if save_movie:
+#                        out.write(vid_frame)
+#                        if t-initbatch < 100:
+#                            #for rp in np.int32(np.ceil(np.exp(-np.arange(1,100)/30)*20)):
+#                            for rp in range(len(cnm2.ind_new)*2):
+#                                out.write(vid_frame)
+            cv2.imshow('frame', vid_frame)
+            if t-initbatch < 100:
+                    for rp in range(len(cnm2.ind_new)*2):
+                        cv2.imshow('frame', vid_frame)
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+                    
         
         tottime.append(time_() - t1)                             # store time
 
