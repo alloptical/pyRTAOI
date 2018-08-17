@@ -40,7 +40,7 @@ def make_sta_file(file_full_name = '',save_full_name = '', stim_frames = [],
 
     # get frame detected
     try:
-        frame_detected = file_data['frame_added'] # as detected in gui
+        frame_detected = file_data['frame_detected'] # as detected in gui
     except:
         frame_detected_roi = [x[0] for x in cnm.time_neuron_added]
         frame_detected_ = [x[1] for x in cnm.time_neuron_added]

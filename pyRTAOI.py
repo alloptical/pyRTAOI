@@ -517,7 +517,7 @@ class Worker(QObject):
             coms = coms_init.copy()
             
             store_all_online = True # if True store online traces of both accepted and rejected cells
-            frame_extra_added = []
+            frame_extra_detected = []
             
              # fill the init_t trace frames with init results (optional)
             if store_all_online:
@@ -570,24 +570,24 @@ class Worker(QObject):
                 frames_post_photostim = 0
                 
             # offline only: to skip photostim frames
-#            photostim_movie = 1
-#            if photostim_movie:
-#                if p['FLAG_OFFLINE']:
-#                    # add these manually
-#                    photo_duration = 6
-#                    online_photo_frames = [200,350,500,650,800,950,1100,1250,1400,1550,1700,1850,2000,2150,2300]
-#                    frames_s = []
-#                    for frame in online_photo_frames:
-#                        frames_s = frames_s + list(np.arange(frame,frame+photo_duration))
-#                        
-#                    if framesProc in frames_s:
-#                        qbuffer.get(timeout = max_wait)
-#                        qbuffer.task_done()
-#                        
-#                        print('photostim frame: ', framesProc)
-#                        framesProc += 1
-##                        time.sleep(1)
-#                        continue
+            photostim_movie = 1
+            if photostim_movie:
+                if p['FLAG_OFFLINE']:
+                    # add these manually
+                    photo_duration = 6
+                    online_photo_frames = [200,350,500,650,800,950,1100,1250,1400,1550,1700,1850,2000,2150,2300]
+                    frames_s = []
+                    for frame in online_photo_frames:
+                        frames_s = frames_s + list(np.arange(frame,frame+photo_duration))
+                        
+                    if framesProc in frames_s:
+                        qbuffer.get(timeout = max_wait)
+                        qbuffer.task_done()
+                        
+                        print('photostim frame: ', framesProc)
+                        framesProc += 1
+#                        time.sleep(1)
+                        continue
 
             # get data from queue
             framesCaiman+=1
@@ -631,7 +631,7 @@ class Worker(QObject):
                 if expect_components:
                     update_comp_time = time.time()
                     if cnm2.N - (com_count+rejected_count) == 1:
-                        frame_extra_added.append(t_cnm-init_t)
+                        frame_extra_detected.append(t_cnm)
                         new_coms = com(cnm2.Ab[:, -1], dims[0], dims[1])[0]
 
                         # Check for repeated components
@@ -854,8 +854,8 @@ class Worker(QObject):
             if opsin_mask.size:
                 cnm2.opsin = opsin
                 
-            frame_added_init = np.ones(10).astype('int')*cnm2.initbatch
-            frame_added = np.concatenate((frame_added_init, frame_extra_added))
+            frame_detected_init = np.ones(10).astype('int')*cnm2.initbatch
+            frame_detected = np.concatenate((frame_detected_init, frame_extra_detected))
 
             # save results to Temp folder
             self.movie_name = p['currentMoviePath']
@@ -866,8 +866,8 @@ class Worker(QObject):
             save_dict['init_com_count'] = K_init # com_count from init file (in case any cells removed from init file)
             save_dict['online_com_count'] = com_count
             save_dict['accepted'] = accepted  # accepted currently stored inside cnm2 as well
-#            save_dict['frame_extra_added'] = frame_extra_added
-            save_dict['frame_added'] = frame_added
+#            save_dict['frame_extra_detected'] = frame_extra_detected
+            save_dict['frame_detected'] = frame_detected
             save_dict['t_cnm'] = t_cnm
             save_dict['tottime'] = self.tottime
             save_dict['shifts'] = self.shifts
@@ -919,7 +919,9 @@ class Worker(QObject):
 
             try:  # some issue here sometimes? list index out of range for STATraceMaker.make_sta_file line
                 # save sta traces
-                self.sta_traces = STATraceMaker.make_sta_file(file_full_name=save_path,pre_samples = p['staPreFrame'],post_samples = p['staPostFrame'])
+                self.sta_traces = STATraceMaker.make_sta_file(file_full_name=save_path,pre_samples = p['staPreFrame'],
+                                                              post_samples = p['staPostFrame'],num_init_frames = cnm2.initbatch)
+                
                 sta_trial_avg = np.nanmean(self.sta_traces,1)
                 if(p['staAvgStopFrame']>p['staAvgStartFrame']):
                     sta_trial_avg_amp = np.nanmean(sta_trial_avg[:,p['staAvgStartFrame']+p['staPreFrame']:p['staAvgStopFrame']+p['staPreFrame']],1)
