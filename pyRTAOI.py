@@ -356,7 +356,7 @@ class Worker(QObject):
     sendCoords_signal        = pyqtSignal(name = 'sendCoordsSignal')
     sendPhotoStimTrig_signal = pyqtSignal()
     getROImask_signal        = pyqtSignal(object, object,name = 'getROImaskSignal')
-    transDataToMain_signal   = pyqtSignal(object,object,object,object,object,name = 'transDataToMain')
+    transDataToMain_signal   = pyqtSignal(object,object,object,object,object,object,name = 'transDataToMain')
     updateTargetROIs_signal  = pyqtSignal()
     finished_signal          = pyqtSignal()
 
@@ -518,14 +518,15 @@ class Worker(QObject):
             init_t = t_cnm
             coms = coms_init.copy()
             
-            store_all_online = True # if True store online traces of both accepted and rejected cells
+            store_all_online = True # if True store online traces of both accepted and rejected cells --> important for full plotting in plot window; keep True
             frame_extra_detected = []
             
-             # fill the init_t trace frames with init results (optional)
+             # fill the init_t trace frames with init results
             if store_all_online:
-                self.online_C[:cnm2.N,:init_t] = cnm2.C_on[gnb:cnm2.N+gnb,:init_t]
+                self.online_C[:cnm2.M,:init_t] = cnm2.C_on[:cnm2.M,:init_t]
             else:
-                self.online_C[:com_count,:init_t] = cnm2.C_on[accepted,:init_t]
+                accepted = [0] + accepted # include gnb
+                self.online_C[:com_count+gnb,:init_t] = cnm2.C_on[accepted,:init_t]
             
             # Extract opsin mask info constructed from c1v1 image
             try:
@@ -699,7 +700,7 @@ class Worker(QObject):
                     
                      # record the buffer values for offline analysis
                     if store_all_online:
-                        self.online_C[:cnm2.N, t_cnm] = cnm2.C_on[gnb:cnm2.N+gnb, t_cnm]  # store also background signal?
+                        self.online_C[:cnm2.M, t_cnm] = cnm2.C_on[:cnm2.M, t_cnm]  # storing also background signal (gnb)
                     else:
                         self.online_C[:com_count, t_cnm] = cnm2.C_on[accepted, t_cnm]                    
                 except Exception as e:
@@ -940,7 +941,7 @@ class Worker(QObject):
 
             # transfer data to main and show traces in plot tab
 #            self.c['test'] = 1
-            self.transDataToMain_signal.emit(cnm2, accepted, t_cnm, sta_trial_avg_amp, self.sta_traces)
+            self.transDataToMain_signal.emit(cnm2, self.online_C, accepted, t_cnm, sta_trial_avg_amp, self.sta_traces)
 
             # delete big variables
             del self.c
@@ -1932,11 +1933,12 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         print('gc: ', g)
 
 
-    def transDataToMain(self, cnm_struct, accepted, t, sta_amp, sta_traces, plot=True):
+    def transDataToMain(self, cnm_struct, online_C, accepted, t, sta_amp, sta_traces, plot=True):
 #        print('test')  # TODO: changing c inside worker automatically changes it inside mainwindow -- this is sent/shared somehow
 #        print(self.c['test'])
 #        self.cnm2 = cnm_struct
         self.c['cnm2'] = cnm_struct
+        self.c['online_C'] = online_C
         self.accepted = accepted
         self.t_cnm = t
         self.sta_amp = sta_amp
@@ -1947,120 +1949,129 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             self.checkOpsin()
 
         if plot:
-            self.plotOnacidTraces(t)
+            self.plotOnacidTraces(t, online=True)
 
 
-    def plotOnacidTraces(self, t):
-
-        try: self.resetFigure()
-        except: pass
-
-        cnm_struct = self.c['cnm2']
-        img = self.c['Cn_init']
-
-        C, f = cnm_struct.C_on[cnm_struct.gnb:cnm_struct.M], cnm_struct.C_on[:cnm_struct.gnb]
-        A, b = cnm_struct.Ab[:, cnm_struct.gnb:cnm_struct.M], cnm_struct.Ab[:, :cnm_struct.gnb]
-
-        # Convert A to numpy array
-        if issparse(A):
-            A = np.array(A.todense())
-        else:
-            A = np.array(A)
-
-        # Trim longer arrays
-        f = f[:,:t]
-        C = C[:,:t]
-
-        noisyC = cnm_struct.noisyC[:, t - t // 1:t]
-        YrA = noisyC[cnm_struct.gnb:cnm_struct.M,:t] - C
-
-
-        if 'csc_matrix' not in str(type(A)):
-            A = csc_matrix(A)
-        if 'array' not in str(type(b)):
-            b = b.toarray()
-
-        nr, T = C.shape
-        nb = f.shape[0]
-
-        Y_r = YrA + C
-        d1, d2 = cnm_struct.dims
-
-        all_ = list(range(0, cnm_struct.N))
+    def plotOnacidTraces(self, t, online=False):
         try:
-            accepted = cnm_struct.accepted
-            rejected = [item for item in all_ if item not in accepted]
-        except:
-            accepted = all_
-            rejected = []
-
-        self.axcomp = self.fig.add_axes([0.05, 0.05, 0.9, 0.03])
-        self.ax1 = self.fig.add_axes([0.05, 0.55, 0.4, 0.4])
-        self.ax3 = self.fig.add_axes([0.55, 0.55, 0.4, 0.4])
-        self.ax2 = self.fig.add_axes([0.05, 0.1, 0.9, 0.4])
-        self.s_comp = Slider(self.axcomp, 'Component', 0, nr + nb - 1, valinit=0)
-
-        vmax = np.percentile(img, 95)
-
-        def update(val):
-            i = np.int(np.round(self.s_comp.val))
-
-            if i < nr:
-
-                if i < len(accepted):
-                    j = accepted[i]
-                    rej = False
-                else:
-                    j = rejected[i-len(accepted)]
-                    rej = True
-
-                self.ax1.cla()
-                imgtmp = np.reshape(A[:, j].toarray(), (d1, d2), order='F')
-                self.ax1.imshow(imgtmp, interpolation='None', cmap=pl.cm.gray, vmax=np.max(imgtmp)*0.5)
-                if not rej:
-                    self.ax1.set_title('Spatial component ' + str(i+1))
-                else:
-                    self.ax1.set_title('Rejected spatial component ' + str(i-len(accepted)+1))
-                self.ax1.axis('off')
-
-
-                self.ax2.cla()
-                self.ax2.plot(np.arange(T), Y_r[j], 'c', linewidth=2)
-                self.ax2.plot(np.arange(T), C[j], 'r', linewidth=2)
-                if not rej:
-                    self.ax2.set_title('Temporal component ' + str(i+1))
-                else:
-                    self.ax2.set_title('Rejected temporal component ' + str(i-len(accepted)+1))
-
-                self.ax2.legend(labels=['Filtered raw data', 'Inferred trace'])
-
-
-                self.ax3.cla()
-                self.ax3.imshow(img, interpolation='None', cmap=pl.cm.gray, vmax=vmax)
-                imgtmp2 = imgtmp.copy()
-                imgtmp2[imgtmp2 == 0] = np.nan
-                self.ax3.imshow(imgtmp2, interpolation='None', alpha=0.5, cmap=pl.cm.hot)
-                self.ax3.axis('off')
-
+            try: self.resetFigure()
+            except: pass
+    
+            cnm_struct = self.c['cnm2']
+            img = self.c['Cn_init']
+            
+            if online:
+                C,f = self.c['online_C'][cnm_struct.gnb:cnm_struct.M], self.c['online_C'][:cnm_struct.gnb]
             else:
-                self.ax1.cla()
-                bkgrnd = np.reshape(b[:, i - nr], (d1, d2), order='F')
-                self.ax1.imshow(bkgrnd, interpolation='None')
-                self.ax1.set_title('Spatial background ' + str(i + 1 - nr))
-                self.ax1.axis('off')
-
-                self.ax2.cla()
-                self.ax2.plot(np.arange(T), np.squeeze(np.array(f[i - nr, :])))
-                self.ax2.set_title('Temporal background ' + str(i + 1 - nr))
-
-        self.nr = nr
-        self.nb = nb
-
-        self.s_comp.on_changed(update)
-        self.s_comp.set_val(0)
-        self.figCanvas.draw()
-        self.figCanvas.flush_events()
-#        self.updateStatusBar('OnACID traces plotted in plot tab')
+                C, f = cnm_struct.C_on[cnm_struct.gnb:cnm_struct.M], cnm_struct.C_on[:cnm_struct.gnb]
+            
+            A, b = cnm_struct.Ab[:, cnm_struct.gnb:cnm_struct.M], cnm_struct.Ab[:, :cnm_struct.gnb]
+    
+            # Convert A to numpy array
+            if issparse(A):
+                A = np.array(A.todense())
+            else:
+                A = np.array(A)
+    
+            # Trim longer arrays
+            f = f[:,:t]
+            C = C[:,:t]
+    
+            noisyC = cnm_struct.noisyC[:, t - t // 1:t]
+            YrA = noisyC[cnm_struct.gnb:cnm_struct.M,:t] - C
+    
+    
+            if 'csc_matrix' not in str(type(A)):
+                A = csc_matrix(A)
+            if 'array' not in str(type(b)):
+                b = b.toarray()
+    
+            nr, T = C.shape
+            nb = f.shape[0]
+    
+            Y_r = YrA + C
+            d1, d2 = cnm_struct.dims
+    
+            all_ = list(range(0, cnm_struct.N))
+            try:
+                accepted = cnm_struct.accepted
+                rejected = [item for item in all_ if item not in accepted]
+            except:
+                accepted = all_
+                rejected = []
+    
+            self.axcomp = self.fig.add_axes([0.05, 0.05, 0.9, 0.03])
+            self.ax1 = self.fig.add_axes([0.05, 0.55, 0.4, 0.4])
+            self.ax3 = self.fig.add_axes([0.55, 0.55, 0.4, 0.4])
+            self.ax2 = self.fig.add_axes([0.05, 0.1, 0.9, 0.4])
+            self.s_comp = Slider(self.axcomp, 'Component', 0, nr + nb - 1, valinit=0)
+    
+            vmax = np.percentile(img, 95)
+    
+            def update(val):
+                i = np.int(np.round(self.s_comp.val))
+    
+                if i < nr:
+    
+                    if i < len(accepted):
+                        j = accepted[i]
+                        rej = False
+                    else:
+                        j = rejected[i-len(accepted)]
+                        rej = True
+    
+                    self.ax1.cla()
+                    imgtmp = np.reshape(A[:, j].toarray(), (d1, d2), order='F')
+                    self.ax1.imshow(imgtmp, interpolation='None', cmap=pl.cm.gray, vmax=np.max(imgtmp)*0.5)
+                    if not rej:
+                        self.ax1.set_title('Spatial component ' + str(i+1))
+                    else:
+                        self.ax1.set_title('Rejected spatial component ' + str(i-len(accepted)+1))
+                    self.ax1.axis('off')
+    
+    
+                    self.ax2.cla()
+                    self.ax2.plot(np.arange(T), Y_r[j], 'c', linewidth=2)
+                    self.ax2.plot(np.arange(T), C[j], 'r', linewidth=2)
+                    if not rej:
+                        self.ax2.set_title('Temporal component ' + str(i+1))
+                    else:
+                        self.ax2.set_title('Rejected temporal component ' + str(i-len(accepted)+1))
+                    
+                    if online:
+                        self.ax2.legend(labels=['Filtered raw data', 'Online trace'])
+                    else:
+                        self.ax2.legend(labels=['Filtered raw data', 'Inferred trace'])
+    
+    
+                    self.ax3.cla()
+                    self.ax3.imshow(img, interpolation='None', cmap=pl.cm.gray, vmax=vmax)
+                    imgtmp2 = imgtmp.copy()
+                    imgtmp2[imgtmp2 == 0] = np.nan
+                    self.ax3.imshow(imgtmp2, interpolation='None', alpha=0.5, cmap=pl.cm.hot)
+                    self.ax3.axis('off')
+    
+                else:
+                    self.ax1.cla()
+                    bkgrnd = np.reshape(b[:, i - nr], (d1, d2), order='F')
+                    self.ax1.imshow(bkgrnd, interpolation='None')
+                    self.ax1.set_title('Spatial background ' + str(i + 1 - nr))
+                    self.ax1.axis('off')
+    
+                    self.ax2.cla()
+                    self.ax2.plot(np.arange(T), np.squeeze(np.array(f[i - nr, :])))
+                    self.ax2.set_title('Temporal background ' + str(i + 1 - nr))
+    
+            self.nr = nr
+            self.nb = nb
+    
+            self.s_comp.on_changed(update)
+            self.s_comp.set_val(0)
+            self.figCanvas.draw()
+            self.figCanvas.flush_events()
+    #        self.updateStatusBar('OnACID traces plotted in plot tab')
+        except Exception as e:
+            print(e)
 
 
     def arrow_key_image_control(self, event):
