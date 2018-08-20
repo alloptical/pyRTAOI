@@ -408,7 +408,7 @@ class Worker(QObject):
         self.T1 = self.c['T1']
         self.online_C = np.zeros_like(self.c['cnm2'].C_on)
 
-        self.dist_thresh = 21 # reject new rois too close to existing rois
+#        self.dist_thresh = 21 # reject new rois too close to existing rois
         self.display_shift = False  # option to display motion correction shift
         self.tottime = []
 
@@ -480,6 +480,8 @@ class Worker(QObject):
             dims = self.c['cnm_init'].dims
             gnb = cnm2.gnb
             keep_prev = self.c['keep_prev']
+            cell_radius = cnm2.gSig[0]     # dowsampled radius value
+            dist_thresh = 2*cell_radius    # reject new rois too close to existing rois - based on cell radius
 
             # Define OnACID parameters
             max_shift = np.ceil(10./ds_factor).astype('int')  # max shift allowed
@@ -570,24 +572,24 @@ class Worker(QObject):
                 frames_post_photostim = 0
                 
             # offline only: to skip photostim frames
-            photostim_movie = 1
-            if photostim_movie:
-                if p['FLAG_OFFLINE']:
-                    # add these manually
-                    photo_duration = 6
-                    online_photo_frames = [200,350,500,650,800,950,1100,1250,1400,1550,1700,1850,2000,2150,2300]
-                    frames_s = []
-                    for frame in online_photo_frames:
-                        frames_s = frames_s + list(np.arange(frame,frame+photo_duration))
-                        
-                    if framesProc in frames_s:
-                        qbuffer.get(timeout = max_wait)
-                        qbuffer.task_done()
-                        
-                        print('photostim frame: ', framesProc)
-                        framesProc += 1
-#                        time.sleep(1)
-                        continue
+#            photostim_movie = 1
+#            if photostim_movie:
+#                if p['FLAG_OFFLINE']:
+#                    # add these manually
+#                    photo_duration = 6
+#                    online_photo_frames = [200,350,500,650,800,950,1100,1250,1400,1550,1700,1850,2000,2150,2300]
+#                    frames_s = []
+#                    for frame in online_photo_frames:
+#                        frames_s = frames_s + list(np.arange(frame,frame+photo_duration))
+#                        
+#                    if framesProc in frames_s:
+#                        qbuffer.get(timeout = max_wait)
+#                        qbuffer.task_done()
+#                        
+#                        print('photostim frame: ', framesProc)
+#                        framesProc += 1
+##                        time.sleep(1)
+#                        continue
 
             # get data from queue
             framesCaiman+=1
@@ -635,7 +637,7 @@ class Worker(QObject):
                         new_coms = com(cnm2.Ab[:, -1], dims[0], dims[1])[0]
 
                         # Check for repeated components
-                        close = abs(coms - new_coms) < self.dist_thresh/ds_factor
+                        close = abs(coms - new_coms) < dist_thresh
                         repeated = any(np.all(close,axis=1))
 
                         if repeated == False: # add component to ROI
@@ -2291,7 +2293,9 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             cnm2._prepare_object(np.asarray(init_values['Yr']), init_values['T1'],
                                  init_values['expected_comps'], idx_components=idx_components,
                                  min_num_trial=2, N_samples_exceptionality=int(init_values['N_samples']),
-                                 path_to_model=path_to_cnn_residual)
+                                 path_to_model=path_to_cnn_residual, sniper_mode=False)
+            
+#            cnm2.max_num_added = 5  # max number of cells added per onacid frame
     
             cnm2.opsin = None
             cnm2.accepted = list(range(0,cnm2.N))
@@ -2309,7 +2313,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
     
             if movie_ext == '.pkl':
                 cnm = init_values['cnm_init']
-                cell_radius = cnm.gSig[0]*ds_factor
+                cell_radius = round(cnm.gSig[0]*ds_factor)
                 rval_thr = cnm.rval_thr
                 merge_thresh = cnm.merge_thresh
                 thresh_overlap = cnm.thresh_overlap
@@ -2777,8 +2781,19 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             self.overlap_thresh_doubleSpinBox.setValue(self.thresh_overlap)
 
             if self.MaxNumROIs_spinBox.value() != self.MaxNumROIs:
+                for extraROI in range(self.MaxNumROIs_spinBox.value() - self.MaxNumROIs):  # add extra fields to ROIlist
+                    self.ROIlist.append(dict())
+                    ROIIdx = self.MaxNumROIs + extraROI
+                    self.ROIlist[ROIIdx]["ROIx"]= list()
+                    self.ROIlist[ROIIdx]["ROIy"] = list()
+                    self.ROIlist[ROIIdx]["ROIcolor"] = self.random_color()
+                    self.ROIlist[ROIIdx]["threshold"] = list()
+                    self.ROIlist[ROIIdx]["STA"] = list()
+                    
                 self.MaxNumROIs = self.MaxNumROIs_spinBox.value()
+
                 self.updateTable()
+                self.RoiBuffer = np.zeros([self.MaxNumROIs,self.BufferLength])
                 
             self.getValues()
 

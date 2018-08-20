@@ -55,7 +55,7 @@ from scipy.sparse import issparse
 import caiman as cm
 from caiman.utils.utils import load_object, save_object
 from caiman.base.rois import com
-from caiman.utils.visualization import view_patches_bar, plot_contours
+from caiman.utils.visualization import view_patches_bar, plot_contours, get_contours
 from caiman_func.initialisation import initialise
 from caiman.motion_correction import motion_correct_iteration_fast
 from caiman.paths import caiman_datadir
@@ -68,7 +68,7 @@ from caiman.base.rois import extract_binary_masks_from_structural_channel
 #ref_movie_path = r'C:\Users\intrinsic\Desktop\samples\example1\init_results\20171229_OG245_t-052_Cycle00001_Ch2_substack1-200_init_seeded_DS_1.5.pkl'
 
 # example movies
-example = 1
+example = 8
 
 sample_folder = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples'
 example_folder = os.path.join(sample_folder, 'example' + str(example))
@@ -78,17 +78,17 @@ if len(files)==1:
     ref_movie_path = files[0]
 print('Ref movie path: ', ref_movie_path)
 
-ref_movie_path = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\tests on rig\20180811\init_results\20180811_OG300_t_0003_rtaoi_init_seeded_DS_2.0.pkl'
+#ref_movie_path = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\tests on rig\20180811\init_results\20180811_OG300_t_0003_rtaoi_init_seeded_DS_2.0.pkl'
 
 movie_ext = ref_movie_path[-4:]
 
 if movie_ext  == '.tif':
-    K = 30
+    K = 1
     ds_factor = 1.5
     initbatch = 500
     minibatch_shape = 100
-    gSig = (10,10)  # expected cell radius
-    expected_comps = 200
+    gSig = (5,5)  # expected cell radius
+    expected_comps = 400
 
     lenient = 0
     
@@ -137,6 +137,7 @@ K = c['K']
 Yr = c['Yr']
 coms_init = c['coms_init']
 idx_components = init_values['idx_components']
+
 
 #%% Visualise the results of initialisation
 visualise_init = True
@@ -269,6 +270,7 @@ A_exclude, C_exclude = A[:, predictions[:, 1] <
 
 ind_rem = np.where(predictions[:,1] < thresh_cnn)[0].tolist()
 ind_keep = np.where(predictions[:, 1] >= thresh_cnn)[0].tolist()
+idx_components = ind_keep
 
 A, C = A[:, predictions[:, 1] >=
          thresh_cnn], C[predictions[:, 1] >= thresh_cnn]
@@ -276,7 +278,6 @@ A, C = A[:, predictions[:, 1] >=
 noisyC = cnm_init.Cin # [cnm_init.gnb:cnm_init.A.shape[-1]+1] #cnm2.noisyC[cnm2.gnb:cnm2.M]
 YrA = noisyC[predictions[:, 1] >= thresh_cnn] - C
 
-idx_components = ind_keep
 
 #%% Detect manually removed cells if not done online
 coms_init_orig = c['coms_init']
@@ -315,10 +316,14 @@ path_to_cnn_residual = os.path.join(caiman_datadir(), 'model', 'cnn_model_online
 cnm2._prepare_object(np.asarray(c['Yr']), c['T1'], c['expected_comps'], idx_components=idx_components,
                          min_num_trial=2, N_samples_exceptionality=int(c['N_samples']),
                          path_to_model=path_to_cnn_residual)#,
-#                         sniper_mode=False, use_peak_max=False, q=0.5) # default
+#                         sniper_mode=True, use_peak_max=False, q=0.5) # default
 
 print('cnm2 object prepared has ' + str(cnm2.N) + ' cells')
 print('cell indices kept: ', idx_components)
+
+#cnm2.max_num_added = 5
+
+#cnm2.thresh_CNN_noisy = 0.99 # 0.99 default for online --> seems like changing to 0.9 and 0.5 didn't make a difference
 
 #%% Store info on opsin as object property
 if opsin_seeded:
@@ -330,6 +335,7 @@ else:
 #%% Visualise filtering of seeded
 C, f = cnm2.C_on[cnm2.gnb:cnm2.M], cnm2.C_on[:cnm2.gnb]
 A, b = cnm2.Ab[:, cnm2.gnb:cnm2.M], cnm2.Ab[:, :cnm2.gnb]
+initbatch = cnm2.initbatch
 
 noisyC = cnm2.noisyC[cnm2.gnb:cnm2.M]
 YrA = noisyC - C
@@ -344,9 +350,8 @@ if visualise_init:
     #b, f, YrA, sn = cnm_init.b, cnm_init.f, cnm_init.YrA, cnm_init.sn
     
     view_patches_bar([], scipy.sparse.coo_matrix(
-    A.tocsc()[:, :]), C[:, :500], b, f, dims[0], dims[1], #YrA=np.zeros([A.shape[-1],cnm_init.initbatch]),
-    YrA=YrA[:, :500], 
-    img=Cn_init)
+    A.tocsc()[:, :]), C[:, :initbatch], b, f, dims[0], dims[1], #YrA=np.zeros([A.shape[-1],cnm_init.initbatch]),
+    YrA=YrA[:, :initbatch], img=Cn_init)
 
 
 #%% COMPONENT EVALUATION - doesn't work now. ValueError: cannot reshape array of size 15652 into shape (100,5,28)
@@ -442,7 +447,7 @@ t = cnm2.initbatch
 tottime = []
 Cn = Cn_init.copy()
 shifts = []
-coms = coms_init.copy()
+coms = np.squeeze(coms_init.copy())
 com_count = cnm2.N
 
 BufferLength = 200
@@ -469,19 +474,21 @@ cnm2.thresh_CNN_noisy = 0.5
 epochs = 1
 cnm2.Ab_epoch = []                       # save the shapes at the end of each epoch
 
-photostim = True # if True, some frames will be dropped
+photostim = 0 # if True, some frames will be dropped
 if photostim:
     try:
 #        frames_skipped_ = [frame+1 for frame in frames_skipped]  # try?
         print('Photostim recording; some frames will be skipped')
     except: 
         print('Load frames_skipped before running onacid')
+else:
+    print('Imaging-only movie')
         
 play_reconstr = False
 
 #%% Run OnACID multiple times (epochs)
-movie_path = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\tests on rig\20180811\20180811_OG300_t-004_Cycle00001_Ch2.tif'
-#movie_path = ref_movie_path
+#movie_path = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\tests on rig\20180811\20180811_OG300_t-004_Cycle00001_Ch2.tif'
+movie_path = ref_movie_path
 
 print('Loading video')
 try:
@@ -528,7 +535,7 @@ for iter in range(epochs):
 #                print(cnm2.N)
              if cnm2.N - (com_count + rejected) == 1:  # cnm2.N - (com_count) == 1: if removing too close cells
                 new_coms = com(cnm2.Ab[:, -1], dims[0], dims[1])[0]
-                new_spotted.append(t-initbatch)
+                new_spotted.append(t)
                 
                 # Check for repeated components
                 if check_overlap:
@@ -722,9 +729,6 @@ file = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples\examp
 npz_datafile = np.load(file)
 locals().update(npz_datafile)
 
-#%%
-#A = npz_datafile['cnm_A']
-
 #%% Save results (whole cnm object) as pkl
 
 save_dict = dict()
@@ -784,9 +788,11 @@ folder = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\tests on ri
 #file = '20180807_OG300_0002_DS_1.5_rtaoi.tif_DS_1.5_OnlineProc.pkl'
 file = '20180807_OG300_0004_DS_1.5_rtaoi_OnlineProc.pkl'
 
-file = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples\example1\pyrtaoi_results\20171229_OG245_t-052_Cycle00001_Ch2_substack1-1000_DS_1.5_rtaoi_OnlineProc.pkl'
+#file = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples\example1\pyrtaoi_results\20171229_OG245_t-052_Cycle00001_Ch2_substack1-1000_DS_1.5_rtaoi_OnlineProc.pkl'
 
-saveResultPath = os.path.join(folder,file)
+#saveResultPath = os.path.join(folder,file)
+saveResultPath = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples\example8\pyrtaoi_results\20180107_OG242_t-001_Cycle00001_Ch2_DS_1.5_rtaoi_OnlineProc_125931.pkl'
+
 cnm_object = load_object(saveResultPath)
 
 cnm2 = cnm_object['cnm2']
@@ -903,7 +909,8 @@ if remove_flag:
     pl.plot(cnn_check, np.ones([len(cnn_check),1])*8.5, 'b^', label='cnn check')
     
     
-pl.title('Time per frame for the online pipeline')
+#pl.title('Time per frame for the online pipeline')
+pl.title('Time per frame for the online pipeline\n' + r'$mean = ' + str(np.mean(tottime*1000))[:4] + '\pm' + str(np.std(tottime*1000))[:3] + ' ms$')
 pl.xlabel('Frame')
 pl.ylabel('Processing time (ms)')
 #pl.ylim([8,100])
@@ -930,3 +937,36 @@ pl.subplot(133)
 pl.plot(RoiBuffer[cell,:t],'m',label='buffer')
 pl.legend()
 pl.ylim(y_min, y_max)
+
+#%% Online assessment of new cells
+#%% Aspect ratio ---> taking max and min not very good! 
+#cell = 29
+for cell in range(cnm2.N):
+    cell_A = np.array(cnm2.Ab[:,cell+cnm2.gnb].todense())
+    cell_mask = (np.reshape(cell_A, dims, order='F') > 0).astype('int')
+    
+    min_v = np.min(np.where(cell_mask),axis=1)
+    max_v = np.max(np.where(cell_mask),axis=1)
+    
+    cell_size = max_v - min_v
+    aspect_ratio = cell_size[0]/cell_size[1]
+    
+    print('aspect ratio for cell ' + str(cell+1) + ': ' + str(aspect_ratio))
+
+# 1.5 == very elongated ROI usually tho
+    
+#%% Circularity  ---> values above K a lot lower (~0.4) because shapes detected change
+#cell = 1
+for cell in range(cnm2.N):
+    coords = get_contours(A, dims)
+    area = sum(A[:,cell]>0)
+    perimeter = len(coords[0]['coordinates'])
+    circularity = 4*np.pi*area/perimeter**2
+    print('circularity of cell ' + str(cell) + ' : ' + str(circularity))
+
+#%%
+pl.figure();
+cell_coords = coords[cell]['coordinates']
+pl.plot(*cell_coords.T)
+
+#%% Inertia? Compactness?
