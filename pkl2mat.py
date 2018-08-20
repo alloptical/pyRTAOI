@@ -47,7 +47,7 @@ def pkl2mat(file_full_name = '',save_full_name = ''):
 #    print([x for x in cnm.time_neuron_added])
 #    print([x[1] for x in cnm.time_neuron_added])
 #    return
-    save_dict['frame_added'] = file_data['frame_added'] # added record of new cells in pyrtaoi
+#    save_dict['frame_added'] = file_data['frame_added'] # added record of new cells in pyrtaoi
 
     # cell traces
     save_dict['noisyC'] = cnm.noisyC
@@ -59,7 +59,10 @@ def pkl2mat(file_full_name = '',save_full_name = ''):
 #        save_dict['frame_all_added'] = cnm.time_neuron_added  # should keep all info for cell idx in case of removing any
     
     # copy parameters
-    param_names = ['ds_factor', 'photo_stim_frames_caiman','K','min_SNR','gSig','rval_thr','thresh_overlap','merge_thresh','expected_comps']
+    param_names = ['ds_factor', 'photo_stim_frames_caiman','K','min_SNR','gSig',
+                   'rval_thr','thresh_overlap','merge_thresh','expected_comps',
+                   'frame_added']   # added record of new cells in pyrtaoi
+    
     for param in param_names:
         try:
             save_dict[param] = file_data[param]

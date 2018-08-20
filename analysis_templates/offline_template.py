@@ -20,6 +20,10 @@
     initialisation output with the CNN filter as the mask does not separate
     cells well.
     
+    
+    *************************** SOMETHING OFF HERE ***************************************
+    - Running same videos in pyRTAOI currently finds more cells than when using this script
+    
 """
 
 
@@ -786,8 +790,10 @@ if save_mat:
 #folder = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\tests on rig\20180807\pyrtaoi_results'
 #file = '20180807_OG300_0002_DS_1.5_rtaoi.tif_DS_1.5_OnlineProc.pkl'
 #file = '20180807_OG300_0004_DS_1.5_rtaoi_OnlineProc.pkl'
-
+    
 #saveResultPath = os.path.join(folder,file)
+
+
 saveResultPath = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples\example8\pyrtaoi_results\20180107_OG242_t-001_Cycle00001_Ch2_DS_1.5_rtaoi_OnlineProc_125931.pkl'
 
 cnm_object = load_object(saveResultPath)

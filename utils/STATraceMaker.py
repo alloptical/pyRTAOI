@@ -22,6 +22,7 @@ def make_sta_file(file_full_name = '',save_full_name = '', stim_frames = [],
         file_full_name = filedialog.askopenfilename()
 
     print(file_full_name)
+    print(type(file_full_name))
 
     with open(file_full_name, 'rb') as f:
         # file opened
@@ -33,9 +34,14 @@ def make_sta_file(file_full_name = '',save_full_name = '', stim_frames = [],
 
     # get data
     cnm = file_data['cnm2']
+    online_C = file_data['online_C']
     init_com_count = file_data['init_com_count']
-
-    C, f = cnm.C_on[cnm.gnb:cnm.M], cnm.C_on[:cnm.gnb]
+    
+    online_traces = True  # use online detected traces or final onacid output
+    if online_traces:
+        C, f = online_C[cnm.gnb:cnm.M], online_C[:cnm.gnb]
+    else:
+        C, f = cnm.C_on[cnm.gnb:cnm.M], cnm.C_on[:cnm.gnb]
 #    cnm_C = C
 
     # get frame detected
@@ -63,6 +69,7 @@ def make_sta_file(file_full_name = '',save_full_name = '', stim_frames = [],
     # make STA template
     sta_template = np.arange(-pre_samples, post_samples)
     num_trials = len(stim_frames)
+    print(C.shape)
     num_frames = C.shape[1]
     num_rois = C.shape[0]
 
@@ -107,7 +114,7 @@ def make_sta_file(file_full_name = '',save_full_name = '', stim_frames = [],
 
     return norm_trials
 
-def plotSTAtraces(sta_traces=[],frames_to_avgerage = range(30,60)):
+def plotSTAtraces(sta_traces=[],frames_to_average = range(30,60)):
     if sta_traces == []:
         # load file in Temp folder
         try:
@@ -121,7 +128,7 @@ def plotSTAtraces(sta_traces=[],frames_to_avgerage = range(30,60)):
     print(sta_traces.shape)
     sta_trial_avg = np.nanmean(sta_traces,1)
 
-    sta_trial_avg_amp = np.nanmean(sta_trial_avg[:,frames_to_avgerage],1)
+    sta_trial_avg_amp = np.nanmean(sta_trial_avg[:,frames_to_average],1)
 
     num_rois = sta_traces.shape[0]
     num_trials = sta_traces.shape[1]

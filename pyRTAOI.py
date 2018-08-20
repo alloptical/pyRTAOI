@@ -857,7 +857,7 @@ class Worker(QObject):
             if opsin_mask.size:
                 cnm2.opsin = opsin
                 
-            frame_detected_init = np.ones(10).astype('int')*cnm2.initbatch
+            frame_detected_init = np.ones(K_init).astype('int')*cnm2.initbatch
             frame_detected = np.concatenate((frame_detected_init, frame_extra_detected))
 
             # save results to Temp folder
