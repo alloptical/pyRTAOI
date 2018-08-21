@@ -22,7 +22,6 @@ def make_sta_file(file_full_name = '',save_full_name = '', stim_frames = [],
         file_full_name = filedialog.askopenfilename()
 
     print(file_full_name)
-    print(type(file_full_name))
 
     with open(file_full_name, 'rb') as f:
         # file opened
@@ -34,11 +33,11 @@ def make_sta_file(file_full_name = '',save_full_name = '', stim_frames = [],
 
     # get data
     cnm = file_data['cnm2']
-    online_C = file_data['online_C']
     init_com_count = file_data['init_com_count']
     
-    online_traces = True  # use online detected traces or final onacid output
+    online_traces = 0  # use online detected traces or final onacid output
     if online_traces:
+        online_C = file_data['online_C']
         C, f = online_C[cnm.gnb:cnm.M], online_C[:cnm.gnb]
     else:
         C, f = cnm.C_on[cnm.gnb:cnm.M], cnm.C_on[:cnm.gnb]
@@ -69,7 +68,6 @@ def make_sta_file(file_full_name = '',save_full_name = '', stim_frames = [],
     # make STA template
     sta_template = np.arange(-pre_samples, post_samples)
     num_trials = len(stim_frames)
-    print(C.shape)
     num_frames = C.shape[1]
     num_rois = C.shape[0]
 

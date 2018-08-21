@@ -82,7 +82,7 @@ if len(files)==1:
     ref_movie_path = files[0]
 print('Ref movie path: ', ref_movie_path)
 
-#ref_movie_path = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\tests on rig\20180811\init_results\20180811_OG300_t_0003_rtaoi_init_seeded_DS_2.0.pkl'
+ref_movie_path = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\tests on rig\20180811\init_results\20180811_OG300_t_0003_rtaoi_init_seeded_DS_2.0.pkl'
 
 movie_ext = ref_movie_path[-4:]
 
@@ -156,8 +156,8 @@ if visualise_init:
     A.tocsc()[:, :]), C[:, :], b, f, dims[0], dims[1], YrA=YrA[:, :], img=None) #Cn_init)
 
 #%% Load c1v1 image and create a binary cell mask
-mask_file = r'C:\Users\intrinsic\Desktop\pyRTAOI2018\samples\example1\20171229_OG245_s-026_Cycle00001_Ch1_000001.ome.tif'
-ds_factor = 1.5
+mask_file = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples\example1\20171229_OG245_s-026_Cycle00001_Ch1_000001.ome.tif'
+ds_factor = 2 # 1.5
 
 opsin_img = cm.load(mask_file, subindices = slice(0,1,None))
 opsin_img = opsin_img[np.newaxis,:,:].resize(1. / ds_factor, 1. / ds_factor)
@@ -167,8 +167,9 @@ pl.figure(); pl.imshow(np.squeeze(opsin_img), cmap='gray')
 
 
 # specify cell extraction parameters
-min_area_size = 100
-gSig_ = 9 #gSig[0]
+min_area_size = 100 #/ds_factor**2
+gSig_ = 9 # 9/ds_factor #gSig[0]
+
 
 A_opsin, mr_opsin = extract_binary_masks_from_structural_channel(opsin_img, gSig=gSig_, min_area_size=min_area_size, min_hole_size=15) 
 A_opsin = A_opsin.astype('int')
@@ -220,7 +221,7 @@ pl.colorbar()
 
 #%% Seeded initialisation
 #ref_movie_path = r'T:\ForPatrycja\pyRTAOI\samples\example2\20171229_OG245_t-053\20171229_OG245_t-053_Cycle00001_Ch2.tif'
-ref_movie_path = r'C:\Users\intrinsic\Desktop\pyRTAOI2018\samples\example1\20171229_OG245_t-052_Cycle00001_Ch2_substack1-2700.tif'
+ref_movie_path = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples\example1\20171229_OG245_t-052_Cycle00001_Ch2_substack1-2700.tif'
 
 opsin_seeded = True
 if opsin_seeded:
@@ -228,7 +229,7 @@ if opsin_seeded:
 else:
     Ain = A
 
-ds_factor = 1.5
+ds_factor = 2 #1.5
 initbatch = 500
 minibatch_shape = 100
     
@@ -807,10 +808,19 @@ C, f = cnm2.C_on[cnm2.gnb:cnm2.M], cnm2.C_on[:cnm2.gnb]
 dims = cnm2.dims
 
 #%% Load pkl init object
-saved_pkl = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples\example1\init_results\20171229_OG245_t-052_Cycle00001_Ch2_substack1-200_init_seeded_DS_1.5_161139_filtered.pkl'
+saved_pkl = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples\example1\init_results\20171229_OG245_t-052_Cycle00001_Ch2_substack1-200_init_cnmf_DS_2.0_114309_filtered.pkl'
 init_values = load_object(saved_pkl)
 
 #mask = pkl_datafile['cnm_init'].A # access mask
+
+cnm_init = init_values['cnm_init']
+idx_components = init_values['idx_components']
+removed_idx = init_values['removed_idx']
+cnn_removed_idx = init_values['cnn_removed_idx']
+
+print('len idx comp', len(idx_components))
+print('removed idx', removed_idx)
+print('cnn removed idx', cnn_removed_idx)
 
 #%%
 idx_components = init_values['idx_components']
