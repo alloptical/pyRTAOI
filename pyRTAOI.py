@@ -32,6 +32,7 @@ import random
 import os
 import glob
 import math
+
 # Qt
 import GUI
 from PyQt5.QtCore import Qt,QObject, pyqtSignal, QThread, QTimer, QRectF, QUrl,QPoint, QRect, QSize,QPointF,QSizeF, QSettings, QCoreApplication, QDir
@@ -78,6 +79,7 @@ from caiman.base.rois import com
 from caiman.utils.utils import load_object, save_object
 from caiman.base.rois import extract_binary_masks_from_structural_channel as extract_mask
 from caiman.paths import caiman_datadir
+from caiman.components_evaluation import evaluate_components_CNN
 
 # plot libs
 import matplotlib
@@ -1022,6 +1024,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         self.opsin_mask = np.array([])
         self.A_opsin = np.array([])
         self.opsinMaskOn = False
+        self.showROIsOn = False
         self.A_loaded = np.array([])
         self.mask_path = ''
 
@@ -1400,6 +1403,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         self.saveResult_pushButton.clicked.connect(self.saveResults)
         self.browseResultPath_pushButton.clicked.connect(self.browseResultPath)
         self.removeMode_pushButton.clicked.connect(self.removeModeController)
+        self.CNNFilter_pushButton.clicked.connect(self.filterResults)
 
         # start worker
         self.run_pushButton.clicked.connect(self.clickRun)
@@ -1503,7 +1507,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 
     def updatePowerControl(self):
-
         NI_TTL_NUM_SAMPLES = p['NI_TTL_NUM_SAMPLES']
         NI_STIM_NUM_SAMPLES = int(p['photoDuration']*0.001*p['NI_SAMPLE_RATE'])
         init_output = np.zeros([2, max(NI_TTL_NUM_SAMPLES+1,NI_STIM_NUM_SAMPLES+1)])
@@ -1840,7 +1843,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
     def showFOV(self):
         try:
-            self.opsinMaskOn = True
+            self.showROIsOn = False
+#            self.opsinMaskOn = True
             self.imageItem.setImage(cv2.resize(self.c['img_norm'],(512,512),interpolation=cv2.INTER_CUBIC)) # display FOV
         except Exception as e:
             print(e)
@@ -1896,6 +1900,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
         cellMask2D = np.repeat(cellMask2D[:,:,None],3,axis=-1)
         self.imageItem.setImage(cv2.resize(cellMask2D, (512, 512), interpolation=cv2.INTER_CUBIC))
+        
+        self.showROIsOn = True
 
     def loadProcData(self):
         stim_type = self.StaStimType_comboBox.currentIndex()
@@ -1918,19 +1924,21 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 
     def resetFigure(self):
-#        plt.close('all')
-
-        self.ax1.cla()
-        self.ax2.cla()
-        self.ax3.cla()
-        self.axcomp.cla()
-
-        self.figCanvas.draw()
-#            self.figCanvas.update()
-        self.figCanvas.flush_events()
-
-        g = gc.collect()
-        print('gc: ', g)
+        try:
+    #        plt.close('all')
+    
+            self.ax1.cla()
+            self.ax2.cla()
+            self.ax3.cla()
+            self.axcomp.cla()
+    
+            self.figCanvas.draw()
+    #            self.figCanvas.update()
+            self.figCanvas.flush_events()
+    
+            g = gc.collect()
+            print('gc: ', g)
+        except: pass
 
 
     def transDataToMain(self, cnm_struct, online_C, accepted, t, sta_amp, sta_traces, plot=True):
@@ -1958,7 +1966,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             except: pass
     
             cnm_struct = self.c['cnm2']
-            img = self.c['Cn_init']
+            
+
             
             if online:
                 C,f = self.c['online_C'][cnm_struct.gnb:cnm_struct.M], self.c['online_C'][:cnm_struct.gnb]
@@ -1991,8 +2000,16 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
     
             Y_r = YrA + C
             d1, d2 = cnm_struct.dims
+            
+            cell_mask = 1
+            if cell_mask:
+                img = np.reshape(np.array(A.mean(axis=1)), (d1, d2), order='F')
+            else:
+                img = self.c['Cn_init']
     
             all_ = list(range(0, cnm_struct.N))
+            
+            
             try:
                 accepted = cnm_struct.accepted
                 rejected = [item for item in all_ if item not in accepted]
@@ -2045,7 +2062,10 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
     
     
                     self.ax3.cla()
-                    self.ax3.imshow(img, interpolation='None', cmap=pl.cm.gray, vmax=vmax)
+                    if vmax > 0:
+                        self.ax3.imshow(img, interpolation='None', cmap=pl.cm.gray, vmax=vmax)
+                    else:
+                        self.ax3.imshow(img, interpolation='None', cmap=pl.cm.gray)
                     imgtmp2 = imgtmp.copy()
                     imgtmp2[imgtmp2 == 0] = np.nan
                     self.ax3.imshow(imgtmp2, interpolation='None', alpha=0.5, cmap=pl.cm.hot)
@@ -2267,7 +2287,11 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                                                          rval_thr=rval_thr, merge_thresh=merge_thresh,
                                                          thresh_overlap=thresh_overlap,
                                                          save_init=True, mot_corr=True,
-                                                         min_SNR=min_SNR, CNN_filter=True)
+                                                         min_SNR=min_SNR) #, CNN_filter=True)
+                        
+#                        cnn_thresh =  0.1 # default thresh for c1v1 mask
+#                        self.CNNFilter_doubleSpinBox.setValue(cnn_thresh)
+#                        self.filterResults()
     
                     else:
                         self.updateStatusBar('A non-tif file was provided - select a tif movie to initialise with a mask')
@@ -2296,6 +2320,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                     self.updateStatusBar('A non-tif file was provided - select a tif movie to initialise with a mask')
                     return
     
+            
             # Prepare object for OnACID
             idx_components = init_values['idx_components']
             path_to_cnn_residual = os.path.join(caiman_datadir(), 'model', 'cnn_model_online.h5')
@@ -2306,7 +2331,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                                  min_num_trial=2, N_samples_exceptionality=int(init_values['N_samples']),
                                  path_to_model=path_to_cnn_residual, sniper_mode=False)
             
-#            cnm2.max_num_added = 5  # max number of cells added per onacid frame
+#            cnm2.max_num_added = 5  # max number of cells added per onacid frame --> doesn't look like more cells are added per frame
     
             cnm2.opsin = None
             cnm2.accepted = list(range(0,cnm2.N))
@@ -2341,7 +2366,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
     
     
             self.cell_radius = cell_radius
-    #        self.gSig = (cell_radius, cell_radius)
             self.min_SNR = min_SNR
             self.rval_thr = rval_thr
             self.merge_thresh = merge_thresh
@@ -2349,10 +2373,16 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             self.ds_factor = ds_factor
             self.K_init = K
     
+            
             self.c = init_values
             self.c['cnm2'] = cnm2
-    #        self.c['removed_idx'] = []
+            self.c['removed_idx'] = []
             self.c['K_init'] = K
+            
+            try: # temp; TODO: remove
+                self.c['thresh_cnn']
+            except:
+                self.c['thresh_cnn'] = 0
     
             coms = self.c['coms_init'].copy()
             if idx_components is not None:            
@@ -2372,6 +2402,15 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             for i in range(K):
                 y, x = init_values['coms_init'][i]  # reversed
                 self.getROImask(thisROIx = x, thisROIy = y)
+                
+            
+            if self.c['CNN_filter']:
+                self.CNNFilter_doubleSpinBox.setValue(self.c['thresh_cnn'])
+    
+            if opsin_seeded:
+                cnn_thresh = 0.1 # default thresh for c1v1 mask
+                self.CNNFilter_doubleSpinBox.setValue(cnn_thresh)
+                self.filterResults()
     
             self.UseONACID_checkBox.setEnabled(True)
             self.UseONACID_checkBox.setChecked(True)
@@ -2388,9 +2427,15 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             print(e)
 
 
-    def updateInitialisation(self, save_init=True):
-        idx_keep = list(set(range(self.thisROIIdx)) - set(self.removeIdx))
 
+    def updateInitialisation(self, save_init=True, CNN=False):
+        print('Removing ' + str(len(self.removeIdx)) + ' cells')
+        if CNN:
+            thisROIIdx = self.c['K_init']
+            idx_keep = sorted(list(set(range(thisROIIdx)) - set(self.removeIdx)))
+        else:
+            idx_keep = sorted(list(set(range(self.thisROIIdx)) - set(self.removeIdx)))
+        
         # reset previous settings
         self.ROIcontour_item.clear()
         self.thisROIIdx = 0
@@ -2409,10 +2454,11 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         self.InitNumROIs_spinBox.setValue(K)
         self.InitNumROIs = K
 
-        self.c['cnm2'].accepted = self.c['cnm2'].accepted[:K] # all cells accepted post initialisation
+        self.c['cnm2'].accepted = list(range(0,K)) # all cells accepted post initialisation
 
         coms = self.c['coms_init']
         self.c['coms_init'] = coms[idx_keep]
+        print(self.c['coms_init'].shape)
 
         if self.MaxNumROIs_spinBox.value() < K+5:
             self.MaxNumROIs_spinBox.setValue(K+10)
@@ -2434,11 +2480,15 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                 self.TargetIdx.remove(idx)
             self.TargetIdx = [target-1 if target>idx else target for target in self.TargetIdx]
 
+
         if self.A_opsin.size:
             self.checkOpsin()
+            
+        if self.showROIsOn:
+            self.plotSTAonMasks(None)
+            plt.close()
 
         self.updateTargets()
-#        self.updateStatusBar('Removed cells: ' + str([value+1 for value in self.removeIdx])[1:-1])
         self.updateStatusBar('Removed ' + str(len(self.removeIdx)) + ' cells')
 
         # store the indices of cells removed from orig init file
@@ -2454,25 +2504,29 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                     print('Different indeces - check')  # this should never be a problem
             
             orig_K = coms_init_orig.shape[0]
-            orig_remove_idx = list(set(range(orig_K)) - set(orig_keep_idx))
+            orig_remove_idx = list(set(range(orig_K)) - set(orig_keep_idx))  # all removed cell indices
             
-            try:
+            if CNN:
+                remove_idx = list(set(orig_remove_idx) - set(self.c['removed_idx']))
+                self.c['cnn_removed_idx'] = remove_idx
+            else:
                 if self.c['CNN_filter']:
                     cnn_remove_idx = self.c['cnn_removed_idx']
-                    orig_remove_idx = list(set(orig_remove_idx) - set(cnn_remove_idx))  # keep manually removed indeces here only                   
-            except Exception as e: print(e)
-    
+                    remove_idx = list(set(orig_remove_idx) - set(cnn_remove_idx))  # keep manually removed indeces here only
+                else:
+                    remove_idx = orig_remove_idx
+                    
+                self.c['removed_idx'] = remove_idx
+            
             # save new init object
             if save_init:
                 init_values_new = deepcopy(self.c)  # copy to avoid messing with self.c
-                init_values_new['idx_components'] = orig_keep_idx   # will be used during prepare_object to keep only cells of interest
-                init_values_new['removed_idx'] = orig_remove_idx   # manually removed cells
-                init_values_new['K_init'] = K
-                init_values_new['coms_init'] = self.c['coms_init_orig']  # keep the original
                 del init_values_new['cnm2']
                 
+                init_values_new['idx_components'] = orig_keep_idx   # will be used during prepare_object to keep only cells of interest
+                init_values_new['coms_init'] = self.c['coms_init_orig']  # keep the original
+
                 save_path = self.c['save_path'][:-4] + '_filtered.pkl'
-#                save_path = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\tests on rig\20180811\init_results\20180811_OG300_t_0003_rtaoi_init_seeded_DS_2.0_filtered.pkl'
                 init_values_new['save_path'] = save_path
                 
                 print('Saving new init file as ' + str(save_path))
@@ -2484,7 +2538,128 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         
         # clear removeIdx array
         self.removeIdx = []
+        
+        
+    def resetCNNfiltering(self, show_results=True):
+        del self.c['cnm2']
+        
+        idx_components = sorted(list(set(range(self.c['K'])) - set(self.c['removed_idx'])))
+        self.c['idx_components'] = idx_components
+        
+        path_to_cnn_residual = os.path.join(caiman_datadir(), 'model', 'cnn_model_online.h5')
+        cnm2 = deepcopy(self.c['cnm_init'])
+        
+        cnm2._prepare_object(np.asarray(self.c['Yr']), self.c['T1'],
+                             self.c['expected_comps'], idx_components=idx_components,
+                             min_num_trial=2, N_samples_exceptionality=int(self.c['N_samples']),
+                             path_to_model=path_to_cnn_residual, sniper_mode=False)
 
+        cnm2.opsin = None
+        cnm2.accepted = list(range(0,cnm2.N))
+        cnm2.t = cnm2.initbatch
+        
+        self.c['cnm2'] = cnm2
+        self.c['cnn_removed_idx'] = []
+        coms_orig = self.c['coms_init_orig']
+
+        if idx_components is not None:            
+            self.c['coms_init'] = coms_orig[idx_components]
+        else:
+            self.c['coms_init'] = coms_orig
+            
+        self.removeIdx = []
+
+        K = self.c['cnm2'].N
+        self.c['K_init'] = K
+
+        if show_results:
+            # reset previous settings
+            self.ROIcontour_item.clear()
+            self.deleteTextItems()
+            self.plotItem.clear()
+            self.resetFigure()
+            self.thisROIIdx = 0
+            self.resetROIlist()
+            self.updateTable()
+            self.InitNumROIs_spinBox.setValue(K)
+            self.InitNumROIs = K
+            
+            if self.MaxNumROIs_spinBox.value() < K+5:
+                self.MaxNumROIs_spinBox.setValue(K+10)
+    
+            self.initialiseROI()
+            for i in range(K):
+                y, x = self.c['coms_init'][i]  # reversed
+                self.getROImask(thisROIx = x, thisROIy = y)
+            
+            show_traces = 1
+            if show_traces:
+                self.showROIIdx()
+                cnm_init = self.c['cnm_init']
+                self.plotOnacidTraces(t=cnm_init.initbatch)
+    
+            # check target cells
+            if self.selectAll_checkBox.isChecked():
+                self.selectAllROIs()
+    
+            if self.A_opsin.size:
+                self.checkOpsin()
+                
+            if self.showROIsOn:
+                self.plotSTAonMasks(None)
+                plt.close()
+    
+            self.updateTargets()
+            self.updateStatusBar('Total number of cells: ' + str(K))
+            
+            # overwrite previous results
+            init_values_new = deepcopy(self.c)  # copy to avoid messing with self.c
+            del init_values_new['cnm2']
+            init_values_new['coms_init'] = self.c['coms_init_orig']  # keep the original
+            save_path = self.c['save_path'][:-4] + '_filtered.pkl'
+            
+            init_values_new['save_path'] = save_path        
+            print('Saving new init file as ' + str(save_path))
+            save_object(init_values_new, save_path)
+            
+            del init_values_new   # free memory after saving
+
+
+    def filterResults(self):
+        thresh_cnn = self.CNNFilter_doubleSpinBox.value()
+        self.c['CNN_filter'] = bool(thresh_cnn)
+        
+        if self.c['CNN_filter']:
+            if self.c['thresh_cnn'] == thresh_cnn:
+                return
+            if len(self.c['cnn_removed_idx']):
+                self.resetCNNfiltering(show_results=False)
+            
+            print('Filtering components')
+            print('CNN threshold: ', thresh_cnn)
+            
+            cnm_struct = self.c['cnm2']
+            A = cnm_struct.Ab[:, cnm_struct.gnb:cnm_struct.M]
+            gSig = cnm_struct.gSig
+        
+            predictions, final_crops = evaluate_components_CNN(
+                A, self.dims, gSig, model_name=os.path.join(caiman_datadir(), 'model', 'cnn_model'))
+
+            predictions[np.isnan(predictions)] = 0  # exclude nan    
+            idx_keep_CNN = np.where(predictions[:, 1] >= thresh_cnn)[0].tolist()
+            idx_rem_CNN = np.where(predictions[:,1] < thresh_cnn)[0].tolist()
+            print(str(len(idx_keep_CNN)) + ' cells left post filtering')
+            
+            self.c['thresh_cnn'] = thresh_cnn
+            self.removeIdx = idx_rem_CNN
+            self.updateInitialisation(CNN=True)
+            
+        # reset previous CNN filter
+        else:
+            if len(self.c['cnn_removed_idx']):
+                print('Resetting filter results')
+                self.resetCNNfiltering()
+            
 
     def loadOpsinImg(self):
         opsin_img_path = str(QFileDialog.getOpenFileName(self, 'Load a C1V1 image', self.movie_folder, 'MPTIFF (*.tif)')[0])
@@ -2501,16 +2676,20 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
     def createOpsinMask(self):
         if self.opsin_img.size:
             ds_factor = self.dsFactor_doubleSpinBox.value()
-
             opsin_img = self.opsin_img[np.newaxis,:,:].resize(1./ds_factor,1./ds_factor) # moved here for init recreating
 
             min_area = self.minArea_spinBox.value()
             radius = self.cellRadius_spinBox.value() # must be radius % 2 == 1 and > 1
 
+            # downsample params
+            radius = round(radius/ds_factor)
+            min_area = min_area/ds_factor**2
+
             if radius % 2 == 0:
                 radius += 1
-            self.cellRadius_spinBox.setValue(radius)
-
+                
+#            self.cellRadius_spinBox.setValue(radius) # can be hidden - rescaling more important
+            
             dims = opsin_img.shape[-2:]
 
             A_opsin, mr_opsin = extract_mask(opsin_img, gSig=radius, min_area_size=min_area, min_hole_size=15)
@@ -2778,9 +2957,10 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                     return
 
             self.deleteTextItems()
-
-            if self.opsinMaskOn:
+            
+            if self.opsinMaskOn or self.showROIsOn:
                 self.opsinMaskOn = False
+                self.showROIsOn = False
                 self.updateImage(cv2.resize(self.c['img_norm'],(512,512),interpolation=cv2.INTER_CUBIC))
 
             # ensure correct param values following init are displayed

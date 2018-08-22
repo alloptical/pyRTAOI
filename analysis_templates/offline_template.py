@@ -167,11 +167,13 @@ pl.figure(); pl.imshow(np.squeeze(opsin_img), cmap='gray')
 
 
 # specify cell extraction parameters
-min_area_size = 100 #/ds_factor**2
-gSig_ = 9 # 9/ds_factor #gSig[0]
+min_area_size = 100/ds_factor**2
+gSig_ = round(9/ds_factor) # 9  #gSig[0]
 
+if gSig_ % 2 == 0:
+    gSig_ += 1
 
-A_opsin, mr_opsin = extract_binary_masks_from_structural_channel(opsin_img, gSig=gSig_, min_area_size=min_area_size, min_hole_size=15) 
+A_opsin, mr_opsin = extract_binary_masks_from_structural_channel(opsin_img, gSig=gSig_, min_area_size=min_area_size, min_hole_size=10) 
 A_opsin = A_opsin.astype('int')
 opsin_mask = np.reshape(np.array(A_opsin.max(axis=1)), dims, order='F').astype('int')  # changed mean to max because it's binary
 
@@ -230,7 +232,7 @@ else:
     Ain = A
 
 ds_factor = 2 #1.5
-initbatch = 500
+initbatch = 200
 minibatch_shape = 100
     
 lframe, seeded_init_values = initialise(ref_movie_path, init_method='seeded', Ain=Ain,
@@ -269,6 +271,8 @@ thresh_cnn = 0.1 # 0.1 default
 
 predictions, final_crops = evaluate_components_CNN(
     A, dims, gSig, model_name=os.path.join(caiman_datadir(), 'model', 'cnn_model'), isGPU=1)
+
+predictions[np.isnan(predictions)] = 0  # exclude nan
 
 A_exclude, C_exclude = A[:, predictions[:, 1] <
                          thresh_cnn], C[predictions[:, 1] < thresh_cnn]  # elements removed from analysis
@@ -350,7 +354,7 @@ visualise_init = True
 if visualise_init:
     pl.figure()
     crd = plot_contours(A, Cn_init, thr=0.9)
-    coms = c['coms_init']
+    coms = coms_init # c['coms_init']
     pl.plot(coms[:,1], coms[:,0], '.r')
     #b, f, YrA, sn = cnm_init.b, cnm_init.f, cnm_init.YrA, cnm_init.sn
     
@@ -358,6 +362,11 @@ if visualise_init:
     A.tocsc()[:, :]), C[:, :initbatch], b, f, dims[0], dims[1], #YrA=np.zeros([A.shape[-1],cnm_init.initbatch]),
     YrA=YrA[:, :initbatch], img=Cn_init)
 
+#%%
+img = np.reshape(np.array(A.mean(axis=1)), dims, order='F')
+
+vmax = np.percentile(img, 95)
+pl.figure(); pl.imshow(img, interpolation='None', cmap=pl.cm.gray)#, vmax=vmax)
 
 #%% COMPONENT EVALUATION - doesn't work now. ValueError: cannot reshape array of size 15652 into shape (100,5,28)
 # the components are evaluated in three ways:
