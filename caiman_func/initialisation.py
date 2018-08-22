@@ -291,30 +291,37 @@ def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1,
     
     if save_init:
         cnm_init.dview = None
-        save_separately = True # flag to save in a folder inside movie folder
+#        save_separately = True # flag to save in a folder inside movie folder - default
         
         daytimestr = time.strftime("%Y%m%d-%H%M%S")
         timestr = daytimestr[-6:]
         save_time = True # include time when saving to avoid overwriting when repeating offline
         
-        if save_separately:
-            if save_time:
-                filename = os.path.basename(ref_movie)[:-4] + '_init_' + init_method + '_DS_' + str(ds_factor) + '_' + timestr + '.pkl'
-            else:
-                filename = os.path.basename(ref_movie)[:-4] + '_init_' + init_method + '_DS_' + str(ds_factor) + '.pkl'
-                
-            movie_folder = os.path.dirname(ref_movie)            
-            init_folder = os.path.join(movie_folder, 'init_results')  # save init results in a separate folder
-            
-            if not os.path.exists(init_folder):
-                os.makedirs(init_folder)
-                
-            save_path = os.path.join(init_folder, filename)
+        movie_name = os.path.basename(ref_movie)
+        i = movie_name.find('Cycle')
+        movie_string = movie_name[:i]
+        
+#        movie_string = movie[:-4]  # old version
+        
+#        if save_separately:
+        if save_time:
+            filename = movie_string + 'rtaoi_init_' + init_method + '_DS_' + str(ds_factor) + '_' + timestr + '.pkl'
         else:
-            if save_time:
-                save_path  = ref_movie[:-4] + '_init_' + init_method + '_DS_' + str(ds_factor) + '_' + timestr +'.pkl'
-            else:
-                save_path  = ref_movie[:-4] + '_init_' + init_method + '_DS_' + str(ds_factor) + '.pkl'
+            filename = movie_string + 'rtaoi_init_' + init_method + '_DS_' + str(ds_factor) + '.pkl'
+            
+        movie_folder = os.path.dirname(ref_movie)            
+        init_folder = os.path.join(movie_folder, 'init_results')  # save init results in a separate folder
+        
+        if not os.path.exists(init_folder):
+            os.makedirs(init_folder)
+            
+        save_path = os.path.join(init_folder, filename)
+            
+#        else:
+#            if save_time:
+#                save_path  = ref_movie[:-4] + '_init_' + init_method + '_DS_' + str(ds_factor) + '_' + timestr +'.pkl'
+#            else:
+#                save_path  = ref_movie[:-4] + '_init_' + init_method + '_DS_' + str(ds_factor) + '.pkl'
         
         init_values['save_path'] = save_path
         

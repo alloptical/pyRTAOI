@@ -871,7 +871,6 @@ class Worker(QObject):
             save_dict['init_com_count'] = K_init # com_count from init file (in case any cells removed from init file)
             save_dict['online_com_count'] = com_count
             save_dict['accepted'] = accepted  # accepted currently stored inside cnm2 as well
-#            save_dict['frame_extra_detected'] = frame_extra_detected
             save_dict['frame_detected'] = frame_detected
             save_dict['t_cnm'] = t_cnm
             save_dict['tottime'] = self.tottime
@@ -893,7 +892,7 @@ class Worker(QObject):
             if p['FLAG_STIM_TRIG_ENABLED'] :
                 save_dict['sensory_stim_frames'] = self.stim_frames
             else:
-                save_dict['sensory_stim_frames'] =[]
+                save_dict['sensory_stim_frames'] = []
 
             try:
                 save_dict['opsin_thresh'] = opsin_thresh
@@ -904,25 +903,31 @@ class Worker(QObject):
 
             try:
                 print('Saving onacid output')
-                save_separately = True # temp flag to save in a new folder inside movie folder
+#                save_separately = True # temp flag to save in a new folder inside movie folder - default
                 daytimestr = time.strftime("%Y%m%d-%H%M%S")
                 timestr = daytimestr[-6:]
-
-                if save_separately:
-                    filename = os.path.basename(self.movie_name)[:-4] + '_OnlineProc_' + timestr + '.pkl'
-                    movie_folder = os.path.dirname(self.movie_name)
-                    save_folder = os.path.join(movie_folder, 'pyrtaoi_results')  # save init result in a separate folder
-                    if not os.path.exists(save_folder):
-                        os.makedirs(save_folder)
-                    save_path = os.path.join(save_folder, filename)
-                else:
-                    save_path = self.movie_name[:-4] + '_OnlineProc_' + timestr + '.pkl'   # save results in the same folder
+                
+                movie_name = os.path.basename(self.movie_name)
+                i = movie_name.find('Cycle')
+                movie_string = movie_name[:i]
+                
+#                if save_separately:
+#                    filename = os.path.basename(self.movie_name)[:-4] + '_OnlineProc_' + timestr + '.pkl'
+                filename = movie_string + 'rtaoi_OnlineProc_DS_' + str(ds_factor) + '_' + timestr + '.pkl'
+                movie_folder = os.path.dirname(self.movie_name)
+                save_folder = os.path.join(movie_folder, 'pyrtaoi_results')  # save init result in a separate folder
+                if not os.path.exists(save_folder):
+                    os.makedirs(save_folder)
+                save_path = os.path.join(save_folder, filename)
+                
+#                else:
+#                    save_path = self.movie_name[:-4] + '_OnlineProc_' + timestr + '.pkl'   # save results in the same folder
                 print('OnACID result is being saved as: ' + save_path)
                 save_object(save_dict, save_path)
             except Exception as e:
                 print(e)
 
-            try:  # some issue here sometimes? list index out of range for STATraceMaker.make_sta_file line
+            try:  # potential error: 'numpy.float64' object cannot be interpreted as an integer
                 # save sta traces
                 self.sta_traces = STATraceMaker.make_sta_file(file_full_name=save_path,pre_samples = p['staPreFrame'],
                                                               post_samples = p['staPostFrame'],num_init_frames = cnm2.initbatch)
@@ -936,13 +941,13 @@ class Worker(QObject):
                 save_name = os.getcwd()+'/Temp/sta_traces.npy'
                 np.save(save_name, self.sta_traces)
                 print('sta traces saved as: ' + save_name)
+                
             except Exception as e:
                 print(e)
                 self.sta_traces = []
                 sta_trial_avg_amp = 0
 
             # transfer data to main and show traces in plot tab
-#            self.c['test'] = 1
             self.transDataToMain_signal.emit(cnm2, self.online_C, accepted, t_cnm, sta_trial_avg_amp, self.sta_traces)
 
             # delete big variables
@@ -2407,6 +2412,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             if self.c['CNN_filter']:
                 self.CNNFilter_doubleSpinBox.setValue(self.c['thresh_cnn'])
     
+            # temp
             if opsin_seeded:
                 cnn_thresh = 0.1 # default thresh for c1v1 mask
                 self.CNNFilter_doubleSpinBox.setValue(cnn_thresh)
@@ -2491,7 +2497,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         self.updateTargets()
         self.updateStatusBar('Removed ' + str(len(self.removeIdx)) + ' cells')
 
-        # store the indices of cells removed from orig init file
+        # store the original indices of cells removed from init file
         try:
             coms_init_orig = self.c['coms_init_orig']
             orig_keep_idx = []
@@ -2542,7 +2548,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         
     def resetCNNfiltering(self, show_results=True):
         del self.c['cnm2']
-        
+                   
+        # do not include manually deleted cells
         idx_components = sorted(list(set(range(self.c['K'])) - set(self.c['removed_idx'])))
         self.c['idx_components'] = idx_components
         
@@ -2922,10 +2929,10 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
         # get current movie name if PV is connected
         if self.FLAG_PV_CONNECTED:
-            p['currentMoviePath'] = self.pl.get_movie_name()+ '_DS_' + str(self.ds_factor) +'_rtaoi.tif'
+            p['currentMoviePath'] = self.pl.get_movie_name()+ '_rtaoi_DS_' + str(self.ds_factor) +'.tif'
             print('current movie:' + p['currentMoviePath'])
         else:
-            p['currentMoviePath'] = os.path.splitext(p['moviePath'])[0]+ '_DS_' + str(self.ds_factor) +'_rtaoi.tif'
+            p['currentMoviePath'] = os.path.splitext(p['moviePath'])[0]+ '_rtaoi_DS_' + str(self.ds_factor) +'.tif'
 
 
         if self.IsOffline or self.FLAG_PV_CONNECTED: # p['UseONACID'] or self.FLAG_PV_CONNECTED
