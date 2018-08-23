@@ -1,29 +1,29 @@
-### OFFLINE ONACID ANALYSIS PIPELINE ### 
+### OFFLINE ONACID ANALYSIS PIPELINE ###
 
 """
-    For offline purposes, OnACID can be run multiple times (epochs) or 
+    For offline purposes, OnACID can be run multiple times (epochs) or
     initialised with a mask (seeded initialisatin).
-    
+
     Running the algorithm two times (epochs) can find quite many cells which
     were missed during the first run. Third epoch finds a few extra cells but
     not as many.
-    
-    The OnACID output cell mask (A) can be used to initialise the algorithm. 
-    This allows for tracking the activity of cells in the mask throughout the 
+
+    The OnACID output cell mask (A) can be used to initialise the algorithm.
+    This allows for tracking the activity of cells in the mask throughout the
     whole recording.
-    
+
     Strict offline analysis can be done by running OnACID for two epochs
     followed by seeded init + another OnACID run.
-    
-    C1V1 mask can also be used to initialise the algorithm with cells 
-    expressing the opsin. This should be followed by filtering of the 
+
+    C1V1 mask can also be used to initialise the algorithm with cells
+    expressing the opsin. This should be followed by filtering of the
     initialisation output with the CNN filter as the mask does not separate
     cells well.
-    
-    
+
+
     *************************** SOMETHING OFF HERE ***************************************
     - Running same videos in pyRTAOI currently finds more cells than when using this script
-    
+
 """
 
 
@@ -72,17 +72,19 @@ from caiman.base.rois import extract_binary_masks_from_structural_channel
 #ref_movie_path = r'C:\Users\intrinsic\Desktop\samples\example1\init_results\20171229_OG245_t-052_Cycle00001_Ch2_substack1-200_init_seeded_DS_1.5.pkl'
 
 # example movies
-example = 8
+#example = 8
+#
+#sample_folder = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples'
+#example_folder = os.path.join(sample_folder, 'example' + str(example))
+#files = glob.glob(os.path.join(example_folder,'*Ch2.tif'))
+#
+#if len(files)==1:
+#    ref_movie_path = files[0]
+#print('Ref movie path: ', ref_movie_path)
+#
+#ref_movie_path = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\tests on rig\20180811\init_results\20180811_OG300_t_0003_rtaoi_init_seeded_DS_2.0.pkl'
 
-sample_folder = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples'
-example_folder = os.path.join(sample_folder, 'example' + str(example))
-files = glob.glob(os.path.join(example_folder,'*Ch2.tif'))
-
-if len(files)==1:
-    ref_movie_path = files[0]
-print('Ref movie path: ', ref_movie_path)
-
-ref_movie_path = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\tests on rig\20180811\init_results\20180811_OG300_t_0003_rtaoi_init_seeded_DS_2.0.pkl'
+ref_movie_path = r'F:\Data\Zoe\20180822\init_results\20180822_OG299_t_0007_rtaoi.tirtaoi_init_seeded_DS_2.0_180224_filtered.pkl'
 
 movie_ext = ref_movie_path[-4:]
 
@@ -95,7 +97,7 @@ if movie_ext  == '.tif':
     expected_comps = 400
 
     lenient = 0
-    
+
     if lenient:
         rval_thr = 0.7
         min_SNR = 1
@@ -104,22 +106,22 @@ if movie_ext  == '.tif':
         rval_thr = 0.8
         min_SNR = 2.5
         thresh_overlap = 0.2
-    
+
     merge_thresh = 0.85     # 0.85
-    
+
     lframe, init_values = initialise(ref_movie_path, init_method='cnmf', K=K,
                                      ds_factor=ds_factor, gSig=gSig,
-                                     initbatch=initbatch, rval_thr=rval_thr, 
+                                     initbatch=initbatch, rval_thr=rval_thr,
                                      expected_comps=expected_comps,
-                                     thresh_overlap=thresh_overlap, 
+                                     thresh_overlap=thresh_overlap,
                                      save_init=False, mot_corr=True,
                                      merge_thresh=merge_thresh,
                                      minibatch_shape=minibatch_shape,
                                      min_SNR=min_SNR, T1=10000)
-    
+
 elif movie_ext == '.pkl':
     init_values = load_object(ref_movie_path)
-    
+
 
 c = init_values
 
@@ -151,7 +153,7 @@ if visualise_init:
     crd = plot_contours(cnm_init.A.tocsc(), Cn_init, thr=0.9)
     pl.plot(coms_init[:,1], coms_init[:,0], '.r')
     A, C, b, f, YrA, sn = cnm_init.A, cnm_init.C, cnm_init.b, cnm_init.f, cnm_init.YrA, cnm_init.sn
-    
+
     view_patches_bar([], scipy.sparse.coo_matrix(
     A.tocsc()[:, :]), C[:, :], b, f, dims[0], dims[1], YrA=YrA[:, :], img=None) #Cn_init)
 
@@ -173,7 +175,7 @@ gSig_ = round(9/ds_factor) # 9  #gSig[0]
 if gSig_ % 2 == 0:
     gSig_ += 1
 
-A_opsin, mr_opsin = extract_binary_masks_from_structural_channel(opsin_img, gSig=gSig_, min_area_size=min_area_size, min_hole_size=10) 
+A_opsin, mr_opsin = extract_binary_masks_from_structural_channel(opsin_img, gSig=gSig_, min_area_size=min_area_size, min_hole_size=10)
 A_opsin = A_opsin.astype('int')
 opsin_mask = np.reshape(np.array(A_opsin.max(axis=1)), dims, order='F').astype('int')  # changed mean to max because it's binary
 
@@ -198,18 +200,18 @@ for cell in range(onacid_mask.shape[-1]):
     cell_mask = (np.reshape(onacid_mask[:,cell], dims, order='F'))
     mask_inx = np.where(cell_mask==1)
     cell_pix = sum(sum(cell_mask == 1))
-    
+
     inter = cv2.bitwise_and(opsin_mask, cell_mask)
     inter_pix = sum(sum(inter))
     overlap = inter_pix/cell_pix
     overlap_ratio.append(overlap)
-    
+
     thresh = 0.5
     if overlap <= thresh:
         onacid_mask[:,cell][onacid_mask[:,cell] == 1] = -3
     else:
         onacid_mask[:,cell][onacid_mask[:,cell] == 1] = 3
-        
+
     opsin.append(overlap > thresh)
     print('cell ' + str(cell) + ': ' + str(overlap > thresh))
 
@@ -234,7 +236,7 @@ else:
 ds_factor = 2 #1.5
 initbatch = 200
 minibatch_shape = 100
-    
+
 lframe, seeded_init_values = initialise(ref_movie_path, init_method='seeded', Ain=Ain,
                                  ds_factor=ds_factor, initbatch=initbatch, rval_thr=0.85,
                                  thresh_overlap=0.2, save_init=False, mot_corr=True,
@@ -315,7 +317,7 @@ try:
     coms_init = c['coms_init'][idx_components]
 except:
     idx_components = None
-    
+
 try: opsin_seeded
 except: check_opsin = False
 
@@ -357,7 +359,7 @@ if visualise_init:
     coms = coms_init # c['coms_init']
     pl.plot(coms[:,1], coms[:,0], '.r')
     #b, f, YrA, sn = cnm_init.b, cnm_init.f, cnm_init.YrA, cnm_init.sn
-    
+
     view_patches_bar([], scipy.sparse.coo_matrix(
     A.tocsc()[:, :]), C[:, :initbatch], b, f, dims[0], dims[1], #YrA=np.zeros([A.shape[-1],cnm_init.initbatch]),
     YrA=YrA[:, :initbatch], img=Cn_init)
@@ -373,7 +375,7 @@ pl.figure(); pl.imshow(img, interpolation='None', cmap=pl.cm.gray)#, vmax=vmax)
 #   a) the shape of each component must be correlated with the data
 #   b) a minimum peak SNR is required over the length of a transient
 #   c) each shape passes a CNN based classifier
-    
+
 #from caiman.components_evaluation import estimate_components_quality_auto
 #
 #T = cnm_init.initbatch
@@ -388,7 +390,7 @@ pl.figure(); pl.imshow(img, interpolation='None', cmap=pl.cm.gray)#, vmax=vmax)
 
 #%% Remove any undesirable cells from initialisation
 inx = [1] # from visualisation
-cnm2.remove_components(inx) 
+cnm2.remove_components(inx)
 
 #%% create a function for plotting results in real time if needed -- doesn't work that well sometimes
 resize_fact = ds_factor
@@ -413,7 +415,7 @@ def create_frame(cnm2, img_norm, captions):
     C, f = cnm2.C_on[cnm2.gnb:cnm2.M, :], cnm2.C_on[:cnm2.gnb, :]
     # inferred activity due to components (no background)
     frame_plot = (frame_cor.copy() - bnd_Y[0])/np.diff(bnd_Y)
-    comps_frame = A.dot(C[:, t - 1]).reshape(cnm2.dims, order='F')        
+    comps_frame = A.dot(C[:, t - 1]).reshape(cnm2.dims, order='F')
     bgkrnd_frame = b.dot(f[:, t - 1]).reshape(cnm2.dims, order='F')  # denoised frame (components + background)
     denoised_frame = comps_frame + bgkrnd_frame
     denoised_frame = (denoised_frame.copy() - bnd_Y[0])/np.diff(bnd_Y)
@@ -428,7 +430,7 @@ def create_frame(cnm2, img_norm, captions):
                                               # spatial shapes
     frame_comp_1 = cv2.resize(np.concatenate([frame_plot, all_comps * 1.], axis=-1),
                               (2 * np.int(cnm2.dims[1] * resize_fact), np.int(cnm2.dims[0] * resize_fact)))
-    frame_comp_2 = cv2.resize(np.concatenate([comps_frame, denoised_frame], axis=-1), 
+    frame_comp_2 = cv2.resize(np.concatenate([comps_frame, denoised_frame], axis=-1),
                               (2 * np.int(cnm2.dims[1] * resize_fact), np.int(cnm2.dims[0] * resize_fact)))
     frame_pn = np.concatenate([frame_comp_1, frame_comp_2], axis=0).T
     vid_frame = np.repeat(frame_pn[:, :, None], 3, axis=-1)
@@ -493,11 +495,11 @@ if photostim:
     try:
 #        frames_skipped_ = [frame+1 for frame in frames_skipped]  # try?
         print('Photostim recording; some frames will be skipped')
-    except: 
+    except:
         print('Load frames_skipped before running onacid')
 else:
     print('Imaging-only movie')
-        
+
 play_reconstr = False
 
 #%% Run OnACID multiple times (epochs)
@@ -512,26 +514,26 @@ except:
         Y_ = cm.load(movie_path, subindices=slice(initbatch,T1,None))
     else:
         Y_ = cm.load(movie_path, subindices=slice(0,T1,None))
-    
+
 print('Video loaded')
 
-for iter in range(epochs):  
+for iter in range(epochs):
     for frame_count, frame in enumerate(Y_):        # now process each file
         t1 = time_()
-        
+
         if np.isnan(np.sum(frame)):
             raise Exception('Frame ' + str(frame_count) + ' contains nan')
-            
+
         if photostim:
             if frame_count in frames_skipped:  # discard photostim frames
                 continue
-        
+
         frame_ = frame.copy().astype(np.float32)
         if ds_factor > 1:
             frame_ = cv2.resize(frame_, img_norm.shape[::-1])   # downsampling
-    
+
         frame_ -= img_min                                       # make data non-negative
-    
+
         if mot_corr:                                            # motion correct
             templ = cnm2.Ab.dot(cnm2.C_on[:cnm2.M, t - 1]).reshape(cnm2.dims, order='F') * img_norm
             frame_cor, shift = motion_correct_iteration_fast(frame_, templ, max_shift, max_shift)
@@ -539,10 +541,10 @@ for iter in range(epochs):
         else:
             templ = None
             frame_cor = frame_
-    
+
         frame_cor = frame_cor / img_norm                        # normalize data-frame
         cnm2.fit_next(t, frame_cor.reshape(-1, order='F'))      # run OnACID on this frame
-            
+
         if expect_components:
 #            if cnm2.C_on[com_count+1,t] != 0:
 #                print(cnm2.C_on[com_count+1,t])
@@ -550,18 +552,18 @@ for iter in range(epochs):
              if cnm2.N - (com_count + rejected) == 1:  # cnm2.N - (com_count) == 1: if removing too close cells
                 new_coms = com(cnm2.Ab[:, -1], dims[0], dims[1])[0]
                 new_spotted.append(t)
-                
+
                 # Check for repeated components
                 if check_overlap:
                     close = abs(coms - new_coms) < dist_thresh/ds_factor
                     repeated = any(np.all(close,axis=1))
                 else:
                     repeated = False
-                
+
                 if repeated == False:
                     coms = np.vstack((coms, new_coms))
                     y, x = new_coms   # reversed
-                    
+
                     com_count += 1
                     accepted.append(cnm2.N)
                     print('New cell detected (' + str(cnm2.N-rejected) + ')')
@@ -572,15 +574,15 @@ for iter in range(epochs):
                         cell_mask = (np.reshape(cell_A, dims, order='F') > 0).astype('int')
                         mask_inx = np.where(cell_mask==1)
                         cell_pix = sum(sum(cell_mask == 1))
-                        
+
                         inter = cv2.bitwise_and(opsin_mask, cell_mask)
                         inter_pix = sum(sum(inter))
                         overlap = inter_pix/cell_pix
-                                   
+
                         cnm2.opsin.append(overlap > thresh)
                         print(overlap>thresh)
 #                    print(time_()-tt)
-                    
+
                     if com_count == NumROIs:
                         expect_components = False
                         print('Not accepting more components')
@@ -589,34 +591,34 @@ for iter in range(epochs):
                    # cnm2.remove_components([cnm2.N-1])
                     removed.append(t-initbatch)
                     rejected += 1
-    
-     
+
+
         if mot_corr:
             shift_ = [round(shift[0]), round(shift[1])]
-        
+
         try:
             RoiBuffer[:com_count, BufferPointer] = cnm2.C_on[accepted,t] # -1
 #            time.sleep(1)
-            
+
             ROIlist_threshold[:com_count] = np.nanmean(RoiBuffer[:com_count,:], axis=1) + 3*np.nanstd(RoiBuffer[:com_count,:], axis=1)
         except Exception as e:
             print(e)
             print(RoiBuffer[:com_count,:])
-        
+
         t += 1
-        
+
         if BufferPointer==BufferLength-1:
             BufferPointer = 0
         else:
             BufferPointer +=1
-            
-        
+
+
         if remove_flag and t % T_rm == 0:
             prd, _ = evaluate_components_CNN(cnm2.Ab[:, gnb:], dims, gSig)
             ind_rem = np.where(prd[:, 1] < rm_thr)[0].tolist()
             cnm2.remove_components(ind_rem)
             print('Removing '+str(len(ind_rem))+' components')
-            
+
         if play_reconstr:                                               # generate movie with the results
             vid_frame = create_frame(cnm2, img_norm, captions)
 #                    if save_movie:
@@ -631,17 +633,17 @@ for iter in range(epochs):
                         cv2.imshow('frame', vid_frame)
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
-                    
-        
+
+
         tottime.append(time_() - t1)                             # store time
 
-    
+
     print('Cumulative processing speed is ' + str(t/np.sum(tottime))[:5] + ' frames per second.')
-    
+
     # save the shapes at the end of each epoch
     cnm2.Ab_epoch.append(cnm2.Ab.copy())
 
- 
+
 #%% Extract results from object
 # Can pass through the CNN classifier with a low threshold (keeps clearer neuron shapes and excludes processes)
 
@@ -662,10 +664,10 @@ if use_CNN:
              thresh_cnn], C[predictions[:, 1] >= thresh_cnn]
     noisyC = cnm2.noisyC[cnm2.gnb:cnm2.M]
     YrA = noisyC[predictions[:, 1] >= thresh_cnn] - C
-    
+
     ind_rem_CNN = np.where(predictions[:,1] < thresh_cnn)[0].tolist()
     ind_keep_CNN = np.where(predictions[:, 1] >= thresh_cnn)[0].tolist()
-    
+
     # trim long files
     C = C[:,:t]
     f = f[:,:t]
@@ -678,10 +680,10 @@ else:
 
 # could use t - (t - initbatch) // epochs:t for just the last epoch
 # can also stack init (hstack)
-    
+
     noisyC = cnm2.noisyC[:, t - t // epochs:t]
     YrA = noisyC[cnm2.gnb:cnm2.M] - C
-    
+
 print(('Number of components:' + str(A.shape[-1])))
 
 # Convert A to numpy array
@@ -721,20 +723,20 @@ folder = os.path.dirname(ref_movie_path)
 
 # can't save Ab or cnm2 (can't access the inside of it) directly
 
-if save_results:        
+if save_results:
     saved_data = folder + '\_offline_DS_ ' + str(ds_factor) + '.npz'
-    
+
     np.savez(saved_data,
              Cn=Cn,
              Cf=cnm2.C_on,
-             A=A, # can be fully saved if converted to dense numpy array; for sparse would have to save 
+             A=A, # can be fully saved if converted to dense numpy array; for sparse would have to save
              b=b, C=C, f=f, noisyC=noisyC, b_trace=b_trace,
              OASISinstances = cnm2.OASISinstances, # can be saved; no need for b_trace or deconvolved but may be easier
              deconvolved = deconvolved,
              coms=coms, opsin=cnm2.opsin,
              dims=cnm2.dims, ds_factor=ds_factor,
              min_SNR=min_SNR, thresh_overlap=cnm2.thresh_overlap,
-             
+
              tottime=tottime,
              shifts=shifts)
 
@@ -760,25 +762,25 @@ save_dict['rval_thr'] = rval_thr
 save_dict['thresh_overlap'] = thresh_overlap
 save_dict['merge_thresh'] = merge_thresh
 save_dict['expected_comps'] = expected_comps
-    
-    
+
+
 folder = os.path.join(os.path.dirname(ref_movie_path), 'offline_results')
 if not os.path.exists(folder):
     os.makedirs(folder)
-    
+
 if use_CNN:
     saveResultPath = os.path.join(folder, 'ex' + str(example) + '_onacid_results_ds_' + str(ds_factor) + '_CNN_' + str(thresh_cnn) + '.pkl')
-    
+
     cnm3 = deepcopy(cnm2)
     cnm3.remove_components(ind_rem_CNN)  # remove cells rejected by CNN
-    
+
     save_dict['cnm2'] = cnm3
     save_dict['coms'] = coms[ind_keep_CNN]
 
 else:
     if lenient:
         saveResultPath = os.path.join(folder, 'lenient_ex' + str(example) + '_onacid_results_ds_' + str(ds_factor) + '.pkl')
-    else: 
+    else:
         saveResultPath = os.path.join(folder, 'ex' + str(example) + '_onacid_results_ds_' + str(ds_factor) + '.pkl')
 
     save_dict['cnm2'] = cnm2
@@ -800,7 +802,7 @@ if save_mat:
 #folder = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\tests on rig\20180807\pyrtaoi_results'
 #file = '20180807_OG300_0002_DS_1.5_rtaoi.tif_DS_1.5_OnlineProc.pkl'
 #file = '20180807_OG300_0004_DS_1.5_rtaoi_OnlineProc.pkl'
-    
+
 #saveResultPath = os.path.join(folder,file)
 
 
@@ -836,7 +838,7 @@ idx_components = init_values['idx_components']
 path_to_cnn_residual = os.path.join(caiman_datadir(), 'model', 'cnn_model_online.h5')
 
 cnm2 = deepcopy(init_values['cnm_init'])
-cnm2._prepare_object(np.asarray(init_values['Yr']), init_values['T1'], 
+cnm2._prepare_object(np.asarray(init_values['Yr']), init_values['T1'],
                      init_values['expected_comps'], idx_components=idx_components,
                      min_num_trial=2, N_samples_exceptionality=int(init_values['N_samples']),
                      path_to_model=path_to_cnn_residual)
@@ -857,18 +859,18 @@ for cell in range(onacid_mask.shape[-1]):
     cell_mask = (np.reshape(onacid_mask[:,cell], dims, order='F'))
     mask_inx = np.where(cell_mask==1)
     cell_pix = sum(sum(cell_mask == 1))
-    
+
     inter = cv2.bitwise_and(opsin_mask, cell_mask)
     inter_pix = sum(sum(inter))
     overlap = inter_pix/cell_pix
     overlap_ratio.append(overlap)
-    
+
     thresh = 0.5
     if overlap <= thresh:
         onacid_mask[:,cell][onacid_mask[:,cell] == 1] = -3
     else:
         onacid_mask[:,cell][onacid_mask[:,cell] == 1] = 3
-        
+
     opsin.append(overlap > thresh)
     print('cell ' + str(cell) + ' : ' + str(overlap > thresh))
 
@@ -895,7 +897,7 @@ spotted.reverse()
 for cell in range(cnm2.N):
 #cell = 3
     pl.figure()
-    
+
     pl.subplot(311); pl.plot(cnm2.noisyC[cell+1,500:t]); pl.ylabel('noisyC') # t-1
     pl.title('cell ' + str(cell));
     pl.subplot(312); pl.plot(cnm2.C_on[cell+1,500:t]); pl.ylabel('C_on')
@@ -903,16 +905,16 @@ for cell in range(cnm2.N):
     if cell >= K:
         fr = spotted.pop()
         pl.plot([fr, fr], pl.ylim(), 'r')
-        
+
     if save_plots:
         pl.savefig(folder + '\cell_' + str(cell))
         pl.close()
 
-        
+
 #%% Plot time of each frame to see the delay introduced by various functionalities
 tottime = np.array(tottime)
 
-duration = tottime.shape[0] 
+duration = tottime.shape[0]
 shape_ref = minibatch_shape # this is minibatch_shape i think
 cnn_check = []
 
@@ -931,8 +933,8 @@ if removed_cells:
 
 if remove_flag:
     pl.plot(cnn_check, np.ones([len(cnn_check),1])*8.5, 'b^', label='cnn check')
-    
-    
+
+
 #pl.title('Time per frame for the online pipeline')
 pl.title('Time per frame for the online pipeline\n' + r'$mean = ' + str(np.mean(tottime*1000))[:4] + '\pm' + str(np.std(tottime*1000))[:3] + ' ms$')
 pl.xlabel('Frame')
@@ -963,22 +965,22 @@ pl.legend()
 pl.ylim(y_min, y_max)
 
 #%% Online assessment of new cells
-#%% Aspect ratio ---> taking max and min not very good! 
+#%% Aspect ratio ---> taking max and min not very good!
 #cell = 29
 for cell in range(cnm2.N):
     cell_A = np.array(cnm2.Ab[:,cell+cnm2.gnb].todense())
     cell_mask = (np.reshape(cell_A, dims, order='F') > 0).astype('int')
-    
+
     min_v = np.min(np.where(cell_mask),axis=1)
     max_v = np.max(np.where(cell_mask),axis=1)
-    
+
     cell_size = max_v - min_v
     aspect_ratio = cell_size[0]/cell_size[1]
-    
+
     print('aspect ratio for cell ' + str(cell+1) + ': ' + str(aspect_ratio))
 
 # 1.5 == very elongated ROI usually tho
-    
+
 #%% Circularity  ---> values above K a lot lower (~0.4) because shapes detected change
 #cell = 1
 for cell in range(cnm2.N):
