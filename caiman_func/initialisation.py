@@ -118,13 +118,12 @@ def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1,
     thresh_cnn = 0.1                                                    # threshold for CNN classifier
         
     
-    # not necessary but useful
+    # not necessary but maybe useful
     if NumROIs == None:
-        max_comp_update_shape = expected_comps
+        max_comp_update_shape = expected_comps # number of shapes to be updated each time (put this to a finite small value to increase speed - otherwise to np.inf)
     else:
         max_comp_update_shape = NumROIs
         
-    max_comp_update_shape = expected_comps                              # number of shapes to be updated each time (put this to a finite small value to increase speed - otherwise to np.inf)
     N_samples = np.ceil(fr*decay_time)                                  # number of timesteps to consider when testing new neuron candidates
     thresh_fitness_raw = scipy.special.log_ndtr(-min_SNR)*N_samples     # exceptionality threshold
     

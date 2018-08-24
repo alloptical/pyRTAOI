@@ -13,7 +13,16 @@ import caiman as cm
 from caiman.utils.utils import load_object
 from caiman.utils.visualization import view_patches_bar, plot_contours
 
-#%% Load pkl-ed cnm object
+#%% Load init file if needed
+init_file = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\tests on rig\20180822\init_results\20180822_OG299_t_0007_rtaoi.tirtaoi_init_seeded_DS_2.0_180224_filtered.pkl'
+c = load_object(init_file)
+
+cnm_init = c['cnm_init']
+K = c['K']
+K_init = c['K_init']
+expected_comps = c['expected_comps']
+
+#%% Load onacid results
 
 # online recordings
 #folder = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\tests on rig\20180811\pyrtaoi_results'
@@ -22,9 +31,9 @@ from caiman.utils.visualization import view_patches_bar, plot_contours
 #
 #file = files[1]  # choose file
 
-file = r'F:\Data\Zoe\20180822\pyrtaoi_results\20180822_OG299_t_0008_rtaoi_DS_2.0.tirtaoi_OnlineProc_DS_2.0_180806.pkl'
+file = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\tests on rig\20180822\20180822_OG299_t-008\pyrtaoi_results\20180822_OG299_t-008_rtaoi_OnlineProc_DS_2.0_113217.pkl' #20180822_OG299_t-008_rtaoi_OnlineProc_DS_2.0_105609.pkl'
 
-unsaved = 1
+unsaved = 0
 save_figs = 0
 
 # example of 'correct' file i.e. with frame_extra_added data

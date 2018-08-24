@@ -656,6 +656,7 @@ class Worker(QObject):
                             # Check cell for c1v1
 #                            tt = time_()
                             if opsin_mask.size:
+                                print(opsin_mask.size)
                                 cell_A = np.array(cnm2.Ab[:,-1].todense())
                                 cell_mask = (np.reshape(cell_A, dims, order='F') > 0).astype('int')
                                 cell_pix = sum(sum(cell_mask == 1))
@@ -669,6 +670,7 @@ class Worker(QObject):
                                 opsin.append(opsin_positive)
 #                                cnm2.opsin.append(cell_overlap > opsin_thresh)
 #                            print(time_()-tt)
+
 
                             # add new ROI to photostim target, if required
                             try:
@@ -862,7 +864,7 @@ class Worker(QObject):
             frame_detected_init = np.ones(K_init).astype('int')*cnm2.initbatch
             frame_detected = np.concatenate((frame_detected_init, frame_extra_detected))
 
-            # save results to Temp folder
+            # save results to the results folder
             self.movie_name = p['currentMoviePath']
 
             save_dict = dict()
@@ -1634,6 +1636,16 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
             self.IsOffline_radioButton.setChecked(False)
             self.IsOffline_radioButton.setEnabled(False)
+            
+            # reset masks
+            self.opsin_img_path = 'U:/simulate_movie/20170823_Ch01.tif'
+            self.opsin_img = np.array([])
+            self.opsin_mask = np.array([])
+            self.A_opsin = np.array([])
+            self.opsinMaskOn = False
+            self.showROIsOn = False
+            self.A_loaded = np.array([])
+            self.mask_path = ''
 
             # buffer for sta traces
             self.sta_traces = np.array([])
@@ -1847,12 +1859,9 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                 print('Correct video found')
 
     def showFOV(self):
-        try:
-            self.showROIsOn = False
-#            self.opsinMaskOn = True
-            self.imageItem.setImage(cv2.resize(self.c['img_norm'],(512,512),interpolation=cv2.INTER_CUBIC)) # display FOV
-        except Exception as e:
-            print(e)
+        self.opsinMaskOn = False
+        self.showROIsOn = False
+        self.imageItem.setImage(cv2.resize(self.c['img_norm'],(512,512),interpolation=cv2.INTER_CUBIC)) # display FOV
 
 
     def plotSTAonMasks(self,sta_amp):
@@ -2338,7 +2347,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 #            cnm2.max_num_added = 5  # max number of cells added per onacid frame --> doesn't look like more cells are added per frame
 
-            cnm2.opsin = None
+            cnm2.opsin = []
             cnm2.accepted = list(range(0,cnm2.N))
             cnm2.t = cnm2.initbatch
 
@@ -2346,11 +2355,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             K = cnm2.N
             self.InitNumROIs_spinBox.setValue(K)
             print('Number of components initialised: ' + str(K))
-
-            if self.MaxNumROIs_spinBox.value() < K+5:
-                self.MaxNumROIs_spinBox.setValue(K+10)
-
-            self.MaxNumROIs = self.MaxNumROIs_spinBox.value()
 
             if movie_ext == '.pkl':
                 cnm = init_values['cnm_init']
@@ -2417,6 +2421,12 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                 cnn_thresh = 0.1 # default thresh for c1v1 mask
                 self.CNNFilter_doubleSpinBox.setValue(cnn_thresh)
                 self.filterResults()
+                
+            # moved after filtering to avoid massive MaxNumROIs values
+            if self.MaxNumROIs_spinBox.value() < K+5:
+                self.MaxNumROIs_spinBox.setValue(K+10)
+
+            self.MaxNumROIs = self.MaxNumROIs_spinBox.value()
 
             self.UseONACID_checkBox.setEnabled(True)
             self.UseONACID_checkBox.setChecked(True)
