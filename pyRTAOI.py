@@ -2465,7 +2465,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
     def updateInitialisation(self, save_init=True, CNN=False):
         print('Removing ' + str(len(self.removeIdx)) + ' cells')
         
-        # idx_keep is local idx
+        # idx_keep is local idx of current ROI selection
         if CNN:
             thisROIIdx = self.c['K_init']
             idx_keep = sorted(list(set(range(thisROIIdx)) - set(self.removeIdx)))
@@ -2491,6 +2491,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         orig_K = coms_init_orig.shape[0]
         orig_remove_idx = list(set(range(orig_K)) - set(orig_keep_idx))  # all removed cell indices
 
+
         if CNN:
             remove_idx = list(set(orig_remove_idx) - set(self.c['removed_idx']))
             self.c['cnn_removed_idx'] = remove_idx
@@ -2502,17 +2503,19 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                 remove_idx = orig_remove_idx
             self.c['removed_idx'] = remove_idx
             
+            
         print('removed idx', self.c['removed_idx'])
         print('cnn removed idx', self.c['cnn_removed_idx'])
-            
+        
+        
         self.c['idx_components'] = orig_keep_idx  # use orig idx for onacid preparation
         self.prepareOnacid()
 
-        # after new roi list initialised
-        for idx in sorted(self.removeIdx, reverse=True):
-            if idx in self.TargetIdx:
-                self.TargetIdx.remove(idx)
-            self.TargetIdx = [target-1 if target>idx else target for target in self.TargetIdx]
+        # after new roi list initialised, adjust targets --> below doesn't work anymore but checkOpsin in prepareOnacid sorts it
+#        for idx in sorted(self.removeIdx, reverse=True):
+#            if idx in self.TargetIdx:
+#                self.TargetIdx.remove(idx)
+#            self.TargetIdx = [target-1 if target>idx else target for target in self.TargetIdx]
 
         if self.showROIsOn:
             self.plotSTAonMasks(None)
@@ -2521,10 +2524,9 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         self.updateTargets()
         self.updateStatusBar('Removed ' + str(len(self.removeIdx)) + ' cells')
         
-
-        # store the original indices of cells removed from init file
+        
+        # save new init object
         try:
-            # save new init object
             if save_init:
                 init_values_new = deepcopy(self.c)  # copy to avoid messing with self.c
                 del init_values_new['cnm2']
@@ -2539,6 +2541,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                 save_object(init_values_new, save_path)
 
                 del init_values_new   # free memory after saving
+                
         except Exception as e:
             print(e)
 
@@ -2658,7 +2661,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         if Ain is None:
             cnm_struct = self.c['cnm2']
             A = cnm_struct.Ab[:, cnm_struct.gnb:cnm_struct.M]
-#            print('a shape', A.shape)
             accepted = self.c['cnm2'].accepted
 
         else:

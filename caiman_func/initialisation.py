@@ -275,7 +275,7 @@ def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1,
     init_values['Yr'] = Yr
     init_values['idx_components'] = idx_components      # all - manual removal - cnn removal
     init_values['removed_idx'] = []                     # manual removal
-    init_values['CNN_filter'] = CNN_filter
+    init_values['CNN_filter'] = False
 
 
 #    if CNN_filter:
