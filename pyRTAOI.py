@@ -1679,6 +1679,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         msg.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
         retval = msg.exec_()
         if(retval==QMessageBox.Ok):
+            self.c['opsin_mask'] = np.array([])  # clear explicitly
             self.c = {}
             self.cnm2 = {}
 #            self.UseONACID_checkBox.setEnabled(False)
@@ -2313,11 +2314,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                                                          thresh_overlap=thresh_overlap,
                                                          save_init=True, mot_corr=True,
                                                          min_SNR=min_SNR) #, CNN_filter=True)
-
-#                        thresh_cnn =  0.1 # default thresh for c1v1 mask
-#                        self.CNNFilter_doubleSpinBox.setValue(thresh_cnn)
-#                        self.filterResults()
-
                     else:
                         self.updateStatusBar('A non-tif file was provided - select a tif movie to initialise with a mask')
                         return
@@ -2384,7 +2380,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             else:
                 self.prepareOnacid()
 
-            self.updateStatusBar('Initialision completed')
+            self.updateStatusBar('Initialision completed: ' + str(self.c['cnm2'].N) + ' cells found')
                 
         except Exception as e:
             print(e)
