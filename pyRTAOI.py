@@ -911,13 +911,24 @@ class Worker(QObject):
 
                 movie_name = os.path.basename(self.movie_name)
                 i = movie_name.find('Cycle')
-                movie_string = movie_name[:i]
-
+                if i>-1:
+                    movie_string = movie_name[:i] + 'rtaoi'
+                else:
+                    movie_string = movie_name[:-4]
+                    
 #                if save_separately:
 #                    filename = os.path.basename(self.movie_name)[:-4] + '_OnlineProc_' + timestr + '.pkl'
-                filename = movie_string + 'rtaoi_OnlineProc_DS_' + str(ds_factor) + '_' + timestr + '.pkl'
+                
+                save_time = True
+                if save_time:
+                    filename = movie_string + '_OnlineProc_DS_' + str(ds_factor) + '_' + timestr + '.pkl'
+                else:
+                    filename = movie_string + '_OnlineProc_DS_' + str(ds_factor) + '.pkl'
+                    
+                
                 movie_folder = os.path.dirname(self.movie_name)
                 save_folder = os.path.join(movie_folder, 'pyrtaoi_results')  # save init result in a separate folder
+                
                 if not os.path.exists(save_folder):
                     os.makedirs(save_folder)
                 save_path = os.path.join(save_folder, filename)

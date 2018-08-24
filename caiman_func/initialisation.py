@@ -299,15 +299,18 @@ def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1,
         
         movie_name = os.path.basename(ref_movie)
         i = movie_name.find('Cycle')
-        movie_string = movie_name[:i]
+        if i>-1:
+            movie_string = movie_name[:i] + 'rtaoi'
+        else:
+            movie_string = movie_name[:-4]
         
 #        movie_string = movie[:-4]  # old version
         
 #        if save_separately:
         if save_time:
-            filename = movie_string + 'rtaoi_init_' + init_method + '_DS_' + str(ds_factor) + '_' + timestr + '.pkl'
+            filename = movie_string + '_init_' + init_method + '_DS_' + str(ds_factor) + '_' + timestr + '.pkl'
         else:
-            filename = movie_string + 'rtaoi_init_' + init_method + '_DS_' + str(ds_factor) + '.pkl'
+            filename = movie_string + '_init_' + init_method + '_DS_' + str(ds_factor) + '.pkl'
             
         movie_folder = os.path.dirname(ref_movie)            
         init_folder = os.path.join(movie_folder, 'init_results')  # save init results in a separate folder
