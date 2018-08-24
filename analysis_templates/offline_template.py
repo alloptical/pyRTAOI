@@ -72,7 +72,7 @@ from caiman.base.rois import extract_binary_masks_from_structural_channel
 #ref_movie_path = r'C:\Users\intrinsic\Desktop\samples\example1\init_results\20171229_OG245_t-052_Cycle00001_Ch2_substack1-200_init_seeded_DS_1.5.pkl'
 
 # example movies
-example = 8
+example = 1
 
 sample_folder = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples'
 example_folder = os.path.join(sample_folder, 'example' + str(example))
@@ -82,17 +82,17 @@ if len(files)==1:
     ref_movie_path = files[0]
 print('Ref movie path: ', ref_movie_path)
 
-ref_movie_path = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\tests on rig\20180811\init_results\20180811_OG300_t_0003_rtaoi_init_seeded_DS_2.0.pkl'
+#ref_movie_path = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\tests on rig\20180811\init_results\20180811_OG300_t_0003_rtaoi_init_seeded_DS_2.0.pkl'
 
 movie_ext = ref_movie_path[-4:]
 
 if movie_ext  == '.tif':
-    K = 1
+    K = 50
     ds_factor = 1.5
     initbatch = 500
     minibatch_shape = 100
-    gSig = (5,5)  # expected cell radius
-    expected_comps = 400
+    gSig = (10,10)  # expected cell radius
+    expected_comps = 200
 
     lenient = 0
     
@@ -142,7 +142,6 @@ Yr = c['Yr']
 coms_init = c['coms_init']
 idx_components = init_values['idx_components']
 
-
 #%% Visualise the results of initialisation
 visualise_init = True
 
@@ -154,6 +153,12 @@ if visualise_init:
     
     view_patches_bar([], scipy.sparse.coo_matrix(
     A.tocsc()[:, :]), C[:, :], b, f, dims[0], dims[1], YrA=YrA[:, :], img=None) #Cn_init)
+    
+#%% Convert A to numpy array
+if issparse(A):
+    A = np.array(A.todense())
+else:
+    A = np.array(A)
 
 #%% Load c1v1 image and create a binary cell mask
 mask_file = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples\example1\20171229_OG245_s-026_Cycle00001_Ch1_000001.ome.tif'
@@ -284,7 +289,7 @@ idx_components = ind_keep
 A, C = A[:, predictions[:, 1] >=
          thresh_cnn], C[predictions[:, 1] >= thresh_cnn]
 
-noisyC = cnm_init.Cin # [cnm_init.gnb:cnm_init.A.shape[-1]+1] #cnm2.noisyC[cnm2.gnb:cnm2.M]
+noisyC = cnm_init.Cin[cnm_init.gnb:,:] # [cnm_init.gnb:cnm_init.A.shape[-1]+1] #cnm2.noisyC[cnm2.gnb:cnm2.M]
 YrA = noisyC[predictions[:, 1] >= thresh_cnn] - C
 
 
@@ -470,7 +475,7 @@ RoiBuffer = np.zeros([NumROIs,BufferLength]).astype('float32')
 ROIlist_threshold = np.zeros(NumROIs)
 
 rejected = 0
-accepted = list(range(1, cnm2.N+1)) # 0th comp is background
+accepted = list(range(cnm2.gnb, cnm2.N+cnm2.gnb)) # 0th comp is background
 expect_components = True
 dist_thresh = 21
 display_shift = False   # option to display motion correction shift inside the interface
@@ -963,34 +968,64 @@ pl.legend()
 pl.ylim(y_min, y_max)
 
 #%% Online assessment of new cells
-#%% Aspect ratio ---> taking max and min not very good! 
+try:
+    N = cnm2.N
+except:
+    N = K
+    
+#%% Aspect ratio ---> taking max and min not very good!  --> could try 0.9/0.1  // quartiles
+# for cells detected online max and min will give always ratio of 1!
+    
 #cell = 29
-for cell in range(cnm2.N):
-    cell_A = np.array(cnm2.Ab[:,cell+cnm2.gnb].todense())
+for cell in range(N):
+    cell_A = A[:,cell] # np.array(cnm2.Ab[:,cell+cnm2.gnb].todense())
     cell_mask = (np.reshape(cell_A, dims, order='F') > 0).astype('int')
     
     min_v = np.min(np.where(cell_mask),axis=1)
     max_v = np.max(np.where(cell_mask),axis=1)
     
     cell_size = max_v - min_v
+    print(cell_size)
     aspect_ratio = cell_size[0]/cell_size[1]
+    print(cell_size[0]-cell_size[1])
     
     print('aspect ratio for cell ' + str(cell+1) + ': ' + str(aspect_ratio))
 
 # 1.5 == very elongated ROI usually tho
     
 #%% Circularity  ---> values above K a lot lower (~0.4) because shapes detected change
+# also some weird shapes have very high values (even above 1)
+    
 #cell = 1
-for cell in range(cnm2.N):
+    
+for cell in range(N):
     coords = get_contours(A, dims)
     area = sum(A[:,cell]>0)
     perimeter = len(coords[0]['coordinates'])
     circularity = 4*np.pi*area/perimeter**2
-    print('circularity of cell ' + str(cell) + ' : ' + str(circularity))
+    print('circularity of cell ' + str(cell+1) + ' : ' + str(circularity))
 
 #%%
 pl.figure();
 cell_coords = coords[cell]['coordinates']
 pl.plot(*cell_coords.T)
 
-#%% Inertia? Compactness?
+#%% Inertia?
+
+#%% Self-made compactness measure --> potentially useful (<4? lower?)
+for cell in range(N):
+    area = sum(A[:,cell]>0)
+    weight_sum = sum(A[:,cell])
+    print(area, weight_sum)
+    
+    compactness = weight_sum/area*100 # in %
+    print('compactness for cell ' + str(cell+1) + ': ' + str(compactness)[:4])
+
+
+#%%
+area = sum(A>0)
+weight_sum = sum(A)
+compactness = np.array(weight_sum/area*100)
+
+cmpt_thresh = 4  # compactness threshold
+not_compact = np.where(compactness<cmpt_thresh)

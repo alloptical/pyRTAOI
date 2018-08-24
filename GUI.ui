@@ -734,7 +734,7 @@
              <number>1</number>
             </property>
             <property name="maximum">
-             <number>200</number>
+             <number>150</number>
             </property>
             <property name="value">
              <number>40</number>
@@ -1548,7 +1548,7 @@
         <rect>
          <x>10</x>
          <y>20</y>
-         <width>373</width>
+         <width>321</width>
          <height>142</height>
         </rect>
        </property>
