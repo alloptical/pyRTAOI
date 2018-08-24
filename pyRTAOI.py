@@ -2303,8 +2303,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                                                          save_init=True, mot_corr=True,
                                                          min_SNR=min_SNR) #, CNN_filter=True)
 
-#                        cnn_thresh =  0.1 # default thresh for c1v1 mask
-#                        self.CNNFilter_doubleSpinBox.setValue(cnn_thresh)
+#                        thresh_cnn =  0.1 # default thresh for c1v1 mask
+#                        self.CNNFilter_doubleSpinBox.setValue(thresh_cnn)
 #                        self.filterResults()
 
                     else:
@@ -2334,28 +2334,12 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                     self.updateStatusBar('A non-tif file was provided - select a tif movie to initialise with a mask')
                     return
 
+                    
+            self.c = init_values # caiman object
+            self.c['coms_init_orig'] = self.c['coms_init']  # keep original com data
+            self.dims = self.c['cnm_init'].dims
 
-            # Prepare object for OnACID
-            idx_components = init_values['idx_components']
-            path_to_cnn_residual = os.path.join(caiman_datadir(), 'model', 'cnn_model_online.h5')
-
-            cnm2 = deepcopy(init_values['cnm_init'])
-            cnm2._prepare_object(np.asarray(init_values['Yr']), init_values['T1'],
-                                 init_values['expected_comps'], idx_components=idx_components,
-                                 min_num_trial=2, N_samples_exceptionality=int(init_values['N_samples']),
-                                 path_to_model=path_to_cnn_residual, sniper_mode=False)
-
-#            cnm2.max_num_added = 5  # max number of cells added per onacid frame --> doesn't look like more cells are added per frame
-
-            cnm2.opsin = []
-            cnm2.accepted = list(range(0,cnm2.N))
-            cnm2.t = cnm2.initbatch
-
-            # Extract number of cells detected
-            K = cnm2.N
-            self.InitNumROIs_spinBox.setValue(K)
-            print('Number of components initialised: ' + str(K))
-
+            
             if movie_ext == '.pkl':
                 cnm = init_values['cnm_init']
                 cell_radius = round(cnm.gSig[0]*ds_factor)
@@ -2380,115 +2364,149 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             self.merge_thresh = merge_thresh
             self.thresh_overlap = thresh_overlap
             self.ds_factor = ds_factor
-            self.K_init = K
+            
+            
+            if opsin_seeded:
+                thresh_cnn = 0.1 # default thresh for c1v1 mask
+                self.CNNFilter_doubleSpinBox.setValue(thresh_cnn)
+                self.filterResults(init=True)       
+            else:
+                self.prepareOnacid()
+
+            self.updateStatusBar('Initialision completed')
+                
+        except Exception as e:
+            print(e)
+            
+    
+    def prepareOnacid(self, show_results=True):
+        
+        # Reset previous settings
+        try:
+            self.c['cnm2']
+            
+            self.ROIcontour_item.clear()
+            self.deleteTextItems()
+            self.plotItem.clear()
+            self.resetFigure()
+            self.thisROIIdx = 0
+            self.resetROIlist()
+            self.updateTable()
+        except: pass
+        
+        # Prepare object for OnACID
+        idx_components = self.c['idx_components']
+            
+        path_to_cnn_residual = os.path.join(caiman_datadir(), 'model', 'cnn_model_online.h5')
+
+        cnm2 = deepcopy(self.c['cnm_init'])
+        cnm2._prepare_object(np.asarray(self.c['Yr']), self.c['T1'],
+                             self.c['expected_comps'], idx_components=idx_components,
+                             min_num_trial=2, N_samples_exceptionality=int(self.c['N_samples']),
+                             path_to_model=path_to_cnn_residual, sniper_mode=False)
+
+#        cnm2.max_num_added = 5  # max number of cells added per onacid frame --> doesn't look like more cells are added per frame
+
+        cnm2.opsin = []
+        cnm2.accepted = list(range(0,cnm2.N))
+        cnm2.t = cnm2.initbatch
+
+        K = cnm2.N
+        self.c['cnm2'] = cnm2
+        self.c['K_init'] = K
+        self.K_init = K
+        
+        try: # temp; TODO: remove soon
+            self.c['thresh_cnn']
+        except:
+            self.c['thresh_cnn'] = 0        
+            
+        coms = self.c['coms_init_orig'].copy()
+        if idx_components is not None:
+            self.c['coms_init'] = coms[idx_components]
 
 
-            self.c = init_values
-            self.c['cnm2'] = cnm2
-            self.c['removed_idx'] = []
-            self.c['K_init'] = K
+        if show_results:
+            # Extract number of cells detected
+            self.InitNumROIs_spinBox.setValue(K)
 
-            try: # temp; TODO: remove
-                self.c['thresh_cnn']
-            except:
-                self.c['thresh_cnn'] = 0
+            if self.MaxNumROIs_spinBox.value() < K+5:
+                self.MaxNumROIs_spinBox.setValue(K+10)
+                
+            print('Number of components initialised: ' + str(K))
+            self.MaxNumROIs = self.MaxNumROIs_spinBox.value()
 
-            coms = self.c['coms_init'].copy()
-            if idx_components is not None:
-                self.c['coms_init'] = coms[idx_components]
-
-            self.c['coms_init_orig'] = coms
-            self.dims = init_values['cnm_init'].dims
+    
             self.InitNumROIs = K
             self.opsinMaskOn = False
             self.imageItem.setImage(cv2.resize(self.c['img_norm'],(512,512),interpolation=cv2.INTER_CUBIC)) # display FOV
-
+    
             if self.A_opsin.size:
                 print('Checking opsin overlap')
                 self.checkOpsin()
-
+    
             self.initialiseROI()
             for i in range(K):
-                y, x = init_values['coms_init'][i]  # reversed
+                y, x = self.c['coms_init'][i]  # reversed
                 self.getROImask(thisROIx = x, thisROIy = y)
-
-
-            if self.c['CNN_filter']:
-                self.CNNFilter_doubleSpinBox.setValue(self.c['thresh_cnn'])
-
-            # temp
-            if opsin_seeded:
-                cnn_thresh = 0.1 # default thresh for c1v1 mask
-                self.CNNFilter_doubleSpinBox.setValue(cnn_thresh)
-                self.filterResults()
-                
-            # moved after filtering to avoid massive MaxNumROIs values
-            if self.MaxNumROIs_spinBox.value() < K+5:
-                self.MaxNumROIs_spinBox.setValue(K+10)
-
-            self.MaxNumROIs = self.MaxNumROIs_spinBox.value()
-
+    
+            self.CNNFilter_doubleSpinBox.setValue(self.c['thresh_cnn'])
+    
             self.UseONACID_checkBox.setEnabled(True)
             self.UseONACID_checkBox.setChecked(True)
             if self.selectAll_checkBox.isChecked():
                 self.selectAllROIs()
-
-            self.updateStatusBar('Initialision completed')
-            show_traces = 1
-            if show_traces:
-                self.showROIIdx()
-                cnm_init = init_values['cnm_init']
-                self.plotOnacidTraces(t=cnm_init.initbatch)
-        except Exception as e:
-            print(e)
-
+    
+            self.updateStatusBar('Preparing object completed')
+            self.showROIIdx()
+            self.plotOnacidTraces(t=self.c['cnm_init'].initbatch)
 
 
     def updateInitialisation(self, save_init=True, CNN=False):
         print('Removing ' + str(len(self.removeIdx)) + ' cells')
+        
+        # idx_keep is local idx
         if CNN:
             thisROIIdx = self.c['K_init']
             idx_keep = sorted(list(set(range(thisROIIdx)) - set(self.removeIdx)))
         else:
             idx_keep = sorted(list(set(range(self.thisROIIdx)) - set(self.removeIdx)))
 
-        # reset previous settings
-        self.ROIcontour_item.clear()
-        self.thisROIIdx = 0
-        self.resetROIlist()
-        self.deleteTextItems()
-        self.updateTable()
-        self.plotItem.clear()
-        self.resetFigure()
-
-        # remove chosen cells
-        self.c['cnm2'].remove_components(self.removeIdx)
-
-        K = self.c['cnm2'].N
-        print('new K:', K)
-        self.c['K_init'] = K
-        self.InitNumROIs_spinBox.setValue(K)
-        self.InitNumROIs = K
-
-        self.c['cnm2'].accepted = list(range(0,K)) # all cells accepted post initialisation
-
         coms = self.c['coms_init']
-        self.c['coms_init'] = coms[idx_keep]
-        print(self.c['coms_init'].shape)
+        keep_coms = coms[idx_keep]
+        
+        # remove chosen cells  -- old version resulting in array length errors for large number of deleted cells!
+#        self.c['cnm2'].remove_components(self.removeIdx)
+        
+        coms_init_orig = self.c['coms_init_orig']
+        orig_keep_idx = []
 
-        if self.MaxNumROIs_spinBox.value() < K+5:
-            self.MaxNumROIs_spinBox.setValue(K+10)
+        for pair in keep_coms: #self.c['coms_init'] :
+            idx = np.where(pair == coms_init_orig)[0]
+            if idx[0] == idx[1]:
+                orig_keep_idx.append(idx[0])
+            else:
+                print('Different indeces - check')  # this should never be a problem
 
-        self.initialiseROI()
-        for i in range(K):
-            y, x = self.c['coms_init'][i]  # reversed
-            self.getROImask(thisROIx = x, thisROIy = y)
+        orig_K = coms_init_orig.shape[0]
+        orig_remove_idx = list(set(range(orig_K)) - set(orig_keep_idx))  # all removed cell indices
 
-        show_traces = 1
-        if show_traces:
-            self.showROIIdx()
-            cnm_init = self.c['cnm_init']
-            self.plotOnacidTraces(t=cnm_init.initbatch)
+        if CNN:
+            remove_idx = list(set(orig_remove_idx) - set(self.c['removed_idx']))
+            self.c['cnn_removed_idx'] = remove_idx
+        else:
+            if self.c['CNN_filter']:
+                cnn_remove_idx = self.c['cnn_removed_idx']
+                remove_idx = list(set(orig_remove_idx) - set(cnn_remove_idx))  # keep manually removed indeces here only
+            else:
+                remove_idx = orig_remove_idx
+            self.c['removed_idx'] = remove_idx
+            
+        print('removed idx', self.c['removed_idx'])
+        print('cnn removed idx', self.c['cnn_removed_idx'])
+            
+        self.c['idx_components'] = orig_keep_idx  # use orig idx for onacid preparation
+        self.prepareOnacid()
 
         # after new roi list initialised
         for idx in sorted(self.removeIdx, reverse=True):
@@ -2496,44 +2514,16 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                 self.TargetIdx.remove(idx)
             self.TargetIdx = [target-1 if target>idx else target for target in self.TargetIdx]
 
-
-        if self.A_opsin.size:
-            self.checkOpsin()
-
         if self.showROIsOn:
             self.plotSTAonMasks(None)
             plt.close()
 
         self.updateTargets()
         self.updateStatusBar('Removed ' + str(len(self.removeIdx)) + ' cells')
+        
 
         # store the original indices of cells removed from init file
         try:
-            coms_init_orig = self.c['coms_init_orig']
-            orig_keep_idx = []
-
-            for pair in self.c['coms_init'] :
-                idx = np.where(pair == coms_init_orig)[0]
-                if idx[0] == idx[1]:
-                    orig_keep_idx.append(idx[0])
-                else:
-                    print('Different indeces - check')  # this should never be a problem
-
-            orig_K = coms_init_orig.shape[0]
-            orig_remove_idx = list(set(range(orig_K)) - set(orig_keep_idx))  # all removed cell indices
-
-            if CNN:
-                remove_idx = list(set(orig_remove_idx) - set(self.c['removed_idx']))
-                self.c['cnn_removed_idx'] = remove_idx
-            else:
-                if self.c['CNN_filter']:
-                    cnn_remove_idx = self.c['cnn_removed_idx']
-                    remove_idx = list(set(orig_remove_idx) - set(cnn_remove_idx))  # keep manually removed indeces here only
-                else:
-                    remove_idx = orig_remove_idx
-
-                self.c['removed_idx'] = remove_idx
-
             # save new init object
             if save_init:
                 init_values_new = deepcopy(self.c)  # copy to avoid messing with self.c
@@ -2558,105 +2548,41 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
     def resetCNNfiltering(self, show_results=True):
         del self.c['cnm2']
-
+        self.c['thresh_cnn'] = 0
+        
         # do not include manually deleted cells
         idx_components = sorted(list(set(range(self.c['K'])) - set(self.c['removed_idx'])))
+        
         self.c['idx_components'] = idx_components
-
-        path_to_cnn_residual = os.path.join(caiman_datadir(), 'model', 'cnn_model_online.h5')
-        cnm2 = deepcopy(self.c['cnm_init'])
-
-        cnm2._prepare_object(np.asarray(self.c['Yr']), self.c['T1'],
-                             self.c['expected_comps'], idx_components=idx_components,
-                             min_num_trial=2, N_samples_exceptionality=int(self.c['N_samples']),
-                             path_to_model=path_to_cnn_residual, sniper_mode=False)
-
-        cnm2.opsin = None
-        cnm2.accepted = list(range(0,cnm2.N))
-        cnm2.t = cnm2.initbatch
-
-        self.c['cnm2'] = cnm2
-        self.c['cnn_removed_idx'] = []
-        coms_orig = self.c['coms_init_orig']
-
-        if idx_components is not None:
-            self.c['coms_init'] = coms_orig[idx_components]
-        else:
-            self.c['coms_init'] = coms_orig
-
-        self.removeIdx = []
-
-        K = self.c['cnm2'].N
-        self.c['K_init'] = K
-
-        if show_results:
-            # reset previous settings
-            self.ROIcontour_item.clear()
-            self.deleteTextItems()
-            self.plotItem.clear()
-            self.resetFigure()
-            self.thisROIIdx = 0
-            self.resetROIlist()
-            self.updateTable()
-            self.InitNumROIs_spinBox.setValue(K)
-            self.InitNumROIs = K
-
-            if self.MaxNumROIs_spinBox.value() < K+5:
-                self.MaxNumROIs_spinBox.setValue(K+10)
-
-            self.initialiseROI()
-            for i in range(K):
-                y, x = self.c['coms_init'][i]  # reversed
-                self.getROImask(thisROIx = x, thisROIy = y)
-
-            show_traces = 1
-            if show_traces:
-                self.showROIIdx()
-                cnm_init = self.c['cnm_init']
-                self.plotOnacidTraces(t=cnm_init.initbatch)
-
-            # check target cells
-            if self.selectAll_checkBox.isChecked():
-                self.selectAllROIs()
-
-            if self.A_opsin.size:
-                self.checkOpsin()
-
-            if self.showROIsOn:
-                self.plotSTAonMasks(None)
-                plt.close()
-
-            self.updateTargets()
-            self.updateStatusBar('Total number of cells: ' + str(K))
-
-            # overwrite previous results
-            init_values_new = deepcopy(self.c)  # copy to avoid messing with self.c
-            del init_values_new['cnm2']
-            init_values_new['coms_init'] = self.c['coms_init_orig']  # keep the original
-            save_path = self.c['save_path'][:-4] + '_filtered.pkl'
-
-            init_values_new['save_path'] = save_path
-            print('Saving new init file as ' + str(save_path))
-            save_object(init_values_new, save_path)
-
-            del init_values_new   # free memory after saving
+        self.prepareOnacid(show_results=show_results)
+        print('Onacid object prepared')
+        
+        return
 
 
-    def filterResults(self):
+    def filterResults(self, init=False):
         thresh_cnn = self.CNNFilter_doubleSpinBox.value()
         self.c['CNN_filter'] = bool(thresh_cnn)
 
+        if self.c['thresh_cnn'] == thresh_cnn:
+            return
+        else:
+            self.deleteTextItems()
+        
         if self.c['CNN_filter']:
-            if self.c['thresh_cnn'] == thresh_cnn:
-                return
             if len(self.c['cnn_removed_idx']):
                 self.resetCNNfiltering(show_results=False)
 
             print('Filtering components')
             print('CNN threshold: ', thresh_cnn)
-
-            cnm_struct = self.c['cnm2']
-            A = cnm_struct.Ab[:, cnm_struct.gnb:cnm_struct.M]
+            
+            if init:
+                cnm_struct = self.c['cnm_init']
+                A = cnm_struct.A
+            else:
+                cnm_struct = self.c['cnm2']
+                A = cnm_struct.Ab[:, cnm_struct.gnb:cnm_struct.M]
+                
             gSig = cnm_struct.gSig
 
             predictions, final_crops = evaluate_components_CNN(
@@ -2668,6 +2594,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             print(str(len(idx_keep_CNN)) + ' cells left post filtering')
 
             self.c['thresh_cnn'] = thresh_cnn
+            self.c['idx_components'] = idx_keep_CNN
+            
             self.removeIdx = idx_rem_CNN
             self.updateInitialisation(CNN=True)
 

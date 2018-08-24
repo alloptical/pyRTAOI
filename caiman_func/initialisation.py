@@ -38,7 +38,8 @@ def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1,
                initbatch=500, gSig = (10,10), rval_thr=0.85, thresh_overlap=0.1,
                merge_thresh=0.85, min_SNR=2.5, decay_time=0.2, NumROIs=None,
                expected_comps=150, minibatch_shape=100, T1=20000, mot_corr=True,
-               CNN_filter=False, thresh_cnn=0.1, save_init=False):
+#               CNN_filter=False, 
+                thresh_cnn=0.1, save_init=False):
                #del_duplicates=False):
     """
     Inputs:
@@ -97,8 +98,8 @@ def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1,
     mot_corr                Boolean
                             flag for online motion correction
                             
-    CNN_filter              Boolean
-                            flag for running CNN filter on initialisation results
+#    CNN_filter              Boolean
+#                            flag for running CNN filter on initialisation results
                     
     thresh_cnn              float
                             threshold for CNN classifier; 0.5 for mild filtering, 0.1 for stricter
@@ -115,7 +116,6 @@ def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1,
     gnb = 1                                                             # number of background components
     gSig = tuple(np.ceil(np.array(gSig)/ds_factor).astype('int'))       # recompute gSig if downsampling is involved
     max_shift = np.ceil(10./ds_factor).astype('int')                    # maximum allowed shift during motion correction
-    thresh_cnn = 0.1                                                    # threshold for CNN classifier
         
     
     # not necessary but maybe useful
@@ -228,26 +228,26 @@ def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1,
     coms_init = com(cnm_init.A, d1, d2)
     
     
-    if CNN_filter:
-        print('Filtering the components')
-        A = cnm_init.A
-        
-        predictions, final_crops = evaluate_components_CNN(
-            A, dims, gSig, model_name=os.path.join(caiman_datadir(), 'model', 'cnn_model'))
-
-        idx_keep_CNN = np.where(predictions[:, 1] >= thresh_cnn)[0].tolist()
-        idx_rem_CNN = np.where(predictions[:,1] < thresh_cnn)[0].tolist()
-#        coms_init = coms_init[idx_keep]
+#    if CNN_filter:
+#        print('Filtering the components')
+#        A = cnm_init.A
+#        
+#        predictions, final_crops = evaluate_components_CNN(
+#            A, dims, gSig, model_name=os.path.join(caiman_datadir(), 'model', 'cnn_model'))
+#
+#        idx_keep_CNN = np.where(predictions[:, 1] >= thresh_cnn)[0].tolist()
+#        idx_rem_CNN = np.where(predictions[:,1] < thresh_cnn)[0].tolist()
+##        coms_init = coms_init[idx_keep]
         
 
     # Setting idx_components to select which cells are kept
-    if CNN_filter:
-        idx_components = idx_keep_CNN
-        K_orig = cnm_init.A.shape[-1]
-        K = len(idx_components)
-    else:
-        idx_components = None
-        K = cnm_init.A.shape[-1]    # store actual K value detected
+#    if CNN_filter:
+#        idx_components = idx_keep_CNN
+#        K_orig = cnm_init.A.shape[-1]
+#        K = len(idx_components)
+#    else:
+    idx_components = None
+    K = cnm_init.A.shape[-1]    # store actual K value detected
 
 
     if ds_factor == 1:
@@ -278,14 +278,15 @@ def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1,
     init_values['CNN_filter'] = CNN_filter
 
 
-    if CNN_filter:
-        init_values['thresh_cnn'] = thresh_cnn
-        init_values['K_init'] = K
-        init_values['K'] = K_orig
-        init_values['cnn_removed_idx'] = idx_rem_CNN     # cnn removal
-    else:
-        init_values['cnn_removed_idx'] = []
-        init_values['thresh_cnn'] = 0
+#    if CNN_filter:
+#        init_values['K_init'] = K
+#        init_values['K'] = K_orig
+#        init_values['cnn_removed_idx'] = idx_rem_CNN     # cnn removal
+#        init_values['thresh_cnn'] = thresh_cnn
+#    else:
+    init_values['K_init'] = K
+    init_values['cnn_removed_idx'] = []
+    init_values['thresh_cnn'] = 0
 
     
     if save_init:
