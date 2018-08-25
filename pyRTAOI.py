@@ -1053,6 +1053,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         self.thisROI = pg.CircleROI(self.RoiCenter,self.RoiRadius*2)
         self.removeModeOn = False
         self.removeIdx = []
+        self.rejectModeOn = False
+        self.rejectIdx = []
 
         # initialise ROI list
         self.InitNumROIs = 3
@@ -1076,6 +1078,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
         self.TargetPen = pg.mkPen(color = (255,112,75), width = 3, style = Qt.DotLine)
         self.RemovePen = pg.mkPen(color = (255,255,0), width = 3, style = Qt.DotLine)
+        self.RejectPen = pg.mkPen(color = (255, 0, 0), width = 3, style = Qt.SolidLine)
         self.Targetcontour_item = pg.ScatterPlotItem()
         self.Targetcontour_item.setBrush(self.scatterbrush)
         self.graphicsView.addItem(self.Targetcontour_item)
@@ -1128,6 +1131,18 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         p['FLAG_BLINK_CONNECTED'] = False
         p['targetScaleFactor']  = 1 # currentZoom/refZoom
 
+        # reject list
+        self.numRejects = 0
+        p['rejectedX'] = []
+        p['rejectedY'] = []
+        
+        # groupbox list
+        self.groupBoxes = [self.Prairie_groupBox,self.caiman_groupBox,
+                           self.Blink_groupBox, self.opsinMask_groupBox,
+                           self.StimOptions_groupBox, self.OfflineAnalysis_groupBox,
+                           self.DisplayOptions_groupBox, self.photostim_groupBox,
+                           self.groupBox, self.config_groupBox, self.run_groupBox]
+        
         # offline
         self.IsOffline = False
 
@@ -1175,12 +1190,14 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         p['NI_SAMPLE_RATE'] = NI_SAMPLE_RATE
         p['NI_TTL_NUM_SAMPLES'] = NI_TTL_NUM_SAMPLES
 
-        self.daq_array = np.ones((NI_TTL_NUM_SAMPLES-1), dtype = np.float)*5 # to write to single output channel
-        self.daq_array = np.append(self.daq_array,0)
-        self.niStimTask = daqtask.Task()
-        self.niPhotoStimTask = daqtask.Task() #  TTL trigger only
-        self.niPhotoStimFullTask = daqtask.Task() # TTL trigger plus power control
-        p['NI_1D_ARRAY'] = self.daq_array
+        try:
+            self.daq_array = np.ones((NI_TTL_NUM_SAMPLES-1), dtype = np.float)*5 # to write to single output channel
+            self.daq_array = np.append(self.daq_array,0)
+            self.niStimTask = daqtask.Task()
+            self.niPhotoStimTask = daqtask.Task() #  TTL trigger only
+            self.niPhotoStimFullTask = daqtask.Task() # TTL trigger plus power control
+            p['NI_1D_ARRAY'] = self.daq_array
+        except: pass
 
         try: # sensory stim
             self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
@@ -1291,30 +1308,36 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         # if ROIs present, refill the table
 #        self.ALL_ROI_SELECTED = False
 
-        for ROIIdx in range(self.thisROIIdx):
-
-#            if ROIIdx == self.MaxNumROIs:
-#                self.ALL_ROI_SELECTED = True
-#                print('All allowed ROIs selected!')
-#                break
-
-            thisROIx = self.ROIlist[ROIIdx]["ROIx"]
-            thisROIy = self.ROIlist[ROIIdx]["ROIy"]
-            qcolor = self.ROIlist[ROIIdx]["ROIcolor"]
-
-#            self.ROIcontour_item.addPoints(x = [thisROIx], y = [thisROIy], pen = pg.mkPen(qcolor, width=2), size = self.RoiRadius*2)
-
-            tempbrush = QBrush(qcolor)
-            self.X_labels[ROIIdx].setForeground(tempbrush)
-            self.Y_labels[ROIIdx].setForeground(tempbrush)
-            self.Thresh_labels[ROIIdx].setForeground(tempbrush)
-
-            self.X_labels[ROIIdx].setText(str('{:.0f}'.format(thisROIx)))
-            self.Y_labels[ROIIdx].setText(str('{:.0f}'.format(thisROIy)))
-
-            self.Thresh_tableWidget.setItem(ROIIdx,0,self.X_labels[ROIIdx])
-            self.Thresh_tableWidget.setItem(ROIIdx,1,self.Y_labels[ROIIdx])
-            self.Thresh_tableWidget.setItem(ROIIdx,2,self.Thresh_labels[ROIIdx])
+        # TODO: changed this to only display accepted cells in the table. check this
+        if len(c):
+            i = 0
+            for ROIIdx in self.c['cnm2'].accepted:
+    #        for ROIIdx in range(self.thisROIIdx):
+    
+    #            if ROIIdx == self.MaxNumROIs:
+    #                self.ALL_ROI_SELECTED = True
+    #                print('All allowed ROIs selected!')
+    #                break
+    
+                thisROIx = self.ROIlist[ROIIdx]["ROIx"]
+                thisROIy = self.ROIlist[ROIIdx]["ROIy"]
+                qcolor = self.ROIlist[ROIIdx]["ROIcolor"]
+    
+    #            self.ROIcontour_item.addPoints(x = [thisROIx], y = [thisROIy], pen = pg.mkPen(qcolor, width=2), size = self.RoiRadius*2)
+    
+                tempbrush = QBrush(qcolor)
+                self.X_labels[ROIIdx].setForeground(tempbrush)
+                self.Y_labels[ROIIdx].setForeground(tempbrush)
+                self.Thresh_labels[ROIIdx].setForeground(tempbrush)
+    
+                self.X_labels[ROIIdx].setText(str('{:.0f}'.format(thisROIx)))
+                self.Y_labels[ROIIdx].setText(str('{:.0f}'.format(thisROIy)))
+    
+                self.Thresh_tableWidget.setItem(i,0,self.X_labels[ROIIdx])
+                self.Thresh_tableWidget.setItem(i,1,self.Y_labels[ROIIdx])
+                self.Thresh_tableWidget.setItem(i,2,self.Thresh_labels[ROIIdx])
+                
+                i += 1
 
 
     def showMousePosition(self,event):
@@ -1328,7 +1351,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         x = event.pos().x()
         y = event.pos().y()
 
-        if self.removeModeOn:
+        if self.removeModeOn or self.rejectModeOn:
             det_dist = 10
 
             for idx in range(self.thisROIIdx):
@@ -1336,7 +1359,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                 ROI_y = self.ROIlist[idx]["ROIy"]
                 detected = abs(x - ROI_x) <= det_dist and abs(y - ROI_y) <= det_dist
 
-                if detected:
+                if detected and self.removeModeOn:
                     if idx in self.removeIdx:
                         # reset all remove list works
 #                            self.Targetcontour_item.clear()
@@ -1344,7 +1367,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 #                            self.removeIdx = []
 
                         # unselect individual remove items
-                        selected = self.Targetcontour_item.data
+                        selected = self.Targetcontour_item.data   # TODO: check -- does it work with manual targets selected?
                         selected_xy = [[value[0], value[1]] for value in selected][self.numTargets:]
 
                         ROI_xy = [ROI_x, ROI_y]
@@ -1362,6 +1385,32 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                     else:
                         self.removeIdx.append(idx)
                         self.Targetcontour_item.addPoints(x = [ROI_x], y = [ROI_y], pen = self.RemovePen, size = pointSize)
+                        
+                        
+                elif detected and self.rejectModeOn:
+                    if idx in self.rejectIdx:
+                        # unselect individual reject items
+                        selected = self.Targetcontour_item.data   # TODO: will this work with selected targets? may have to clear everything when entering reject mode
+                        # TODO: should be able to reject cells that are current targets. then have to update targets too to remove these
+                        selected_xy = [[value[0], value[1]] for value in selected] #[self.numTargets:]
+
+                        ROI_xy = [ROI_x, ROI_y]
+                        selected_idx = selected_xy.index(ROI_xy)
+
+                        del selected_xy[selected_idx]
+                        remove_x = [item[0] for item in selected_xy]
+                        remove_y = [item[1] for item in selected_xy]
+
+#                        self.Targetcontour_item.clear()
+#                        self.updateTargets()
+                        self.updateRejects()
+                        self.Targetcontour_item.addPoints(x = remove_x, y = remove_y, pen = self.RejectPen, size = pointSize)
+
+                        self.rejectIdx.remove(idx)
+                    
+                    else:
+                        self.rejectIdx.append(idx)
+                        self.Targetcontour_item.addPoints(x = [ROI_x], y = [ROI_y], pen = self.RejectPen, size = pointSize)
 
         else:
             print(str(x)+' '+str(y))
@@ -1375,6 +1424,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                     if detected:
                         del self.TargetIdx[idx]
                         self.updateTargets()
+#                        self.updateRejects()
                         return
 
             # check extra targets
@@ -1421,6 +1471,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         self.saveResult_pushButton.clicked.connect(self.saveResults)
         self.browseResultPath_pushButton.clicked.connect(self.browseResultPath)
         self.removeMode_pushButton.clicked.connect(self.removeModeController)
+        self.rejectMode_pushButton.clicked.connect(self.rejectModeController)
         self.CNNFilter_pushButton.clicked.connect(self.filterResults)
 
         # start worker
@@ -1771,10 +1822,43 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         self.updateTargetROIs()
 
     def updateTargetROIs(self):
-        # redraw targeted rois in imaging window - to do: draw what is saved in p
         self.Targetcontour_item.clear()
         self.Targetcontour_item.addPoints(x = p['currentTargetX'], y = p['currentTargetY'], pen = self.TargetPen, size = self.RoiRadius*2+5)
         print('target rois updated on')
+        
+    def updateRejects(self):
+        # TODO:
+        # current issues: can't deselect reject. then after confirming reject circles disappear but cells not rejected
+        # will selecting for rejects work with targets? auto vs manual targets?
+        # also: does cell removal work when manual targets are selected as well?
+        # error in updateTable it seems
+        # am I updating accepted anywhere at the end of exit?
+        # create one update function for both targets and rejects --> called when selecting new targets etc.
+        # check for rejects in update targets --> and exclude rejects from targets!
+        
+        # update cell rejects based on rejectedIdx
+        rejectX = [self.ROIlist[i]["ROIx"] for i in self.rejectIdx]
+        rejectY = [self.ROIlist[i]["ROIy"] for i in self.rejectIdx]
+
+        # save current rejects to p
+        # TODO: is this needed?
+        p['rejectedX'] = rejectX
+        p['rejectedY'] = rejectY
+        self.numRejects = len(self.rejectIdx)
+        if not self.removeModeOn:
+            print('Number of current targets: ', self.numRejects)
+            
+        self.updateRejectROIs()
+        
+    def updateRejectROIs(self, display=False):  # TODO: add updateRejects when adding manually new target too
+        self.updateTargetROIs()
+        self.Targetcontour_item.addPoints(x = p['rejectedX'], y = p['rejectedY'], pen = self.RejectPen, size = self.RoiRadius*2+5)  # added
+        # TODO: stop displaying the cells in GUI
+        # easier option would be to keep them in the ROI struct and just not display rather than remove from ROIlist...
+        if display:
+            self.updateTable()
+            self.showROIIdx() # TODO: implemented - check
+            self.plotOnacidTraces(t=self.c['cnm2'].initbatch)  # TODO: implemented - check
 
     def removeModeController(self):
         self.removeModeOn = not self.removeModeOn
@@ -1787,16 +1871,16 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
     def startRemoveMode(self):
         print('Remove mode on!')
 
-        disable = [self.Prairie_groupBox,self.caiman_groupBox,
-                   self.Blink_groupBox, self.opsinMask_groupBox,
-                   self.StimOptions_groupBox, self.OfflineAnalysis_groupBox,
-                   self.DisplayOptions_groupBox, self.photostim_groupBox,
-                   self.groupBox, self.config_groupBox, self.run_groupBox]
+#        disable = [self.Prairie_groupBox,self.caiman_groupBox,
+#                   self.Blink_groupBox, self.opsinMask_groupBox,
+#                   self.StimOptions_groupBox, self.OfflineAnalysis_groupBox,
+#                   self.DisplayOptions_groupBox, self.photostim_groupBox,
+#                   self.groupBox, self.config_groupBox, self.run_groupBox]
 
-        for item in disable:
+        for item in self.groupBoxes:
             item.setEnabled(False)
 
-        self.removeMode_pushButton.setEnabled(True)
+#        self.removeMode_pushButton.setEnabled(True)
         self.removeMode_pushButton.setText('Remove selected')
 
     def exitRemoveMode(self):
@@ -1814,17 +1898,57 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
         self.removeMode_pushButton.setText('Start remove')
 
-        enable = [self.Prairie_groupBox, self.caiman_groupBox,
-           self.Blink_groupBox, self.opsinMask_groupBox,
-           self.StimOptions_groupBox, self.OfflineAnalysis_groupBox,
-           self.DisplayOptions_groupBox, self.photostim_groupBox,
-           self.groupBox, self.config_groupBox, self.run_groupBox]
+#        enable = [self.Prairie_groupBox, self.caiman_groupBox,
+#           self.Blink_groupBox, self.opsinMask_groupBox,
+#           self.StimOptions_groupBox, self.OfflineAnalysis_groupBox,
+#           self.DisplayOptions_groupBox, self.photostim_groupBox,
+#           self.groupBox, self.config_groupBox, self.run_groupBox]
 
-        for item in enable:
+        for item in self.groupBoxes:
             item.setEnabled(True)
 
         print('Remove mode off')
 
+
+    def rejectModeController(self):
+        self.rejectModeOn = not self.rejectModeOn
+
+        if self.rejectModeOn:
+            self.startRejectMode()
+        else:
+            self.exitRejectMode()
+
+    def startRejectMode(self):
+        print('Reject mode on!')
+        
+        for item in self.groupBoxes:
+            item.setEnabled(False)
+            
+#        self.rejectMode_pushButton.setEnabled(True)        
+        self.rejectMode_pushButton.setText('Reject selected')
+        
+
+    def exitRejectMode(self):   # TODO: can assign different colored circles to these cells and keep their results out of GUI - like rejected
+        if self.rejectIdx:
+            msg = QMessageBox()
+            msg.setText("Do you want to reject selected cells from online analysis?")
+            msg.setWindowTitle('pyRTAOI Message')
+            msg.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+            retval = msg.exec_()
+            if(retval==QMessageBox.Ok):
+#                self.updateInitialisation()
+                self.updateRejectROIs(display=True)
+            else:
+                self.updateTargetROIs()
+                self.rejectIdx = []
+
+        self.rejectMode_pushButton.setText('Start reject')
+        
+        for item in self.groupBoxes:
+            item.setEnabled(True)
+
+        print('Reject mode off')
+    
 
     def connectPV(self):
         self.updateStatusBar('connecting PV')
@@ -2415,7 +2539,12 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 #        cnm2.max_num_added = 5  # max number of cells added per onacid frame --> doesn't look like more cells are added per frame
 
         cnm2.opsin = []
-        cnm2.accepted = list(range(0,cnm2.N))
+        
+        if self.rejectIdx:
+            cnm2.accepted = sorted(list(set(range(cnm2.N)) - set(self.rejectedIdx)))
+        else:
+            cnm2.accepted = list(range(0,cnm2.N))
+        
         cnm2.t = cnm2.initbatch
 
         K = cnm2.N
@@ -2791,12 +2920,15 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
     def showROIIdx(self):
         print('show num rois = '+str(self.thisROIIdx))
         font = QFont("Arial", 12, QFont.Bold)
-        for i in range(self.thisROIIdx):
-            thisText = pg.TextItem(text=str(i+1), color=self.ROIlist[i]["ROIcolor"].getRgb()[:3],
+        
+        i = 0
+        for idx in self.c['cnm2'].accepted: # range(self.thisROIIdx):
+            thisText = pg.TextItem(text=str(i+1), color=self.ROIlist[idx]["ROIcolor"].getRgb()[:3],
                                    html=None, anchor=(0,0), border=None, fill=None, angle=0, rotateAxis=None)
-            thisText.setPos(self.ROIlist[i]["ROIx"],self.ROIlist[i]["ROIy"] )
+            thisText.setPos(self.ROIlist[idx]["ROIx"],self.ROIlist[idx]["ROIy"])
             thisText.setFont(font)
             self.graphicsView.addItem(thisText)
+            i += 1
 
     def updateROI(self,img):
         # import pdb
@@ -2887,6 +3019,9 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             except: pass
 
             self.c['keep_prev'] = False # default
+            
+            if self.rejectIdx:
+                self.c['cnm2'].accepted = sorted(list(set(range(self.c['cnm2'].N)) - set(self.rejectIdx)))
 
             if self.c['cnm2'].t > self.c['cnm2'].initbatch: # self.cnm2:
                 msg = QMessageBox()

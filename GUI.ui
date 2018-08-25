@@ -64,7 +64,7 @@
          <x>10</x>
          <y>20</y>
          <width>311</width>
-         <height>81</height>
+         <height>88</height>
         </rect>
        </property>
        <layout class="QGridLayout" name="gridLayout_5">
@@ -192,7 +192,7 @@
          <x>10</x>
          <y>20</y>
          <width>311</width>
-         <height>51</height>
+         <height>57</height>
         </rect>
        </property>
        <layout class="QGridLayout" name="gridLayout_4">
@@ -247,8 +247,8 @@
         <rect>
          <x>10</x>
          <y>20</y>
-         <width>311</width>
-         <height>151</height>
+         <width>316</width>
+         <height>160</height>
         </rect>
        </property>
        <layout class="QGridLayout" name="gridLayout_8">
@@ -642,8 +642,8 @@
         <rect>
          <x>10</x>
          <y>20</y>
-         <width>311</width>
-         <height>251</height>
+         <width>358</width>
+         <height>278</height>
         </rect>
        </property>
        <layout class="QGridLayout" name="gridLayout_19">
@@ -1166,14 +1166,21 @@
         <x>30</x>
         <y>560</y>
         <width>511</width>
-        <height>25</height>
+        <height>30</height>
        </rect>
       </property>
       <layout class="QGridLayout" name="gridLayout_9">
        <item row="0" column="6">
-        <widget class="QLabel" name="label_20">
+        <widget class="QLabel" name="label_18">
          <property name="text">
-          <string>y =</string>
+          <string> x =</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="7">
+        <widget class="QLabel" name="xPos_label">
+         <property name="text">
+          <string/>
          </property>
         </widget>
        </item>
@@ -1184,17 +1191,26 @@
          </property>
         </widget>
        </item>
-       <item row="0" column="4">
-        <widget class="QLabel" name="label_18">
+       <item row="0" column="8">
+        <widget class="QLabel" name="label_20">
          <property name="text">
-          <string> x =</string>
+          <string>y =</string>
          </property>
         </widget>
        </item>
-       <item row="0" column="5">
-        <widget class="QLabel" name="xPos_label">
+       <item row="0" column="4">
+        <widget class="QPushButton" name="removeMode_pushButton">
+         <property name="enabled">
+          <bool>true</bool>
+         </property>
          <property name="text">
-          <string/>
+          <string>Start remove</string>
+         </property>
+         <property name="iconSize">
+          <size>
+           <width>14</width>
+           <height>14</height>
+          </size>
          </property>
         </widget>
        </item>
@@ -1211,6 +1227,13 @@
          </property>
         </spacer>
        </item>
+       <item row="0" column="9">
+        <widget class="QLabel" name="yPos_label">
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
        <item row="0" column="0">
         <widget class="QLabel" name="label_2">
          <property name="text">
@@ -1218,20 +1241,13 @@
          </property>
         </widget>
        </item>
-       <item row="0" column="7">
-        <widget class="QLabel" name="yPos_label">
-         <property name="text">
-          <string/>
-         </property>
-        </widget>
-       </item>
-       <item row="0" column="3">
-        <widget class="QPushButton" name="removeMode_pushButton">
+       <item row="0" column="5">
+        <widget class="QPushButton" name="rejectMode_pushButton">
          <property name="enabled">
           <bool>true</bool>
          </property>
          <property name="text">
-          <string>Start remove</string>
+          <string>Start reject</string>
          </property>
          <property name="iconSize">
           <size>
@@ -1261,7 +1277,7 @@
          <x>10</x>
          <y>20</y>
          <width>321</width>
-         <height>91</height>
+         <height>105</height>
         </rect>
        </property>
        <layout class="QGridLayout" name="gridLayout_12">
@@ -1548,8 +1564,8 @@
         <rect>
          <x>10</x>
          <y>20</y>
-         <width>321</width>
-         <height>142</height>
+         <width>431</width>
+         <height>161</height>
         </rect>
        </property>
        <layout class="QGridLayout" name="gridLayout_11">
@@ -1800,7 +1816,7 @@
         <rect>
          <x>10</x>
          <y>10</y>
-         <width>320</width>
+         <width>395</width>
          <height>31</height>
         </rect>
        </property>
@@ -1902,23 +1918,6 @@
        </layout>
       </widget>
      </widget>
-     <zorder>ImageWindow</zorder>
-     <zorder>Prairie_groupBox</zorder>
-     <zorder>OfflineAnalysis_groupBox</zorder>
-     <zorder>DisplayOptions_groupBox</zorder>
-     <zorder>StimOptions_groupBox</zorder>
-     <zorder>caiman_groupBox</zorder>
-     <zorder>plotArea_graphicsLayoutWidget</zorder>
-     <zorder>Thresh_tableWidget</zorder>
-     <zorder>Blink_groupBox</zorder>
-     <zorder>gridLayoutWidget_8</zorder>
-     <zorder>groupBox</zorder>
-     <zorder>opsinMask_groupBox</zorder>
-     <zorder>config_groupBox</zorder>
-     <zorder>photostim_groupBox</zorder>
-     <zorder>run_groupBox</zorder>
-     <zorder>horizontalSpacer_9</zorder>
-     <zorder>verticalSpacer_7</zorder>
     </widget>
     <widget class="QWidget" name="tab_2">
      <attribute name="title">
@@ -1944,7 +1943,7 @@
      <x>0</x>
      <y>0</y>
      <width>1628</width>
-     <height>21</height>
+     <height>26</height>
     </rect>
    </property>
   </widget>
