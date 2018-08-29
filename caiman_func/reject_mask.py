@@ -58,7 +58,7 @@ xcoors,ycoors = getPixCorr(thisImage,color)
 
 #%% Manual selection
 coms = np.array([[100,100],[200,200],[300,300],[400,400],[500,500]])
-x, y = com
+#x, y = com
 
 ROIsize = 20
 dims = [512,512]
@@ -107,6 +107,12 @@ pl.imshow(rejected_mask)
 
 # use bitwise and to check if a cell overlaps with reject mask --> if yes (>overlap), count it as rejected!
 
+#%%
+rejected_mask[rejected_mask>0] = 1
+pl.figure();pl.imshow(rejected_mask)
+#%%
+rej = cv2.resize(rejected_mask,(512,512))
+pl.figure();pl.imshow(rej)
 #%% Automatic selection
 file = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\tests on rig\20180822\20180822_OG299_s-001\20180822_OG299_s-001_Cycle00001_Ch2_000001.ome.tif'
 #file = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\tests on rig\20180822\20180822_OG299_s-003\20180822_OG299_s-003_Cycle00001_Ch2_000001.ome.tif'
@@ -151,7 +157,8 @@ mask_rej_bin_ = mask_rej_bin.astype('int')
 [x,y] = np.where(mask_rej_bin_>0)
 
 pl.figure(); pl.imshow(mask_rej_bin_)
-pl.plot(y[0],x[0],'r.')    # ---> why is this inverted?
+pl.plot(y[0],x[0],'r.')  #  inverted for plotting but not for checking True/False
+
 
 #%% detect blobs with cv2 --> doesn't detect anything atm?
     

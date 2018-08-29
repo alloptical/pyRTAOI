@@ -14,7 +14,9 @@ from caiman.utils.utils import load_object
 from caiman.utils.visualization import view_patches_bar, plot_contours
 
 #%% Load init file if needed
-init_file = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\tests on rig\20180822\init_results\20180822_OG299_t_0007_rtaoi.tirtaoi_init_seeded_DS_2.0_180224_filtered.pkl'
+#init_file = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\tests on rig\20180822\init_results\20180822_OG299_t_0007_rtaoi.tirtaoi_init_seeded_DS_2.0_180224_filtered.pkl'
+
+init_file = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples\example1\init_results\20171229_OG245_t-052_rtaoi_init_cnmf_DS_2.0_111802_filtered.pkl'
 c = load_object(init_file)
 
 cnm_init = c['cnm_init']
@@ -31,7 +33,8 @@ expected_comps = c['expected_comps']
 #
 #file = files[1]  # choose file
 
-file = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\tests on rig\20180822\20180822_OG299_t-008\pyrtaoi_results\20180822_OG299_t-008_rtaoi_OnlineProc_DS_2.0_113217.pkl' #20180822_OG299_t-008_rtaoi_OnlineProc_DS_2.0_105609.pkl'
+#file = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\tests on rig\20180822\20180822_OG299_t-008\pyrtaoi_results\20180822_OG299_t-008_rtaoi_OnlineProc_DS_2.0_113217.pkl' #20180822_OG299_t-008_rtaoi_OnlineProc_DS_2.0_105609.pkl'
+file = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples\example1\pyrtaoi_results\20171229_OG245_t-052_rtaoi_OnlineProc_DS_2.0_162739.pkl'
 
 unsaved = 0
 save_figs = 0

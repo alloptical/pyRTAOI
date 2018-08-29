@@ -287,6 +287,7 @@ def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1,
     init_values['K_init'] = K
     init_values['cnn_removed_idx'] = []
     init_values['thresh_cnn'] = 0
+    init_values['accepted'] = list(range(0,K))
 
     
     if save_init:

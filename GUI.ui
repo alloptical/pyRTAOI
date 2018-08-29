@@ -1908,11 +1908,11 @@
         <x>560</x>
         <y>420</y>
         <width>331</width>
-        <height>151</height>
+        <height>91</height>
        </rect>
       </property>
       <property name="title">
-       <string>Reject filled cells</string>
+       <string>Reject mask</string>
       </property>
       <widget class="QWidget" name="gridLayoutWidget">
        <property name="geometry">
@@ -1920,41 +1920,73 @@
          <x>10</x>
          <y>20</y>
          <width>311</width>
-         <height>115</height>
+         <height>61</height>
         </rect>
        </property>
        <layout class="QGridLayout" name="gridLayout_14">
-        <item row="0" column="0">
-         <layout class="QGridLayout" name="gridLayout_21">
-          <item row="0" column="1">
-           <widget class="QLineEdit" name="calciumImgPath_lineEdit">
+        <item row="2" column="1">
+         <layout class="QHBoxLayout" name="horizontalLayout_14">
+          <item>
+           <widget class="QPushButton" name="rejectMode_pushButton">
+            <property name="enabled">
+             <bool>true</bool>
+            </property>
             <property name="text">
-             <string>U:/simulate_movie/20170823_Ch01.tif</string>
+             <string>Create mask</string>
+            </property>
+            <property name="iconSize">
+             <size>
+              <width>14</width>
+              <height>14</height>
+             </size>
             </property>
            </widget>
           </item>
-          <item row="0" column="2">
-           <widget class="QPushButton" name="loadCalciumImgPath_pushButton">
+          <item>
+           <widget class="QPushButton" name="resetRejectMask_pushButton">
             <property name="text">
-             <string>Browse</string>
+             <string>Reset mask</string>
             </property>
            </widget>
           </item>
-          <item row="0" column="0">
-           <widget class="QLabel" name="label_41">
+          <item>
+           <widget class="QPushButton" name="applyRejectMask_pushButton">
             <property name="text">
-             <string>Calcium Image Path</string>
+             <string>Apply reject mask</string>
             </property>
            </widget>
           </item>
          </layout>
         </item>
-        <item row="2" column="0">
-         <layout class="QHBoxLayout" name="horizontalLayout_14">
+        <item row="1" column="1">
+         <layout class="QHBoxLayout" name="horizontalLayout_12">
           <item>
-           <widget class="QPushButton" name="createRejectMask_pushButton">
+           <widget class="QPushButton" name="loadCalciumImg_pushButton">
             <property name="text">
-             <string>Create mask</string>
+             <string>Load gcamp img</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <spacer name="horizontalSpacer_15">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+          <item>
+           <widget class="QPushButton" name="rejectMaskDisplay_pushButton">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
+            <property name="text">
+             <string>Hide mask</string>
             </property>
            </widget>
           </item>
@@ -1965,116 +1997,31 @@
             </property>
            </widget>
           </item>
-          <item>
-           <widget class="QPushButton" name="rejectMode_pushButton">
-            <property name="enabled">
-             <bool>true</bool>
-            </property>
-            <property name="text">
-             <string>Add more</string>
-            </property>
-            <property name="iconSize">
-             <size>
-              <width>14</width>
-              <height>14</height>
-             </size>
-            </property>
-           </widget>
-          </item>
          </layout>
-        </item>
-        <item row="1" column="0">
-         <layout class="QHBoxLayout" name="horizontalLayout_12">
-          <item>
-           <widget class="QLabel" name="label_48">
-            <property name="text">
-             <string>Min area</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QSpinBox" name="CminArea_spinBox">
-            <property name="minimum">
-             <number>1</number>
-            </property>
-            <property name="maximum">
-             <number>500</number>
-            </property>
-            <property name="singleStep">
-             <number>10</number>
-            </property>
-            <property name="value">
-             <number>100</number>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QLabel" name="label_49">
-            <property name="text">
-             <string>Brightness thresh</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QSpinBox" name="brightnessThresh_spinBox">
-            <property name="enabled">
-             <bool>true</bool>
-            </property>
-            <property name="acceptDrops">
-             <bool>false</bool>
-            </property>
-            <property name="minimum">
-             <number>1</number>
-            </property>
-            <property name="maximum">
-             <number>255</number>
-            </property>
-            <property name="singleStep">
-             <number>2</number>
-            </property>
-            <property name="value">
-             <number>10</number>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QLabel" name="label_50">
-            <property name="text">
-             <string>Overlap</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QDoubleSpinBox" name="CoverlapRatio_doubleSpinBox">
-            <property name="decimals">
-             <number>2</number>
-            </property>
-            <property name="minimum">
-             <double>0.000000000000000</double>
-            </property>
-            <property name="maximum">
-             <double>1.000000000000000</double>
-            </property>
-            <property name="singleStep">
-             <double>0.100000000000000</double>
-            </property>
-            <property name="value">
-             <double>0.200000000000000</double>
-            </property>
-           </widget>
-          </item>
-         </layout>
-        </item>
-        <item row="3" column="0">
-         <widget class="QPushButton" name="pushButton">
-          <property name="text">
-           <string>Apply reject mask</string>
-          </property>
-         </widget>
         </item>
        </layout>
       </widget>
      </widget>
+     <zorder>ImageWindow</zorder>
+     <zorder>Prairie_groupBox</zorder>
+     <zorder>OfflineAnalysis_groupBox</zorder>
+     <zorder>DisplayOptions_groupBox</zorder>
+     <zorder>StimOptions_groupBox</zorder>
+     <zorder>caiman_groupBox</zorder>
+     <zorder>plotArea_graphicsLayoutWidget</zorder>
+     <zorder>Thresh_tableWidget</zorder>
+     <zorder>Blink_groupBox</zorder>
+     <zorder>gridLayoutWidget_8</zorder>
+     <zorder>groupBox</zorder>
+     <zorder>opsinMask_groupBox</zorder>
+     <zorder>config_groupBox</zorder>
+     <zorder>photostim_groupBox</zorder>
+     <zorder>run_groupBox</zorder>
+     <zorder>RejectMask_groupBox</zorder>
+     <zorder>createRejectMask_pushButton</zorder>
+     <zorder>layoutWidget_2</zorder>
+     <zorder>label_54</zorder>
+     <zorder>calciumImgPath_lineEdit_2</zorder>
     </widget>
     <widget class="QWidget" name="tab_2">
      <attribute name="title">
