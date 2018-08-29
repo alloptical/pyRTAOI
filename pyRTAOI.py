@@ -663,7 +663,6 @@ class Worker(QObject):
                                 y = round(new_coms[1])
                                 
                                 rejected = reject_mask[int(x)][int(y)]
-                                print('rejected', rejected)
                         except Exception as e:
                             print(e)
                             
@@ -717,7 +716,11 @@ class Worker(QObject):
                                 expect_components = False
                                 print('Not accepting more components')
                         else:
-                            print('Repeated/rejected component found!')
+                            if repeated:
+                                print('Repeated component found!')
+                            if rejected:
+                                print('Rejected component found!')
+                            
                             rejected_count += 1
 
                 # add data to buffer
@@ -1945,7 +1948,13 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
         print('Remove mode off')
 
-
+            
+    def loadCalciumImg(self):
+        calcium_img_path = str(QFileDialog.getOpenFileName(self, 'Load an avg calcium image', self.movie_folder, 'MPTIFF (*.tif)')[0])
+        calcium_img = cm.load(calcium_img_path, subindices = slice(0,1,None))
+        self.updateImage(calcium_img)
+        
+        
     def rejectModeController(self):
         self.rejectModeOn = not self.rejectModeOn
         
@@ -2082,13 +2091,15 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                 contours = c['coordinates']
 
                 if idx in self.rejectIdx:
-                    colour = 'r'
+                    col1 = 'r'
+                    col2 = 'm'
                 else:
-                    colour = 'g'
+                    col1 = 'g'
+                    col2 = 'c'
                     
-                pl.plot(*contours.T, c=colour)
+                pl.plot(*contours.T, c=col1)
                 pl.plot(self.c['coms_init'][idx,1], self.c['coms_init'][idx,0],
-                        c=colour, marker='.', markersize=3)
+                        c=col2, marker='.', markersize=3)
             
             pl.axis('off')
     
@@ -2104,8 +2115,10 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             msg.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
             retval = msg.exec_()
             if(retval==QMessageBox.Ok):
-                self.prepareOnacid()
-
+#                self.prepareOnacid()  # keep rejected cells in init object
+                self.removeIdx = self.rejectIdx   # just remove rejected cells
+                self.rejectIdx = []
+                self.removeCells()
             else:
                 self.rejectIdx = []
                 
@@ -2119,47 +2132,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                     self.createRejectMask()
                 
                 self.updateAllROIs()
-                
 
-    
-            
-    def loadCalciumImg(self):
-#        self.ds_factor = self.dsFactor_doubleSpinBox.value()
         
-        calcium_img_path = str(QFileDialog.getOpenFileName(self, 'Load an avg calcium image', self.movie_folder, 'MPTIFF (*.tif)')[0])
-#        self.calcium_img_path = calcium_img_path
-
-#        if calcium_img_path:
-        calcium_img = cm.load(calcium_img_path, subindices = slice(0,1,None))
-        self.updateImage(calcium_img)
-            
-#            self.calciumImgPath_lineEdit.setText(self.calcium_img_path)
-#            calcium_img = cm.load(calcium_img_path, subindices = slice(0,1,None))[np.newaxis,:,:].resize(1. / self.ds_factor, 1. / self.ds_factor) # downsampled here            
-#            calcium_img = np.squeeze((calcium_img/256).astype('uint8'))  # convert to 8-bit img
-#            
-#            self.updateImage(cv2.resize(calcium_img, (512, 512), interpolation=cv2.INTER_CUBIC))
-#            self.calcium_img = calcium_img
-            
-
-#    def autoCreateRejectMask(self):
-#        if self.calcium_img.size:
-#            brightness_thresh = self.brightnessThresh_spinBox.value()
-#            min_area = self.CminArea_spinBox.value()
-#            min_area = min_area/self.ds_factor**2
-#            calcium_img = self.calcium_img
-#            
-#            reject_mask = calcium_img > brightness_thresh  # binary reject mask
-#            reject_mask = remove_small_objects(reject_mask, min_size=min_area)
-#            
-#            self.reject_mask = reject_mask        # add manually selected points too
-#            self.updateImage(cv2.resize(self.reject_mask.astype('uint8'), (512, 512), interpolation=cv2.INTER_CUBIC))
-#            self.calciumMaskOn = True
-#    
-#            if self.c != {}:
-#                self.checkRejectedMask()
-
-             
-
     def connectPV(self):
         self.updateStatusBar('connecting PV')
         self.pl = pvlink(self.PV_IP,self.PV_PORT)
@@ -2715,8 +2689,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             self.prepareOnacid(save_init=False)
 
         self.updateStatusBar('Initialision completed: ' + str(self.c['cnm2'].N) + ' cells found')
-                
-            
+        
     
     def prepareOnacid(self, show_results=True, save_init=True):
         
@@ -3772,8 +3745,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             droppedIMG = cv2.imread(filepath,cv2.IMREAD_ANYDEPTH)
             self.imageItem.setImage(cv2.resize(droppedIMG,(512,512),interpolation=cv2.INTER_CUBIC))
             self.opsinMaskOn = False
-#            self.calciumMaskOn = False
             print('current image:'+str(filepath))
+
 
 
 #%%
