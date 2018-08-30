@@ -544,7 +544,7 @@ class Worker(QObject):
                 opsin_mask = np.array([])
                 opsin_positive = True  # default for when no opsin mask
                 print(e)
-                
+
         # check new cells for opsin
         if opsin_mask.size:
             check_opsin = True
@@ -552,18 +552,18 @@ class Worker(QObject):
             print('Checking opsin online')
         else:
             check_opsin = False
-            
+
         # check new cells against reject_mask
         if reject_mask.size:
             check_reject = True
             print('Checking reject mask online')
         else:
             check_reject = False
-        
+
         # store info on why cell was not included
         repeated_idx = []
         rejected_idx = []
-        
+
         repeated = 0
         rejected = 0
 
@@ -636,55 +636,55 @@ class Worker(QObject):
                         BufferPointer = 0
                     else:
                         BufferPointer +=1
-    
+
                     # process current frame
                     if ds_factor > 1:
                         frame_in = cv2.resize(frame_in, img_norm.shape[::-1])   # downsampling
-    
+
                     frame_in -= img_min                                       # make data non-negative
-    
+
                     if mot_corr:                                            # motion correct
     #                    mot_corr_start = time.time()
                         templ = cnm2.Ab.dot(cnm2.C_on[:cnm2.M, t_cnm - 1]).reshape(cnm2.dims, order='F') * img_norm
                         frame_cor, shift = motion_correct_iteration_fast(frame_in, templ, max_shift, max_shift)
                         self.shifts.append(shift)
-    
+
     #                    print('caiman motion correction time:' + str("%.4f"%(time.time()-mot_corr_start)))
-    
+
                     else:
                         frame_cor = frame_in
-    
+
                     frame_cor = frame_cor / img_norm                            # normalize data-frame
                     cnm2.fit_next(t_cnm, frame_cor.reshape(-1, order='F'))      # run OnACID on this frame
-    
+
                     # detect new compunents
                     if expect_components:
                         update_comp_time = time.time()
                         if cnm2.N - (com_count+rejected_count) == 1:
                             frame_extra_detected.append(t_cnm)
                             new_coms = com(cnm2.Ab[:, -1], dims[0], dims[1])[0]
-    
+
                             # Check for repeated components
                             close = abs(coms - new_coms) < dist_thresh
                             repeated = any(np.all(close,axis=1))
-                            
+
                             if check_reject:  # TODO: could also check it by looking at multiple cells around com (like opsin check)
                                 x = round(new_coms[0])  # no need to inverse here
                                 y = round(new_coms[1])
-                                
+
                                 rejected = reject_mask[int(x)][int(y)]
-                                
-    
+
+
                             if not (repeated or rejected): #repeated == False: # add component to ROI
                                 coms = np.vstack((coms, new_coms))
                                 y, x = new_coms   # reversed
                                 ROIx = np.append(ROIx,x*ds_factor)  # ~0.11 ms // filling in empty array: ~0.07 ms
                                 ROIy = np.append(ROIy,y*ds_factor)
-    
+
                                 com_count += 1
                                 accepted.append(cnm2.N)
                                 print('New cell detected (' + str(cnm2.N-rejected_count) + ')')
-    
+
                                 # Check cell for c1v1
     #                            tt = time_()
                                 if check_opsin:
@@ -692,21 +692,21 @@ class Worker(QObject):
                                         cell_A = np.array(cnm2.Ab[:,-1].todense())
                                         cell_mask = (np.reshape(cell_A, dims, order='F') > 0).astype('int')
                                         cell_pix = sum(sum(cell_mask == 1))
-        
+
                                         inter = cv2.bitwise_and(opsin_mask, cell_mask)
                                         inter_pix = sum(sum(inter))
                                         cell_overlap = inter_pix/cell_pix
-        
+
                                         overlap.append(cell_overlap)
                                         opsin_positive = cell_overlap > opsin_thresh
                                         opsin.append(opsin_positive)
-                                        
+
                                     else:                                    # TODO: could optimise the below
                                         x_ = int(round(y))
                                         y_ = int(round(x))
                                         x_all = [x_, x_+offset, x_-offset]
                                         y_all = [y_, y_+offset, y_-offset]
-                                        
+
                                         opsin_count = 0
                                         count = 0
                                         for i in range(len(x_all)):
@@ -714,18 +714,18 @@ class Worker(QObject):
                                                 op = opsin_mask[x_all[i]][y_all[j]]
                                                 opsin_count += op
                                                 count += 1
-                                        
-                                        print('count', opsin_count)
+
+#                                        print('count', opsin_count)
                                         opsin_positive = opsin_count/count >= opsin_thresh
-                                        print('opsin', opsin_positive)
+#                                        print('opsin', opsin_positive)
                                         opsin.append(opsin_positive)
-                                        
+
     #                            print(time_()-tt)
-    
-    
+
+
                                 # add new ROI to photostim target, if required
                                 try:
-                                    if 1: #p['FLAG_BLINK_CONNECTED'] and p['FLAG_AUTO_ADD_TARGETS']:
+                                    if p['FLAG_BLINK_CONNECTED'] and p['FLAG_AUTO_ADD_TARGETS']:
                                         if opsin_positive:  # add target only if opsin present
                                             p['currentTargetX'].append(x*ds_factor)
                                             p['currentTargetY'].append(y*ds_factor)
@@ -734,12 +734,12 @@ class Worker(QObject):
                                             self.sendCoords_signal.emit()
                                             self.updateTargetROIs_signal.emit()
                                             FLAG_SEND_COORDS = False
-    
+
                                     self.getROImask_signal.emit(x,y) # add roi coords to list in main
                                     print('add new component time:' + str("%.4f"%(time.time()-update_comp_time)))
                                 except Exception as e:
                                     print(e)
-    
+
                                 if com_count == p['MaxNumROIs']:
                                     expect_components = False
                                     print('Not accepting more components')
@@ -750,14 +750,14 @@ class Worker(QObject):
                                 if rejected:
                                     rejected_idx.append(cnm2.N)
                                     print('Rejected component found!')
-                                
+
                                 rejected_count += 1
 
                     # add data to buffer
                     try:
                         self.RoiBuffer[:com_count, BufferPointer] = cnm2.C_on[accepted, t_cnm]
-                        self.ROIlist_threshold[:com_count] = np.nanmean(self.RoiBuffer[:com_count,:], axis=1) + 3*np.nanstd(self.RoiBuffer[:com_count,:], axis=1)
-    
+                        self.ROIlist_threshold[:com_count] = np.nanmean(self.RoiBuffer[:com_count,:], axis=1) + 2*np.nanstd(self.RoiBuffer[:com_count,:], axis=1)  # changed 3 to 2
+
                          # record the buffer values for offline analysis
                         if store_all_online:
                             self.online_C[:cnm2.M, t_cnm] = cnm2.C_on[:cnm2.M, t_cnm]  # storing also background signal (gnb)
@@ -767,54 +767,63 @@ class Worker(QObject):
                         print(e)
                         logger.exception(e)
                         print(self.RoiBuffer[:com_count,:])
-    
+
                     # trigger photostim
                     if p['photoProtoInx'] == CONSTANTS.PHOTO_FIX_FRAMES and framesProc == photo_stim_frames[num_photostim] and num_photostim < self.num_stims:
                         FLAG_TRIG_PHOTOSTIM = True
-    
-                    elif p['photoProtoInx'] == CONSTANTS.PHOTO_ABOVE_THRESH: # TODO: no check for opsin here
+
+                    elif p['photoProtoInx'] == CONSTANTS.PHOTO_ABOVE_THRESH: # TODO: test the check for opsin
                         photostim_flag = self.RoiBuffer[:com_count, BufferPointer]-self.ROIlist_threshold[:com_count]
+#                        print(photostim_flag)
+                        print(np.nonzero(photostim_flag>0))
                         last_target_idx = np.copy(current_target_idx)
-                        current_target_idx = np.nonzero(photostim_flag>0)
+                        above_thresh = np.array(photostim_flag>0)
+                        opsin_ok = np.array(opsin)
+                        current_target_idx = np.where(above_thresh + opsin_ok == 2)
+                        if len(current_target_idx):
+                            print('curr target idx', current_target_idx)
+#                        current_target_idx = np.nonzero(photostim_flag>0)
+
                         num_stim_targets = len(p['currentTargetX'])
-    
+
                         if (num_stim_targets>0):
                             FLAG_TRIG_PHOTOSTIM = True
-                            if np.array_equal(last_target_idx,current_target_idx):
+                            if not np.array_equal(last_target_idx,current_target_idx):
                                 FLAG_SEND_COORDS = True
-    
-                        p['currentTargetX'] = ROIx[current_target_idx]
-                        p['currentTargetY'] = ROIy[current_target_idx]
-    
+
+                        p['currentTargetX'] = list(ROIx[current_target_idx])  # TODO: not storing new ROI coords! change!!
+                        p['currentTargetY'] = list(ROIy[current_target_idx])
+                        print(p['currentTargetX'])
+
                     elif p['photoProtoInx'] == CONSTANTS.PHOTO_BELOW_THRESH:
                         photostim_flag = self.ROIlist_threshold[:com_count] - self.RoiBuffer[:com_count, BufferPointer]
                         last_target_idx = np.copy(current_target_idx)
                         current_target_idx = np.nonzero(photostim_flag>0)
                         num_stim_targets = len(p['currentTargetX'])
-    
+
                         if (num_stim_targets>0):
                             FLAG_TRIG_PHOTOSTIM = True
                             if np.array_equal(last_target_idx,current_target_idx):
                                 FLAG_SEND_COORDS = True
-    
+
                         p['currentTargetX'] = ROIx[current_target_idx]
                         p['currentTargetY'] = ROIy[current_target_idx]
-    
+
                     if FLAG_TRIG_PHOTOSTIM:
                         # update phase mask
                         if FLAG_SEND_COORDS:
                             self.sendCoords_signal.emit()
-    
+
                         # trigger spiral
                         print('sending photostim trigger')
                         p['NI_2D_ARRAY'][1,:] = NI_UNIT_POWER_ARRAY *np.polyval(power_polyfit_p,photoPowerPerCell*num_stim_targets)
                         self.sendPhotoStimTrig_signal.emit()
                         FLAG_TRIG_PHOTOSTIM = False
-    
+
                         # take notes
                         online_photo_frames.append(framesProc)
                         online_photo_targets.append(current_target_idx)
-    
+
                         # update display
                         if FLAG_SEND_COORDS:
                             self.updateTargetROIs_signal.emit()
@@ -822,14 +831,14 @@ class Worker(QObject):
                         num_photostim +=1
                         frames_post_photostim = 1
                         photo_stim_frames_caiman.append(framesCaiman)
-    
+
                     # Trigger sensory stimulation
                     if sens_stim_idx < self.num_stims:
                         if p['FLAG_STIM_TRIG_ENABLED'] and framesProc == stim_frames[sens_stim_idx]: # send TTL
                             self.sendTTLTrigger_signal.emit()
                             sens_stim_idx += 1
                             stim_frames_caiman.append(framesCaiman)
-    
+
                     # Update display
                     if framesProc > refreshFrame-1: #frame_count>self.BufferLength-1:
                         if LastPlot == refreshFrame:
@@ -838,7 +847,7 @@ class Worker(QObject):
                                 self.refreshPlot_signal.emit(self.RoiBuffer[:com_count,:])
                                 print('update plot time = ' +str(time.time()-plot_time))
                             LastPlot = 0
-    
+
                         elif LastPlot == refreshFrame-1:
                             if p['displayOn']:
                                 # display current frame
@@ -851,21 +860,21 @@ class Worker(QObject):
                                     frame = comps_frame + bgkrnd_frame   # denoised frame = component activity + background
                                     denoised_frame =  np.repeat(frame[:,:,None],3,axis=-1)
                                     denoised_frame = np.minimum((denoised_frame*255.),255).astype('u1')
-    
+
                                     if ds_factor == 1:
                                         self.roi_signal.emit(denoised_frame)
                                     else:
                                         res_denoised_frame = cv2.resize(denoised_frame, (512, 512), interpolation=cv2.INTER_CUBIC)
                                         self.roi_signal.emit(res_denoised_frame)
     #                                    print('generate denoise frame time:' + str("%.4f"%(time.time()-denoise_time)))
-    
+
                                 else:
                                     if ds_factor == 1:
                                         self.roi_signal.emit(frame_cor)
                                     else:
                                         res_frame_cor = cv2.resize(frame_cor, (512, 512), interpolation=cv2.INTER_CUBIC)
                                         self.roi_signal.emit(res_frame_cor)
-    
+
                               # refresh roi scatter
                                 shift_ = [round(shift[0]), round(shift[1])]
                                 if shift_ != [0,0]:
@@ -873,13 +882,13 @@ class Worker(QObject):
                                     if self.display_shift == True: #denoiseOn == False:
                                         self.refreshScatter_signal.emit(shift_)
                                         print('display shift time:' + str("%.4f"%(time.time()-self.display_shift_time)))
-    
+
                                 self.thresh_signal.emit(self.ROIlist_threshold[:com_count])
                                 LastPlot += 1
                         else:
                             LastPlot += 1
                     t_cnm +=1
-                    
+
                 except Exception as e:
                     print(e)
 
@@ -931,11 +940,11 @@ class Worker(QObject):
             save_dict['online_C']  = self.online_C
             save_dict['init_com_count'] = K_init # com_count from init file (in case any cells removed from init file)
             save_dict['online_com_count'] = com_count
-            
+
             save_dict['accepted_idx'] = accepted  # accepted currently stored inside cnm2 as well
             save_dict['repeated_idx'] = []
             save_dict['rejected_idx'] = []
-            
+
             save_dict['frame_detected'] = frame_detected
             save_dict['t_cnm'] = t_cnm
             save_dict['tottime'] = self.tottime
@@ -978,20 +987,20 @@ class Worker(QObject):
                     movie_string = movie_name[:i] + 'rtaoi'
                 else:
                     movie_string = movie_name[:-4]
-                    
+
 #                if save_separately:
 #                    filename = os.path.basename(self.movie_name)[:-4] + '_OnlineProc_' + timestr + '.pkl'
-                
+
                 save_time = True
                 if save_time:
                     filename = movie_string + '_OnlineProc_DS_' + str(ds_factor) + '_' + timestr + '.pkl'
                 else:
                     filename = movie_string + '_OnlineProc_DS_' + str(ds_factor) + '.pkl'
-                    
-                
+
+
                 movie_folder = os.path.dirname(self.movie_name)
                 save_folder = os.path.join(movie_folder, 'pyrtaoi_results')  # save init result in a separate folder
-                
+
                 if not os.path.exists(save_folder):
                     os.makedirs(save_folder)
                 save_path = os.path.join(save_folder, filename)
@@ -1200,14 +1209,14 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         # reject list
         p['rejectedX'] = []
         p['rejectedY'] = []
-        
+
         # groupbox list
         self.groupBoxes = [self.Prairie_groupBox,self.caiman_groupBox,
                            self.Blink_groupBox, self.opsinMask_groupBox,
                            self.StimOptions_groupBox, self.OfflineAnalysis_groupBox,
                            self.DisplayOptions_groupBox, self.photostim_groupBox,
                            self.groupBox, self.config_groupBox, self.run_groupBox]
-        
+
         # offline
         self.IsOffline = False
 
@@ -1432,7 +1441,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                         if self.rejectMaskOn:
                             selected_xy = [[value[0], value[1]] for value in selected][self.numTargets+len(p['rejectedX']):]
                         else:
-                            selected_xy = [[value[0], value[1]] for value in selected][self.numTargets:] 
+                            selected_xy = [[value[0], value[1]] for value in selected][self.numTargets:]
                         print(len(selected_xy))
 
                         ROI_xy = [ROI_x, ROI_y]
@@ -1453,7 +1462,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         elif self.rejectModeOn:
             det_dist = 10  # small is preferred here
             detected = 0
-            
+
             for idx in range(len(p['rejectedX'])):
                 detected = abs(x - p['rejectedX'][idx]) <= det_dist and abs(y - p['rejectedY'][idx]) <= det_dist
                 if detected:
@@ -1461,12 +1470,12 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                     del p['rejectedY'][idx]
                     self.updateAllROIs()
                     return
-                
+
             if not detected:
                 self.Targetcontour_item.addPoints(x = [x], y = [y], pen = self.RejectPen, size = pointSize)
                 p['rejectedX'].append(x)
                 p['rejectedY'].append(y)
-                
+
         else:
             print(str(x)+' '+str(y))
             det_dist = 20  # detection distance
@@ -1501,7 +1510,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
     def displayImg(self,event):
         if self.opsinMaskOn:
             self.updateImage(cv2.resize(np.squeeze(self.opsin_img), (512, 512), interpolation=cv2.INTER_CUBIC))
-            
+
 #        elif self.calciumMaskOn:
 #             self.updateImage(cv2.resize(self.calcium_img, (512, 512), interpolation=cv2.INTER_CUBIC))
 
@@ -1509,7 +1518,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
     def displayMask(self,event):
         if self.opsinMaskOn:
             self.updateImage(cv2.resize(np.squeeze(self.opsin_mask).astype('u1'), (512, 512), interpolation=cv2.INTER_CUBIC))
-            
+
 #        elif self.calciumMaskOn:
 #            self.updateImage(cv2.resize(self.reject_mask.astype('uint8'), (512, 512), interpolation=cv2.INTER_CUBIC))
 
@@ -1768,7 +1777,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
             self.IsOffline_radioButton.setChecked(False)
             self.IsOffline_radioButton.setEnabled(False)
-            
+
             # reset masks
             self.opsin_img_path = 'U:/simulate_movie/20170823_Ch01.tif'
             self.opsin_img = np.array([])
@@ -1903,12 +1912,12 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         self.Targetcontour_item.clear()
         self.Targetcontour_item.addPoints(x = p['currentTargetX'], y = p['currentTargetY'], pen = self.TargetPen, size = self.RoiRadius*2+5)
         print('target rois updated')
-        
-        
+
+
     def updateRejectROIs(self, display=False):
         self.Targetcontour_item.addPoints(x = p['rejectedX'], y = p['rejectedY'], pen = self.RejectPen, size = self.RoiRadius*2+5)  # added
         print('reject rois updated')
-        
+
 
     def updateAllROIs(self):
         self.Targetcontour_item.clear()
@@ -1932,7 +1941,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 #        self.removeMode_pushButton.setEnabled(True)
         self.removeMode_pushButton.setText('Remove selected')
-        
+
 
     def exitRemoveMode(self):
         if self.removeIdx:
@@ -1954,16 +1963,16 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
         print('Remove mode off')
 
-            
+
     def loadCalciumImg(self):
         calcium_img_path = str(QFileDialog.getOpenFileName(self, 'Load an avg calcium image', self.movie_folder, 'MPTIFF (*.tif)')[0])
         calcium_img = cm.load(calcium_img_path, subindices = slice(0,1,None))
         self.updateImage(calcium_img)
-        
-        
+
+
     def rejectModeController(self):
         self.rejectModeOn = not self.rejectModeOn
-        
+
         if self.rejectModeOn:
             self.startRejectMode()
         else:
@@ -1973,133 +1982,133 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
     def startRejectMode(self):
         print('Reject mode on!')
         self.rejectMaskOn = True
-        
+
         for item in self.groupBoxes:
             item.setEnabled(False)
-            
+
         self.rejectMode_pushButton.setText('Mask done')
-        
+
 
     def exitRejectMode(self):
         try:
             self.createRejectMask()
             self.rejectMode_pushButton.setText('Create mask')
-            
+
             for item in self.groupBoxes:
                 item.setEnabled(True)
-    
+
             print('Reject mode off')
         except Exception as e:
             print(e)
-    
+
     def rejectMaskDisplay(self):
         self.rejectMaskOn = not self.rejectMaskOn
-        
+
         if not self.rejectMaskOn:
             self.updateAllROIs()
             self.rejectMaskDisplay_pushButton.setText('Show mask')
         else:
             self.updateAllROIs()
             self.rejectMaskDisplay_pushButton.setText('Hide mask')
-            
-        
+
+
     def createRejectMask(self):
         if self.reject_mask.size and not self.rejectMaskOn:
             self.rejectMaskDisplay()
-        
+
         radius = self.ROIRadius_spinBox.value() #self.RoiRadius+2.5
         dims = (512,512)   # first create a full-sized mask, then downsample
-        
+
         reject_mask = np.zeros(dims)
-        
+
         for idx in range(len(p['rejectedX'])):
             y = p['rejectedX'][idx]   # TODO: check this is correct. why have to invert? if have to, invert these while adding to p?
             x = p['rejectedY'][idx]
-            
+
             xcoords = []
             ycoords = []
             ROI_mask = np.zeros(dims)
-            
+
             for pixel_x in range(dims[0]):
                 for pixel_y in range(dims[1]):
-                    
+
                     dx = pixel_x - x
                     dy = pixel_y - y
                     dist_squared = dx**2 + dy**2
-                    
+
                     if dist_squared <= radius**2:
                         xcoords.append(pixel_x)
                         ycoords.append(pixel_y)
-                        
+
             ROI_mask[xcoords,ycoords] = 1
             reject_mask += ROI_mask
-        
+
         try:
             dims_res = self.dims
         except:
             self.ds_factor = self.dsFactor_doubleSpinBox.value()
             dims_res = tuple([round(dim/self.ds_factor) for dim in dims])
-            
+
 #        self.updateImage(reject_mask.astype('u1'))
         reject_mask = cv2.resize(reject_mask, dims_res)   # shapes more round if downsampled after creation
         reject_mask[reject_mask>0] = 1  # keep only 0s and 1s
-        
+
         if reject_mask != np.zeros(dims):  # store reject_mask only if non-zero
             self.reject_mask = reject_mask.astype('int')
         else:
             self.reject_mask = np.array([])
-            
+
         self.updateImage(cv2.resize(reject_mask, (512, 512), interpolation=cv2.INTER_CUBIC))
-        
+
         self.rejectMaskOn = True
         self.rejectMaskDisplay_pushButton.setEnabled(True)
-                
+
         if self.c != {}:
             self.checkRejectedMask()
             self.c['reject_mask'] = self.reject_mask
-        
+
     def resetRejectMask(self):
         p['rejectedX'] = []
         p['rejectedY'] = []
         self.rejectIdx = []
         self.updateAllROIs()
         self.createRejectMask()
-        
+
         if self.c['cnm2'].N > self.InitNumROIs_spinBox.value():
             self.prepareOnacid()
-            
+
         if self.rejectMaskOn:
             self.rejectMaskDisplay()
-        
+
 
     def checkRejectedMask(self):
         if self.c != {}:
             self.rejectIdx = []
-            
+
             for idx in range(self.c['coms_init'].shape[0]):
                 coms = self.c['coms_init'][idx,:]
                 x = round(coms[0])  # no need to inverse here
                 y = round(coms[1])
-                
+
                 rejected = self.reject_mask[int(x)][int(y)]
                 if rejected:
-                    self.rejectIdx.append(idx)               
-                                
+                    self.rejectIdx.append(idx)
+
             self.updateStatusBar(str(len(self.rejectIdx)) + ' cells to be rejected: ' + str([idx+1 for idx in self.rejectIdx])[1:-1])
 
 
     def showCellsOnRejectedMask(self):
         if self.reject_mask.size and self.c != {}:
             self.checkRejectedMask()
-            
+
             pl.figure();
             pl.imshow(self.reject_mask, cmap='gray')
 #            pl.plot(self.c['coms_init'][:,1],self.c['coms_init'][:,0],'w.')
-            
+
             cnm_struct = self.c['cnm2']
             A = cnm_struct.Ab[:, cnm_struct.gnb:cnm_struct.M]
             coords = get_contours(A, self.dims)
-            
+
             for idx in range(cnm_struct.N):
                 c = coords[idx]
                 contours = c['coordinates']
@@ -2110,17 +2119,17 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                 else:
                     col1 = 'g'
                     col2 = 'c'
-                    
+
                 pl.plot(*contours.T, c=col1)
                 pl.plot(self.c['coms_init'][idx,1], self.c['coms_init'][idx,0],
                         c=col2, marker='.', markersize=3)
-            
+
             pl.axis('off')
-    
+
         else:
              self.updateStatusBar('No cells to be shown or reject mask empty')
-             
-    
+
+
     def applyRejectMask(self):
         if self.rejectIdx:
             msg = QMessageBox()
@@ -2135,7 +2144,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                 self.removeCells()
             else:
                 self.rejectIdx = []
-                
+
                 msg.setText("Reset reject mask?")
                 msg.setWindowTitle('pyRTAOI Message')
                 msg.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
@@ -2144,10 +2153,10 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                     p['rejectedX'] = []
                     p['rejectedY'] = []
                     self.createRejectMask()
-                
+
                 self.updateAllROIs()
 
-        
+
     def connectPV(self):
         self.updateStatusBar('connecting PV')
         self.pl = pvlink(self.PV_IP,self.PV_PORT)
@@ -2294,7 +2303,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
     def transDataToMain(self, cnm_struct, online_C, coms, accepted, t, sta_amp, sta_traces, plot=True):
 #        print(self.c['test']) # changing c inside worker automatically changes it inside mainwindow -- this is sent/shared somehow
 #        self.cnm2 = cnm_struct
-        
+
         self.c['coms'] = coms
         self.c['cnm2'] = cnm_struct
         self.c['online_C'] = online_C
@@ -2664,12 +2673,12 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                 self.updateStatusBar('A non-tif file was provided - select a tif movie to initialise with a mask')
                 return
 
-                
+
         self.c = init_values # caiman object
         self.c['coms_init_orig'] = self.c['coms_init']  # keep original com data
         self.dims = self.c['cnm_init'].dims
 
-        
+
         if movie_ext == '.pkl':
             cnm = init_values['cnm_init']
             cell_radius = round(cnm.gSig[0]*ds_factor)
@@ -2696,23 +2705,23 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         self.ds_factor = ds_factor
         self.rejectIdx = []
         self.c['rejected_idx'] = [] # temp; remove
-        
+
         if opsin_seeded:
             thresh_cnn = 0.1 # default thresh for c1v1 mask
             self.CNNFilter_doubleSpinBox.setValue(thresh_cnn)
-            self.filterResults(init=True)       
+            self.filterResults(init=True)
         else:
             self.prepareOnacid(save_init=False)
 
         self.updateStatusBar('Initialision completed: ' + str(self.c['cnm2'].N) + ' cells found')
-        
-    
+
+
     def prepareOnacid(self, show_results=True, save_init=True):
         try:
             # Reset previous settings
             try:
                 self.c['cnm2']
-                
+
                 self.ROIcontour_item.clear()
                 self.deleteTextItems()
                 self.plotItem.clear()
@@ -2721,110 +2730,110 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                 self.resetROIlist()
                 self.updateTable()
             except: pass
-            
+
             # Prepare object for OnACID
             idx_components = self.c['idx_components']
-                
+
             path_to_cnn_residual = os.path.join(caiman_datadir(), 'model', 'cnn_model_online.h5')
-    
+
             cnm2 = deepcopy(self.c['cnm_init'])
             cnm2._prepare_object(np.asarray(self.c['Yr']), self.c['T1'],
                                  self.c['expected_comps'], idx_components=idx_components,
                                  min_num_trial=2, N_samples_exceptionality=int(self.c['N_samples']),
                                  path_to_model=path_to_cnn_residual, sniper_mode=False)
-    
+
     #        cnm2.max_num_added = 5  # max number of cells added per onacid frame --> doesn't look like more cells are added per frame
-    
+
             cnm2.opsin = []
-            
+
             coms = self.c['coms_init_orig'].copy()
             if idx_components is not None:
                 self.c['coms_init'] = coms[idx_components]
-                
+
     #        print('reject idx', self.rejectIdx)
     #        if self.rejectIdx:
     #            accepted = sorted(list(set(range(cnm2.N)) - set(self.rejectIdx)))
     #        else:
-                
+
             # all rejected deleted already
             accepted = list(range(0,cnm2.N))
-            
+
             # store info on rejected cells and mask
             cnm2.accepted = accepted
             self.c['accepted'] = accepted
-            
+
             if not self.c['reject_mask'].size:
                 self.c['reject_mask'] = self.reject_mask # if no mask provided with the init file, assign the one created in the interface
             else:
-                self.reject_mask = self.c['reject_mask'] # if mask provided, change currently stored reject_mask        
-            
+                self.reject_mask = self.c['reject_mask'] # if mask provided, change currently stored reject_mask
+
             cnm2.t = cnm2.initbatch
-    
+
             K = cnm2.N
             self.c['cnm2'] = cnm2
             self.c['K_init'] = K
-            
+
             try: # temp; remove soon
                 self.c['thresh_cnn']
             except:
                 self.c['thresh_cnn'] = 0
-    
-    
+
+
             if show_results:
                 # Extract number of cells detected
                 self.InitNumROIs_spinBox.setValue(K)
-    
+
                 if self.MaxNumROIs_spinBox.value() < K+5:
                     self.MaxNumROIs_spinBox.setValue(K+10)
-                    
+
                 print('Number of components initialised: ' + str(K))
                 self.MaxNumROIs = self.MaxNumROIs_spinBox.value()
-        
+
                 self.InitNumROIs = K
                 self.opsinMaskOn = False
                 self.imageItem.setImage(cv2.resize(self.c['img_norm'],(512,512),interpolation=cv2.INTER_CUBIC)) # display FOV
-    
-        
+
+
                 self.initialiseROI()
                 for i in cnm2.accepted: #range(K):
                     y, x = self.c['coms_init'][i]  # reversed
                     self.getROImask(thisROIx = x, thisROIy = y)
-        
+
                 self.CNNFilter_doubleSpinBox.setValue(self.c['thresh_cnn'])
-        
+
                 self.UseONACID_checkBox.setEnabled(True)
                 self.UseONACID_checkBox.setChecked(True)
                 if self.selectAll_checkBox.isChecked():
                     self.selectAllROIs()
                 self.updateStatusBar('Preparing object completed')
-        
+
                 if self.A_opsin.size:
                     print('Checking opsin overlap')
                     self.checkOpsin()
-                    
+
                 if self.c['reject_mask'].size:
                     print('Checking reject mask')
                     self.checkRejectedMask()
-        
+
                 self.showROIIdx()
                 self.plotOnacidTraces(t=self.c['cnm_init'].initbatch)
-                
+
             if save_init:
                 self.saveInitResults()
-                
+
         except Exception as e:
             print(e)
 
 
     def removeCells(self, CNN=False, save_init=True):
-        
+
         if self.rejectIdx:
             rejected = True
             self.removeIdx = self.rejectIdx   # just remove rejected cells
             self.rejectIdx = []
         else:
             rejected = False
-            
+
         print('Removing ' + str(len(self.removeIdx)) + ' cells')
 
         # idx_keep is local idx of current ROI selection
@@ -2834,7 +2843,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         else:
             thisROIIdx = self.thisROIIdx
             idx_keep = sorted(list(set(range(thisROIIdx)) - set(self.removeIdx)))  # removeIdx here is local GUI idx
-    
+
         accepted = self.c['cnm2'].accepted
         coms = self.c['coms_init'][accepted]
         print('coms shape', coms.shape)
@@ -2842,10 +2851,10 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
         print('idx keep', idx_keep)
         print('len', len(idx_keep))
-        
+
         # remove chosen cells  -- old version resulting in array length errors for large number of deleted cells!
 #        self.c['cnm2'].remove_components(self.removeIdx)
-        
+
         coms_init_orig = self.c['coms_init_orig']
         orig_keep_idx = []
 
@@ -2861,13 +2870,13 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 #        orig_rej_idx = []
 #        try:
 #            rejected = sorted(list(set(range(self.c['K_init'])) - set(accepted)))
-#            
+#
 #            if len(rejected):
 #                coms = self.c['coms_init']
 #                coms_init_orig = self.c['coms_init_orig']
-#                
+#
 #                rejected_coms = coms[rejected]
-#                                                
+#
 #                for pair in rejected_coms:
 #                    idx = np.where(pair == coms_init_orig)[0]
 #                    if idx[0] == idx[1]:
@@ -2876,10 +2885,10 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 #                        print('Different indeces - check')
 #        except Exception as e:
 #            print(e)
-#        
+#
 #        print('orig rej idx', orig_rej_idx)
 #        self.c['rejected_idx'] = orig_rej_idx
-          #########################################      
+          #########################################
 
         # do not include rejected cells during removal
 #        orig_rej_idx = self.c['rejected_idx']
@@ -2901,25 +2910,25 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                 remove_idx = list(set(orig_remove_idx) - set(cnn_remove_idx))  # keep manually removed indeces here only
             else:
                 remove_idx = orig_remove_idx
-                
+
             if rejected:
                 remove_idx = list(set(remove_idx) - set(self.c['removed_idx']))
                 self.c['rejected_idx'] = sorted(remove_idx)
             else:
                 remove_idx = list(set(remove_idx) - set(self.c['rejected_idx']))
                 self.c['removed_idx'] = sorted(remove_idx)
-            
-        
+
+
         print('rejected idx', self.c['rejected_idx'])
         print('removed idx', self.c['removed_idx'])
         print('cnn removed idx', self.c['cnn_removed_idx'])
-        
-        
+
+
         self.c['idx_components'] = orig_keep_idx # + orig_rej_idx   # use orig idx for onacid preparation
-        
+
 #        if orig_rej_idx:
 #            self.checkRejectedMask()
-    
+
         self.prepareOnacid(save_init=save_init)
 
         # after new roi list initialised, adjust targets --> below doesn't work anymore but checkOpsin in prepareOnacid sorts it
@@ -2937,8 +2946,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
         # clear removeIdx array
         self.removeIdx = []
-        
-    
+
+
     def saveInitResults(self):              # save changed init object
         init_values_new = deepcopy(self.c)  # copy to avoid messing with self.c
         del init_values_new['cnm2']
@@ -2957,14 +2966,14 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         del self.c['cnm2']
         self.c['thresh_cnn'] = 0
         self.c['cnn_removed_idx'] = []
-        
+
         # do not include manually deleted cells
         idx_components = sorted(list(set(range(self.c['K'])) - set(self.c['removed_idx']) - set(self.c['rejected_idx'])))
-        
+
         self.c['idx_components'] = idx_components
         self.prepareOnacid(show_results=show_results)
         print('Onacid object prepared')
-        
+
 
     def filterResults(self, init=False):
         thresh_cnn = self.CNNFilter_doubleSpinBox.value()
@@ -2975,21 +2984,21 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             return
         else:
             self.deleteTextItems()
-        
+
         if self.c['CNN_filter']:
             if len(self.c['cnn_removed_idx']):
                 self.resetFiltering(show_results=False)
 
             print('Filtering components')
             print('CNN threshold: ', thresh_cnn)
-            
+
             if init:
                 cnm_struct = self.c['cnm_init']
                 A = cnm_struct.A
             else:
                 cnm_struct = self.c['cnm2']
                 A = cnm_struct.Ab[:, cnm_struct.gnb:cnm_struct.M]
-                
+
             print('A shape', A.shape)
             gSig = cnm_struct.gSig
 
@@ -3004,7 +3013,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             self.c['thresh_cnn'] = thresh_cnn
 #            self.c['idx_components'] = idx_keep_CNN
             print('idx remove', idx_rem_CNN)
-            
+
             self.removeIdx = idx_rem_CNN
             self.removeCells(CNN=True)
 
@@ -3069,69 +3078,69 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                 cnm_struct = self.c['cnm2']
                 A = cnm_struct.Ab[:, cnm_struct.gnb:cnm_struct.M]
                 accepted = self.c['cnm2'].accepted
-    
+
             else:
                 A = Ain
                 accepted = range(list(0, A.shape[-1]))
-    
+
             dims = self.dims # tuple([np.sqrt(A.shape[0])]*2)
             overlap = []
             opsin = []
             self.opsin_thresh = self.overlapRatio_doubleSpinBox.value()
-    
+
             # Convert A to numpy array
             if issparse(A):
                 A = np.array(A.todense())
             else:
                 A = np.array(A)
-    
+
             onacid_mask = (deepcopy(A)>0).astype('int')  # binarise the onacid output mask
             use_mask = self.useMask_checkBox.isChecked()
             self.use_mask = use_mask
-            
+
             c = 0 # temp
             for cell in accepted: # range(onacid_mask.shape[-1]):
                 if use_mask:
                     cell_mask = (np.reshape(onacid_mask[:,cell], dims, order='F'))
                     cell_pix = sum(sum(cell_mask == 1))
-        
+
                     inter = cv2.bitwise_and(self.opsin_mask, cell_mask)
                     inter_pix = sum(sum(inter))
                     cell_overlap = inter_pix/cell_pix
                     overlap.append(cell_overlap)
-        
+
                     if cell_overlap <= self.opsin_thresh:
                         onacid_mask[:,cell][onacid_mask[:,cell] == 1] = -3
                     else:
                         onacid_mask[:,cell][onacid_mask[:,cell] == 1] = 3
-        
+
                     opsin.append(cell_overlap > self.opsin_thresh)
-    
+
                 else:
     #                opsin_pos.append(self.opsin_mask[coms[0]][coms[1]])  # an easy way; checking just com
     #                print('opsin', opsin_pos)
-                    
+
                     try:
                         coms = self.c['coms'][c]   # coms received from worker post onacid
                         print('post onacid coms')
                         c += 1
                     except:
                         coms = self.c['coms_init'][cell]
-                    
+
                     coms = [int(round(com)) for com in coms]
-    
+
 #                    x = int(round(self.ROIlist[c]["ROIy"]))
 #                    y = int(round(self.ROIlist[c]["ROIx"]))
 
-                    
+
                     offset = 2
-                    
+
                     x = coms[0]
                     y = coms[1]
-                    
+
                     x_all = [x, x+offset, x-offset]
                     y_all = [y, y+offset, y-offset]
-                    
+
                     opsin_count = 0
                     count = 0
                     for i in range(len(x_all)):
@@ -3139,11 +3148,11 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                             op = self.opsin_mask[x_all[i]][y_all[j]]
                             opsin_count += op
                             count += 1
-                    
+
                     accept = opsin_count/count >= self.opsin_thresh
                     opsin.append(accept)
-    
-    
+
+
             if Ain is None:
                 # store info on opsin
                 self.c['cnm2'].opsin = opsin  # True/False based on threshold
@@ -3151,10 +3160,10 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                 self.c['opsin_mask'] = self.opsin_mask
                 self.c['opsin_thresh'] = self.opsin_thresh
                 self.onacid_mask = onacid_mask
-    
+
             if self.selectAll_checkBox.isChecked():
                 self.selectAllROIs()  # update ROIs selected
-            
+
         except Exception as e:
             print(e)
         return onacid_mask
@@ -3165,7 +3174,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             self.checkOpsin()  # for overlap update
             opsin = self.c['cnm2'].opsin
             use_mask = self.useMask_checkBox.isChecked()
-            
+
             # visualise all comp masks
             if use_mask:
                 summed_A = np.hstack((self.A_opsin, self.onacid_mask))
@@ -3173,20 +3182,20 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                 pl.figure();pl.imshow(summed_mask)
                 pl.colorbar()
                 pl.axis('off')
-            
+
             # visualise coms and contours on opsin mask
             else:
                 cnm_struct = self.c['cnm2']
                 A = cnm_struct.Ab[:, cnm_struct.gnb:cnm_struct.M]
                 coords = get_contours(A, self.dims)
-                
+
                 pl.figure(); pl.imshow(self.opsin_mask, cmap='gray')
-                
+
                 try:
                     coms = self.c['coms']   # coms received from worker post onacid
                 except:
                     coms = self.c['coms_init']
-                    
+
                 try:
                     cell = 0
                     for idx in self.c['cnm2'].accepted: # range(cnm_struct.N):
@@ -3196,12 +3205,12 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                             col = 'g'
                         else:
                             col = 'r'
-                            
+
                         pl.plot(*contours.T, c=col)
                         pl.plot(round(coms[cell,1]), round(coms[cell,0]),
                                 c=col, marker = '.')
                         cell += 1
-                    
+
                     pl.axis('off')
                 except Exception as e:
                     print(e)
@@ -3268,9 +3277,9 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
     def showROIIdx(self):
         print('show num rois = '+str(self.thisROIIdx))
         font = QFont("Arial", 12, QFont.Bold)
-        
+
 #        i = 0
-        for idx in range(self.thisROIIdx): # self.c['cnm2'].accepted: 
+        for idx in range(self.thisROIIdx): # self.c['cnm2'].accepted:
             thisText = pg.TextItem(text=str(idx+1), color=self.ROIlist[idx]["ROIcolor"].getRgb()[:3],
                                    html=None, anchor=(0,0), border=None, fill=None, angle=0, rotateAxis=None)
             thisText.setPos(self.ROIlist[idx]["ROIx"],self.ROIlist[idx]["ROIy"])
