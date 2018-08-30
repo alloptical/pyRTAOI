@@ -3137,7 +3137,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
                     x = coms[0]
                     y = coms[1]
-
+                    
+                    # CURRENT INEFFICIENT VERSION
                     x_all = [x, x+offset, x-offset]
                     y_all = [y, y+offset, y-offset]
 
@@ -3149,6 +3150,34 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                             opsin_count += op
                             count += 1
 
+#                    # TODO: EFFICIENT VERSION -- FINISH THIS
+##                    x_all = [x, x+offset, x-offset]
+##                    y_all = [y, y+offset, y-offset]
+##                    
+##                    opsin_count = 0
+##                    count = 0
+##                    for i in range(len(x_all)):
+##                        for j in range(len(y_all)):
+##                            op = self.opsin_mask[x_all[i]][y_all[j]]
+##                            opsin_count += op
+##                            count += 1
+#                    
+#                    x_options = [x-offset, x, x+offset]
+#                    y_options = [y-offset, y, y+offset]
+#                    
+#                    # for speed, use indexing instead of nested loop
+#                    x_all = sorted(x_options*3)
+#                    y_all = y_options*3
+#                    
+#                    opsin_count = self.opsin_mask
+##                    opsin_count = 0
+##                    count = 0
+##                    for i in range(len(x_all)):
+##                        for j in range(len(y_all)):
+##                            op = self.opsin_mask[x_all[i]][y_all[j]]
+##                            opsin_count += op
+##                            count += 1
+                    
                     accept = opsin_count/count >= self.opsin_thresh
                     opsin.append(accept)
 
