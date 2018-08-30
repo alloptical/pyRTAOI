@@ -1452,6 +1452,16 @@
          <item row="2" column="0">
           <layout class="QHBoxLayout" name="horizontalLayout_7">
            <item>
+            <widget class="QCheckBox" name="useMask_checkBox">
+             <property name="text">
+              <string>Mask</string>
+             </property>
+             <property name="checked">
+              <bool>false</bool>
+             </property>
+            </widget>
+           </item>
+           <item>
             <widget class="QPushButton" name="createMask_pushButton">
              <property name="text">
               <string>Create mask</string>

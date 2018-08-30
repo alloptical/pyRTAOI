@@ -360,7 +360,7 @@ class Worker(QObject):
     sendCoords_signal        = pyqtSignal(name = 'sendCoordsSignal')
     sendPhotoStimTrig_signal = pyqtSignal()
     getROImask_signal        = pyqtSignal(object, object,name = 'getROImaskSignal')
-    transDataToMain_signal   = pyqtSignal(object,object,object,object,object,object,name = 'transDataToMain')
+    transDataToMain_signal   = pyqtSignal(object,object,object,object,object,object,object,name = 'transDataToMain')
     updateTargetROIs_signal  = pyqtSignal()
     finished_signal          = pyqtSignal()
 
@@ -548,6 +548,7 @@ class Worker(QObject):
         # check new cells for opsin
         if opsin_mask.size:
             check_opsin = True
+            offset = 2  # for use coms option
         else:
             check_opsin = False
             
@@ -685,18 +686,34 @@ class Worker(QObject):
                             # Check cell for c1v1
 #                            tt = time_()
                             if check_opsin:
-                                cell_A = np.array(cnm2.Ab[:,-1].todense())
-                                cell_mask = (np.reshape(cell_A, dims, order='F') > 0).astype('int')
-                                cell_pix = sum(sum(cell_mask == 1))
-
-                                inter = cv2.bitwise_and(opsin_mask, cell_mask)
-                                inter_pix = sum(sum(inter))
-                                cell_overlap = inter_pix/cell_pix
-
-                                overlap.append(cell_overlap)
-                                opsin_positive = cell_overlap > opsin_thresh
-                                opsin.append(opsin_positive)
-#                                cnm2.opsin.append(cell_overlap > opsin_thresh)
+                                if p['use_mask']:
+                                    cell_A = np.array(cnm2.Ab[:,-1].todense())
+                                    cell_mask = (np.reshape(cell_A, dims, order='F') > 0).astype('int')
+                                    cell_pix = sum(sum(cell_mask == 1))
+    
+                                    inter = cv2.bitwise_and(opsin_mask, cell_mask)
+                                    inter_pix = sum(sum(inter))
+                                    cell_overlap = inter_pix/cell_pix
+    
+                                    overlap.append(cell_overlap)
+                                    opsin_positive = cell_overlap > opsin_thresh
+                                    opsin.append(opsin_positive)
+                                    
+                                else:                                    # TODO: could optimise the below
+                                    x_all = [x, x+offset, x-offset]
+                                    y_all = [y, y+offset, y-offset]
+                                    
+                                    opsin_count = 0
+                                    count = 0
+                                    for i in range(len(x_all)):
+                                        for j in range(len(y_all)):
+                                            op = opsin_mask[x_all[i]][y_all[j]]
+                                            opsin_count += op
+                                            count += 1
+                                    
+                                    opsin_positive = opsin_count/count >= opsin_thresh
+                                    opsin.append(opsin_positive)
+                                    
 #                            print(time_()-tt)
 
 
@@ -732,7 +749,6 @@ class Worker(QObject):
 
                 # add data to buffer
                 try:
-#                    curr_signal = cnm2.C_on[accepted, t_cnm] # cnm2.noisyC is without deconvolution
                     self.RoiBuffer[:com_count, BufferPointer] = cnm2.C_on[accepted, t_cnm]
                     self.ROIlist_threshold[:com_count] = np.nanmean(self.RoiBuffer[:com_count,:], axis=1) + 3*np.nanstd(self.RoiBuffer[:com_count,:], axis=1)
 
@@ -999,7 +1015,7 @@ class Worker(QObject):
                 sta_trial_avg_amp = 0
 
             # transfer data to main and show traces in plot tab
-            self.transDataToMain_signal.emit(cnm2, self.online_C, accepted, t_cnm, sta_trial_avg_amp, self.sta_traces)
+            self.transDataToMain_signal.emit(cnm2, self.online_C, coms, accepted, t_cnm, sta_trial_avg_amp, self.sta_traces)
 
             # delete big variables
             del self.c
@@ -1079,13 +1095,12 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         self.opsin_img = np.array([])
         self.opsin_mask = np.array([])
         self.A_opsin = np.array([])
+        self.use_mask = False
         self.opsinMaskOn = False
         self.showROIsOn = False
         self.A_loaded = np.array([])
         self.mask_path = ''
-#        self.calcium_img_path = ''
-#        self.calcium_img = np.array([])
-        self.reject_mask = np.array([]) # np.zeros(self.dims)
+        self.reject_mask = np.array([])
 
         # ROI selection
 #        self.drawOn = False
@@ -1162,13 +1177,13 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         # photostim target list
         self.numTargets = 0
         self.bl = []
-        self.TargetIdx = [] #np.array([],dtype ='uint16') # indices in ROIlist
-        self.TargetX = [] #np.array([]) # all target coords
-        self.TargetY = [] # np.array([])
-        p['ExtraTargetX'] = [] # np.array([]) #selected targets (not in the ROIlist) -- TODO
-        p['ExtraTargetY'] = []  # np.array([])
-        p['currentTargetX'] = [] # np.array([]) # keep track of what is currently on SLM
-        p['currentTargetY'] = [] # np.array([])
+        self.TargetIdx = [] # indices in ROIlist
+        self.TargetX = [] # all target coords
+        self.TargetY = []
+        p['ExtraTargetX'] = [] # selected targets (not in the ROIlist)
+        p['ExtraTargetY'] = []
+        p['currentTargetX'] = [] # keep track of what is currently on SLM
+        p['currentTargetY'] = []
         p['FLAG_AUTO_ADD_TARGETS'] = False
         p['FLAG_BLINK_CONNECTED'] = False
         p['targetScaleFactor']  = 1 # currentZoom/refZoom
@@ -1346,14 +1361,11 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 #        self.ROIcontour_item.clear()
 
+
         # if ROIs present, refill the table
 #        self.ALL_ROI_SELECTED = False
 
-        # TODO: change this to only display accepted cells in the table + check this
-#        if len(self.c):
-        i = 0
-#            for ROIIdx in self.c['cnm2'].accepted:
-        
+#        for ROIIdx in self.c['cnm2'].accepted:
         for ROIIdx in range(self.thisROIIdx):
 
 #            if ROIIdx == self.MaxNumROIs:
@@ -1375,11 +1387,9 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             self.X_labels[ROIIdx].setText(str('{:.0f}'.format(thisROIx)))
             self.Y_labels[ROIIdx].setText(str('{:.0f}'.format(thisROIy)))
 
-            self.Thresh_tableWidget.setItem(i,0,self.X_labels[ROIIdx])   # TODO: change back to self.thisROIIdx 
-            self.Thresh_tableWidget.setItem(i,1,self.Y_labels[ROIIdx])
-            self.Thresh_tableWidget.setItem(i,2,self.Thresh_labels[ROIIdx])
-                
-            i += 1
+            self.Thresh_tableWidget.setItem(ROIIdx,0,self.X_labels[ROIIdx])
+            self.Thresh_tableWidget.setItem(ROIIdx,1,self.Y_labels[ROIIdx])
+            self.Thresh_tableWidget.setItem(ROIIdx,2,self.Thresh_labels[ROIIdx])
 
 
     def showMousePosition(self,event):
@@ -1614,6 +1624,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         p['FLAG_PV_CONNECTED'] = self.FLAG_PV_CONNECTED
         p['FLAG_OFFLINE'] = self.IsOffline
         p['photoProtoInx'] = self.photoProtoInx
+        p['use_mask'] = self.use_mask
 
 #        self.ds_factor = p['dsFactor']
 #        self.MaxNumROIs = p['MaxNumROIs']
@@ -1644,11 +1655,12 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         except Exception as e:
             print(e)
 
-    def saveResults(self):  # TODO: add coms?
+    def saveResults(self):
         try:
             save_dict = dict()
             save_dict['cnm2'] = self.c['cnm2'] #self.cnm2
-            save_dict['com_count_init'] = self.c['K_init'] #self.K_init
+            save_dict['com_count_init'] = self.c['K_init']
+            save_dict['coms'] = self.c['coms']
             save_dict['accepted'] = self.accepted
             save_dict['t_cnm'] = self.t_cnm
             save_object(save_dict, p['saveResultPath'])
@@ -1703,7 +1715,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             self.TargetIdx = [] # indices in ROIlist
             self.TargetX = [] # all target coords
             self.TargetY = []
-            p['ExtraTargetX'] = [] #selected targets (not in the ROIlist) -- TODO
+            p['ExtraTargetX'] = [] #selected targets (not in the ROIlist)
             p['ExtraTargetY'] = []
             p['currentTargetX'] = [] # keep track of what is currently on SLM
             p['currentTargetY'] = []
@@ -2265,10 +2277,11 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         except: pass
 
 
-    def transDataToMain(self, cnm_struct, online_C, accepted, t, sta_amp, sta_traces, plot=True):
-#        print('test')  # TODO: changing c inside worker automatically changes it inside mainwindow -- this is sent/shared somehow
-#        print(self.c['test'])
+    def transDataToMain(self, cnm_struct, online_C, coms, accepted, t, sta_amp, sta_traces, plot=True):
+#        print(self.c['test']) # changing c inside worker automatically changes it inside mainwindow -- this is sent/shared somehow
 #        self.cnm2 = cnm_struct
+        
+        self.c['coms'] = coms
         self.c['cnm2'] = cnm_struct
         self.c['online_C'] = online_C
         self.accepted = accepted
@@ -2668,7 +2681,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         self.thresh_overlap = thresh_overlap
         self.ds_factor = ds_factor
         self.rejectIdx = []
-        self.c['rejected_idx'] = [] # temp; TODO: remove
+        self.c['rejected_idx'] = [] # temp; remove
         
         if opsin_seeded:
             thresh_cnn = 0.1 # default thresh for c1v1 mask
@@ -2927,19 +2940,16 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 
     def resetFiltering(self, show_results=True):
-        try:
-            del self.c['cnm2']
-            self.c['thresh_cnn'] = 0
-            self.c['cnn_removed_idx'] = []
-            
-            # do not include manually deleted cells
-            idx_components = sorted(list(set(range(self.c['K'])) - set(self.c['removed_idx']) - set(self.c['rejected_idx'])))
-            
-            self.c['idx_components'] = idx_components
-            self.prepareOnacid(show_results=show_results)
-            print('Onacid object prepared')
-        except Exception as e:
-            print(e)
+        del self.c['cnm2']
+        self.c['thresh_cnn'] = 0
+        self.c['cnn_removed_idx'] = []
+        
+        # do not include manually deleted cells
+        idx_components = sorted(list(set(range(self.c['K'])) - set(self.c['removed_idx']) - set(self.c['rejected_idx'])))
+        
+        self.c['idx_components'] = idx_components
+        self.prepareOnacid(show_results=show_results)
+        print('Onacid object prepared')
         
 
     def filterResults(self, init=False):
@@ -3040,125 +3050,129 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 
     def checkOpsin(self, Ain=None):
-        if Ain is None:
-            cnm_struct = self.c['cnm2']
-            A = cnm_struct.Ab[:, cnm_struct.gnb:cnm_struct.M]
-            accepted = self.c['cnm2'].accepted
-
-        else:
-            A = Ain
-            accepted = range(list(0, A.shape[-1]))
-
-        dims = self.dims # tuple([np.sqrt(A.shape[0])]*2)
-        overlap = []
-        opsin = []
-        self.opsin_thresh = self.overlapRatio_doubleSpinBox.value()
-
-        # Convert A to numpy array
-        if issparse(A):
-            A = np.array(A.todense())
-        else:
-            A = np.array(A)
-
-        onacid_mask = (deepcopy(A)>0).astype('int')  # binarise the onacid output mask
-        opsin_pos = []
-
-        for cell in accepted: # range(onacid_mask.shape[-1]):
-            try:
-#                print('cell', cell)
-#                coms = self.c['coms_init'][cell]  # change for post onacid option
-#                coms = [int(round(com)) for com in coms]
-#                print(coms)
-#                
-#                offset = 1
-#                
-#                x = coms[0]
-#                y = coms[1]
-#                
-#                x_all = [x, x+offset, x-offset, x, x]  # more points? not that reliable... maybe just check a small circular area and use overlap as before
-#                y_all = [y, y, y, y+3, y-3]
-#                
-#                opsin_count = 0        
-#                for i in range(5):
-#                    op = self.opsin_mask[x_all[i]][y_all[i]]
-#                    opsin_count += op
-#                    
-##                opsin_count = sum(self.opsin_mask[x_all][y_all])
-#                print('ops count', opsin_count)
-#                print(opsin_count/5)  # at least 0.8 seems to work good!!
-#                
-#                accept = opsin_count/5 >= 0.8
-#                opsin_pos.append(accept)
-                
-                ### 
-#                opsin_pos.append(self.opsin_mask[coms[0]][coms[1]])  # an easy way; checking just com
-                
-#                print('opsin', opsin_pos)
-                ###
-            
-                cell_mask = (np.reshape(onacid_mask[:,cell], dims, order='F'))
-                cell_pix = sum(sum(cell_mask == 1))
+        try:
+            if Ain is None:
+                cnm_struct = self.c['cnm2']
+                A = cnm_struct.Ab[:, cnm_struct.gnb:cnm_struct.M]
+                accepted = self.c['cnm2'].accepted
     
-                inter = cv2.bitwise_and(self.opsin_mask, cell_mask)
-                inter_pix = sum(sum(inter))
-                cell_overlap = inter_pix/cell_pix
-                overlap.append(cell_overlap)
+            else:
+                A = Ain
+                accepted = range(list(0, A.shape[-1]))
     
-                if cell_overlap <= self.opsin_thresh:
-                    onacid_mask[:,cell][onacid_mask[:,cell] == 1] = -3
-                else:
-                    onacid_mask[:,cell][onacid_mask[:,cell] == 1] = 3
+            dims = self.dims # tuple([np.sqrt(A.shape[0])]*2)
+            overlap = []
+            opsin = []
+            self.opsin_thresh = self.overlapRatio_doubleSpinBox.value()
     
-                opsin.append(cell_overlap > self.opsin_thresh)
-            
-            except Exception as e:
-                print(e)
+            # Convert A to numpy array
+            if issparse(A):
+                A = np.array(A.todense())
+            else:
+                A = np.array(A)
+    
+            onacid_mask = (deepcopy(A)>0).astype('int')  # binarise the onacid output mask
+            use_mask = self.useMask_checkBox.isChecked()
+            self.use_mask = use_mask
+    
+            for cell in accepted: # range(onacid_mask.shape[-1]):
+                if use_mask:
+                    cell_mask = (np.reshape(onacid_mask[:,cell], dims, order='F'))
+                    cell_pix = sum(sum(cell_mask == 1))
         
-#        print('opsin mask', opsin)
-#        print('opsin com', opsin_pos)
-#        
-#        opsin = opsin_pos  # try
-
-        if Ain is None:
-            # store info on opsin
-            self.c['cnm2'].opsin = opsin  # True/False based on threshold
-            self.c['overlap'] = overlap   # value
-            self.c['opsin_mask'] = self.opsin_mask
-            self.c['opsin_thresh'] = self.opsin_thresh
-            self.onacid_mask = onacid_mask
-
-        if self.selectAll_checkBox.isChecked():
-            self.selectAllROIs()  # update ROIs selected
-
+                    inter = cv2.bitwise_and(self.opsin_mask, cell_mask)
+                    inter_pix = sum(sum(inter))
+                    cell_overlap = inter_pix/cell_pix
+                    overlap.append(cell_overlap)
+        
+                    if cell_overlap <= self.opsin_thresh:
+                        onacid_mask[:,cell][onacid_mask[:,cell] == 1] = -3
+                    else:
+                        onacid_mask[:,cell][onacid_mask[:,cell] == 1] = 3
+        
+                    opsin.append(cell_overlap > self.opsin_thresh)
+    
+                else:
+    #                opsin_pos.append(self.opsin_mask[coms[0]][coms[1]])  # an easy way; checking just com
+    #                print('opsin', opsin_pos)
+                    
+                    try:
+                        coms = self.c['coms'][cell]   # coms received from worker
+                    except:
+                        coms = self.c['coms_init'][cell]  # change for post onacid option
+                    
+                    coms = [int(round(com)) for com in coms]
+                    
+                    offset = 2
+                    
+                    x = coms[0]
+                    y = coms[1]
+                    
+                    x_all = [x, x+offset, x-offset]
+                    y_all = [y, y+offset, y-offset]
+                    
+                    opsin_count = 0
+                    count = 0
+                    for i in range(len(x_all)):
+                        for j in range(len(y_all)):
+                            op = self.opsin_mask[x_all[i]][y_all[j]]
+                            opsin_count += op
+                            count += 1
+                    
+                    accept = opsin_count/count >= self.opsin_thresh
+                    opsin.append(accept)
+    
+    
+            if Ain is None:
+                # store info on opsin
+                self.c['cnm2'].opsin = opsin  # True/False based on threshold
+                self.c['overlap'] = overlap   # value
+                self.c['opsin_mask'] = self.opsin_mask
+                self.c['opsin_thresh'] = self.opsin_thresh
+                self.onacid_mask = onacid_mask
+    
+            if self.selectAll_checkBox.isChecked():
+                self.selectAllROIs()  # update ROIs selected
+            
+        except Exception as e:
+            print(e)
         return onacid_mask
 
 
     def showCellsOnMask(self):
         if self.A_opsin.size and self.c != {}:
             self.checkOpsin()  # for overlap update
+            opsin = self.c['cnm2'].opsin
+            use_mask = self.useMask_checkBox.isChecked()
             
-            # visualise all comps
-            summed_A = np.hstack((self.A_opsin, self.onacid_mask))
-            summed_mask = np.reshape(np.array(summed_A.sum(axis=1)), self.dims, order='F')
-            pl.figure();pl.imshow(summed_mask)
-            pl.colorbar()
-            pl.axis('off')
+            # visualise all comp masks
+            if use_mask:
+                summed_A = np.hstack((self.A_opsin, self.onacid_mask))
+                summed_mask = np.reshape(np.array(summed_A.sum(axis=1)), self.dims, order='F')
+                pl.figure();pl.imshow(summed_mask)
+                pl.colorbar()
+                pl.axis('off')
             
             # visualise coms and contours on opsin mask
-            cnm_struct = self.c['cnm2']
-            A = cnm_struct.Ab[:, cnm_struct.gnb:cnm_struct.M]
-            coords = get_contours(A, self.dims)
-            
-            pl.figure(); pl.imshow(self.opsin_mask)
-            for idx in range(cnm_struct.N):
-                c = coords[idx]
-                contours = c['coordinates']
-                pl.plot(*contours.T, c='r')
-            pl.plot(self.c['coms_init'][:,1], self.c['coms_init'][:,0], 'r.')
-                    #c='r', marker='.', markersize=3)
-            
-            pl.axis('off')
-
+            else:
+                cnm_struct = self.c['cnm2']
+                A = cnm_struct.Ab[:, cnm_struct.gnb:cnm_struct.M]
+                coords = get_contours(A, self.dims)
+                
+                pl.figure(); pl.imshow(self.opsin_mask, cmap='gray')
+                for idx in range(cnm_struct.N):
+                    c = coords[idx]
+                    contours = c['coordinates']
+                    if opsin[idx]:
+                        col = 'g'
+                    else:
+                        col = 'r'
+                        
+                    pl.plot(*contours.T, c=col)
+                    pl.plot(round(self.c['coms_init'][idx,1]), round(self.c['coms_init'][idx,0]),
+                            c=col, marker = '.')
+                
+                pl.axis('off')
 
         elif self.A_opsin.size and self.A_loaded.size:
             loaded_mask = self.checkOpsin(self.A_loaded)
