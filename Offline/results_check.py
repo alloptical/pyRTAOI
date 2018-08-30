@@ -34,7 +34,7 @@ expected_comps = c['expected_comps']
 #file = files[1]  # choose file
 
 #file = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\tests on rig\20180822\20180822_OG299_t-008\pyrtaoi_results\20180822_OG299_t-008_rtaoi_OnlineProc_DS_2.0_113217.pkl' #20180822_OG299_t-008_rtaoi_OnlineProc_DS_2.0_105609.pkl'
-file = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples\example1\pyrtaoi_results\20171229_OG245_t-052_rtaoi_OnlineProc_DS_2.0_162739.pkl'
+file = r'\\live.rd.ucl.ac.uk\ritd-ag-project-rd00g6-mhaus91\forPat\samples\example1\pyrtaoi_results\20171229_OG245_t-052_rtaoi_OnlineProc_DS_2.0_153804.pkl'
 
 unsaved = 0
 save_figs = 0
@@ -122,9 +122,9 @@ except: pass
 tot_onacid_cells = cnm2.N - K
 onacid_cells_ix = list(range(K,cnm2.N))
 
-accepted_ix = accepted
-rejected = cnm2.N - len(accepted)
-rejected_ix = list(set(range(cnm2.N)) ^ set(accepted))
+accepted_ix = cnm2.accepted
+rejected = cnm2.N - len(accepted_ix)
+rejected_ix = list(set(range(cnm2.N)) ^ set(accepted_ix))
 
 onacid_accepted_ix = copy.copy(onacid_cells_ix)
 for ix in rejected_ix:
@@ -157,19 +157,19 @@ if unsaved:
 # if frame_extra_added saved
 else:
     try:
-        frame_extra_added = frame_added[K:]
+        frame_extra_added = frame_detected[K:]
     except: pass
 
     accepted_spotted = []
     rejected_spotted = []
-    all_spotted = np.array(frame_extra_added)
+    all_spotted = np.array(frame_extra_added) - cnm2.initbatch
 
     i = 0;
     for cell_ix in onacid_cells_ix:
         if cell_ix in accepted_ix:
-            accepted_spotted.append(frame_extra_added[i])
+            accepted_spotted.append(frame_extra_added[i] - cnm2.initbatch)
         elif cell_ix in rejected_ix:
-            rejected_spotted.append(frame_extra_added[i])
+            rejected_spotted.append(frame_extra_added[i] - cnm2.initbatch)
         i += 1
 
     accepted_spotted = np.array(accepted_spotted)
