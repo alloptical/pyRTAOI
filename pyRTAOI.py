@@ -543,6 +543,7 @@ class Worker(QObject):
 			except Exception as e:
 				opsin_mask = np.array([])
 				opsin_positive = True  # default for when no opsin mask
+				opsin = [True for item in range(com_count)]
 				print(e)
 
 		# check new cells for opsin
@@ -696,6 +697,8 @@ class Worker(QObject):
 
 										opsin_positive = opsin_count/count >= opsin_thresh
 										opsin.append(opsin_positive)
+								else:
+									opsin.append(True)
 
 	#                            print(time_()-tt)
 								# add new ROI to photostim target, if required
@@ -752,16 +755,22 @@ class Worker(QObject):
 						last_target_idx = np.copy(current_target_idx)
 						above_thresh = np.array(photostim_flag>0)
 						opsin_ok = np.array(opsin)
-						current_target_idx = np.where(above_thresh + opsin_ok == 2)
+						print('above thresh = ')
+						print(above_thresh)
+						print('opsin = ')
+						print(opsin_ok)
+						current_target_idx = np.where(above_thresh & opsin_ok == True)
 						num_stim_targets = len(current_target_idx)
 
 						if (num_stim_targets>0):
 							FLAG_TRIG_PHOTOSTIM = True
+							print('photostim trigger true, current target idx')
+							print(current_target_idx)
 							if not np.array_equal(last_target_idx,current_target_idx):
 								p['currentTargetX'] = list(ROIx[current_target_idx])  # TODO: not storing new ROI coords! change!!
 								p['currentTargetY'] = list(ROIy[current_target_idx])
 								FLAG_SEND_COORDS = True
-								
+
 						print('ROIx of current targets:')
 						print(ROIx[current_target_idx])
 
@@ -771,7 +780,7 @@ class Worker(QObject):
 						last_target_idx = np.copy(current_target_idx)
 						above_thresh = np.array(photostim_flag>0)
 						opsin_ok = np.array(opsin)
-						current_target_idx = np.where(above_thresh + opsin_ok == 2)
+						current_target_idx = np.where(above_thresh & opsin_ok == True)
 						num_stim_targets = len(current_target_idx)
 
 						if (num_stim_targets>0):
@@ -780,7 +789,7 @@ class Worker(QObject):
 								p['currentTargetX'] = list(ROIx[current_target_idx])  # TODO: not storing new ROI coords! change!!
 								p['currentTargetY'] = list(ROIy[current_target_idx])
 								FLAG_SEND_COORDS = True
-								
+
 						print('ROIx of current targets:')
 						print(ROIx[current_target_idx])
 
