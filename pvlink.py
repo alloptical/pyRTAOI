@@ -1,5 +1,6 @@
 # communicate with prairie view via tcp socket
 # (similar to prairieLink)
+# see PraireView user manual for how to setup commands
 #  zz 2018
 from socket import *
 
@@ -178,3 +179,37 @@ class pvlink(socket):
                 print('Recv CMD' + str(CMD) + 'error: '+str(e))
                 return False
                 break
+'''
+# example
+
+# import prairie link
+import pvlink
+from pvlink import *
+import ctypes
+from ctypes import *
+
+# initialise pvlink parameters in main
+self.PV_IP = '128.40.156.161'  # bruker 2: TCP_IP = '128.40.202.220'
+self.PV_PORT = 1236
+self.flipEvenRows = np.int32(1)
+self.pvBufferFrames = 1 
+self.pl = []
+
+
+# function to connect to prairie view
+def connectPV(self):
+    self.pl = pvlink(self.PV_IP,self.PV_PORT)
+    print('pl created')
+    ERROR = self.pl.send_done('-sam','Resonant Galvo')
+    if(not ERROR):
+        self.pl.init_scan()
+        self.updateStatusBar('PV connected')
+        self.FLAG_PV_CONNECTED = True
+
+# start t-series
+if not self.pl.send_done(self.pl._ts): # t-series
+    self.FLAG_SCANNING = True
+    print('started t series')
+
+
+'''
