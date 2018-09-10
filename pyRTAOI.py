@@ -460,6 +460,8 @@ class Worker(QObject):
 			# Local buffer for recording online protocol
 			online_photo_frames = []
 			online_photo_targets = []
+			online_photo_x = []
+			online_photo_y = []
 		except Exception as e:
 			print(e)
 
@@ -707,7 +709,7 @@ class Worker(QObject):
 										if opsin_positive:  # add target only if opsin present
 											p['currentTargetX'].append(x*ds_factor)
 											p['currentTargetY'].append(y*ds_factor)
-											current_target_idx.append(com_count)
+											current_target_idx.append(cnm2.N)
 											num_stim_targets = len(p['currentTargetX'])
 											self.sendCoords_signal.emit()
 											self.updateTargetROIs_signal.emit()
@@ -806,7 +808,9 @@ class Worker(QObject):
 
 						# take notes
 						online_photo_frames.append(framesProc)
-						online_photo_targets.append(current_target_idx)
+						online_photo_targets.append(current_target_idx[:])
+						online_photo_x.append(p['currentTargetX'][:])
+						online_photo_y.append(p['currentTargetY'][:])
 
 						# update display
 						if FLAG_SEND_COORDS:
