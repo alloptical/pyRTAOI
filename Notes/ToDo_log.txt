@@ -30,3 +30,9 @@
 14. calibration check - done, make a button for it!
 15. select photostim targets that are not detected by caiman
 17. add live scan and/or single scan to make calcheck or target selection easier - added drag and drop 
+
+11. daq task issues - 'the specified resource is reserved error' - this only happens when triggering online; need to restart spyder after one run
+- solved by reset writer everytime.
+
+16. deal with photostim artifect:
+	- currently frames during photostim were not fed to caiman; sometimes a photostim frame breaks through, probably because of delay somewhere; caiman cell detection is not affected by the one-frame artifect and the abrupt jump in signal is filtered out in the denoised trace.

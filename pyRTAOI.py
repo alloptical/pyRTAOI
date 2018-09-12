@@ -11,19 +11,19 @@ CAREFUL WHEN USING 'REPLACE ALL' - IT WILL QUIT, WITHOUT SAVING!!
 
 
 TO DO    log this to Notes ToDo_log when it's done and tested
+0. detect events within sensory window; stim on next trial - added, check on rig
+1. temporally save a sequence of phase masks in holoblink, display on slm on command 
+
+
 
 1. log data for offline anaysis - keep checking if everything is saved out
 2. deal with zoom - check
 7. photostim protocol - done, need to test on rig
-11. daq task issues - 'the specified resource is reserved error' - this only happens when triggering online; need to restart spyder after one run
-16. deal with photostim artifect:
-	is caiman affacted?? need to interpolate or skip frames with photostim if it is!
+
 
 UPDATE REV40 PV SETTINGS MAX VOLTAGE FOR PHOTOSTIM CONTROL!!!
 
-# other notes:
-- numpy.append is slower than list.append, so avoid using it in loops but there's not much difference if just appending a single value
-- pkl files are slower to load than npz
+
 
 '''
 
@@ -108,6 +108,9 @@ from loadPowerFile import get_power_params
 # sta
 from utils import STATraceMaker
 
+#socket
+import socket
+
 # configure logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -128,6 +131,7 @@ class CONSTANTS():
 	PHOTO_ABOVE_THRESH = 2
 	PHOTO_BELOW_THRESH = 3
 	PHOTO_UPON_DETECT  = 4
+	PHOTO_REPLAY_TRIAL = 5
 
 #%%
 class MyThread(QThread):
@@ -396,12 +400,22 @@ class Worker(QObject):
 		if self.pl == []:
 			print('No Prairie object provided')
 
-		# initialise sta
+		# initialise stim frames
 		self.photo_stim_frames = self.stim_frames + p['photoWaitFrames']
 		self.flag_sta_recording = False
 		self.sta_frame_idx = 0
 		self.sta_trace_length = p['staPreFrame']+p['staPostFrame']
-		self.num_stims = p['numberStims']
+		
+		# reconfigure stim frames (if photostim protocol = 5, i.e. replay sesensory response in the previous trial)
+		if(p[p['photoProtoInx'] == CONSTANTS.PHOTO_REPLAY_TRIAL]):
+			self.photo_stim_frames = self.stim_frames[1::2]+p['photoWaitFrames']
+			self.stim_frames = self.stim_frames[::2]
+			print('sensory stim frames:')
+			print(self.stim_frames)
+			print('photostim frames:')
+			print(self.photo_stim_frame)
+		self.tot_num_photostim = len(self.photo_stim_frames)
+		self.tot_num_senstim = len(self.stim_frames)
 
 		# get current parameters
 		self.BufferLength = p['BufferLength']
@@ -447,6 +461,9 @@ class Worker(QObject):
 		FLAG_SEND_COORDS = False
 		frames_post_photostim = 0
 		photo_duration = math.ceil(p['photoDuration']*0.001*30)+2 # in frames;  frame rate 30hz
+		monitor_frames = p['staPostFrame']
+		tot_num_photostim = self.tot_num_photostim
+		tot_num_senstim = self.tot_num_senstim
 		print('frames with photostim = ' + str(photo_duration))
 
 		# local param
@@ -749,7 +766,24 @@ class Worker(QObject):
 						print(self.RoiBuffer[:com_count,:])
 
 					# trigger photostim
-					if p['photoProtoInx'] == CONSTANTS.PHOTO_FIX_FRAMES and framesProc == photo_stim_frames[num_photostim] and num_photostim < self.num_stims:
+					if p['photoProtoInx'] == CONSTANTS.PHOTO_REPLAY_TRIALS and num_photostim < tot_num_photostim:
+						if (sens_stim_idx>0 and framesProc < stim_frames[sens_stim_idx-1]+ monitor_frames and framesProc > stim_frames[sens_stim_idx-1]):
+							photostim_flag = self.RoiBuffer[:com_count, BufferPointer]-self.ROIlist_threshold[:com_count]
+							above_thresh = np.array(photostim_flag>0)
+							opsin_ok = np.array(opsin)
+							current_target_idx = np.append(current_target_idx,np.where(above_thresh & opsin_ok == True))
+							
+						if framesProc == stim_frames[sens_stim_idx-1+ monitor_frames]:
+							# update slm
+							current_target_idx = np.unique(current_target_idx)
+							p['currentTargetX'] = list(ROIx[current_target_idx])  # TODO: not storing new ROI coords! change!!
+							p['currentTargetY'] = list(ROIy[current_target_idx])
+							FLAG_SEND_COORDS = True
+							
+						if framesProc == photo_stim_frames[num_photostim]:
+							FLAG_TRIG_PHOTOSTIM = True
+					
+					if p['photoProtoInx'] == CONSTANTS.PHOTO_FIX_FRAMES and framesProc == photo_stim_frames[num_photostim] and num_photostim < tot_num_photostim:
 						FLAG_TRIG_PHOTOSTIM = True
 
 					elif p['photoProtoInx'] == CONSTANTS.PHOTO_ABOVE_THRESH: # TODO: test the check for opsin
@@ -821,11 +855,12 @@ class Worker(QObject):
 						photo_stim_frames_caiman.append(framesCaiman)
 
 					# Trigger sensory stimulation
-					if sens_stim_idx < self.num_stims:
+					if sens_stim_idx < tot_num_senstim:
 						if p['FLAG_STIM_TRIG_ENABLED'] and framesProc == stim_frames[sens_stim_idx]: # send TTL
 							self.sendTTLTrigger_signal.emit()
 							sens_stim_idx += 1
 							stim_frames_caiman.append(framesCaiman)
+							current_target_idx = [] # reset target
 
 					# Update display
 					if framesProc > refreshFrame-1: #frame_count>self.BufferLength-1:
@@ -1298,6 +1333,11 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			print('power control initialisation error')
 			print(str(e))
 			self.updateStatusBar(str(e))
+			
+		# sensory TCP config
+		self.SENSTIM_IP = '128.40.156.163' #OPTILEX IP
+		self.SENSTIM_PORT = 8888
+		self.FlAG_stimSOCK_READY = False
 
 
 		# make threads
@@ -1531,6 +1571,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		self.applyRejectMask_pushButton.clicked.connect(self.applyRejectMask)
 		self.rejectMaskDisplay_pushButton.clicked.connect(self.rejectMaskDisplay)
 		self.loadCalciumImg_pushButton.clicked.connect(self.loadCalciumImg)
+		self.loadResultPath_pushButton.clicked.connect(self.loadResultPath)
 #        self.createRejectMask_pushButton.clicked.connect(self.autoCreateRejectMask)
 		self.showCellsOnRejectedMask_pushButton.clicked.connect(self.showCellsOnRejectedMask)
 
@@ -1551,6 +1592,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		self.enableStimTrigger_checkBox.clicked.connect(self.enableStimTrigger)
 		self.testTTLTrigger_pushButton.clicked.connect(self.testTTLTrigger)
 		self.testPhotoStimTrigger_pushButton.clicked.connect(self.testPhotoStimTrigger)
+		self.connectSenStimTCP_pushButton.clicked.connect(self.connectSenStimTCP)
 
 		# running mode
 		self.IsOffline_radioButton.toggled.connect(self.switch_IsOffline)
@@ -1648,6 +1690,18 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 		# reconfigure sample number on task
 		self.niPhotoStimFullTask.timing.cfg_samp_clk_timing(rate = p['NI_SAMPLE_RATE'],sample_mode= nidaqmx.constants.AcquisitionType.FINITE, samps_per_chan = max(NI_TTL_NUM_SAMPLES+1,NI_STIM_NUM_SAMPLES+1))
+	
+	def connectSenStimTCP(self):
+		self.FlAG_stimSOCK_READY = False
+		self.stimSOCK = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		self.stimSOCK.settimeout(3)
+		try:
+			self.stimSOCK.connect((self.SENSTIM_IP, self.SENSTIM_PORT))
+			self.FlAG_stimSOCK_READY = True
+		except Exception as e:
+			print('StimSOCK connection error:')
+			print(e)
+
 
 	def testTTLTrigger(self):
 		try:
@@ -1687,6 +1741,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 	def sendTTLTrigger(self):
 		numsent = self.niStimWriter.write_many_sample(self.daq_array,10.0)
+		if self.FlAG_stimSOCK_READY:
+			self.stimSOCK.sendall(bytes(str(p['senStimType'])))
 		print('stim trigger sent')
 		return numsent
 
@@ -2184,6 +2240,39 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			if movie_ext == '.tif':
 				print('Correct video found')
 
+	def loadResultPath(self):
+		result_path = str(QFileDialog.getOpenFileName(self, 'Load result', self.movie_folder, 'PKL (*.pkl);;All files (*.*)')[0])  # changed '' (default) to movie_folder
+		if result_path:
+			# load pkl file to main
+			with open(result_path, 'rb') as f:
+				file_data = pickle.load(f)
+			cnm2 = file_data['cnm2']
+			online_C = file_data['online_C']
+			coms = file_data['coms']
+			self.transDataToMain(cnm2,online_C,coms,file_data['accepted_idx'],file_data['t_cnm'])
+			self.ds_factor = file_data['ds_factor']
+			# show fov
+			self.c['img_norm'] = file_data['img_norm']
+			self.showFOV()
+			
+			# mark roi on FOV
+			NumROIs = cnm2.N
+			self.MaxNumROIs = NumROIs
+			self.MaxNumROIs_spinBox.setValue(NumROIs)
+			self.ALL_ROI_SELECTED == False
+			self.thisROIIdx = 0
+			self.ROIlist = [dict() for i in range(NumROIs)]
+			for ROIIdx in range(NumROIs):
+				self.ROIlist[ROIIdx]["ROIx"]= list()
+				self.ROIlist[ROIIdx]["ROIy"] = list()
+				self.ROIlist[ROIIdx]["ROIcolor"] = self.random_color()
+			self.updateTable()
+			accepted_idx = cnm2.accepted
+			for i in range(0,len(accepted_idx)):
+				self.getROImask(coms[i,1], coms[i,0])
+			self.showROIIdx()
+			print('finished loading result')
+
 	def showFOV(self):
 		self.opsinMaskOn = False
 		self.showROIsOn = False
@@ -2195,9 +2284,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		# show cells detected by caiman
 		# make a image with sta levels
 		self.opsinMaskOn = False
-#        self.calciumMaskOn = False
-
-#        cnm = self.proc_cnm
 		cnm = self.c['cnm2']
 
 		A, b = cnm.Ab[:, cnm.gnb:], cnm.Ab[:, :cnm.gnb].toarray()
@@ -2211,7 +2297,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 		# do not show rejected cells
 		nr = self.c['cnm2'].N
-		print('N',nr)
+		print('N = ',nr)
 		accepted = self.c['cnm2'].accepted
 
 		# use sta value, otherwise use one
@@ -2233,16 +2319,15 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 		cellMask2D = np.reshape(cellMask,cnm.dims,order='F')
 		cellMask2D = cellMask2D/max(cellMask)*255
-		print(cellMask2D.shape)
 
-		norm = plt.Normalize(0,1)
-		im = plt.imshow(norm(cellMask2D),aspect = 'equal',cmap = 'Greys')
-		plt.colorbar(im, orientation='horizontal')
-		plt.show()
+		# show on a separate plot
+#		norm = plt.Normalize(0,1)
+#		im = plt.imshow(norm(cellMask2D),aspect = 'equal',cmap = 'Greys')
+#		plt.colorbar(im, orientation='horizontal')
+#		plt.show()
 
 		cellMask2D = np.repeat(cellMask2D[:,:,None],3,axis=-1)
 		self.imageItem.setImage(cv2.resize(cellMask2D, (512, 512), interpolation=cv2.INTER_CUBIC))
-
 		self.showROIsOn = True
 
 	def loadProcData(self):
@@ -2283,7 +2368,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		except: pass
 
 
-	def transDataToMain(self, cnm_struct, online_C, coms, accepted, t, sta_amp, sta_traces, plot=True):
+	def transDataToMain(self, cnm_struct, online_C, coms, accepted, t, sta_amp = [], sta_traces=[], plot=True):
 #        print(self.c['test']) # changing c inside worker automatically changes it inside mainwindow -- this is sent/shared somehow
 #        self.cnm2 = cnm_struct
 
@@ -2433,11 +2518,12 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.figCanvas.flush_events()
 	#        self.updateStatusBar('OnACID traces plotted in plot tab')
 		except Exception as e:
+			print('plot exception:')
 			print(e)
 
 
 	def arrow_key_image_control(self, event):
-		print(event.key())
+#		print(event.key())
 		if event.key() == Qt.Key_Left:
 			new_val = np.round(self.s_comp.val - 1)
 			if new_val < 0:

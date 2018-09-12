@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1628</width>
+    <width>1638</width>
     <height>857</height>
    </rect>
   </property>
@@ -180,7 +180,7 @@
         <x>560</x>
         <y>420</y>
         <width>331</width>
-        <height>81</height>
+        <height>111</height>
        </rect>
       </property>
       <property name="title">
@@ -192,21 +192,17 @@
          <x>10</x>
          <y>20</y>
          <width>311</width>
-         <height>51</height>
+         <height>77</height>
         </rect>
        </property>
        <layout class="QGridLayout" name="gridLayout_4">
-        <item row="1" column="1">
-         <widget class="QLineEdit" name="moviePath_lineEdit">
-          <property name="text">
-           <string>U:/simulate_movie/20170823.tif</string>
+        <item row="0" column="0">
+         <widget class="QRadioButton" name="IsOffline_radioButton">
+          <property name="enabled">
+           <bool>false</bool>
           </property>
-         </widget>
-        </item>
-        <item row="1" column="2">
-         <widget class="QPushButton" name="loadMoviePath_pushButton">
           <property name="text">
-           <string>Browse</string>
+           <string>Run Offline</string>
           </property>
          </widget>
         </item>
@@ -217,13 +213,38 @@
           </property>
          </widget>
         </item>
-        <item row="0" column="0">
-         <widget class="QRadioButton" name="IsOffline_radioButton">
-          <property name="enabled">
-           <bool>false</bool>
-          </property>
+        <item row="1" column="2">
+         <widget class="QPushButton" name="loadMoviePath_pushButton">
           <property name="text">
-           <string>Run Offline</string>
+           <string>Browse</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="QLineEdit" name="moviePath_lineEdit">
+          <property name="text">
+           <string>U:/simulate_movie/20170823.tif</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="0">
+         <widget class="QLabel" name="label_40">
+          <property name="text">
+           <string>Result Path</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="1">
+         <widget class="QLineEdit" name="resultPath_lineEdit">
+          <property name="text">
+           <string/>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="2">
+         <widget class="QPushButton" name="loadResultPath_pushButton">
+          <property name="text">
+           <string>Browse</string>
           </property>
          </widget>
         </item>
@@ -617,7 +638,30 @@
          <item row="11" column="0">
           <widget class="QCheckBox" name="enableStimTrigger_checkBox">
            <property name="text">
-            <string>Enable TTL</string>
+            <string>Enable trigger</string>
+           </property>
+          </widget>
+         </item>
+         <item row="10" column="0">
+          <widget class="QPushButton" name="connectSenStimTCP_pushButton">
+           <property name="text">
+            <string>connect TCP</string>
+           </property>
+          </widget>
+         </item>
+         <item row="10" column="1">
+          <widget class="QSpinBox" name="senStimType_spinBox">
+           <property name="minimum">
+            <number>1</number>
+           </property>
+           <property name="maximum">
+            <number>10</number>
+           </property>
+           <property name="value">
+            <number>1</number>
+           </property>
+           <property name="displayIntegerBase">
+            <number>10</number>
            </property>
           </widget>
          </item>
@@ -1250,7 +1294,7 @@
       <property name="geometry">
        <rect>
         <x>1240</x>
-        <y>480</y>
+        <y>440</y>
         <width>341</width>
         <height>121</height>
        </rect>
@@ -1485,7 +1529,7 @@
       <property name="geometry">
        <rect>
         <x>1240</x>
-        <y>410</y>
+        <y>370</y>
         <width>341</width>
         <height>61</height>
        </rect>
@@ -1550,7 +1594,7 @@
         <x>1240</x>
         <y>200</y>
         <width>341</width>
-        <height>201</height>
+        <height>171</height>
        </rect>
       </property>
       <property name="title">
@@ -1562,7 +1606,7 @@
          <x>10</x>
          <y>20</y>
          <width>321</width>
-         <height>161</height>
+         <height>141</height>
         </rect>
        </property>
        <layout class="QGridLayout" name="gridLayout_11">
@@ -1625,6 +1669,11 @@
           <item>
            <property name="text">
             <string>Upon detection</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Replay trial</string>
            </property>
           </item>
          </widget>
@@ -1800,7 +1849,7 @@
       <property name="geometry">
        <rect>
         <x>560</x>
-        <y>510</y>
+        <y>540</y>
         <width>331</width>
         <height>51</height>
        </rect>
@@ -1932,7 +1981,7 @@
         <rect>
          <x>10</x>
          <y>20</y>
-         <width>311</width>
+         <width>322</width>
          <height>61</height>
         </rect>
        </property>
@@ -2031,26 +2080,6 @@
        </layout>
       </widget>
      </widget>
-     <zorder>ImageWindow</zorder>
-     <zorder>Prairie_groupBox</zorder>
-     <zorder>OfflineAnalysis_groupBox</zorder>
-     <zorder>DisplayOptions_groupBox</zorder>
-     <zorder>StimOptions_groupBox</zorder>
-     <zorder>caiman_groupBox</zorder>
-     <zorder>plotArea_graphicsLayoutWidget</zorder>
-     <zorder>Thresh_tableWidget</zorder>
-     <zorder>Blink_groupBox</zorder>
-     <zorder>gridLayoutWidget_8</zorder>
-     <zorder>groupBox</zorder>
-     <zorder>opsinMask_groupBox</zorder>
-     <zorder>config_groupBox</zorder>
-     <zorder>photostim_groupBox</zorder>
-     <zorder>run_groupBox</zorder>
-     <zorder>RejectMask_groupBox</zorder>
-     <zorder>createRejectMask_pushButton</zorder>
-     <zorder>layoutWidget_2</zorder>
-     <zorder>label_54</zorder>
-     <zorder>calciumImgPath_lineEdit_2</zorder>
     </widget>
     <widget class="QWidget" name="tab_2">
      <attribute name="title">
@@ -2075,7 +2104,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1628</width>
+     <width>1638</width>
      <height>21</height>
     </rect>
    </property>
