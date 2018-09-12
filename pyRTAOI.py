@@ -12,7 +12,7 @@ CAREFUL WHEN USING 'REPLACE ALL' - IT WILL QUIT, WITHOUT SAVING!!
 
 TO DO    log this to Notes ToDo_log when it's done and tested
 0. detect events within sensory window; stim on next trial - added, check on rig
-1. temporally save a sequence of phase masks in holoblink, display on slm on command 
+1. temporally save a sequence of phase masks in holoblink, display on slm on command
 
 
 
@@ -405,15 +405,15 @@ class Worker(QObject):
 		self.flag_sta_recording = False
 		self.sta_frame_idx = 0
 		self.sta_trace_length = p['staPreFrame']+p['staPostFrame']
-		
+
 		# reconfigure stim frames (if photostim protocol = 5, i.e. replay sesensory response in the previous trial)
-		if(p[p['photoProtoInx'] == CONSTANTS.PHOTO_REPLAY_TRIAL]):
+		if p['photoProtoInx'] == CONSTANTS.PHOTO_REPLAY_TRIAL:
 			self.photo_stim_frames = self.stim_frames[1::2]+p['photoWaitFrames']
 			self.stim_frames = self.stim_frames[::2]
 			print('sensory stim frames:')
 			print(self.stim_frames)
 			print('photostim frames:')
-			print(self.photo_stim_frame)
+			print(self.photo_stim_frames)
 		self.tot_num_photostim = len(self.photo_stim_frames)
 		self.tot_num_senstim = len(self.stim_frames)
 
@@ -766,23 +766,30 @@ class Worker(QObject):
 						print(self.RoiBuffer[:com_count,:])
 
 					# trigger photostim
-					if p['photoProtoInx'] == CONSTANTS.PHOTO_REPLAY_TRIALS and num_photostim < tot_num_photostim:
+					if p['photoProtoInx'] == CONSTANTS.PHOTO_REPLAY_TRIAL and num_photostim < tot_num_photostim:
 						if (sens_stim_idx>0 and framesProc < stim_frames[sens_stim_idx-1]+ monitor_frames and framesProc > stim_frames[sens_stim_idx-1]):
 							photostim_flag = self.RoiBuffer[:com_count, BufferPointer]-self.ROIlist_threshold[:com_count]
 							above_thresh = np.array(photostim_flag>0)
 							opsin_ok = np.array(opsin)
-							current_target_idx = np.append(current_target_idx,np.where(above_thresh & opsin_ok == True))
-							
-						if framesProc == stim_frames[sens_stim_idx-1+ monitor_frames]:
+							current_target_idx = np.append(np.array(current_target_idx),np.where(above_thresh & opsin_ok == True))
+
+						if framesProc == stim_frames[sens_stim_idx-1] + monitor_frames:
 							# update slm
 							current_target_idx = np.unique(current_target_idx)
+							current_target_idx = current_target_idx.astype(int)
 							p['currentTargetX'] = list(ROIx[current_target_idx])  # TODO: not storing new ROI coords! change!!
 							p['currentTargetY'] = list(ROIy[current_target_idx])
-							FLAG_SEND_COORDS = True
-							
+
+							print('currentTargetX:')
+							print(p['currentTargetX'])
+
+							self.sendCoords_signal.emit()
+							self.updateTargetROIs_signal.emit()
+							num_stim_targets = len(current_target_idx)
+
 						if framesProc == photo_stim_frames[num_photostim]:
 							FLAG_TRIG_PHOTOSTIM = True
-					
+
 					if p['photoProtoInx'] == CONSTANTS.PHOTO_FIX_FRAMES and framesProc == photo_stim_frames[num_photostim] and num_photostim < tot_num_photostim:
 						FLAG_TRIG_PHOTOSTIM = True
 
@@ -1333,10 +1340,10 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			print('power control initialisation error')
 			print(str(e))
 			self.updateStatusBar(str(e))
-			
+
 		# sensory TCP config
-		self.SENSTIM_IP = '128.40.156.163' #OPTILEX IP
-		self.SENSTIM_PORT = 8888
+		self.SENSTIM_IP = '128.40.156.162' #OPTILEX IP
+		self.SENSTIM_PORT = 8070
 		self.FlAG_stimSOCK_READY = False
 
 
@@ -1690,7 +1697,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 		# reconfigure sample number on task
 		self.niPhotoStimFullTask.timing.cfg_samp_clk_timing(rate = p['NI_SAMPLE_RATE'],sample_mode= nidaqmx.constants.AcquisitionType.FINITE, samps_per_chan = max(NI_TTL_NUM_SAMPLES+1,NI_STIM_NUM_SAMPLES+1))
-	
+
 	def connectSenStimTCP(self):
 		self.FlAG_stimSOCK_READY = False
 		self.stimSOCK = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -1742,7 +1749,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 	def sendTTLTrigger(self):
 		numsent = self.niStimWriter.write_many_sample(self.daq_array,10.0)
 		if self.FlAG_stimSOCK_READY:
-			self.stimSOCK.sendall(bytes(str(p['senStimType'])))
+			self.stimSOCK.sendall(bytes(str(p['senStimType']),'utf-8'))
 		print('stim trigger sent')
 		return numsent
 
@@ -2254,7 +2261,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			# show fov
 			self.c['img_norm'] = file_data['img_norm']
 			self.showFOV()
-			
+
 			# mark roi on FOV
 			NumROIs = cnm2.N
 			self.MaxNumROIs = NumROIs
@@ -3682,6 +3689,9 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 	def closeEvent(self,event):
 		# override closeEvent method in Qt
 		print('form closing, PV connection = ' + str(self.FLAG_PV_CONNECTED))
+		if self.FlAG_stimSOCK_READY:
+			self.stimSOCK.close()
+			print('sensory stim socket closed')
 
 		if self.FLAG_PV_CONNECTED:
 			del self.pl
