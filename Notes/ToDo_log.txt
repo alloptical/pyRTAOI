@@ -36,3 +36,5 @@
 
 16. deal with photostim artifect:
 	- currently frames during photostim were not fed to caiman; sometimes a photostim frame breaks through, probably because of delay somewhere; caiman cell detection is not affected by the one-frame artifect and the abrupt jump in signal is filtered out in the denoised trace.
+
+0. detect events within sensory window; stim on next trial - added, check on rig

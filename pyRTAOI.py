@@ -11,7 +11,7 @@ CAREFUL WHEN USING 'REPLACE ALL' - IT WILL QUIT, WITHOUT SAVING!!
 
 
 TO DO    log this to Notes ToDo_log when it's done and tested
-0. detect events within sensory window; stim on next trial - added, check on rig
+
 1. temporally save a sequence of phase masks in holoblink, display on slm on command
 
 
@@ -131,7 +131,8 @@ class CONSTANTS():
 	PHOTO_ABOVE_THRESH = 2
 	PHOTO_BELOW_THRESH = 3
 	PHOTO_UPON_DETECT  = 4
-	PHOTO_REPLAY_TRIAL = 5
+	PHOTO_REPLAY_TRIAL = 5 # stimulate all responsive cells at once
+	PHOTO_REPLAY_TRAIN = 6 # stim in a sequence
 
 #%%
 class MyThread(QThread):
@@ -405,14 +406,19 @@ class Worker(QObject):
 		self.flag_sta_recording = False
 		self.sta_frame_idx = 0
 		self.sta_trace_length = p['staPreFrame']+p['staPostFrame']
+		self.photo_duration= math.ceil(p['photoDuration']*0.001*30)+2 # in frames;  frame rate 30hz
+		
+		# replay sequence
+		self.replay_idx = []
+		self.replay_frames = []
 
 		# reconfigure stim frames (if photostim protocol = 5, i.e. replay sesensory response in the previous trial)
-		if p['photoProtoInx'] == CONSTANTS.PHOTO_REPLAY_TRIAL:
+		if p['photoProtoInx'] == CONSTANTS.PHOTO_REPLAY_TRIAL or p['photoProtoInx'] == CONSTANTS.PHOTO_REPLAY_TRAIN:
 			self.photo_stim_frames = self.stim_frames[1::2]+p['photoWaitFrames']
 			self.stim_frames = self.stim_frames[::2]
 			print('sensory stim frames:')
 			print(self.stim_frames)
-			print('photostim frames:')
+			print('photostim (start) frames:')
 			print(self.photo_stim_frames)
 		self.tot_num_photostim = len(self.photo_stim_frames)
 		self.tot_num_senstim = len(self.stim_frames)
@@ -441,10 +447,22 @@ class Worker(QObject):
 
 		p['FLAG_END_LOADING'] = False
 
-
+	def sortTargets(self,target_idx,target_frames):
+		# generate sequence of phase masks
+		# bin by photostim duration 
+		self.replay_idx = []
+		self.replay_frames = []
+		bin_size = self.photo_duration
+		
+		for idx in range(0,len(target_frames),bin_size):
+			self.replay_idx.append(np.unique(target_idx[idx:idx+bin_size-1]))
+			self.replay_frames.append(target_frames[idx])
+		print('replay idx and frames:')
+		print(self.replay_idx)
+		print(self.replay_frames)
 #%% process frame
 	def work(self):
-		# local counts
+		# local counts and copy of params
 		sens_stim_idx = 0
 		LastPlot = 0
 		framesProc = self.framesProc # all online frames
@@ -455,16 +473,20 @@ class Worker(QObject):
 		refreshFrame = p['refreshFrame']
 		num_photostim = 0
 		current_target_idx = []
+		current_target_frames = []
+		replay_count = 0
+		photostim_train_count = 0
 		num_stim_targets = len(p['currentTargetX'])
 		last_target_idx = []
 		FLAG_TRIG_PHOTOSTIM = False
 		FLAG_SEND_COORDS = False
 		frames_post_photostim = 0
-		photo_duration = math.ceil(p['photoDuration']*0.001*30)+2 # in frames;  frame rate 30hz
+		photo_duration = self.photo_duration 
 		monitor_frames = p['staPostFrame']
 		tot_num_photostim = self.tot_num_photostim
 		tot_num_senstim = self.tot_num_senstim
 		print('frames with photostim = ' + str(photo_duration))
+		buflength = self.BufferLength
 
 		# local param
 		try:
@@ -479,6 +501,8 @@ class Worker(QObject):
 			online_photo_targets = []
 			online_photo_x = []
 			online_photo_y = []
+			
+			online_thresh = []
 		except Exception as e:
 			print(e)
 
@@ -609,10 +633,9 @@ class Worker(QObject):
 				frames_post_photostim+=1
 				qbuffer.get(timeout = max_wait)
 				qbuffer.task_done()
-
 				frames_skipped.append(framesProc)
 				framesProc += 1
-
+				print('framesProc'+str(framesProc)+'skipped')
 				continue
 
 			elif frames_post_photostim == photo_duration:
@@ -750,10 +773,13 @@ class Worker(QObject):
 
 								rejected_count += 1
 
-					# add data to buffer
+					# add data to buffer - NOT NECESSARY NOW
 					try:
 						self.RoiBuffer[:com_count, BufferPointer] = cnm2.C_on[accepted, t_cnm]
-						self.ROIlist_threshold[:com_count] = np.nanmean(self.RoiBuffer[:com_count,:], axis=1) + 2*np.nanstd(self.RoiBuffer[:com_count,:], axis=1)  # changed 3 to 2
+#						self.ROIlist_threshold[:com_count] = np.nanmean(self.RoiBuffer[:com_count,:], axis=1) + 2*np.nanstd(self.RoiBuffer[:com_count,:], axis=1)  # changed 3 to 2
+						# use noisy C to estimate noise:
+						self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+						online_thresh.append([items for items in self.ROIlist_threshold[0:com_count]])
 
 						 # record the buffer values for offline analysis
 						if store_all_online:
@@ -761,20 +787,22 @@ class Worker(QObject):
 						else:
 							self.online_C[:com_count, t_cnm] = cnm2.C_on[accepted, t_cnm]
 					except Exception as e:
+						print('add data to buffer error')
 						print(e)
 						logger.exception(e)
 						print(self.RoiBuffer[:com_count,:])
 
-					# trigger photostim
+					# photostim protocols:
 					if p['photoProtoInx'] == CONSTANTS.PHOTO_REPLAY_TRIAL and num_photostim < tot_num_photostim:
 						if (sens_stim_idx>0 and framesProc < stim_frames[sens_stim_idx-1]+ monitor_frames and framesProc > stim_frames[sens_stim_idx-1]):
+							# add responsive cells to target group
 							photostim_flag = self.RoiBuffer[:com_count, BufferPointer]-self.ROIlist_threshold[:com_count]
 							above_thresh = np.array(photostim_flag>0)
 							opsin_ok = np.array(opsin)
 							current_target_idx = np.append(np.array(current_target_idx),np.where(above_thresh & opsin_ok == True))
 
-						if framesProc == stim_frames[sens_stim_idx-1] + monitor_frames:
-							# update slm
+						elif framesProc == stim_frames[sens_stim_idx-1] + monitor_frames:
+							# update phase mask
 							current_target_idx = np.unique(current_target_idx)
 							current_target_idx = current_target_idx.astype(int)
 							p['currentTargetX'] = list(ROIx[current_target_idx])  # TODO: not storing new ROI coords! change!!
@@ -790,7 +818,36 @@ class Worker(QObject):
 						if framesProc == photo_stim_frames[num_photostim]:
 							FLAG_TRIG_PHOTOSTIM = True
 
-					if p['photoProtoInx'] == CONSTANTS.PHOTO_FIX_FRAMES and framesProc == photo_stim_frames[num_photostim] and num_photostim < tot_num_photostim:
+					elif  p['photoProtoInx'] == CONSTANTS.PHOTO_REPLAY_TRAIN:
+						if (sens_stim_idx>0 and framesProc < stim_frames[sens_stim_idx-1]+ monitor_frames and framesProc > stim_frames[sens_stim_idx-1]):
+							# take notes of targets and frames
+							photostim_flag = self.RoiBuffer[:com_count, BufferPointer]-self.ROIlist_threshold[:com_count]
+							above_thresh = np.array(photostim_flag>0)
+							opsin_ok = np.array(opsin)
+							current_target_idx = np.append(np.array(current_target_idx),np.where(above_thresh & opsin_ok == True))
+							current_target_frames.append(framesProc - stim_frames[sens_stim_idx-1])
+
+						elif sens_stim_idx>0 and framesProc == stim_frames[sens_stim_idx-1] + monitor_frames:
+							# prepare for stim sequence
+							self.sortTargets(current_target_idx, current_target_frames)
+							replay_count = 0
+							photostim_train_count +=1
+
+						elif framesProc <= photo_stim_frames[photostim_train_count-1]+ monitor_frames and framesProc >= photo_stim_frames[photostim_train_count-1]:
+							# start replay previous trial
+							if framesProc == (photo_stim_frames[photostim_train_count-1] + self.replay_frames[replay_count]):
+								replay_count+=1
+								current_target_idx = self.replay_idx[replay_count].astype(int)
+								p['currentTargetX'] = list(ROIx[current_target_idx])  # TODO: not storing new ROI coords! change!!
+								p['currentTargetY'] = list(ROIy[current_target_idx])
+								num_stim_targets = len(current_target_idx)
+								if (num_stim_targets>0):
+									FLAG_TRIG_PHOTOSTIM = True
+									FLAG_SEND_COORDS = True
+									print('photostim triggered')
+									
+								
+					elif p['photoProtoInx'] == CONSTANTS.PHOTO_FIX_FRAMES and framesProc == photo_stim_frames[num_photostim] and num_photostim < tot_num_photostim:
 						FLAG_TRIG_PHOTOSTIM = True
 
 					elif p['photoProtoInx'] == CONSTANTS.PHOTO_ABOVE_THRESH: # TODO: test the check for opsin
@@ -835,7 +892,8 @@ class Worker(QObject):
 
 						print('ROIx of current targets:')
 						print(ROIx[current_target_idx])
-
+					
+					# send out photostim triggers
 					if FLAG_TRIG_PHOTOSTIM:
 						# update phase mask
 						if FLAG_SEND_COORDS:
@@ -867,7 +925,9 @@ class Worker(QObject):
 							self.sendTTLTrigger_signal.emit()
 							sens_stim_idx += 1
 							stim_frames_caiman.append(framesCaiman)
+							# reset target indices and frames (for replay protocols)
 							current_target_idx = [] # reset target
+							current_target_frame = []
 
 					# Update display
 					if framesProc > refreshFrame-1: #frame_count>self.BufferLength-1:
@@ -920,6 +980,7 @@ class Worker(QObject):
 					t_cnm +=1
 
 				except Exception as e:
+					print('this is main loop error')
 					print(e)
 
 			# else not using onACID
@@ -970,6 +1031,9 @@ class Worker(QObject):
 			save_dict['online_C']  = self.online_C
 			save_dict['init_com_count'] = K_init # com_count from init file (in case any cells removed from init file)
 			save_dict['online_com_count'] = com_count
+			save_dict['online_photo_x'] = online_photo_x
+			save_dict['online_photo_y'] = online_photo_y
+			save_dict['online_thresh'] = online_thresh
 
 			save_dict['accepted_idx'] = accepted  # accepted currently stored inside cnm2 as well
 			save_dict['repeated_idx'] = []
@@ -1165,7 +1229,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		self.resetROIlist()
 
 		# mean intensity of ROI
-		self.BufferLength = 200
+		self.BufferLength = 100 # make it same as minibatch
 		self.RoiBuffer = np.zeros([self.MaxNumROIs,self.BufferLength])
 		self.BufferPointer = 0
 
@@ -1288,6 +1352,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		NI_STIM_NUM_SAMPLES = int(p['photoDuration']*0.001*NI_SAMPLE_RATE)
 		p['NI_SAMPLE_RATE'] = NI_SAMPLE_RATE
 		p['NI_TTL_NUM_SAMPLES'] = NI_TTL_NUM_SAMPLES
+		self.StimTask_READY = False
 
 		try:
 			self.daq_array = np.ones((NI_TTL_NUM_SAMPLES-1), dtype = np.float)*5 # to write to single output channel
@@ -1303,6 +1368,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.niStimWriter = stream_writers.AnalogSingleChannelWriter(self.niStimTask.out_stream,True)
 			self.niStimWriter.write_one_sample(0,10.0)
 			print('sensory stim channel created')
+			self.StimTask_READY = True
+
 		except Exception as e:
 			print(str(e))
 			logger.exception(e)
@@ -1310,18 +1377,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			time.sleep(2)
 
 		try: # photo stim
-			# single-channel writer - only send triggers
-			self.niPhotoStimTask.ao_channels.add_ao_voltage_chan('Dev5/ao2','photostim_simple_trig') # hard coded
-			self.niPhotoStimWriter= stream_writers.AnalogSingleChannelWriter(self.niPhotoStimTask.out_stream,True)
-			self.niPhotoStimWriter.write_one_sample(0,10.0)
-			print('single channel photostim trigger set')
-
-			# multi-channel writer - send triggers and voltage to power control device  - need test
-			self.niPhotoStimFullTask.ao_channels.add_ao_voltage_chan(p['photostimDaqDevice'],'photostim_trig')
-			self.niPhotoStimFullTask.ao_channels.add_ao_voltage_chan(p['powerDaqDevice'],'photostim_power')
-			self.niPhotostimFullWriter = stream_writers.AnalogMultiChannelWriter(self.niPhotoStimFullTask.out_stream,auto_start = True)
-			self.niPhotoStimFullTask.timing.cfg_samp_clk_timing(rate = NI_SAMPLE_RATE,sample_mode= nidaqmx.constants.AcquisitionType.FINITE, samps_per_chan = max(NI_TTL_NUM_SAMPLES+1,NI_STIM_NUM_SAMPLES+1))
-
 			init_output = np.zeros([2, max(NI_TTL_NUM_SAMPLES+1,NI_STIM_NUM_SAMPLES+1)])
 			init_output.ravel()[:len(self.daq_array)] = self.daq_array  # use ravel to data between array (fastest way)
 			init_output[1,:-1] = 1
@@ -1333,6 +1388,18 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 #                pass
 #            self.niPhotoStimFullTask.stop()
 #            self.niPhotostimFullWriter = stream_writers.AnalogMultiChannelWriter(self.niPhotoStimFullTask.out_stream,auto_start = True)
+						# single-channel writer - only send triggers
+			self.niPhotoStimTask.ao_channels.add_ao_voltage_chan('Dev5/ao2','photostim_simple_trig') # hard coded
+			self.niPhotoStimWriter= stream_writers.AnalogSingleChannelWriter(self.niPhotoStimTask.out_stream,True)
+			self.niPhotoStimWriter.write_one_sample(0,10.0)
+			print('single channel photostim trigger set')
+
+			# multi-channel writer - send triggers and voltage to power control device  - need test
+			self.niPhotoStimFullTask.ao_channels.add_ao_voltage_chan(p['photostimDaqDevice'],'photostim_trig')
+			self.niPhotoStimFullTask.ao_channels.add_ao_voltage_chan(p['powerDaqDevice'],'photostim_power')
+			self.niPhotostimFullWriter = stream_writers.AnalogMultiChannelWriter(self.niPhotoStimFullTask.out_stream,auto_start = True)
+			self.niPhotoStimFullTask.timing.cfg_samp_clk_timing(rate = NI_SAMPLE_RATE,sample_mode= nidaqmx.constants.AcquisitionType.FINITE, samps_per_chan = max(NI_TTL_NUM_SAMPLES+1,NI_STIM_NUM_SAMPLES+1))
+
 			print('multi channel photostim trigger set')
 			self.POWER_CONTROL_READY = True
 
@@ -1747,11 +1814,12 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			print(e)
 
 	def sendTTLTrigger(self):
-		numsent = self.niStimWriter.write_many_sample(self.daq_array,10.0)
+		if self.StimTask_READY:
+			self.niStimWriter.write_many_sample(self.daq_array,10.0)
 		if self.FlAG_stimSOCK_READY:
 			self.stimSOCK.sendall(bytes(str(p['senStimType']),'utf-8'))
 		print('stim trigger sent')
-		return numsent
+
 
 	def sendPhotoStimTrigger(self):
 		try:
