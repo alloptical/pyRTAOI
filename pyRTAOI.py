@@ -407,7 +407,7 @@ class Worker(QObject):
 		self.sta_frame_idx = 0
 		self.sta_trace_length = p['staPreFrame']+p['staPostFrame']
 		self.photo_duration= math.ceil(p['photoDuration']*0.001*30)+2 # in frames;  frame rate 30hz
-		
+
 		# replay sequence
 		self.replay_idx = []
 		self.replay_frames = []
@@ -449,11 +449,11 @@ class Worker(QObject):
 
 	def sortTargets(self,target_idx,target_frames):
 		# generate sequence of phase masks
-		# bin by photostim duration 
+		# bin by photostim duration
 		self.replay_idx = []
 		self.replay_frames = []
 		bin_size = self.photo_duration
-		
+
 		for idx in range(0,len(target_frames),bin_size):
 			self.replay_idx.append(np.unique(target_idx[idx:idx+bin_size-1]))
 			self.replay_frames.append(target_frames[idx])
@@ -481,7 +481,7 @@ class Worker(QObject):
 		FLAG_TRIG_PHOTOSTIM = False
 		FLAG_SEND_COORDS = False
 		frames_post_photostim = 0
-		photo_duration = self.photo_duration 
+		photo_duration = self.photo_duration
 		monitor_frames = p['staPostFrame']
 		tot_num_photostim = self.tot_num_photostim
 		tot_num_senstim = self.tot_num_senstim
@@ -501,7 +501,7 @@ class Worker(QObject):
 			online_photo_targets = []
 			online_photo_x = []
 			online_photo_y = []
-			
+
 			online_thresh = []
 		except Exception as e:
 			print(e)
@@ -845,8 +845,8 @@ class Worker(QObject):
 									FLAG_TRIG_PHOTOSTIM = True
 									FLAG_SEND_COORDS = True
 									print('photostim triggered')
-									
-								
+
+
 					elif p['photoProtoInx'] == CONSTANTS.PHOTO_FIX_FRAMES and framesProc == photo_stim_frames[num_photostim] and num_photostim < tot_num_photostim:
 						FLAG_TRIG_PHOTOSTIM = True
 
@@ -892,7 +892,7 @@ class Worker(QObject):
 
 						print('ROIx of current targets:')
 						print(ROIx[current_target_idx])
-					
+
 					# send out photostim triggers
 					if FLAG_TRIG_PHOTOSTIM:
 						# update phase mask
@@ -1383,11 +1383,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			p['NI_2D_ARRAY'] = np.copy(init_output)
 			p['NI_UNIT_POWER_ARRAY'] = np.copy(init_output[1,:])
 			p['NI_2D_ARRAY'][1,:] = p['NI_UNIT_POWER_ARRAY'] *np.polyval(p['power_polyfit_p'],p['photoPowerPerCell']) # single cell power
-#            self.niPhotostimFullWriter.write_many_sample(init_output)
-#            while(not self.niPhotoStimFullTask.is_task_done()):
-#                pass
-#            self.niPhotoStimFullTask.stop()
-#            self.niPhotostimFullWriter = stream_writers.AnalogMultiChannelWriter(self.niPhotoStimFullTask.out_stream,auto_start = True)
 						# single-channel writer - only send triggers
 			self.niPhotoStimTask.ao_channels.add_ao_voltage_chan('Dev5/ao2','photostim_simple_trig') # hard coded
 			self.niPhotoStimWriter= stream_writers.AnalogSingleChannelWriter(self.niPhotoStimTask.out_stream,True)
@@ -1400,6 +1395,13 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.niPhotostimFullWriter = stream_writers.AnalogMultiChannelWriter(self.niPhotoStimFullTask.out_stream,auto_start = True)
 			self.niPhotoStimFullTask.timing.cfg_samp_clk_timing(rate = NI_SAMPLE_RATE,sample_mode= nidaqmx.constants.AcquisitionType.FINITE, samps_per_chan = max(NI_TTL_NUM_SAMPLES+1,NI_STIM_NUM_SAMPLES+1))
 
+			# send a trigger - for debug
+#			self.niPhotostimFullWriter.write_many_sample(p['NI_2D_ARRAY'])
+#			while(not self.niPhotoStimFullTask.is_task_done()):
+#				pass
+#			self.niPhotoStimFullTask.stop()
+#			self.niPhotostimFullWriter = stream_writers.AnalogMultiChannelWriter(self.niPhotoStimFullTask.out_stream,auto_start = True)
+
 			print('multi channel photostim trigger set')
 			self.POWER_CONTROL_READY = True
 
@@ -1410,7 +1412,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 		# sensory TCP config
 		self.SENSTIM_IP = '128.40.156.162' #OPTILEX IP
-		self.SENSTIM_PORT = 8070
+		self.SENSTIM_PORT = 8087
 		self.FlAG_stimSOCK_READY = False
 
 
@@ -1772,6 +1774,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		try:
 			self.stimSOCK.connect((self.SENSTIM_IP, self.SENSTIM_PORT))
 			self.FlAG_stimSOCK_READY = True
+			print('Seneory TCP connected')
 		except Exception as e:
 			print('StimSOCK connection error:')
 			print(e)
@@ -1780,7 +1783,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 	def testTTLTrigger(self):
 		try:
 			self.sendTTLTrigger()
-			self.updateStatusBar('All settings updated, test trigger sent')
+			self.updateStatusBar('Test trigger sent')
 		except Exception as e:
 			print(e)
 
