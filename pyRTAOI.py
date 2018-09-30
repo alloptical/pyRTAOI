@@ -12,12 +12,13 @@ CAREFUL WHEN USING 'REPLACE ALL' - IT WILL QUIT, WITHOUT SAVING!!
 
 TO DO    log this to Notes ToDo_log when it's done and tested
 
+0 moving blink and photostim triggers to a separate thread as mainwindow is slow..
+
 1. temporally save a sequence of phase masks in holoblink, display on slm on command
 
 
 
 1. log data for offline anaysis - keep checking if everything is saved out
-2. deal with zoom - check
 7. photostim protocol - done, need to test on rig
 
 
@@ -35,7 +36,7 @@ import math
 
 # Qt
 import GUI
-from PyQt5.QtCore import Qt,QObject, pyqtSignal, QThread, QTimer, QRectF, QUrl,QPoint, QRect, QSize,QPointF,QSizeF, QSettings, QCoreApplication, QDir
+from PyQt5.QtCore import Qt,QObject, pyqtSignal, QThread, QTimer, QRectF, QUrl,QPoint, QRect, QSize,QPointF,QSizeF, QSettings, QCoreApplication, QDir, QEventLoop
 from PyQt5.QtWidgets import (QComboBox, QCheckBox, QLineEdit, QSpinBox, QLabel,
 							 QDoubleSpinBox, QFileDialog, QApplication, QWidget,
 							 QDesktopWidget, QMainWindow, QMessageBox, QTableWidgetItem)
@@ -350,6 +351,10 @@ class imageSaver(QObject):
 		print('Total number of frames saved '+str(self.frameSaved))
 		self.finished_signal.emit()
 
+
+class Photostimer(QObject):
+	pass
+
 #%% process thread
 class Worker(QObject):
 	# setup signals
@@ -441,6 +446,13 @@ class Worker(QObject):
 
 		# make Temp folder
 		self.save_dir = p['temp_save_dir']
+
+		# setup a trigger for measure timing
+		self.niTimingTask = daqtask.Task() # TTL trigger for measure timing
+		self.niTimingTask.ao_channels.add_ao_voltage_chan('Dev5/ao5','timing_trig')
+		self.niTimingWriter= stream_writers.AnalogSingleChannelWriter(self.niTimingTask.out_stream,True)
+		self.niTimingWriter.write_one_sample(0,10.0)
+		print('timing trigger set')
 
 		global STOP_JOB_FLAG
 		STOP_JOB_FLAG = False
@@ -628,6 +640,8 @@ class Worker(QObject):
 
 		# keep processing frames in qbuffer
 		while ((not p['FLAG_END_LOADING']) or (not qbuffer.empty())) and not STOP_JOB_FLAG:
+			app.processEvents(QEventLoop.ExcludeUserInputEvents)
+
 			# skip frames contaminated by photostim
 			if frames_post_photostim>0 and frames_post_photostim<photo_duration:
 				frames_post_photostim+=1
@@ -751,6 +765,7 @@ class Worker(QObject):
 											p['currentTargetY'].append(y*ds_factor)
 											current_target_idx.append(cnm2.N)
 											num_stim_targets = len(p['currentTargetX'])
+											self.niTimingWriter.write_many_sample( p['NI_1D_ARRAY'],10.0)
 											self.sendCoords_signal.emit()
 											self.updateTargetROIs_signal.emit()
 											FLAG_SEND_COORDS = False
@@ -898,6 +913,8 @@ class Worker(QObject):
 						# update phase mask
 						if FLAG_SEND_COORDS:
 							self.sendCoords_signal.emit()
+							# 20180930 - using global queue
+							qtarget.put([p['currentTargetX'].copy(),p['currentTargetY'].copy()])
 
 						# trigger spiral
 						print('sending photostim trigger')
@@ -1128,6 +1145,15 @@ class Worker(QObject):
 			del self.c
 			del ROIx
 			del ROIy
+
+		try:
+			self.niTimingWriter.write_one_sample(0,10.0)
+			self.niTimingTask.stop()
+			self.niTimingTask.close()
+			del self.niTimingWriter
+			print('closed timing trigger task')
+		except Exception as e:
+			print(e)
 
 		# finishing
 		self.finished_signal.emit()
@@ -1364,7 +1390,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		except: pass
 
 		try: # sensory stim
-			self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice'])
+			self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice']) # ao3
 			self.niStimWriter = stream_writers.AnalogSingleChannelWriter(self.niStimTask.out_stream,True)
 			self.niStimWriter.write_one_sample(0,10.0)
 			print('sensory stim channel created')
@@ -1383,7 +1409,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			p['NI_2D_ARRAY'] = np.copy(init_output)
 			p['NI_UNIT_POWER_ARRAY'] = np.copy(init_output[1,:])
 			p['NI_2D_ARRAY'][1,:] = p['NI_UNIT_POWER_ARRAY'] *np.polyval(p['power_polyfit_p'],p['photoPowerPerCell']) # single cell power
-						# single-channel writer - only send triggers
+
+			# single-channel writer - only send triggers, used when power control is disabled
 			self.niPhotoStimTask.ao_channels.add_ao_voltage_chan('Dev5/ao2','photostim_simple_trig') # hard coded
 			self.niPhotoStimWriter= stream_writers.AnalogSingleChannelWriter(self.niPhotoStimTask.out_stream,True)
 			self.niPhotoStimWriter.write_one_sample(0,10.0)
@@ -1409,6 +1436,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			print('power control initialisation error')
 			print(str(e))
 			self.updateStatusBar(str(e))
+
 
 		# sensory TCP config
 		self.SENSTIM_IP = '128.40.156.162' #OPTILEX IP
@@ -1613,7 +1641,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 #        elif self.calciumMaskOn:
 #             self.updateImage(cv2.resize(self.calcium_img, (512, 512), interpolation=cv2.INTER_CUBIC))
 
-
 	def displayMask(self,event):
 		if self.opsinMaskOn:
 			self.updateImage(cv2.resize(np.squeeze(self.opsin_mask).astype('u1'), (512, 512), interpolation=cv2.INTER_CUBIC))
@@ -1621,10 +1648,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 #        elif self.calciumMaskOn:
 #            self.updateImage(cv2.resize(self.reject_mask.astype('uint8'), (512, 512), interpolation=cv2.INTER_CUBIC))
 
-
 	def tempTest(self):
 		print('test button clicked')
-
 
 	def setConnects(self):
 		# load and save
@@ -1827,7 +1852,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 	def sendPhotoStimTrigger(self):
 		try:
 			if not p['SendPowerVolt']:
-			   self.niPhotoStimWriter.write_many_sample( p['NI_1D_ARRAY'],10.0)
+				self.niPhotoStimWriter.write_many_sample( p['NI_1D_ARRAY'],10.0)
 			else:
 				self.niPhotostimFullWriter.write_many_sample(p['NI_2D_ARRAY'],10.0)
 				while(not self.niPhotoStimFullTask.is_task_done()):
@@ -1959,6 +1984,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			currentTargetX = [int((item-255.0)*p['targetScaleFactor']+255.0) for item in p['currentTargetX']]
 			currentTargetY = [int((item-255.0)*p['targetScaleFactor']+255.0) for item in p['currentTargetY']]
 			if(self.bl.CONNECTED):
+				# send a trigger - for measure timing only;
+				self.niStimWriter.write_many_sample(p['NI_1D_ARRAY'],10.0)
 				if not self.bl.send_coords(currentTargetX, currentTargetY):
 					print('Phase mask updated')
 				else:
@@ -3555,6 +3582,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 				self.updateImage(cv2.resize(self.c['img_norm'],(512,512),interpolation=cv2.INTER_CUBIC))
 
 			# ensure correct param values following init are displayed
+			print('setting parameter values in gui')
 			self.dsFactor_doubleSpinBox.setValue(self.ds_factor)
 			self.cellRadius_spinBox_2.setValue(self.cell_radius)
 			self.minSNR_doubleSpinBox.setValue(self.min_SNR)
@@ -3577,8 +3605,10 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 				self.updateTable()
 				self.RoiBuffer = np.zeros([self.MaxNumROIs,self.BufferLength])
 
+			print('updating values')
 			self.getValues()
 
+			print('setting uo buttons')
 			# connect stop_thread to stop button when analysis running
 			self.stop_pushButton.clicked.connect(self.stop_thread)
 
@@ -3588,7 +3618,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			def resetstreamObject():
 				self.streamObject = None
 
-
+			print('setting up worker object')
 			kwargs = {"caiman": self.c,"prairie": self.pl,"ROIlist":self.ROIlist}
 			self.workerObject = Worker(**kwargs)
 			self.updateStatusBar('Worker created')
@@ -3795,6 +3825,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 				print(e)
 
 		# reset AO to zero, clear ni tasks
+
 		try:
 			self.niStimWriter.write_one_sample(0,10.0)
 			self.niStimTask.stop()
@@ -3812,6 +3843,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.niPhotoStimFullTask.stop()
 			self.niPhotoStimFullTask.close()
 			del self.niPhotoStimFullTask
+			print('closed photostim full trigger task')
+
 		except Exception as e:
 			print('photostim full task clean up error')
 			print(e)
@@ -3821,8 +3854,10 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.niPhotoStimTask.stop()
 			self.niPhotoStimTask.close()
 			del self.niPhotoStimTask
+			print('closed photostim single trigger task')
 		except Exception as e:
 			print(e)
+
 
 		# delete big structs to free memory
 		del self.c
@@ -4006,26 +4041,13 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 
 
-#%%
-def main(argv):
+#%%  Main entry to program.  Sets up the main app and create a new window.
+if __name__ == '__main__':
 	# create Qt application
 	app = QCoreApplication.instance()
 	if app is None:  # stops kernel crashing
-		app = QApplication(argv)
+		app = QApplication([])
 
-	# create main window
-	window = MainWindow()
-
-	# show it and bring to front
-	window.show()
-	window.raise_()
-
-	# start the app
-	sys.exit(app.exec_())
-
-
-
-if __name__ == '__main__':
 	# setup diractories
 	config_directory = 'Configs'
 	if not os.path.exists(config_directory):
@@ -4043,13 +4065,30 @@ if __name__ == '__main__':
 	global qbuffer
 	qbuffer = Queue(maxsize = 0)
 
+	# global photostim target que
+	global qtarget
+	qtarget = Queue(maxsize = 0)
+
 	# global stop flag
 	global STOP_JOB_FLAG
 	STOP_JOB_FLAG = False
 
-	# launch program
-	try:
-		main(sys.argv)
-	except Exception as e:
-		logger.exception(e)
-		print(str(e))
+
+	# create main window
+	window = MainWindow()
+
+	# show it and bring to front
+	window.show()
+	window.raise_()
+
+	# start the app
+	sys.exit(app.exec_())
+	app.deleteLater()
+
+
+#	# launch program
+#	try:
+#		main(sys.argv)
+#	except Exception as e:
+#		logger.exception(e)
+#		print(str(e))

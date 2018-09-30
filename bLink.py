@@ -41,6 +41,7 @@ class bLink(socket):
 # x y should change together - TO DO
 
 	def send_coords(self,xx,yy):
+		# send coordinates, and wait until blink updated
 		# send as two commands - this is stupid
 		# self.sendall(self.add_prefix("X",xx)+self.add_prefix("Y",yy))
 
@@ -49,6 +50,28 @@ class bLink(socket):
 
 
 		print("msg sent")
+		while self.CONNECTED:
+			try:
+				data = self._readline()
+				if 'Done' in data: 
+					print("reply recvd")
+					return False
+					break
+			except Exception as e:
+				print('receiving error: '+str(e))
+				self.CONNECTED = False
+				return True
+				break
+
+		return False
+
+	def send_only(self,xx,yy):
+		# send coordinates, do not wait
+		self.sendall(self.add_prefix("C", xx+yy))
+		print("msg sent")
+
+
+	def rev_only(self):
 		while self.CONNECTED:
 			try:
 				data = self._readline()
