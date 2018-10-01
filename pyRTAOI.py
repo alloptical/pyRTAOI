@@ -167,7 +167,7 @@ class DataStream(QObject):
 		print('this is stream func')
 		p['FLAG_END_LOADING'] = False
 
- #%% streaming data from PV
+# streaming data from PV
 		if self.FLAG_PV_CONNECTED and not p['FLAG_OFFLINE']:
 			# PYCUDA
 			import pycuda.driver as cuda
@@ -353,8 +353,71 @@ class imageSaver(QObject):
 
 
 class Photostimer(QObject):
-	pass
+	# send coordinates to blink and trigger photostimulation
+	status_signal            = pyqtSignal(str,name ='statusSignal')
+	finished_signal          = pyqtSignal()
+	totalNumPhotostim_signal = pyqtSignal(str,name = 'totalNumPhotostimSignal')
 
+	def __init__(self, **kwargs ):
+		super(Photostimer,self).__init__()
+		self.pl = kwargs.get('prairie',[])
+		self.bl = kwargs.get('blink',[])
+		self.niPhotostimFullWriter =  kwargs.get('niPhotostimFullWriter',[])
+		self.NumStimSent = 0
+		self.NI_2D_ARRAY = p['NI_2D_ARRAY']
+		self.NI_UNIT_POWER_ARRAY = p['NI_UNIT_POWER_ARRAY']
+		self.photoPowerPerCell = p['photoPowerPerCell']
+	
+	def photostim(self):
+		max_wait = 10
+		while p['FLAG_PHOTOSTIM_ENABLED'] and (not qtarget.empty()):
+			[thisX,thisY] = qtarget.get(timeout = max_wait)
+			print('this coords:')
+			print(thisX)
+			print(thisY)
+			qtarget.task_done()
+			print('photostimer got target coordinates')
+			self.sendTargetCoords(thisX,thisY)
+			self.sendPhotoStimTrigger(len(thisX))
+			print('photostim sent')
+			self.NumStimSent +=1
+			self.totalNumPhotostim_signal.emit(self.NumStimSent)
+
+	def sendTargetCoords(self,thisX,thisY):
+		print('sending coords')
+		if p['FLAG_BLINK_CONNECTED']:
+			# scale targets coordinates (to refZoom with which the SLM transform matrix was computed);
+			# currentTargetXY should be coordinates in 512x512 frames
+			currentTargetX = [int((item-255.0)*p['targetScaleFactor']+255.0) for item in thisX]
+			currentTargetY = [int((item-255.0)*p['targetScaleFactor']+255.0) for item in thisY]
+			if(self.bl.CONNECTED):
+				if not self.bl.send_coords(currentTargetX, currentTargetY):
+					print('Phase mask updated')
+				else:
+					print('Update phase mask ERROR!')
+					p['FLAG_BLINK_CONNECTED'] = False
+			else:
+				self.status_signal.emit('Send coords faild, check blink connection')
+				p['FLAG_BLINK_CONNECTED'] = False
+
+	def sendPhotoStimTrigger(self, num_stim_targets):
+		self.NI_2D_ARRAY[1,:] = self.NI_UNIT_POWER_ARRAY *np.polyval(self.power_polyfit_p,self.photoPowerPerCell*num_stim_targets)
+		try:
+			self.niPhotostimFullWriter.write_many_sample(self.NI_2D_ARRAY,10.0)
+			while(not self.niPhotoStimFullTask.is_task_done()):
+				pass
+			self.niPhotoStimFullTask.stop()
+			self.niPhotostimFullWriter = stream_writers.AnalogMultiChannelWriter(self.niPhotoStimFullTask.out_stream,auto_start = True)
+			print('photostim trigger sent')
+		except Exception as e:
+			print('send photostim trigger error')
+			print(e)
+
+	def updatePhotostimParameters(self):
+		self.NI_2D_ARRAY = p['NI_2D_ARRAY']
+		self.NI_UNIT_POWER_ARRAY = p['NI_UNIT_POWER_ARRAY']
+		self.photoPowerPerCell = p['photoPowerPerCell']
+		
 #%% process thread
 class Worker(QObject):
 	# setup signals
@@ -1176,7 +1239,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 	'''
 
 	def __init__(self):
-
 		QMainWindow.__init__(self)
 		self.setupUi(self)
 
@@ -1448,6 +1510,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		self.workerThread = MyThread()
 		self.streamThread = MyThread()
 		self.imageSaverThread = MyThread()
+		self.photostimThread = MyThread()
 
 		# flag reading/streaming data
 		p['FLAG_END_LOADING'] = False
@@ -1463,12 +1526,137 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		self.ImageWindow.leaveEvent = self.displayMask.__get__(self.ImageWindow)
 		self.figCanvas.keyPressEvent = self.arrow_key_image_control.__get__(self.figCanvas) # changing cell display in the plot tab with arrows
 
+	def tempTest(self):
+		print('test button clicked')
 
-	def random_color(self):
-		r = random.randrange(0, 255)
-		g = random.randrange(0, 255)
-		b = random.randrange(0, 255)
-		return QColor(r, g, b)
+	def setConnects(self):
+		# load and save
+		self.loadMoviePath_pushButton.clicked.connect(self.loadMoviePath)
+		self.loadRefMoviePath_pushButton.clicked.connect(self.loadRefMoviePath)
+		self.loadOpsinImgPath_pushButton.clicked.connect(self.loadOpsinImg)
+		self.createMask_pushButton.clicked.connect(self.createOpsinMask)
+		self.showCellsOnMask_pushButton.clicked.connect(self.showCellsOnMask)
+		self.loadMask_pushButton.clicked.connect(self.loadMask)
+		self.initialise_pushButton.clicked.connect(self.initialiseCaiman)
+		self.CNNFilter_pushButton.clicked.connect(self.filterResults)
+
+		self.saveConfig_pushButton.clicked.connect(self.saveConfig)
+		self.loadConfig_pushButton.clicked.connect(self.loadConfig)
+		self.saveResult_pushButton.clicked.connect(self.saveResults)
+		self.browseResultPath_pushButton.clicked.connect(self.browseResultPath)
+		self.removeMode_pushButton.clicked.connect(self.removeModeController)
+		self.rejectMode_pushButton.clicked.connect(self.rejectModeController)
+		self.resetRejectMask_pushButton.clicked.connect(self.resetRejectMask)
+		self.applyRejectMask_pushButton.clicked.connect(self.applyRejectMask)
+		self.rejectMaskDisplay_pushButton.clicked.connect(self.rejectMaskDisplay)
+		self.loadCalciumImg_pushButton.clicked.connect(self.loadCalciumImg)
+		self.loadResultPath_pushButton.clicked.connect(self.loadResultPath)
+#        self.createRejectMask_pushButton.clicked.connect(self.autoCreateRejectMask)
+		self.showCellsOnRejectedMask_pushButton.clicked.connect(self.showCellsOnRejectedMask)
+
+		# start worker
+		self.run_pushButton.clicked.connect(self.clickRun)
+		
+		# start photostimer
+		self.EnablePhotostim_checkBox.clicked.connect(self.enablePhotostim)
+		self.updatePhotostimParameters_pushButton.clicked.connect(self.updatePhotostimParameters)
+
+		# display
+		self.plotOn_checkBox.clicked.connect(self.switch_plotOn)
+		self.displayOn_checkBox.clicked.connect(self.switch_displayOn)
+		self.denoiseOn_checkBox.clicked.connect(self.switch_denoiseOn)
+		self.plotSTA_pushButton.clicked.connect(self.plotSTA)
+		self.plotSTAonMasks_pushButton.clicked.connect(lambda: self.plotSTAonMasks(self.sta_amp))
+		self.showComponents_pushButton.clicked.connect(lambda: self.plotSTAonMasks(None))
+		self.showFOV_pushButton.clicked.connect(self.showFOV)
+		self.loadProcData_pushButton.clicked.connect(self.loadProcData)
+
+		# triggers
+		self.enableStimTrigger_checkBox.clicked.connect(self.enableStimTrigger)
+		self.testTTLTrigger_pushButton.clicked.connect(self.testTTLTrigger)
+		self.testPhotoStimTrigger_pushButton.clicked.connect(self.testPhotoStimTrigger)
+		self.connectSenStimTCP_pushButton.clicked.connect(self.connectSenStimTCP)
+
+		# running mode
+		self.IsOffline_radioButton.toggled.connect(self.switch_IsOffline)
+		self.UseOpsinMask_radioButton.toggled.connect(self.switch_useOpsinMask)
+		self.UseOnacidMask_radioButton.toggled.connect(self.switch_useOnacidMask)
+		self.photoProto_comboBox.currentIndexChanged.connect(self.photoProtoChanged)
+
+		# connections
+		self.connectPV_pushButton.clicked.connect(self.connectPV)
+		self.connectBlink_pushButton.clicked.connect(self.connectBlink)
+		self.SendCoords_pushButton.clicked.connect(self.sendCoords)
+
+		# targets
+		self.addNewROIsToTarget_checkBox.clicked.connect(self.autoAddClicked)
+		self.selectAll_checkBox.clicked.connect(self.selectAllROIsClicked)
+		self.clearTargets_pushButton.clicked.connect(self.clearTargets)
+		self.updateTargets_pushButton.clicked.connect(self.updateTargets)
+
+		# mouse events
+		self.graphicsView.scene().sigMouseClicked.connect(self.getMousePosition)
+		self.graphicsView.scene().sigMouseMoved.connect(self.showMousePosition)
+
+		# reference movie
+		self.takeRefMovie_pushButton.clicked.connect(self.takeRefMovie)
+
+		# calibration check
+		self.calcheck_pushButton.clicked.connect(self.calCheck)
+
+		# others
+		self.test_pushButton.clicked.connect(self.tempTest)
+		self.reset_pushButton.clicked.connect(self.resetAll)
+
+		# auto add connects to update p and trial config plot whenever anything changes
+		widgets = (QComboBox, QCheckBox, QLineEdit, QSpinBox, QDoubleSpinBox)
+		for obj in self.findChildren(widgets):
+			if isinstance(obj, QComboBox):
+				obj.currentIndexChanged.connect(self.getValues)
+			if isinstance(obj, QCheckBox):
+				obj.stateChanged.connect(self.getValues)
+			if isinstance(obj, QLineEdit):
+				obj.textChanged.connect(self.getValues)
+			if isinstance(obj, QSpinBox):
+				obj.valueChanged.connect(self.getValues)
+			if isinstance(obj, QDoubleSpinBox):
+				obj.valueChanged.connect(self.getValues)
+
+	def getValues(self):
+		# extract gui values store in self.p
+		widgets = (QComboBox, QCheckBox, QLineEdit, QSpinBox, QDoubleSpinBox)
+
+		for obj in self.findChildren(widgets):
+			fullname = str(obj.objectName())
+			trimmed_name = fullname.split('_')[0]
+			if isinstance(obj, QComboBox):
+				p[trimmed_name] = str(obj.currentText())
+			if isinstance(obj, QCheckBox):
+				p[trimmed_name] = bool(obj.isChecked())
+			if isinstance(obj, QLineEdit):
+				if 'spinbox' not in fullname:
+					p[trimmed_name] = str(obj.text())
+			if isinstance(obj, QSpinBox):
+				p[trimmed_name] = int(obj.value())
+			if isinstance(obj, QDoubleSpinBox):
+				p[trimmed_name] = float(obj.value())
+			if isinstance(obj, QLabel):
+				p[trimmed_name] = float(obj.text())
+
+		# parameters not in widgets
+		p['BufferLength'] = self.BufferLength
+		p['RoiBuffer'] = self.RoiBuffer
+		p['BufferPointer'] = self.BufferPointer
+		p['FLAG_PV_CONNECTED'] = self.FLAG_PV_CONNECTED
+		p['FLAG_OFFLINE'] = self.IsOffline
+		p['photoProtoInx'] = self.photoProtoInx
+		p['use_mask'] = self.use_mask
+
+		self.flipRowChanged()
+		self.currentZoomChanged()
+
+		if self.POWER_CONTROL_READY:
+			self.updatePowerControl()
 
 	def initialiseROI(self):
 		self.ALL_ROI_SELECTED = False
@@ -1487,55 +1675,284 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		# clear scatter plot
 		self.ROIcontour_item.clear()
 
-	def updateTable(self):
-		self.Thresh_tableWidget.clear()  # empty the table
-		self.Thresh_tableWidget.setHorizontalHeaderLabels(['X','Y','Threshold','STA'])  # column names disappear with clearing
-		self.Thresh_tableWidget.setColumnCount(4)
+#%% threading control functions:
+	def takeRefMovie(self):
+		# take reference movie by starting t-series in prairie and save as multipage tiffs
+		global STOP_JOB_FLAG
+		STOP_JOB_FLAG = False
 
-		if self.thisROIIdx > self.MaxNumROIs:  # do not allow to miss detected cells
-			self.MaxNumROIs = self.thisROIIdx + 10
-			print('Extending max num ROIs to ' + str(self.MaxNumROIs))
-			self.MaxNumROIs_spinBox.setValue(self.MaxNumROIs)
+		# clear items in qbuffer
+		if not qbuffer.empty():
+			qbuffer.clear()
 
-		NumROIs = self.MaxNumROIs
-		self.Thresh_tableWidget.setRowCount(NumROIs)
-		self.Thresh_labels = [QTableWidgetItem() for i in range(NumROIs)]
-		self.STA_labels = [QTableWidgetItem() for i in range(NumROIs)]
-		self.X_labels = [QTableWidgetItem() for i in range(NumROIs)]
-		self.Y_labels = [QTableWidgetItem() for i in range(NumROIs)]
+		# disable onacid
+		self.UseONACID_checkBox.setCheckState(Qt.Unchecked)
+		self.getValues()
 
-#        self.ROIcontour_item.clear()
+		if self.FLAG_PV_CONNECTED:
+			print('this is take ref movie function')
+
+			# setup thread objects
+			save_path = self.pl.get_movie_name()+'_rtaoi.tif'
+			print(save_path)
+
+			# set this file as the ref movie
+			self.ref_movie_path = save_path
+			self.refMoviePath_lineEdit.setText(self.ref_movie_path)
+
+			kwargs = {"save_movie_path": save_path}
+			self.imageSaverObject = imageSaver(**kwargs)
+			self.updateStatusBar('imageSaver object created')
+			self.imageSaverObject.moveToThread(self.imageSaverThread)
+			self.imageSaverThread.started.connect(self.imageSaverObject.saveImage)
+			self.imageSaverObject.finished_signal.connect(self.imageSaverThread.exit)
+			self.imageSaverThread.start()
+
+			# start stream thread
+			kwargs = {"prairie": self.pl}
+			self.streamObject = DataStream(**kwargs)
+			self.streamObject.moveToThread(self.streamThread)
+			self.streamThread.started.connect(self.streamObject.stream)
+			self.streamObject.stream_finished_signal.connect(self.streamThread.exit)
+			self.streamThread.start()
+			self.updateStatusBar('stream started in takeRefMovie function')
+		else:
+			print('check pv connection')
+			self.updateStatusBar('Check PV connection')
 
 
-		# if ROIs present, refill the table
-#        self.ALL_ROI_SELECTED = False
+	def clickRun(self):
+		global STOP_JOB_FLAG
+		STOP_JOB_FLAG = False
 
-#        for ROIIdx in self.c['cnm2'].accepted:
-		for ROIIdx in range(self.thisROIIdx):
+		if not qbuffer.empty():
+#                qbuffer.clear()  # error: 'Queue' object has no attribute 'clear'
+			with qbuffer.mutex:
+				qbuffer.queue.clear()
+				print('qbuffer cleared!')
 
-#            if ROIIdx == self.MaxNumROIs:
-#                self.ALL_ROI_SELECTED = True
-#                print('All allowed ROIs selected!')
-#                break
+		# connect to pv if not offline
+		if (not self.IsOffline) and (not self.FLAG_PV_CONNECTED):
+			self.connectPV
 
-			thisROIx = self.ROIlist[ROIIdx]["ROIx"]
-			thisROIy = self.ROIlist[ROIIdx]["ROIy"]
-			qcolor = self.ROIlist[ROIIdx]["ROIcolor"]
+		# get current movie name if PV is connected
+		if self.FLAG_PV_CONNECTED:
+			p['currentMoviePath'] = self.pl.get_movie_name()+ '_rtaoi_DS_' + str(self.ds_factor) +'.tif'
+			print('current movie:' + p['currentMoviePath'])
+		else:
+			p['currentMoviePath'] = os.path.splitext(p['moviePath'])[0]+ '_rtaoi_DS_' + str(self.ds_factor) +'.tif'
 
-#            self.ROIcontour_item.addPoints(x = [thisROIx], y = [thisROIy], pen = pg.mkPen(qcolor, width=2), size = self.RoiRadius*2)
 
-			tempbrush = QBrush(qcolor)
-			self.X_labels[ROIIdx].setForeground(tempbrush)
-			self.Y_labels[ROIIdx].setForeground(tempbrush)
-			self.Thresh_labels[ROIIdx].setForeground(tempbrush)
+		if self.IsOffline or self.FLAG_PV_CONNECTED: # p['UseONACID'] or self.FLAG_PV_CONNECTED
+			try: self.resetFigure()
+			except: pass
 
-			self.X_labels[ROIIdx].setText(str('{:.0f}'.format(thisROIx)))
-			self.Y_labels[ROIIdx].setText(str('{:.0f}'.format(thisROIy)))
+			self.c['keep_prev'] = False # default
 
-			self.Thresh_tableWidget.setItem(ROIIdx,0,self.X_labels[ROIIdx])
-			self.Thresh_tableWidget.setItem(ROIIdx,1,self.Y_labels[ROIIdx])
-			self.Thresh_tableWidget.setItem(ROIIdx,2,self.Thresh_labels[ROIIdx])
+			if self.c['cnm2'].t > self.c['cnm2'].initbatch: # self.cnm2:
+				msg = QMessageBox()
+				msg.setText("Run again?")
+				msg.setWindowTitle('pyRTAOI Message')
+				msg.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+				retval = msg.exec_()
+				if(retval==QMessageBox.Ok):
+					pass
+					msg.setText("Keep the cells from the previous session?")
+					msg.setWindowTitle('pyRTAOI Message')
+					msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+					retval = msg.exec_()
+					if(retval==QMessageBox.No):
+						curr_count = self.c['cnm2'].N
+						self.c['cnm2'].t = self.c['cnm2'].initbatch
+						self.removeIdx = np.arange(self.c['K_init'],curr_count)
+						self.removeCells(save_init=False)
+					else:
+						self.c['keep_prev'] = True
+				else:
+					return
 
+			self.deleteTextItems()
+
+			if self.opsinMaskOn or self.showROIsOn: # or self.calciumMaskOn:
+				self.opsinMaskOn = False
+#                self.calciumMaskOn = False
+				self.showROIsOn = False
+				self.updateImage(cv2.resize(self.c['img_norm'],(512,512),interpolation=cv2.INTER_CUBIC))
+
+			# ensure correct param values following init are displayed
+			print('setting parameter values in gui')
+			self.dsFactor_doubleSpinBox.setValue(self.ds_factor)
+			self.cellRadius_spinBox_2.setValue(self.cell_radius)
+			self.minSNR_doubleSpinBox.setValue(self.min_SNR)
+			self.rval_thresh_doubleSpinBox.setValue(self.rval_thr)
+			self.merge_thresh_doubleSpinBox.setValue(self.merge_thresh)
+			self.overlap_thresh_doubleSpinBox.setValue(self.thresh_overlap)
+
+			if self.MaxNumROIs_spinBox.value() != self.MaxNumROIs:
+				for extraROI in range(self.MaxNumROIs_spinBox.value() - self.MaxNumROIs):  # add extra fields to ROIlist
+					self.ROIlist.append(dict())
+					ROIIdx = self.MaxNumROIs + extraROI
+					self.ROIlist[ROIIdx]["ROIx"]= list()
+					self.ROIlist[ROIIdx]["ROIy"] = list()
+					self.ROIlist[ROIIdx]["ROIcolor"] = self.random_color()
+					self.ROIlist[ROIIdx]["threshold"] = list()
+					self.ROIlist[ROIIdx]["STA"] = list()
+
+				self.MaxNumROIs = self.MaxNumROIs_spinBox.value()
+
+				self.updateTable()
+				self.RoiBuffer = np.zeros([self.MaxNumROIs,self.BufferLength])
+
+			print('updating values')
+			self.getValues()
+
+			print('setting uo buttons')
+			# connect stop_thread to stop button when analysis running
+			self.stop_pushButton.clicked.connect(self.stop_thread)
+
+			def resetworkerObject():
+				self.workerObject = None
+
+			def resetstreamObject():
+				self.streamObject = None
+
+			print('setting up worker object')
+			kwargs = {"caiman": self.c,"prairie": self.pl,"ROIlist":self.ROIlist}
+			self.workerObject = Worker(**kwargs)
+			self.updateStatusBar('Worker created')
+			self.workerObject.moveToThread(self.workerThread)
+
+			# update display signals
+			self.workerObject.status_signal.connect(self.updateStatusBar)
+			self.workerObject.roi_signal.connect(self.updateROI)
+			self.workerObject.refreshPlot_signal.connect(self.refreshPlot)
+			self.workerObject.frame_signal.connect(self.updateFrameInfo)
+			self.workerObject.thresh_signal.connect(self.updateThresh)
+			self.workerObject.sta_amp_signal.connect(self.updateSTA)
+			self.workerObject.refreshScatter_signal.connect(self.addScatterROI)
+			self.workerObject.showROIIdx_signal.connect(self.showROIIdx)
+			self.workerObject.getROImask_signal.connect(self.getROImask)
+			self.workerObject.updateTargetROIs_signal.connect(self.updateTargetROIs)
+
+			# start and finish
+			self.workerObject.transDataToMain_signal.connect(self.transDataToMain)
+			self.workerThread.started.connect(self.workerObject.work)
+			self.workerObject.finished_signal.connect(self.workerThread.exit)
+
+			# reset worker thread after finishing and disconnect stop button
+			self.stopButtonDisconnect = lambda: self.stop_pushButton.clicked.disconnect(self.stop_thread)
+			self.workerObject.finished_signal.connect(self.stopButtonDisconnect)
+			self.workerObject.finished_signal.connect(self.workerObject.deleteLater)  # delete qt (C++) instance later
+			self.workerObject.finished_signal.connect(resetworkerObject) # remove python reference to workerObject
+
+			# triggers
+			self.workerObject.sendTTLTrigger_signal.connect(self.sendTTLTrigger)
+			self.workerObject.sendCoords_signal.connect(self.sendCoords)
+			self.workerObject.sendPhotoStimTrig_signal.connect(self.sendPhotoStimTrigger)
+			self.workerThread.start()
+			self.updateStatusBar('Worker started')
+
+			# start stream thread
+			kwargs = {"prairie": self.pl}
+#            if not self.streamObject:  # could use this if self.pl not updated/separate update function existed
+			self.streamObject = DataStream(**kwargs)
+			self.streamObject.moveToThread(self.streamThread)
+			self.streamThread.started.connect(self.streamObject.stream)
+			self.streamObject.stream_finished_signal.connect(self.streamThread.exit)
+			self.streamObject.stream_finished_signal.connect(self.streamObject.deleteLater)  # seems it doesn't get deleted but stop disconnect sorts it
+#            self.streamObject.stream_finished_signal.connect(resetstreamObject)  # looks like stream object not deleted though
+			self.streamThread.start()
+			self.updateStatusBar('stream started')
+
+		else:
+			self.updateStatusBar('No initialisation provided or PV not connected')
+			return
+
+	def stop_thread(self):  # TODO: aborting t-series correct? when aborted, no return from prairie so disabled waiting
+		p['FLAG_END_LOADING'] = True
+#        self.stop_pushButton.clicked.disconnect(self.stop_thread)
+#        print('disconnected')
+
+		# this worked a few times after which the timeout error occurred again
+#        if p['FLAG_PV_CONNECTED']:
+#            if not self.pl.send_done(self.pl._abort):
+#                print('Prairie aborted!')
+		try:
+			if self.streamObject:
+				self.streamObject.stop()
+				self.streamThread.wait(1)
+				self.streamThread.quit()
+				self.streamThread.wait()
+		except: pass
+
+		try:
+			if self.workerObject:
+				self.workerObject.stop()
+				self.workerThread.wait(1)
+				self.workerThread.quit()
+				self.workerThread.wait() # ensures worker finished before next run can be started
+		except: pass
+
+		self.stop_pushButton.clicked.disconnect(self.stop_thread)
+		print('stop button disconnected')
+
+	def enableStimTrigger(self):
+		p['FLAG_STIM_TRIG_ENABLED'] = self.enableStimTrigger_checkBox.isChecked
+
+	def updatePhotostimParameters(self):
+		if self.photostimObject:
+			self.photostimObject.updatePhotostimParameters()
+			print('updated parameters in photostimer')
+		else:
+			print('did not find photostim object')
+
+	def enablePhotostim(self):
+		def resetPhotostimObject():
+			self.photostimObject = None
+		# setup photostim object if not present
+		p['FLAG_PHOTOSTIM_ENABLED'] = self.EnablePhotostim_checkBox.isChecked
+		if p['FLAG_PHOTOSTIM_ENABLED']:
+			try:
+				# setup photostim object if not present
+				if not qtarget.empty():
+					with qtarget.mutex:
+						qtarget.queue.clear()
+					print('qtarget cleared!')
+
+				print('setting up photostim object...')
+				kwargs = {"blink": self.bl,"prairie": self.pl,"niPhotostimFullWriter":self.niPhotostimFullWriter}
+				self.photostimObject = Photostimer(**kwargs)
+				self.photostimObject.moveToThread(self.photostimThread)
+				print('photostim object created')
+
+				self.photostimObject.status_signal.connect(self.updateStatusBar)
+				self.photostimObject.totalNumPhotostim_signal.connect(self.updateNumPhotostimLabel)
+				self.photostimObject.finished_signal.connect(self.photostimObject.deleteLater)  # delete qt (C++) instance later
+				self.photostimObject.finished_signal.connect(resetPhotostimObject) # remove python reference to photostimObject
+				self.photostimObject.finished_signal.connect(self.photostimThread.exit)
+				self.photostimThread.start()
+				self.updateStatusBar('Photostimer started')
+
+			except Exception as e:
+				print('Error initialising photostimer:')
+				print(e)
+
+		else:
+			# stop and clean up photostimer thread
+			try:
+				if self.photostimObject:
+					self.photostimObject.stop()
+					self.photostimThread.wait(1)
+					self.photostimThread.quit()
+					self.photostimThread.wait() # ensures worker finished before next run can be started
+					print('photostim thread stopped')
+			except Exception as e:
+				print('photostim thread stop error:')
+				print(e)
+
+#%% mouse events:
+	def enterEvent(self,event):
+		self.graphicsView.setCursor(Qt.CrossCursor)
 
 	def showMousePosition(self,event):
 		x = event.x()
@@ -1634,150 +2051,24 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 				self.updateTargets()
 
 
-	def displayImg(self,event):
-		if self.opsinMaskOn:
-			self.updateImage(cv2.resize(np.squeeze(self.opsin_img), (512, 512), interpolation=cv2.INTER_CUBIC))
+#%% Daq functions:
+	def setupPowerControl(self):
+		self.getValues()
+		NI_TTL_NUM_SAMPLES = p['NI_TTL_NUM_SAMPLES']
+		NI_STIM_NUM_SAMPLES = p['NI_STIM_NUM_SAMPLES']
+		p['SendPowerVolt'] = self.SendPowerVolt_checkBox.isChecked
+		init_output = np.zeros([2, max(NI_TTL_NUM_SAMPLES+1,NI_STIM_NUM_SAMPLES+1)])
+		init_output.ravel()[:len(self.daq_array)] = self.daq_array  # use ravel to data between array (fastest way)
+		init_output[1,:-1] = 1
+		p['NI_2D_ARRAY'] = init_output
+		p['NI_UNIT_POWER_ARRAY'] = init_output[1,:]
+		self.niPhotostimFullWriter.write_many_sample(init_output)
 
-#        elif self.calciumMaskOn:
-#             self.updateImage(cv2.resize(self.calcium_img, (512, 512), interpolation=cv2.INTER_CUBIC))
-
-	def displayMask(self,event):
-		if self.opsinMaskOn:
-			self.updateImage(cv2.resize(np.squeeze(self.opsin_mask).astype('u1'), (512, 512), interpolation=cv2.INTER_CUBIC))
-
-#        elif self.calciumMaskOn:
-#            self.updateImage(cv2.resize(self.reject_mask.astype('uint8'), (512, 512), interpolation=cv2.INTER_CUBIC))
-
-	def tempTest(self):
-		print('test button clicked')
-
-	def setConnects(self):
-		# load and save
-		self.loadMoviePath_pushButton.clicked.connect(self.loadMoviePath)
-		self.loadRefMoviePath_pushButton.clicked.connect(self.loadRefMoviePath)
-		self.loadOpsinImgPath_pushButton.clicked.connect(self.loadOpsinImg)
-		self.createMask_pushButton.clicked.connect(self.createOpsinMask)
-		self.showCellsOnMask_pushButton.clicked.connect(self.showCellsOnMask)
-		self.loadMask_pushButton.clicked.connect(self.loadMask)
-		self.initialise_pushButton.clicked.connect(self.initialiseCaiman)
-		self.CNNFilter_pushButton.clicked.connect(self.filterResults)
-
-		self.saveConfig_pushButton.clicked.connect(self.saveConfig)
-		self.loadConfig_pushButton.clicked.connect(self.loadConfig)
-		self.saveResult_pushButton.clicked.connect(self.saveResults)
-		self.browseResultPath_pushButton.clicked.connect(self.browseResultPath)
-		self.removeMode_pushButton.clicked.connect(self.removeModeController)
-		self.rejectMode_pushButton.clicked.connect(self.rejectModeController)
-		self.resetRejectMask_pushButton.clicked.connect(self.resetRejectMask)
-		self.applyRejectMask_pushButton.clicked.connect(self.applyRejectMask)
-		self.rejectMaskDisplay_pushButton.clicked.connect(self.rejectMaskDisplay)
-		self.loadCalciumImg_pushButton.clicked.connect(self.loadCalciumImg)
-		self.loadResultPath_pushButton.clicked.connect(self.loadResultPath)
-#        self.createRejectMask_pushButton.clicked.connect(self.autoCreateRejectMask)
-		self.showCellsOnRejectedMask_pushButton.clicked.connect(self.showCellsOnRejectedMask)
-
-		# start worker
-		self.run_pushButton.clicked.connect(self.clickRun)
-
-		# display
-		self.plotOn_checkBox.clicked.connect(self.switch_plotOn)
-		self.displayOn_checkBox.clicked.connect(self.switch_displayOn)
-		self.denoiseOn_checkBox.clicked.connect(self.switch_denoiseOn)
-		self.plotSTA_pushButton.clicked.connect(self.plotSTA)
-		self.plotSTAonMasks_pushButton.clicked.connect(lambda: self.plotSTAonMasks(self.sta_amp))
-		self.showComponents_pushButton.clicked.connect(lambda: self.plotSTAonMasks(None))
-		self.showFOV_pushButton.clicked.connect(self.showFOV)
-		self.loadProcData_pushButton.clicked.connect(self.loadProcData)
-
-		# triggers
-		self.enableStimTrigger_checkBox.clicked.connect(self.enableStimTrigger)
-		self.testTTLTrigger_pushButton.clicked.connect(self.testTTLTrigger)
-		self.testPhotoStimTrigger_pushButton.clicked.connect(self.testPhotoStimTrigger)
-		self.connectSenStimTCP_pushButton.clicked.connect(self.connectSenStimTCP)
-
-		# running mode
-		self.IsOffline_radioButton.toggled.connect(self.switch_IsOffline)
-		self.UseOpsinMask_radioButton.toggled.connect(self.switch_useOpsinMask)
-		self.UseOnacidMask_radioButton.toggled.connect(self.switch_useOnacidMask)
-		self.photoProto_comboBox.currentIndexChanged.connect(self.photoProtoChanged)
-
-		# connections
-		self.connectPV_pushButton.clicked.connect(self.connectPV)
-		self.connectBlink_pushButton.clicked.connect(self.connectBlink)
-		self.SendCoords_pushButton.clicked.connect(self.sendCoords)
-
-		# targets
-		self.addNewROIsToTarget_checkBox.clicked.connect(self.autoAddClicked)
-		self.selectAll_checkBox.clicked.connect(self.selectAllROIsClicked)
-		self.clearTargets_pushButton.clicked.connect(self.clearTargets)
-		self.updateTargets_pushButton.clicked.connect(self.updateTargets)
-
-		# mouse events
-		self.graphicsView.scene().sigMouseClicked.connect(self.getMousePosition)
-		self.graphicsView.scene().sigMouseMoved.connect(self.showMousePosition)
-
-		# reference movie
-		self.takeRefMovie_pushButton.clicked.connect(self.takeRefMovie)
-
-		# calibration check
-		self.calcheck_pushButton.clicked.connect(self.calCheck)
-
-		# others
-		self.test_pushButton.clicked.connect(self.tempTest)
-		self.reset_pushButton.clicked.connect(self.resetAll)
-
-		# auto add connects to update p and trial config plot whenever anything changes
-		widgets = (QComboBox, QCheckBox, QLineEdit, QSpinBox, QDoubleSpinBox)
-		for obj in self.findChildren(widgets):
-			if isinstance(obj, QComboBox):
-				obj.currentIndexChanged.connect(self.getValues)
-			if isinstance(obj, QCheckBox):
-				obj.stateChanged.connect(self.getValues)
-			if isinstance(obj, QLineEdit):
-				obj.textChanged.connect(self.getValues)
-			if isinstance(obj, QSpinBox):
-				obj.valueChanged.connect(self.getValues)
-			if isinstance(obj, QDoubleSpinBox):
-				obj.valueChanged.connect(self.getValues)
-
-	def getValues(self):
-		# extract gui values store in self.p
-		widgets = (QComboBox, QCheckBox, QLineEdit, QSpinBox, QDoubleSpinBox)
-
-		for obj in self.findChildren(widgets):
-			fullname = str(obj.objectName())
-			trimmed_name = fullname.split('_')[0]
-			if isinstance(obj, QComboBox):
-				p[trimmed_name] = str(obj.currentText())
-			if isinstance(obj, QCheckBox):
-				p[trimmed_name] = bool(obj.isChecked())
-			if isinstance(obj, QLineEdit):
-				if 'spinbox' not in fullname:
-					p[trimmed_name] = str(obj.text())
-			if isinstance(obj, QSpinBox):
-				p[trimmed_name] = int(obj.value())
-			if isinstance(obj, QDoubleSpinBox):
-				p[trimmed_name] = float(obj.value())
-			if isinstance(obj, QLabel):
-				p[trimmed_name] = float(obj.text())
-
-		# parameters not in widgets
-		p['BufferLength'] = self.BufferLength
-		p['RoiBuffer'] = self.RoiBuffer
-		p['BufferPointer'] = self.BufferPointer
-		p['FLAG_PV_CONNECTED'] = self.FLAG_PV_CONNECTED
-		p['FLAG_OFFLINE'] = self.IsOffline
-		p['photoProtoInx'] = self.photoProtoInx
-		p['use_mask'] = self.use_mask
-
-#        self.ds_factor = p['dsFactor']
-#        self.MaxNumROIs = p['MaxNumROIs']
-		self.flipRowChanged()
-		self.currentZoomChanged()
-
-		if self.POWER_CONTROL_READY:
-			self.updatePowerControl()
-
+	def testPowerControl(self):
+		self.getValues()
+		p['NI_2D_ARRAY'][1,:] = p['NI_UNIT_POWER_ARRAY'] *np.polyval(p['power_polyfit_p'],p['photoPowerPerCell'])
+		self.niPhotostimFullWriter.write_many_sample(p['NI_2D_ARRAY'])
+		print('TTL with power volt sent')
 
 	def updatePowerControl(self):
 		NI_TTL_NUM_SAMPLES = p['NI_TTL_NUM_SAMPLES']
@@ -1804,30 +2095,12 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			print('StimSOCK connection error:')
 			print(e)
 
-
 	def testTTLTrigger(self):
 		try:
 			self.sendTTLTrigger()
 			self.updateStatusBar('Test trigger sent')
 		except Exception as e:
 			print(e)
-
-	def saveResults(self):
-		try:
-			save_dict = dict()
-			save_dict['cnm2'] = self.c['cnm2'] #self.cnm2
-			save_dict['com_count_init'] = self.c['K_init']
-			save_dict['coms'] = self.c['coms']
-			save_dict['accepted'] = self.accepted
-			save_dict['t_cnm'] = self.t_cnm
-			save_object(save_dict, p['saveResultPath'])
-		except Exception as e:
-			self.updateStatusBar('Save results error: '+str(e))
-
-	def browseResultPath(self):
-		saveResultsPath = QFileDialog.getSaveFileName (self, 'Select save path', p['saveResultPath'], '.pkl')
-		p['saveResultPath'] = saveResultsPath[0]+saveResultsPath[1]
-		self.saveResultPath_lineEdit.setText(p['saveResultPath'])
 
 	def getPathFromPV(self):
 		if p['FLAG_PV_CONNECTED']:
@@ -1848,7 +2121,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.stimSOCK.sendall(bytes(str(p['senStimType']),'utf-8'))
 		print('stim trigger sent')
 
-
 	def sendPhotoStimTrigger(self):
 		try:
 			if not p['SendPowerVolt']:
@@ -1863,6 +2135,134 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		except Exception as e:
 			print('send photostim trigger error')
 			print(e)
+#%% Add/remove ROIs:
+	def selectAllROIsClicked(self):
+		if (self.selectAll_checkBox.isChecked):
+			self.selectAllROIs()
+
+	def autoAddClicked(self):
+		p['FLAG_AUTO_ADD_TARGETS'] = self.addNewROIsToTarget_checkBox.isChecked()
+		print('FLAG_AUTO_ADD_TARGETS = '+str(p['FLAG_AUTO_ADD_TARGETS']))
+		
+	def removeCells(self, CNN=False, save_init=True):
+		if self.rejectIdx:
+			rejected = True
+			self.removeIdx = self.rejectIdx   # just remove rejected cells
+			self.rejectIdx = []
+		else:
+			rejected = False
+		print('Removing ' + str(len(self.removeIdx)) + ' cells')
+
+		# idx_keep is local idx of current ROI selection
+		if CNN:
+			thisROIIdx = self.c['K_init']  # same as self.thisROIIdx in most cases
+			idx_keep = sorted(list(set(range(thisROIIdx)) - set(self.removeIdx)))  # removeIdx here could be orig idx // mostly local idx though
+		else:
+			thisROIIdx = self.thisROIIdx
+			idx_keep = sorted(list(set(range(thisROIIdx)) - set(self.removeIdx)))  # removeIdx here is local GUI idx
+
+		accepted = self.c['cnm2'].accepted
+		coms = self.c['coms_init'][accepted]
+		print('coms shape', coms.shape)
+		keep_coms = coms[idx_keep]
+
+		print('idx keep', idx_keep)
+		print('len', len(idx_keep))
+
+		# remove chosen cells  -- old version resulting in array length errors for large number of deleted cells!
+#        self.c['cnm2'].remove_components(self.removeIdx)
+
+		coms_init_orig = self.c['coms_init_orig']
+		orig_keep_idx = []
+
+		for pair in keep_coms: #self.c['coms_init'] :
+			idx = np.where(pair == coms_init_orig)[0]
+			if idx[0] == idx[1]:
+				orig_keep_idx.append(idx[0])
+			else:
+				print('Different indeces - check')  # this should never be a problem
+
+
+######## just added -- probs remove#############
+#        orig_rej_idx = []
+#        try:
+#            rejected = sorted(list(set(range(self.c['K_init'])) - set(accepted)))
+#
+#            if len(rejected):
+#                coms = self.c['coms_init']
+#                coms_init_orig = self.c['coms_init_orig']
+#
+#                rejected_coms = coms[rejected]
+#
+#                for pair in rejected_coms:
+#                    idx = np.where(pair == coms_init_orig)[0]
+#                    if idx[0] == idx[1]:
+#                        orig_rej_idx.append(idx[0])
+#                    else:
+#                        print('Different indeces - check')
+#        except Exception as e:
+#            print(e)
+#
+#        print('orig rej idx', orig_rej_idx)
+#        self.c['rejected_idx'] = orig_rej_idx
+		  #########################################
+
+		# do not include rejected cells during removal
+#        orig_rej_idx = self.c['rejected_idx']
+#        print('orig rej idx', orig_rej_idx)
+#        print('orig keep idx', orig_keep_idx)
+
+		orig_K = coms_init_orig.shape[0]
+#        print('orig K', orig_K)
+		print('orig indx keep', orig_keep_idx)
+		orig_remove_idx = list(set(range(orig_K)) - set(orig_keep_idx)) # - set(orig_rej_idx))  # all removed cell indices
+#        print('orig rem idx', orig_remove_idx)
+
+		if CNN:
+			remove_idx = list(set(orig_remove_idx) - set(self.c['removed_idx']) - set(self.c['rejected_idx']))
+			self.c['cnn_removed_idx'] = sorted(remove_idx)
+		else:
+			if self.c['CNN_filter']:
+				cnn_remove_idx = self.c['cnn_removed_idx']
+				remove_idx = list(set(orig_remove_idx) - set(cnn_remove_idx))  # keep manually removed indeces here only
+			else:
+				remove_idx = orig_remove_idx
+
+			if rejected:
+				remove_idx = list(set(remove_idx) - set(self.c['removed_idx']))
+				self.c['rejected_idx'] = sorted(remove_idx)
+			else:
+				remove_idx = list(set(remove_idx) - set(self.c['rejected_idx']))
+				self.c['removed_idx'] = sorted(remove_idx)
+
+
+		print('rejected idx', self.c['rejected_idx'])
+		print('removed idx', self.c['removed_idx'])
+		print('cnn removed idx', self.c['cnn_removed_idx'])
+
+
+		self.c['idx_components'] = orig_keep_idx # + orig_rej_idx   # use orig idx for onacid preparation
+
+#        if orig_rej_idx:
+#            self.checkRejectedMask()
+
+		self.prepareOnacid(save_init=save_init)
+
+		# after new roi list initialised, adjust targets --> below doesn't work anymore but checkOpsin in prepareOnacid sorts it
+#        for idx in sorted(self.removeIdx, reverse=True):
+#            if idx in self.TargetIdx:
+#                self.TargetIdx.remove(idx)
+#            self.TargetIdx = [target-1 if target>idx else target for target in self.TargetIdx]
+
+		if self.showROIsOn:
+			self.plotSTAonMasks(None)
+			plt.close()
+
+		self.updateTargets()
+		self.updateStatusBar('Removed ' + str(len(self.removeIdx)) + ' cells')
+
+		# clear removeIdx array
+		self.removeIdx = []
 
 	def clearTargets(self):
 		msg = QMessageBox()
@@ -1965,38 +2365,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.UseONACID_checkBox.setChecked(False)
 			self.imageItem.setImage(self.BlankImage)
 
-
-	def connectBlink(self):
-		self.updateStatusBar('connecting Blink')
-		self.bl = bLink(self.BLINK_IP,self.BLINK_PORT)
-		print('bl created')
-		if self.bl.CONNECTED:
-			p['FLAG_BLINK_CONNECTED'] = True
-			self.updateStatusBar('Blink connected')
-		print('bl connected = '+str(self.bl.CONNECTED))
-
-
-	def sendCoords(self):
-		print('sending coords')
-		if p['FLAG_BLINK_CONNECTED']:
-			# scale targets coordinates (to refZoom with which the SLM transform matrix was computed);
-			# currentTargetXY should be coordinates in 512x512 frames
-			currentTargetX = [int((item-255.0)*p['targetScaleFactor']+255.0) for item in p['currentTargetX']]
-			currentTargetY = [int((item-255.0)*p['targetScaleFactor']+255.0) for item in p['currentTargetY']]
-			if(self.bl.CONNECTED):
-				# send a trigger - for measure timing only;
-				self.niStimWriter.write_many_sample(p['NI_1D_ARRAY'],10.0)
-				if not self.bl.send_coords(currentTargetX, currentTargetY):
-					print('Phase mask updated')
-				else:
-					print('Update phase mask ERROR!')
-					p['FLAG_BLINK_CONNECTED'] = False
-
-			else:
-				self.updateStatusBar('Send coords faild, check blink connection')
-				p['FLAG_BLINK_CONNECTED'] = False
-
-
 	def selectAllROIs(self):
 		if self.selectAll_checkBox.isChecked():
 
@@ -2086,7 +2454,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 #        self.removeMode_pushButton.setEnabled(True)
 		self.removeMode_pushButton.setText('Remove selected')
 
-
 	def exitRemoveMode(self):
 		if self.removeIdx:
 			msg = QMessageBox()
@@ -2106,13 +2473,12 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			item.setEnabled(True)
 
 		print('Remove mode off')
-
-
+		
+#%% Rejection mask
 	def loadCalciumImg(self):
 		calcium_img_path = str(QFileDialog.getOpenFileName(self, 'Load an avg calcium image', self.movie_folder, 'MPTIFF (*.tif)')[0])
 		calcium_img = cm.load(calcium_img_path, subindices = slice(0,1,None))
 		self.updateImage(calcium_img)
-
 
 	def rejectModeController(self):
 		self.rejectModeOn = not self.rejectModeOn
@@ -2273,7 +2639,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		else:
 			 self.updateStatusBar('No cells to be shown or reject mask empty')
 
-
 	def applyRejectMask(self):
 		if self.rejectIdx:
 			msg = QMessageBox()
@@ -2299,8 +2664,36 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 					self.createRejectMask()
 
 				self.updateAllROIs()
+#%% Blink related
+	def connectBlink(self):
+		self.updateStatusBar('connecting Blink')
+		self.bl = bLink(self.BLINK_IP,self.BLINK_PORT)
+		print('bl created')
+		if self.bl.CONNECTED:
+			p['FLAG_BLINK_CONNECTED'] = True
+			self.updateStatusBar('Blink connected')
+		print('bl connected = '+str(self.bl.CONNECTED))
 
+	def sendCoords(self):
+		print('sending coords')
+		if p['FLAG_BLINK_CONNECTED']:
+			# scale targets coordinates (to refZoom with which the SLM transform matrix was computed);
+			# currentTargetXY should be coordinates in 512x512 frames
+			currentTargetX = [int((item-255.0)*p['targetScaleFactor']+255.0) for item in p['currentTargetX']]
+			currentTargetY = [int((item-255.0)*p['targetScaleFactor']+255.0) for item in p['currentTargetY']]
+			if(self.bl.CONNECTED):
+				# send a trigger - for measure timing only;
+				self.niStimWriter.write_many_sample(p['NI_1D_ARRAY'],10.0)
+				if not self.bl.send_coords(currentTargetX, currentTargetY):
+					print('Phase mask updated')
+				else:
+					print('Update phase mask ERROR!')
+					p['FLAG_BLINK_CONNECTED'] = False
 
+			else:
+				self.updateStatusBar('Send coords faild, check blink connection')
+				p['FLAG_BLINK_CONNECTED'] = False
+#%% Praire related
 	def connectPV(self):
 		self.updateStatusBar('connecting PV')
 		self.pl = pvlink(self.PV_IP,self.PV_PORT)
@@ -2331,8 +2724,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		self.updateStatusBar('Photostim protocol changed to' + str(self.photoProtoInx))
 		p['photoProtoInx'] = self.photoProtoInx
 
+#%% load/transfer data
 	def loadMoviePath(self):
-#        movie_folder = os.path.dirname(os.path.dirname(self.ref_movie_path))
 		movie_path = str(QFileDialog.getOpenFileName(self, 'Load movie', self.movie_folder, 'MPTIFF (*.tif);;All files (*.*)')[0])  # changed '' (default) to movie_folder
 		self.movie_path = movie_path
 		p['moviePath'] = movie_path
@@ -2378,62 +2771,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.showROIIdx()
 			print('finished loading result')
 
-	def showFOV(self):
-		self.opsinMaskOn = False
-		self.showROIsOn = False
-#        self.calciumMaskOn = False
-		self.imageItem.setImage(cv2.resize(self.c['img_norm'],(512,512),interpolation=cv2.INTER_CUBIC)) # display FOV
-
-
-	def plotSTAonMasks(self,sta_amp):
-		# show cells detected by caiman
-		# make a image with sta levels
-		self.opsinMaskOn = False
-		cnm = self.c['cnm2']
-
-		A, b = cnm.Ab[:, cnm.gnb:], cnm.Ab[:, :cnm.gnb].toarray()
-
-		if issparse(A):
-			A = np.array(A.todense())
-		else:
-			A = np.array(A)
-
-		d, nr = np.shape(A)
-
-		# do not show rejected cells
-		nr = self.c['cnm2'].N
-		print('N = ',nr)
-		accepted = self.c['cnm2'].accepted
-
-		# use sta value, otherwise use one
-		if sta_amp is None: # will show scaled amplitude of A
-			sta_amp = np.ones((nr,))*255
-		else: # normalise within component before multiply with sta
-			for i in accepted: # range(nr):
-				A[:,i] = A[:,i]/sum(A[:,i])
-
-		# put value into mask
-		cellMask = np.zeros((cnm.dims[1]*cnm.dims[0],))
-
-		j = 0 # separate incrementer for sta_amp (all sta_amp traces are accepted)
-
-		for i in accepted: # range(np.minimum(len(sta_amp),nr)):
-			if not np.isnan(sta_amp[j]):
-				cellMask+=A[:,i].flatten()*sta_amp[j]
-				j += 1
-
-		cellMask2D = np.reshape(cellMask,cnm.dims,order='F')
-		cellMask2D = cellMask2D/max(cellMask)*255
-
-		# show on a separate plot
-#		norm = plt.Normalize(0,1)
-#		im = plt.imshow(norm(cellMask2D),aspect = 'equal',cmap = 'Greys')
-#		plt.colorbar(im, orientation='horizontal')
-#		plt.show()
-
-		cellMask2D = np.repeat(cellMask2D[:,:,None],3,axis=-1)
-		self.imageItem.setImage(cv2.resize(cellMask2D, (512, 512), interpolation=cv2.INTER_CUBIC))
-		self.showROIsOn = True
 
 	def loadProcData(self):
 		stim_type = self.StaStimType_comboBox.currentIndex()
@@ -2444,39 +2781,9 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 		self.sta_traces = STATraceMaker.make_sta_file(stim_frames_field = stim_frames_field)
 
-	def plotSTA(self):
-		frames_to_average = range(p['staAvgStartFrame']+p['staPreFrame'],p['staAvgStopFrame']+p['staPreFrame'])
-		self.sta_amp=STATraceMaker.plotSTAtraces(self.sta_traces,frames_to_average = frames_to_average) # load from temp file
-
-		#  add figure to layout
-		self.staTracesFig = fig
-		self.staTracesCanvas = FigureCanvas(self.staTracesFig)
-		self.plot_gridLayout.addWidget(self.staTracesCanvas)
-		self.updateStatusBar('STA traces plotted on plot tab')
-
-
-	def resetFigure(self):
-		try:
-	#        plt.close('all')
-
-			self.ax1.cla()
-			self.ax2.cla()
-			self.ax3.cla()
-			self.axcomp.cla()
-
-			self.figCanvas.draw()
-	#            self.figCanvas.update()
-			self.figCanvas.flush_events()
-
-			g = gc.collect()
-			print('gc: ', g)
-		except: pass
-
-
 	def transDataToMain(self, cnm_struct, online_C, coms, accepted, t, sta_amp = [], sta_traces=[], plot=True):
 #        print(self.c['test']) # changing c inside worker automatically changes it inside mainwindow -- this is sent/shared somehow
 #        self.cnm2 = cnm_struct
-
 		self.c['coms'] = coms
 		self.c['cnm2'] = cnm_struct
 		self.c['online_C'] = online_C
@@ -2484,165 +2791,11 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		self.t_cnm = t
 		self.sta_amp = sta_amp
 		self.sta_traces = sta_traces
-
 #        if self.A_opsin.size:
 #            print('Checking opsin overlap')
 #            self.checkOpsin()
-
 		if plot:
 			self.plotOnacidTraces(t, online=True)
-
-
-	def plotOnacidTraces(self, t, online=False):
-		try:
-			try: self.resetFigure()
-			except: pass
-
-			cnm_struct = self.c['cnm2']
-
-
-			if online:
-				C,f = self.c['online_C'][cnm_struct.gnb:cnm_struct.M], self.c['online_C'][:cnm_struct.gnb]
-			else:
-				C, f = cnm_struct.C_on[cnm_struct.gnb:cnm_struct.M], cnm_struct.C_on[:cnm_struct.gnb]
-
-			A, b = cnm_struct.Ab[:, cnm_struct.gnb:cnm_struct.M], cnm_struct.Ab[:, :cnm_struct.gnb]
-
-			# Convert A to numpy array
-			if issparse(A):
-				A = np.array(A.todense())
-			else:
-				A = np.array(A)
-
-			# Trim longer arrays
-			f = f[:,:t]
-			C = C[:,:t]
-
-			noisyC = cnm_struct.noisyC[:, t - t // 1:t]
-			YrA = noisyC[cnm_struct.gnb:cnm_struct.M,:t] - C
-
-
-			if 'csc_matrix' not in str(type(A)):
-				A = csc_matrix(A)
-			if 'array' not in str(type(b)):
-				b = b.toarray()
-
-			nr, T = C.shape
-			nb = f.shape[0]
-
-			Y_r = YrA + C
-			d1, d2 = cnm_struct.dims
-
-			cell_mask = 1
-			if cell_mask:
-				img = np.reshape(np.array(A.mean(axis=1)), (d1, d2), order='F')
-			else:
-				img = self.c['Cn_init']
-
-			all_ = list(range(0, cnm_struct.N))
-
-
-			try:
-				accepted = cnm_struct.accepted
-				rejected = [item for item in all_ if item not in accepted]
-			except:
-				accepted = all_
-				rejected = []
-
-			self.axcomp = self.fig.add_axes([0.05, 0.05, 0.9, 0.03])
-			self.ax1 = self.fig.add_axes([0.05, 0.55, 0.4, 0.4])
-			self.ax3 = self.fig.add_axes([0.55, 0.55, 0.4, 0.4])
-			self.ax2 = self.fig.add_axes([0.05, 0.1, 0.9, 0.4])
-			self.s_comp = Slider(self.axcomp, 'Component', 0, nr + nb - 1, valinit=0)
-
-			vmax = np.percentile(img, 95)
-
-			def update(val):
-				i = np.int(np.round(self.s_comp.val))
-
-				if i < nr:
-
-					if i < len(accepted):
-						j = accepted[i]
-						rej = False
-					else:
-						j = rejected[i-len(accepted)]
-						rej = True
-
-					self.ax1.cla()
-					imgtmp = np.reshape(A[:, j].toarray(), (d1, d2), order='F')
-					self.ax1.imshow(imgtmp, interpolation='None', cmap=pl.cm.gray, vmax=np.max(imgtmp)*0.5)
-					if not rej:
-						self.ax1.set_title('Spatial component ' + str(i+1))
-					else:
-						self.ax1.set_title('Rejected spatial component ' + str(i-len(accepted)+1))
-					self.ax1.axis('off')
-
-
-					self.ax2.cla()
-					self.ax2.plot(np.arange(T), Y_r[j], 'c', linewidth=2)
-					self.ax2.plot(np.arange(T), C[j], 'r', linewidth=2)
-					if not rej:
-						self.ax2.set_title('Temporal component ' + str(i+1))
-					else:
-						self.ax2.set_title('Rejected temporal component ' + str(i-len(accepted)+1))
-
-					if online:
-						self.ax2.legend(labels=['Filtered raw data', 'Online trace'])
-					else:
-						self.ax2.legend(labels=['Filtered raw data', 'Inferred trace'])
-
-
-					self.ax3.cla()
-					if vmax > 0:
-						self.ax3.imshow(img, interpolation='None', cmap=pl.cm.gray, vmax=vmax)
-					else:
-						self.ax3.imshow(img, interpolation='None', cmap=pl.cm.gray)
-					imgtmp2 = imgtmp.copy()
-					imgtmp2[imgtmp2 == 0] = np.nan
-					self.ax3.imshow(imgtmp2, interpolation='None', alpha=0.5, cmap=pl.cm.hot)
-					self.ax3.axis('off')
-
-				else:
-					self.ax1.cla()
-					bkgrnd = np.reshape(b[:, i - nr], (d1, d2), order='F')
-					self.ax1.imshow(bkgrnd, interpolation='None')
-					self.ax1.set_title('Spatial background ' + str(i + 1 - nr))
-					self.ax1.axis('off')
-
-					self.ax2.cla()
-					self.ax2.plot(np.arange(T), np.squeeze(np.array(f[i - nr, :])))
-					self.ax2.set_title('Temporal background ' + str(i + 1 - nr))
-
-			self.nr = nr
-			self.nb = nb
-
-			self.s_comp.on_changed(update)
-			self.s_comp.set_val(0)
-			self.figCanvas.draw()
-			self.figCanvas.flush_events()
-	#        self.updateStatusBar('OnACID traces plotted in plot tab')
-		except Exception as e:
-			print('plot exception:')
-			print(e)
-
-
-	def arrow_key_image_control(self, event):
-#		print(event.key())
-		if event.key() == Qt.Key_Left:
-			new_val = np.round(self.s_comp.val - 1)
-			if new_val < 0:
-				new_val = 0
-			self.s_comp.set_val(new_val)
-
-		elif event.key() == Qt.Key_Right:
-			new_val = np.round(self.s_comp.val + 1)
-			if new_val > self.nr + self.nb:
-				new_val = self.nr + self.nb
-			self.s_comp.set_val(new_val)
-		else:
-			pass
-
 
 	def loadRefMoviePath(self):
 		if self.UseOpsinMask_radioButton.isChecked() or self.UseOnacidMask_radioButton.isChecked():
@@ -2697,10 +2850,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 		elif loaded_mask_ext == '.pkl':
 			data_loaded = load_object(self.mask_path)
-#            if 'cnm_init' in list(data_loaded.keys()):
-#                init_file = True
-#            else:
-#                init_file = False
 			try:
 				if init_file:
 					cnm = data_loaded['cnm_init']
@@ -2719,7 +2868,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		except:
 			idx_components = None
 
-
 		if issparse(A_loaded):
 			A_loaded = np.array(A_loaded.todense())
 
@@ -2727,7 +2875,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			A_loaded = A_loaded[:,idx_components]
 
 		self.A_loaded = np.array(A_loaded)
-
 
 		if self.A_loaded.size:
 			ds_factor = self.dsFactor_doubleSpinBox.value()
@@ -2752,7 +2899,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.updateStatusBar('No mask was not found in the file selected')
 			self.UseOnacidMask_radioButton.setChecked(False)
 
-
+#%% caiman initialisation
 	def initialiseCaiman(self):
 		self.deleteTextItems()
 
@@ -2999,129 +3146,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			print(e)
 
 
-	def removeCells(self, CNN=False, save_init=True):
-
-		if self.rejectIdx:
-			rejected = True
-			self.removeIdx = self.rejectIdx   # just remove rejected cells
-			self.rejectIdx = []
-		else:
-			rejected = False
-
-		print('Removing ' + str(len(self.removeIdx)) + ' cells')
-
-		# idx_keep is local idx of current ROI selection
-		if CNN:
-			thisROIIdx = self.c['K_init']  # same as self.thisROIIdx in most cases
-			idx_keep = sorted(list(set(range(thisROIIdx)) - set(self.removeIdx)))  # removeIdx here could be orig idx // mostly local idx though
-		else:
-			thisROIIdx = self.thisROIIdx
-			idx_keep = sorted(list(set(range(thisROIIdx)) - set(self.removeIdx)))  # removeIdx here is local GUI idx
-
-		accepted = self.c['cnm2'].accepted
-		coms = self.c['coms_init'][accepted]
-		print('coms shape', coms.shape)
-		keep_coms = coms[idx_keep]
-
-		print('idx keep', idx_keep)
-		print('len', len(idx_keep))
-
-		# remove chosen cells  -- old version resulting in array length errors for large number of deleted cells!
-#        self.c['cnm2'].remove_components(self.removeIdx)
-
-		coms_init_orig = self.c['coms_init_orig']
-		orig_keep_idx = []
-
-		for pair in keep_coms: #self.c['coms_init'] :
-			idx = np.where(pair == coms_init_orig)[0]
-			if idx[0] == idx[1]:
-				orig_keep_idx.append(idx[0])
-			else:
-				print('Different indeces - check')  # this should never be a problem
-
-
-######## just added -- probs remove#############
-#        orig_rej_idx = []
-#        try:
-#            rejected = sorted(list(set(range(self.c['K_init'])) - set(accepted)))
-#
-#            if len(rejected):
-#                coms = self.c['coms_init']
-#                coms_init_orig = self.c['coms_init_orig']
-#
-#                rejected_coms = coms[rejected]
-#
-#                for pair in rejected_coms:
-#                    idx = np.where(pair == coms_init_orig)[0]
-#                    if idx[0] == idx[1]:
-#                        orig_rej_idx.append(idx[0])
-#                    else:
-#                        print('Different indeces - check')
-#        except Exception as e:
-#            print(e)
-#
-#        print('orig rej idx', orig_rej_idx)
-#        self.c['rejected_idx'] = orig_rej_idx
-		  #########################################
-
-		# do not include rejected cells during removal
-#        orig_rej_idx = self.c['rejected_idx']
-#        print('orig rej idx', orig_rej_idx)
-#        print('orig keep idx', orig_keep_idx)
-
-		orig_K = coms_init_orig.shape[0]
-#        print('orig K', orig_K)
-		print('orig indx keep', orig_keep_idx)
-		orig_remove_idx = list(set(range(orig_K)) - set(orig_keep_idx)) # - set(orig_rej_idx))  # all removed cell indices
-#        print('orig rem idx', orig_remove_idx)
-
-		if CNN:
-			remove_idx = list(set(orig_remove_idx) - set(self.c['removed_idx']) - set(self.c['rejected_idx']))
-			self.c['cnn_removed_idx'] = sorted(remove_idx)
-		else:
-			if self.c['CNN_filter']:
-				cnn_remove_idx = self.c['cnn_removed_idx']
-				remove_idx = list(set(orig_remove_idx) - set(cnn_remove_idx))  # keep manually removed indeces here only
-			else:
-				remove_idx = orig_remove_idx
-
-			if rejected:
-				remove_idx = list(set(remove_idx) - set(self.c['removed_idx']))
-				self.c['rejected_idx'] = sorted(remove_idx)
-			else:
-				remove_idx = list(set(remove_idx) - set(self.c['rejected_idx']))
-				self.c['removed_idx'] = sorted(remove_idx)
-
-
-		print('rejected idx', self.c['rejected_idx'])
-		print('removed idx', self.c['removed_idx'])
-		print('cnn removed idx', self.c['cnn_removed_idx'])
-
-
-		self.c['idx_components'] = orig_keep_idx # + orig_rej_idx   # use orig idx for onacid preparation
-
-#        if orig_rej_idx:
-#            self.checkRejectedMask()
-
-		self.prepareOnacid(save_init=save_init)
-
-		# after new roi list initialised, adjust targets --> below doesn't work anymore but checkOpsin in prepareOnacid sorts it
-#        for idx in sorted(self.removeIdx, reverse=True):
-#            if idx in self.TargetIdx:
-#                self.TargetIdx.remove(idx)
-#            self.TargetIdx = [target-1 if target>idx else target for target in self.TargetIdx]
-
-		if self.showROIsOn:
-			self.plotSTAonMasks(None)
-			plt.close()
-
-		self.updateTargets()
-		self.updateStatusBar('Removed ' + str(len(self.removeIdx)) + ' cells')
-
-		# clear removeIdx array
-		self.removeIdx = []
-
-
 	def saveInitResults(self):              # save changed init object
 		init_values_new = deepcopy(self.c)  # copy to avoid messing with self.c
 		del init_values_new['cnm2']
@@ -3197,7 +3221,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 				print('Resetting filter results')
 				self.resetFiltering()
 
-
+#%% Opsin mask
 	def loadOpsinImg(self):
 		opsin_img_path = str(QFileDialog.getOpenFileName(self, 'Load a C1V1 image', self.movie_folder, 'MPTIFF (*.tif)')[0])
 
@@ -3306,7 +3330,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 #                    x = int(round(self.ROIlist[c]["ROIy"]))
 #                    y = int(round(self.ROIlist[c]["ROIx"]))
 
-
 					offset = 2
 
 					x = coms[0]
@@ -3342,6 +3365,301 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			print(e)
 		return onacid_mask
 
+#%% Display functions:
+	def random_color(self):
+		r = random.randrange(0, 255)
+		g = random.randrange(0, 255)
+		b = random.randrange(0, 255)
+		return QColor(r, g, b)
+
+	def updateTable(self):
+		self.Thresh_tableWidget.clear()  # empty the table
+		self.Thresh_tableWidget.setHorizontalHeaderLabels(['X','Y','Threshold','STA'])  # column names disappear with clearing
+		self.Thresh_tableWidget.setColumnCount(4)
+
+		if self.thisROIIdx > self.MaxNumROIs:  # do not allow to miss detected cells
+			self.MaxNumROIs = self.thisROIIdx + 10
+			print('Extending max num ROIs to ' + str(self.MaxNumROIs))
+			self.MaxNumROIs_spinBox.setValue(self.MaxNumROIs)
+
+		NumROIs = self.MaxNumROIs
+		self.Thresh_tableWidget.setRowCount(NumROIs)
+		self.Thresh_labels = [QTableWidgetItem() for i in range(NumROIs)]
+		self.STA_labels = [QTableWidgetItem() for i in range(NumROIs)]
+		self.X_labels = [QTableWidgetItem() for i in range(NumROIs)]
+		self.Y_labels = [QTableWidgetItem() for i in range(NumROIs)]
+
+#        self.ROIcontour_item.clear()
+		# if ROIs present, refill the table
+#        self.ALL_ROI_SELECTED = False
+
+#        for ROIIdx in self.c['cnm2'].accepted:
+		for ROIIdx in range(self.thisROIIdx):
+
+#            if ROIIdx == self.MaxNumROIs:
+#                self.ALL_ROI_SELECTED = True
+#                print('All allowed ROIs selected!')
+#                break
+
+			thisROIx = self.ROIlist[ROIIdx]["ROIx"]
+			thisROIy = self.ROIlist[ROIIdx]["ROIy"]
+			qcolor = self.ROIlist[ROIIdx]["ROIcolor"]
+
+#            self.ROIcontour_item.addPoints(x = [thisROIx], y = [thisROIy], pen = pg.mkPen(qcolor, width=2), size = self.RoiRadius*2)
+
+			tempbrush = QBrush(qcolor)
+			self.X_labels[ROIIdx].setForeground(tempbrush)
+			self.Y_labels[ROIIdx].setForeground(tempbrush)
+			self.Thresh_labels[ROIIdx].setForeground(tempbrush)
+
+			self.X_labels[ROIIdx].setText(str('{:.0f}'.format(thisROIx)))
+			self.Y_labels[ROIIdx].setText(str('{:.0f}'.format(thisROIy)))
+
+			self.Thresh_tableWidget.setItem(ROIIdx,0,self.X_labels[ROIIdx])
+			self.Thresh_tableWidget.setItem(ROIIdx,1,self.Y_labels[ROIIdx])
+			self.Thresh_tableWidget.setItem(ROIIdx,2,self.Thresh_labels[ROIIdx])
+
+	def displayImg(self,event):
+		if self.opsinMaskOn:
+			self.updateImage(cv2.resize(np.squeeze(self.opsin_img), (512, 512), interpolation=cv2.INTER_CUBIC))
+
+#        elif self.calciumMaskOn:
+#             self.updateImage(cv2.resize(self.calcium_img, (512, 512), interpolation=cv2.INTER_CUBIC))
+
+	def displayMask(self,event):
+		if self.opsinMaskOn:
+			self.updateImage(cv2.resize(np.squeeze(self.opsin_mask).astype('u1'), (512, 512), interpolation=cv2.INTER_CUBIC))
+
+#        elif self.calciumMaskOn:
+#            self.updateImage(cv2.resize(self.reject_mask.astype('uint8'), (512, 512), interpolation=cv2.INTER_CUBIC))
+
+	def showFOV(self):
+		self.opsinMaskOn = False
+		self.showROIsOn = False
+#        self.calciumMaskOn = False
+		self.imageItem.setImage(cv2.resize(self.c['img_norm'],(512,512),interpolation=cv2.INTER_CUBIC)) # display FOV
+
+	def plotSTAonMasks(self,sta_amp):
+		# show cells detected by caiman
+		# make a image with sta levels
+		self.opsinMaskOn = False
+		cnm = self.c['cnm2']
+
+		A = cnm.Ab[:, cnm.gnb:], cnm.Ab[:, :cnm.gnb].toarray()
+
+		if issparse(A):
+			A = np.array(A.todense())
+		else:
+			A = np.array(A)
+
+		d, nr = np.shape(A)
+
+		# do not show rejected cells
+		nr = self.c['cnm2'].N
+		print('N = ',nr)
+		accepted = self.c['cnm2'].accepted
+
+		# use sta value, otherwise use one
+		if sta_amp is None: # will show scaled amplitude of A
+			sta_amp = np.ones((nr,))*255
+		else: # normalise within component before multiply with sta
+			for i in accepted: # range(nr):
+				A[:,i] = A[:,i]/sum(A[:,i])
+
+		# put value into mask
+		cellMask = np.zeros((cnm.dims[1]*cnm.dims[0],))
+
+		j = 0 # separate incrementer for sta_amp (all sta_amp traces are accepted)
+
+		for i in accepted: # range(np.minimum(len(sta_amp),nr)):
+			if not np.isnan(sta_amp[j]):
+				cellMask+=A[:,i].flatten()*sta_amp[j]
+				j += 1
+
+		cellMask2D = np.reshape(cellMask,cnm.dims,order='F')
+		cellMask2D = cellMask2D/max(cellMask)*255
+
+		# show on a separate plot
+#		norm = plt.Normalize(0,1)
+#		im = plt.imshow(norm(cellMask2D),aspect = 'equal',cmap = 'Greys')
+#		plt.colorbar(im, orientation='horizontal')
+#		plt.show()
+
+		cellMask2D = np.repeat(cellMask2D[:,:,None],3,axis=-1)
+		self.imageItem.setImage(cv2.resize(cellMask2D, (512, 512), interpolation=cv2.INTER_CUBIC))
+		self.showROIsOn = True
+
+	def plotSTA(self):
+		frames_to_average = range(p['staAvgStartFrame']+p['staPreFrame'],p['staAvgStopFrame']+p['staPreFrame'])
+		self.sta_amp=STATraceMaker.plotSTAtraces(self.sta_traces,frames_to_average = frames_to_average) # load from temp file
+
+		#  add figure to layout
+		self.staTracesFig = fig
+		self.staTracesCanvas = FigureCanvas(self.staTracesFig)
+		self.plot_gridLayout.addWidget(self.staTracesCanvas)
+		self.updateStatusBar('STA traces plotted on plot tab')
+
+	def resetFigure(self):
+		try:
+	#        plt.close('all')
+			self.ax1.cla()
+			self.ax2.cla()
+			self.ax3.cla()
+			self.axcomp.cla()
+
+			self.figCanvas.draw()
+	#            self.figCanvas.update()
+			self.figCanvas.flush_events()
+
+			g = gc.collect()
+			print('gc: ', g)
+		except: pass
+
+	def plotOnacidTraces(self, t, online=False):
+		try:
+			try: self.resetFigure()
+			except: pass
+
+			cnm_struct = self.c['cnm2']
+
+
+			if online:
+				C,f = self.c['online_C'][cnm_struct.gnb:cnm_struct.M], self.c['online_C'][:cnm_struct.gnb]
+			else:
+				C, f = cnm_struct.C_on[cnm_struct.gnb:cnm_struct.M], cnm_struct.C_on[:cnm_struct.gnb]
+
+			A, b = cnm_struct.Ab[:, cnm_struct.gnb:cnm_struct.M], cnm_struct.Ab[:, :cnm_struct.gnb]
+
+			# Convert A to numpy array
+			if issparse(A):
+				A = np.array(A.todense())
+			else:
+				A = np.array(A)
+
+			# Trim longer arrays
+			f = f[:,:t]
+			C = C[:,:t]
+
+			noisyC = cnm_struct.noisyC[:, t - t // 1:t]
+			YrA = noisyC[cnm_struct.gnb:cnm_struct.M,:t] - C
+
+
+			if 'csc_matrix' not in str(type(A)):
+				A = csc_matrix(A)
+			if 'array' not in str(type(b)):
+				b = b.toarray()
+
+			nr, T = C.shape
+			nb = f.shape[0]
+
+			Y_r = YrA + C
+			d1, d2 = cnm_struct.dims
+
+			cell_mask = 1
+			if cell_mask:
+				img = np.reshape(np.array(A.mean(axis=1)), (d1, d2), order='F')
+			else:
+				img = self.c['Cn_init']
+
+			all_ = list(range(0, cnm_struct.N))
+
+			try:
+				accepted = cnm_struct.accepted
+				rejected = [item for item in all_ if item not in accepted]
+			except:
+				accepted = all_
+				rejected = []
+
+			self.axcomp = self.fig.add_axes([0.05, 0.05, 0.9, 0.03])
+			self.ax1 = self.fig.add_axes([0.05, 0.55, 0.4, 0.4])
+			self.ax3 = self.fig.add_axes([0.55, 0.55, 0.4, 0.4])
+			self.ax2 = self.fig.add_axes([0.05, 0.1, 0.9, 0.4])
+			self.s_comp = Slider(self.axcomp, 'Component', 0, nr + nb - 1, valinit=0)
+
+			vmax = np.percentile(img, 95)
+
+			def update(val):
+				i = np.int(np.round(self.s_comp.val))
+				if i < nr:
+					if i < len(accepted):
+						j = accepted[i]
+						rej = False
+					else:
+						j = rejected[i-len(accepted)]
+						rej = True
+
+					self.ax1.cla()
+					imgtmp = np.reshape(A[:, j].toarray(), (d1, d2), order='F')
+					self.ax1.imshow(imgtmp, interpolation='None', cmap=pl.cm.gray, vmax=np.max(imgtmp)*0.5)
+					if not rej:
+						self.ax1.set_title('Spatial component ' + str(i+1))
+					else:
+						self.ax1.set_title('Rejected spatial component ' + str(i-len(accepted)+1))
+					self.ax1.axis('off')
+
+
+					self.ax2.cla()
+					self.ax2.plot(np.arange(T), Y_r[j], 'c', linewidth=2)
+					self.ax2.plot(np.arange(T), C[j], 'r', linewidth=2)
+					if not rej:
+						self.ax2.set_title('Temporal component ' + str(i+1))
+					else:
+						self.ax2.set_title('Rejected temporal component ' + str(i-len(accepted)+1))
+
+					if online:
+						self.ax2.legend(labels=['Filtered raw data', 'Online trace'])
+					else:
+						self.ax2.legend(labels=['Filtered raw data', 'Inferred trace'])
+
+
+					self.ax3.cla()
+					if vmax > 0:
+						self.ax3.imshow(img, interpolation='None', cmap=pl.cm.gray, vmax=vmax)
+					else:
+						self.ax3.imshow(img, interpolation='None', cmap=pl.cm.gray)
+					imgtmp2 = imgtmp.copy()
+					imgtmp2[imgtmp2 == 0] = np.nan
+					self.ax3.imshow(imgtmp2, interpolation='None', alpha=0.5, cmap=pl.cm.hot)
+					self.ax3.axis('off')
+
+				else:
+					self.ax1.cla()
+					bkgrnd = np.reshape(b[:, i - nr], (d1, d2), order='F')
+					self.ax1.imshow(bkgrnd, interpolation='None')
+					self.ax1.set_title('Spatial background ' + str(i + 1 - nr))
+					self.ax1.axis('off')
+
+					self.ax2.cla()
+					self.ax2.plot(np.arange(T), np.squeeze(np.array(f[i - nr, :])))
+					self.ax2.set_title('Temporal background ' + str(i + 1 - nr))
+
+			self.nr = nr
+			self.nb = nb
+
+			self.s_comp.on_changed(update)
+			self.s_comp.set_val(0)
+			self.figCanvas.draw()
+			self.figCanvas.flush_events()
+	#        self.updateStatusBar('OnACID traces plotted in plot tab')
+		except Exception as e:
+			print('plot exception:')
+			print(e)
+
+	def arrow_key_image_control(self, event):
+#		print(event.key())
+		if event.key() == Qt.Key_Left:
+			new_val = np.round(self.s_comp.val - 1)
+			if new_val < 0:
+				new_val = 0
+			self.s_comp.set_val(new_val)
+
+		elif event.key() == Qt.Key_Right:
+			new_val = np.round(self.s_comp.val + 1)
+			if new_val > self.nr + self.nb:
+				new_val = self.nr + self.nb
+			self.s_comp.set_val(new_val)
+		else:
+			pass
 
 	def showCellsOnMask(self):
 		if self.A_opsin.size and self.c != {}:
@@ -3401,7 +3719,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.updateStatusBar('No cells to be shown!')
 
 
-
 	def getROImask(self, thisROIx, thisROIy):
 		if self.ALL_ROI_SELECTED == False:
 			if self.ds_factor > 1:
@@ -3440,7 +3757,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		else:
 			print('All ROI selected')
 
-
 	def addScatterROI(self, shift):
 		self.ROIcontour_item.clear()
 		self.ROIcontour_item.addPoints(x = [ROI["ROIx"]+shift[0] for ROI in self.ROIlist[:self.thisROIIdx]],
@@ -3465,212 +3781,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		# import pdb
 		# pdb.set_trace()
 		self.updateImage(img)
-
-	def selectAllROIsClicked(self):
-		if (self.selectAll_checkBox.isChecked):
-			self.selectAllROIs()
-
-	def autoAddClicked(self):
-		p['FLAG_AUTO_ADD_TARGETS'] = self.addNewROIsToTarget_checkBox.isChecked()
-		print('FLAG_AUTO_ADD_TARGETS = '+str(p['FLAG_AUTO_ADD_TARGETS']))
-
-	def enterEvent(self,event):
-		self.graphicsView.setCursor(Qt.CrossCursor)
-
-	def takeRefMovie(self):
-		# take reference movie by starting t-series in prairie and save as multipage tiffs
-		global STOP_JOB_FLAG
-		STOP_JOB_FLAG = False
-
-		# clear items in qbuffer
-		if not qbuffer.empty():
-			qbuffer.clear()
-
-		# disable onacid
-		self.UseONACID_checkBox.setCheckState(Qt.Unchecked)
-		self.getValues()
-
-		if self.FLAG_PV_CONNECTED:
-			print('this is take ref movie function')
-
-			# setup thread objects
-			save_path = self.pl.get_movie_name()+'_rtaoi.tif'
-			print(save_path)
-
-			# set this file as the ref movie
-			self.ref_movie_path = save_path
-			self.refMoviePath_lineEdit.setText(self.ref_movie_path)
-
-
-			kwargs = {"save_movie_path": save_path}
-			self.imageSaverObject = imageSaver(**kwargs)
-			self.updateStatusBar('imageSaver object created')
-			self.imageSaverObject.moveToThread(self.imageSaverThread)
-			self.imageSaverThread.started.connect(self.imageSaverObject.saveImage)
-			self.imageSaverObject.finished_signal.connect(self.imageSaverThread.exit)
-			self.imageSaverThread.start()
-
-			# start stream thread
-			kwargs = {"prairie": self.pl}
-			self.streamObject = DataStream(**kwargs)
-			self.streamObject.moveToThread(self.streamThread)
-			self.streamThread.started.connect(self.streamObject.stream)
-			self.streamObject.stream_finished_signal.connect(self.streamThread.exit)
-			self.streamThread.start()
-			self.updateStatusBar('stream started in takeRefMovie function')
-		else:
-			print('check pv connection')
-			self.updateStatusBar('Check PV connection')
-
-
-	def clickRun(self):
-		global STOP_JOB_FLAG
-		STOP_JOB_FLAG = False
-
-		if not qbuffer.empty():
-#                qbuffer.clear()  # error: 'Queue' object has no attribute 'clear'
-			with qbuffer.mutex:
-				qbuffer.queue.clear()
-				print('qbuffer cleared!')
-
-		# connect to pv if not offline
-		if (not self.IsOffline) and (not self.FLAG_PV_CONNECTED):
-			self.connectPV
-
-		# get current movie name if PV is connected
-		if self.FLAG_PV_CONNECTED:
-			p['currentMoviePath'] = self.pl.get_movie_name()+ '_rtaoi_DS_' + str(self.ds_factor) +'.tif'
-			print('current movie:' + p['currentMoviePath'])
-		else:
-			p['currentMoviePath'] = os.path.splitext(p['moviePath'])[0]+ '_rtaoi_DS_' + str(self.ds_factor) +'.tif'
-
-
-		if self.IsOffline or self.FLAG_PV_CONNECTED: # p['UseONACID'] or self.FLAG_PV_CONNECTED
-			try: self.resetFigure()
-			except: pass
-
-			self.c['keep_prev'] = False # default
-
-			if self.c['cnm2'].t > self.c['cnm2'].initbatch: # self.cnm2:
-				msg = QMessageBox()
-				msg.setText("Run again?")
-				msg.setWindowTitle('pyRTAOI Message')
-				msg.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
-				retval = msg.exec_()
-				if(retval==QMessageBox.Ok):
-					pass
-					msg.setText("Keep the cells from the previous session?")
-					msg.setWindowTitle('pyRTAOI Message')
-					msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-					retval = msg.exec_()
-					if(retval==QMessageBox.No):
-						curr_count = self.c['cnm2'].N
-						self.c['cnm2'].t = self.c['cnm2'].initbatch
-						self.removeIdx = np.arange(self.c['K_init'],curr_count)
-						self.removeCells(save_init=False)
-					else:
-						self.c['keep_prev'] = True
-				else:
-					return
-
-			self.deleteTextItems()
-
-			if self.opsinMaskOn or self.showROIsOn: # or self.calciumMaskOn:
-				self.opsinMaskOn = False
-#                self.calciumMaskOn = False
-				self.showROIsOn = False
-				self.updateImage(cv2.resize(self.c['img_norm'],(512,512),interpolation=cv2.INTER_CUBIC))
-
-			# ensure correct param values following init are displayed
-			print('setting parameter values in gui')
-			self.dsFactor_doubleSpinBox.setValue(self.ds_factor)
-			self.cellRadius_spinBox_2.setValue(self.cell_radius)
-			self.minSNR_doubleSpinBox.setValue(self.min_SNR)
-			self.rval_thresh_doubleSpinBox.setValue(self.rval_thr)
-			self.merge_thresh_doubleSpinBox.setValue(self.merge_thresh)
-			self.overlap_thresh_doubleSpinBox.setValue(self.thresh_overlap)
-
-			if self.MaxNumROIs_spinBox.value() != self.MaxNumROIs:
-				for extraROI in range(self.MaxNumROIs_spinBox.value() - self.MaxNumROIs):  # add extra fields to ROIlist
-					self.ROIlist.append(dict())
-					ROIIdx = self.MaxNumROIs + extraROI
-					self.ROIlist[ROIIdx]["ROIx"]= list()
-					self.ROIlist[ROIIdx]["ROIy"] = list()
-					self.ROIlist[ROIIdx]["ROIcolor"] = self.random_color()
-					self.ROIlist[ROIIdx]["threshold"] = list()
-					self.ROIlist[ROIIdx]["STA"] = list()
-
-				self.MaxNumROIs = self.MaxNumROIs_spinBox.value()
-
-				self.updateTable()
-				self.RoiBuffer = np.zeros([self.MaxNumROIs,self.BufferLength])
-
-			print('updating values')
-			self.getValues()
-
-			print('setting uo buttons')
-			# connect stop_thread to stop button when analysis running
-			self.stop_pushButton.clicked.connect(self.stop_thread)
-
-			def resetworkerObject():
-				self.workerObject = None
-
-			def resetstreamObject():
-				self.streamObject = None
-
-			print('setting up worker object')
-			kwargs = {"caiman": self.c,"prairie": self.pl,"ROIlist":self.ROIlist}
-			self.workerObject = Worker(**kwargs)
-			self.updateStatusBar('Worker created')
-			self.workerObject.moveToThread(self.workerThread)
-
-			# update display signals
-			self.workerObject.status_signal.connect(self.updateStatusBar)
-			self.workerObject.roi_signal.connect(self.updateROI)
-			self.workerObject.refreshPlot_signal.connect(self.refreshPlot)
-			self.workerObject.frame_signal.connect(self.updateFrameInfo)
-			self.workerObject.thresh_signal.connect(self.updateThresh)
-			self.workerObject.sta_amp_signal.connect(self.updateSTA)
-			self.workerObject.refreshScatter_signal.connect(self.addScatterROI)
-			self.workerObject.showROIIdx_signal.connect(self.showROIIdx)
-			self.workerObject.getROImask_signal.connect(self.getROImask)
-			self.workerObject.updateTargetROIs_signal.connect(self.updateTargetROIs)
-
-			# start and finish
-			self.workerObject.transDataToMain_signal.connect(self.transDataToMain)
-			self.workerThread.started.connect(self.workerObject.work)
-			self.workerObject.finished_signal.connect(self.workerThread.exit)
-
-			# reset worker thread after finishing and disconnect stop button
-			self.stopButtonDisconnect = lambda: self.stop_pushButton.clicked.disconnect(self.stop_thread)
-			self.workerObject.finished_signal.connect(self.stopButtonDisconnect)
-			self.workerObject.finished_signal.connect(self.workerObject.deleteLater)  # delete qt (C++) instance later
-			self.workerObject.finished_signal.connect(resetworkerObject) # remove python reference to workerObject
-
-			# triggers
-			self.workerObject.sendTTLTrigger_signal.connect(self.sendTTLTrigger)
-			self.workerObject.sendCoords_signal.connect(self.sendCoords)
-			self.workerObject.sendPhotoStimTrig_signal.connect(self.sendPhotoStimTrigger)
-			self.workerThread.start()
-			self.updateStatusBar('Worker started')
-
-			# start stream thread
-			kwargs = {"prairie": self.pl}
-#            if not self.streamObject:  # could use this if self.pl not updated/separate update function existed
-			self.streamObject = DataStream(**kwargs)
-			self.streamObject.moveToThread(self.streamThread)
-			self.streamThread.started.connect(self.streamObject.stream)
-			self.streamObject.stream_finished_signal.connect(self.streamThread.exit)
-			self.streamObject.stream_finished_signal.connect(self.streamObject.deleteLater)  # seems it doesn't get deleted but stop disconnect sorts it
-#            self.streamObject.stream_finished_signal.connect(resetstreamObject)  # looks like stream object not deleted though
-			self.streamThread.start()
-			self.updateStatusBar('stream started')
-
-		else:
-			self.updateStatusBar('No initialisation provided or PV not connected')
-			return
-
-
+		
 	def refreshPlot(self, arr):
 		self.plotItem.clear()
 		for i in range(self.thisROIIdx):
@@ -3679,7 +3790,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.plotItem.setYRange(np.round(arr.min())-1,np.round(arr.max())+1)
 		except:
 			self.plotItem.setYRange(0,30)
-
 
 	def updateImage(self,img):
 		self.imageItem.setImage(img)
@@ -3702,6 +3812,9 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 	def updateFrameInfo(self,FrameIdx):
 		self.CurrentFrameIdx_label.setText(str(FrameIdx))
+	
+	def updateNumPhotostimLabel(self, totalNumFrames):
+		self.totalNumPhotostim_label.setText(str(totalNumFrames))
 
 	def switch_plotOn(self):
 		p['plotOn'] = self.plotOn_checkBox.isChecked()
@@ -3719,7 +3832,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		self.IsOffline = self.IsOffline_radioButton.isChecked()
 		self.updateStatusBar('Flag offline = '+str(self.IsOffline))
 
-
 	def switch_useOnacidMask(self):  # toggle the two buttons
 		self.usesOnacidMask = self.UseOnacidMask_radioButton.isChecked()
 		self.usesOpsinMask = self.UseOpsinMask_radioButton.isChecked()
@@ -3731,61 +3843,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		self.usesOnacidMask = self.UseOnacidMask_radioButton.isChecked()
 		if self.usesOpsinMask and self.usesOnacidMask:
 			self.UseOnacidMask_radioButton.setChecked(False)
-
-
-	def enableStimTrigger(self):
-		p['FLAG_STIM_TRIG_ENABLED'] = self.enableStimTrigger_checkBox.isChecked
-
-	def setupPowerControl(self):
-		self.getValues()
-		NI_TTL_NUM_SAMPLES = p['NI_TTL_NUM_SAMPLES']
-		NI_STIM_NUM_SAMPLES = p['NI_STIM_NUM_SAMPLES']
-		p['SendPowerVolt'] = self.SendPowerVolt_checkBox.isChecked
-		init_output = np.zeros([2, max(NI_TTL_NUM_SAMPLES+1,NI_STIM_NUM_SAMPLES+1)])
-		init_output.ravel()[:len(self.daq_array)] = self.daq_array  # use ravel to data between array (fastest way)
-		init_output[1,:-1] = 1
-		p['NI_2D_ARRAY'] = init_output
-		p['NI_UNIT_POWER_ARRAY'] = init_output[1,:]
-		self.niPhotostimFullWriter.write_many_sample(init_output)
-
-	def testPowerControl(self):
-		self.getValues()
-		p['NI_2D_ARRAY'][1,:] = p['NI_UNIT_POWER_ARRAY'] *np.polyval(p['power_polyfit_p'],p['photoPowerPerCell'])
-		self.niPhotostimFullWriter.write_many_sample(p['NI_2D_ARRAY'])
-		print('TTL with power volt sent')
-
-	def stop_thread(self):  # TODO: aborting t-series correct? when aborted, no return from prairie so disabled waiting
-
-		p['FLAG_END_LOADING'] = True
-
-#        self.stop_pushButton.clicked.disconnect(self.stop_thread)
-#        print('disconnected')
-
-		# this worked a few times after which the timeout error occurred again
-#        if p['FLAG_PV_CONNECTED']:
-#            if not self.pl.send_done(self.pl._abort):
-#                print('Prairie aborted!')
-
-		try:
-			if self.streamObject:
-				self.streamObject.stop()
-				self.streamThread.wait(1)
-				self.streamThread.quit()
-				self.streamThread.wait()
-		except: pass
-
-		try:
-			if self.workerObject:
-				self.workerObject.stop()
-				self.workerThread.wait(1)
-				self.workerThread.quit()
-				self.workerThread.wait() # ensures worker finished before next run can be started
-		except: pass
-
-
-		self.stop_pushButton.clicked.disconnect(self.stop_thread)
-		print('stop button disconnected')
-
 
 	def closeEvent(self,event):
 		# override closeEvent method in Qt
@@ -3899,7 +3956,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		filename = os.path.basename(filepath)
 		filename = os.path.splitext(filename)[0]
 
-
 	def loadConfig(self):
 		filepath = str(QFileDialog.getOpenFileName(self, 'Load configuration...', 'Configs', 'Config file (*.cfg)')[0])
 		if os.path.exists(filepath):
@@ -3929,9 +3985,26 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 						obj.setValue(value)  # restore lineEditFile
 				except:
 					continue
-
 			self.getValues()
 
+	def saveResults(self):
+		try:
+			save_dict = dict()
+			save_dict['cnm2'] = self.c['cnm2'] #self.cnm2
+			save_dict['com_count_init'] = self.c['K_init']
+			save_dict['coms'] = self.c['coms']
+			save_dict['accepted'] = self.accepted
+			save_dict['t_cnm'] = self.t_cnm
+			save_object(save_dict, p['saveResultPath'])
+		except Exception as e:
+			self.updateStatusBar('Save results error: '+str(e))
+
+	def browseResultPath(self):
+		saveResultsPath = QFileDialog.getSaveFileName (self, 'Select save path', p['saveResultPath'], '.pkl')
+		p['saveResultPath'] = saveResultsPath[0]+saveResultsPath[1]
+		self.saveResultPath_lineEdit.setText(p['saveResultPath'])
+
+#%% calibration check (burn spots)
 	def calCheck(self):
 		# burn patterns of spots in a sequence; even patterns are blanked out (0 power on sample)
 		ERROR_FLAG = False
