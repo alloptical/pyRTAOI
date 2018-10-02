@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1744</width>
+    <width>1661</width>
     <height>896</height>
    </rect>
   </property>
@@ -19,7 +19,7 @@
      <rect>
       <x>0</x>
       <y>0</y>
-      <width>1701</width>
+      <width>1651</width>
       <height>851</height>
      </rect>
     </property>
@@ -192,7 +192,7 @@
          <x>10</x>
          <y>20</y>
          <width>311</width>
-         <height>71</height>
+         <height>77</height>
         </rect>
        </property>
        <layout class="QGridLayout" name="gridLayout_4">
@@ -437,241 +437,292 @@
       <property name="title">
        <string>Stimulation settings</string>
       </property>
-      <layout class="QVBoxLayout" name="verticalLayout">
-       <item>
-        <layout class="QGridLayout" name="gridLayout">
-         <item row="11" column="4">
-          <widget class="QPushButton" name="testTTLTrigger_pushButton">
-           <property name="text">
-            <string>Test trigger</string>
-           </property>
-          </widget>
-         </item>
-         <item row="7" column="0">
-          <widget class="QLabel" name="label_8">
-           <property name="text">
-            <string>Inter stim interval</string>
-           </property>
-          </widget>
-         </item>
-         <item row="8" column="0">
-          <widget class="QLabel" name="label_9">
-           <property name="text">
-            <string>Numer of stims</string>
-           </property>
-          </widget>
-         </item>
-         <item row="7" column="1">
-          <widget class="QSpinBox" name="interStimInterval_spinBox">
-           <property name="minimum">
-            <number>1</number>
-           </property>
-           <property name="maximum">
-            <number>9000</number>
-           </property>
-           <property name="value">
-            <number>310</number>
-           </property>
-          </widget>
-         </item>
-         <item row="2" column="6">
-          <widget class="QLabel" name="label_10">
-           <property name="text">
-            <string>Pre frame</string>
-           </property>
-          </widget>
-         </item>
-         <item row="2" column="0">
-          <widget class="QLabel" name="label_6">
-           <property name="text">
-            <string>Start frame</string>
-           </property>
-          </widget>
-         </item>
-         <item row="7" column="6">
-          <widget class="QLabel" name="label_11">
-           <property name="text">
-            <string>Post frame</string>
-           </property>
-          </widget>
-         </item>
-         <item row="2" column="1">
-          <widget class="QSpinBox" name="stimStartFrame_spinBox">
-           <property name="minimum">
-            <number>1</number>
-           </property>
-           <property name="maximum">
-            <number>9000</number>
-           </property>
-           <property name="value">
-            <number>238</number>
-           </property>
-          </widget>
-         </item>
-         <item row="10" column="6">
-          <widget class="QLabel" name="label_15">
-           <property name="text">
-            <string>Avg stop</string>
-           </property>
-          </widget>
-         </item>
-         <item row="7" column="9">
-          <widget class="QSpinBox" name="staPostFrame_spinBox">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-           <property name="minimum">
-            <number>1</number>
-           </property>
-           <property name="maximum">
-            <number>9000</number>
-           </property>
-           <property name="value">
-            <number>120</number>
-           </property>
-          </widget>
-         </item>
-         <item row="2" column="9">
-          <widget class="QSpinBox" name="staPreFrame_spinBox">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-           <property name="minimum">
-            <number>1</number>
-           </property>
-           <property name="maximum">
-            <number>900</number>
-           </property>
-           <property name="value">
-            <number>60</number>
-           </property>
-          </widget>
-         </item>
-         <item row="8" column="6">
-          <widget class="QLabel" name="label_14">
-           <property name="text">
-            <string>Avg start</string>
-           </property>
-          </widget>
-         </item>
-         <item row="10" column="9">
-          <widget class="QSpinBox" name="staAvgStopFrame_spinBox">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-           <property name="minimum">
-            <number>1</number>
-           </property>
-           <property name="maximum">
-            <number>9000</number>
-           </property>
-           <property name="value">
-            <number>30</number>
-           </property>
-           <property name="displayIntegerBase">
-            <number>10</number>
-           </property>
-          </widget>
-         </item>
-         <item row="8" column="1">
-          <widget class="QSpinBox" name="numberStims_spinBox">
-           <property name="minimum">
-            <number>1</number>
-           </property>
-           <property name="maximum">
-            <number>500</number>
-           </property>
-           <property name="value">
-            <number>15</number>
-           </property>
-           <property name="displayIntegerBase">
-            <number>10</number>
-           </property>
-          </widget>
-         </item>
-         <item row="8" column="9">
-          <widget class="QSpinBox" name="staAvgStartFrame_spinBox">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-           <property name="minimum">
-            <number>1</number>
-           </property>
-           <property name="maximum">
-            <number>300</number>
-           </property>
-           <property name="value">
-            <number>1</number>
-           </property>
-           <property name="displayIntegerBase">
-            <number>10</number>
-           </property>
-          </widget>
-         </item>
-         <item row="11" column="0">
-          <widget class="QCheckBox" name="enableStimTrigger_checkBox">
-           <property name="text">
-            <string>Enable trigger</string>
-           </property>
-          </widget>
-         </item>
-         <item row="10" column="0">
-          <widget class="QPushButton" name="connectSenStimTCP_pushButton">
-           <property name="text">
-            <string>connect TCP</string>
-           </property>
-          </widget>
-         </item>
-         <item row="10" column="1">
-          <widget class="QSpinBox" name="senStimType_spinBox">
-           <property name="minimum">
-            <number>1</number>
-           </property>
-           <property name="maximum">
-            <number>10</number>
-           </property>
-           <property name="value">
-            <number>1</number>
-           </property>
-           <property name="displayIntegerBase">
-            <number>10</number>
-           </property>
-          </widget>
-         </item>
-         <item row="11" column="6">
-          <widget class="QLineEdit" name="stimDaqDevice_lineEdit">
-           <property name="enabled">
-            <bool>false</bool>
-           </property>
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-           <property name="text">
-            <string>Dev5/ao3</string>
-           </property>
-           <property name="maxLength">
-            <number>500</number>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </item>
-      </layout>
+      <widget class="QWidget" name="gridLayoutWidget_11">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>20</y>
+         <width>371</width>
+         <height>41</height>
+        </rect>
+       </property>
+       <layout class="QGridLayout" name="gridLayout_21">
+        <item row="0" column="3">
+         <widget class="QPushButton" name="testTTLTrigger_pushButton">
+          <property name="text">
+           <string>Test trigger</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="0">
+         <widget class="QCheckBox" name="enableStimTrigger_checkBox">
+          <property name="text">
+           <string>Enable trigger</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QLineEdit" name="stimDaqDevice_lineEdit">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="text">
+           <string>Dev5/ao3</string>
+          </property>
+          <property name="maxLength">
+           <number>500</number>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="2">
+         <widget class="QPushButton" name="connectSenStimTCP_pushButton">
+          <property name="text">
+           <string>connect TCP</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>60</y>
+         <width>371</width>
+         <height>132</height>
+        </rect>
+       </property>
+       <layout class="QGridLayout" name="gridLayout">
+        <item row="1" column="1">
+         <widget class="QSpinBox" name="interStimInterval_spinBox">
+          <property name="minimum">
+           <number>1</number>
+          </property>
+          <property name="maximum">
+           <number>9000</number>
+          </property>
+          <property name="value">
+           <number>310</number>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="QLabel" name="label_8">
+          <property name="text">
+           <string>Inter stim interval</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="3">
+         <widget class="QLabel" name="label_10">
+          <property name="text">
+           <string>Pre frame</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="3">
+         <widget class="QLabel" name="label_11">
+          <property name="text">
+           <string>Post frame</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="0">
+         <widget class="QLabel" name="label_9">
+          <property name="text">
+           <string>Numer of stims</string>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="3">
+         <widget class="QLabel" name="label_15">
+          <property name="text">
+           <string>Avg stop</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="4">
+         <widget class="QSpinBox" name="staPostFrame_spinBox">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="minimum">
+           <number>1</number>
+          </property>
+          <property name="maximum">
+           <number>9000</number>
+          </property>
+          <property name="value">
+           <number>120</number>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="4">
+         <widget class="QSpinBox" name="staPreFrame_spinBox">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="minimum">
+           <number>1</number>
+          </property>
+          <property name="maximum">
+           <number>900</number>
+          </property>
+          <property name="value">
+           <number>60</number>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="0">
+         <widget class="QLabel" name="label_6">
+          <property name="text">
+           <string>Start frame</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="1">
+         <widget class="QSpinBox" name="numberStims_spinBox">
+          <property name="minimum">
+           <number>1</number>
+          </property>
+          <property name="maximum">
+           <number>500</number>
+          </property>
+          <property name="value">
+           <number>15</number>
+          </property>
+          <property name="displayIntegerBase">
+           <number>10</number>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="4">
+         <widget class="QSpinBox" name="staAvgStartFrame_spinBox">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="minimum">
+           <number>1</number>
+          </property>
+          <property name="maximum">
+           <number>300</number>
+          </property>
+          <property name="value">
+           <number>1</number>
+          </property>
+          <property name="displayIntegerBase">
+           <number>10</number>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="3">
+         <widget class="QLabel" name="label_14">
+          <property name="text">
+           <string>Avg start</string>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="1">
+         <widget class="QSpinBox" name="senStimType_spinBox">
+          <property name="minimum">
+           <number>1</number>
+          </property>
+          <property name="maximum">
+           <number>10</number>
+          </property>
+          <property name="value">
+           <number>1</number>
+          </property>
+          <property name="displayIntegerBase">
+           <number>10</number>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="4">
+         <widget class="QSpinBox" name="staAvgStopFrame_spinBox">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="minimum">
+           <number>1</number>
+          </property>
+          <property name="maximum">
+           <number>9000</number>
+          </property>
+          <property name="value">
+           <number>30</number>
+          </property>
+          <property name="displayIntegerBase">
+           <number>10</number>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="0">
+         <widget class="QLabel" name="label_19">
+          <property name="text">
+           <string>TCP cmd</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QSpinBox" name="stimStartFrame_spinBox">
+          <property name="minimum">
+           <number>1</number>
+          </property>
+          <property name="maximum">
+           <number>9000</number>
+          </property>
+          <property name="value">
+           <number>238</number>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="2">
+         <spacer name="horizontalSpacer_4">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>40</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+        <item row="2" column="5">
+         <spacer name="horizontalSpacer_5">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>40</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+       </layout>
+      </widget>
      </widget>
      <widget class="QGroupBox" name="caiman_groupBox">
       <property name="geometry">
@@ -1094,9 +1145,9 @@
       <property name="geometry">
        <rect>
         <x>560</x>
-        <y>600</y>
-        <width>451</width>
-        <height>171</height>
+        <y>550</y>
+        <width>441</width>
+        <height>221</height>
        </rect>
       </property>
       <property name="showGrid">
@@ -1313,7 +1364,7 @@
        <rect>
         <x>1240</x>
         <y>430</y>
-        <width>211</width>
+        <width>391</width>
         <height>101</height>
        </rect>
       </property>
@@ -1325,7 +1376,7 @@
         <rect>
          <x>10</x>
          <y>20</y>
-         <width>191</width>
+         <width>371</width>
          <height>71</height>
         </rect>
        </property>
@@ -1358,6 +1409,13 @@
            </widget>
           </item>
           <item>
+           <widget class="QPushButton" name="saveResult_pushButton">
+            <property name="text">
+             <string>Save results</string>
+            </property>
+           </widget>
+          </item>
+          <item>
            <widget class="QPushButton" name="getPathFromPV_pushButton">
             <property name="text">
              <string>Get from Praire</string>
@@ -1365,13 +1423,6 @@
            </widget>
           </item>
          </layout>
-        </item>
-        <item row="3" column="0">
-         <widget class="QPushButton" name="saveResult_pushButton">
-          <property name="text">
-           <string>Save results</string>
-          </property>
-         </widget>
         </item>
        </layout>
       </widget>
@@ -1533,10 +1584,10 @@
      <widget class="QGroupBox" name="config_groupBox">
       <property name="geometry">
        <rect>
-        <x>1460</x>
-        <y>430</y>
-        <width>191</width>
-        <height>101</height>
+        <x>1010</x>
+        <y>550</y>
+        <width>341</width>
+        <height>81</height>
        </rect>
       </property>
       <property name="title">
@@ -1546,9 +1597,9 @@
        <property name="geometry">
         <rect>
          <x>10</x>
-         <y>30</y>
-         <width>171</width>
-         <height>48</height>
+         <y>20</y>
+         <width>321</width>
+         <height>41</height>
         </rect>
        </property>
        <layout class="QGridLayout" name="gridLayout_17">
@@ -1571,7 +1622,7 @@
           </property>
          </widget>
         </item>
-        <item row="1" column="0">
+        <item row="0" column="1">
          <widget class="QPushButton" name="saveConfig_pushButton">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
@@ -1598,7 +1649,7 @@
        <rect>
         <x>1240</x>
         <y>200</y>
-        <width>451</width>
+        <width>391</width>
         <height>221</height>
        </rect>
       </property>
@@ -1609,20 +1660,192 @@
        <property name="geometry">
         <rect>
          <x>10</x>
-         <y>20</y>
-         <width>425</width>
-         <height>182</height>
+         <y>110</y>
+         <width>371</width>
+         <height>101</height>
         </rect>
        </property>
        <layout class="QGridLayout" name="gridLayout_11">
-        <item row="2" column="3">
-         <widget class="QPushButton" name="testPhotoStimTrigger_pushButton">
+        <item row="1" column="0">
+         <widget class="QLabel" name="label_23">
           <property name="text">
-           <string>Test trigger</string>
+           <string>Trigger Dev/Ch</string>
           </property>
          </widget>
         </item>
+        <item row="0" column="0">
+         <widget class="QLabel" name="label_22">
+          <property name="text">
+           <string>Wait frames</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="0">
+         <widget class="QLabel" name="label_33">
+          <property name="text">
+           <string>Power/cell (mW)</string>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="0">
+         <spacer name="verticalSpacer_3">
+          <property name="orientation">
+           <enum>Qt::Vertical</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>20</width>
+            <height>40</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+        <item row="0" column="1">
+         <widget class="QSpinBox" name="photoWaitFrames_spinBox">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="4">
+         <widget class="QSpinBox" name="photoDuration_spinBox">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="maximum">
+           <number>10000</number>
+          </property>
+          <property name="value">
+           <number>150</number>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="3">
+         <widget class="QLabel" name="label_32">
+          <property name="text">
+           <string>Power Dev/Ch</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="3">
+         <widget class="QLabel" name="label_31">
+          <property name="text">
+           <string>Duration (ms)</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="4">
+         <widget class="QLineEdit" name="powerDaqDevice_lineEdit">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="text">
+           <string>Dev5/ao0</string>
+          </property>
+          <property name="maxLength">
+           <number>500</number>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="2">
+         <spacer name="horizontalSpacer">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>40</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+        <item row="2" column="1">
+         <widget class="QSpinBox" name="photoPowerPerCell_spinBox">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="maximum">
+           <number>100</number>
+          </property>
+          <property name="singleStep">
+           <number>0</number>
+          </property>
+          <property name="value">
+           <number>6</number>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="5">
+         <spacer name="horizontalSpacer_7">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>40</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
         <item row="1" column="1">
+         <widget class="QLineEdit" name="photostimDaqDevice_lineEdit">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="layoutDirection">
+           <enum>Qt::LeftToRight</enum>
+          </property>
+          <property name="text">
+           <string>Dev5/ao1</string>
+          </property>
+          <property name="maxLength">
+           <number>500</number>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="gridLayoutWidget_2">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>20</y>
+         <width>371</width>
+         <height>80</height>
+        </rect>
+       </property>
+       <layout class="QGridLayout" name="gridLayout_20">
+        <item row="1" column="0">
+         <widget class="QCheckBox" name="EnablePhotostim_checkBox">
+          <property name="text">
+           <string>Enable Photostim</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
          <widget class="QComboBox" name="photoProto_comboBox">
           <item>
            <property name="text">
@@ -1661,144 +1884,7 @@
           </item>
          </widget>
         </item>
-        <item row="4" column="1">
-         <widget class="QLineEdit" name="powerDaqDevice_lineEdit">
-          <property name="enabled">
-           <bool>false</bool>
-          </property>
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="text">
-           <string>Dev5/ao0</string>
-          </property>
-          <property name="maxLength">
-           <number>500</number>
-          </property>
-         </widget>
-        </item>
-        <item row="2" column="1">
-         <layout class="QHBoxLayout" name="horizontalLayout_2">
-          <item>
-           <widget class="QSpinBox" name="photoWaitFrames_spinBox"/>
-          </item>
-          <item>
-           <spacer name="horizontalSpacer_10">
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>40</width>
-              <height>20</height>
-             </size>
-            </property>
-           </spacer>
-          </item>
-         </layout>
-        </item>
-        <item row="2" column="0">
-         <widget class="QLabel" name="label_22">
-          <property name="text">
-           <string>Wait frames</string>
-          </property>
-         </widget>
-        </item>
-        <item row="5" column="3">
-         <layout class="QHBoxLayout" name="horizontalLayout_9">
-          <item>
-           <widget class="QSpinBox" name="photoDuration_spinBox">
-            <property name="maximum">
-             <number>10000</number>
-            </property>
-            <property name="value">
-             <number>150</number>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <spacer name="horizontalSpacer_11">
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>40</width>
-              <height>20</height>
-             </size>
-            </property>
-           </spacer>
-          </item>
-         </layout>
-        </item>
-        <item row="5" column="0">
-         <widget class="QLabel" name="label_33">
-          <property name="text">
-           <string>Power/cell (mW)</string>
-          </property>
-         </widget>
-        </item>
-        <item row="4" column="0">
-         <widget class="QLabel" name="label_32">
-          <property name="text">
-           <string>Power Dev/Ch</string>
-          </property>
-         </widget>
-        </item>
-        <item row="5" column="1">
-         <layout class="QHBoxLayout" name="horizontalLayout_8">
-          <item>
-           <widget class="QSpinBox" name="photoPowerPerCell_spinBox">
-            <property name="maximum">
-             <number>100</number>
-            </property>
-            <property name="singleStep">
-             <number>0</number>
-            </property>
-            <property name="value">
-             <number>6</number>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <spacer name="horizontalSpacer_12">
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>40</width>
-              <height>20</height>
-             </size>
-            </property>
-           </spacer>
-          </item>
-         </layout>
-        </item>
-        <item row="3" column="0">
-         <widget class="QLabel" name="label_23">
-          <property name="text">
-           <string>Trigger Dev/Ch</string>
-          </property>
-         </widget>
-        </item>
-        <item row="6" column="0">
-         <spacer name="verticalSpacer_5">
-          <property name="orientation">
-           <enum>Qt::Vertical</enum>
-          </property>
-          <property name="sizeHint" stdset="0">
-           <size>
-            <width>20</width>
-            <height>40</height>
-           </size>
-          </property>
-         </spacer>
-        </item>
-        <item row="1" column="3">
+        <item row="0" column="2">
          <widget class="QCheckBox" name="SendPowerVolt_checkBox">
           <property name="text">
            <string>Ctr power</string>
@@ -1808,61 +1894,31 @@
           </property>
          </widget>
         </item>
-        <item row="3" column="3">
-         <widget class="QPushButton" name="calcheck_pushButton">
+        <item row="1" column="1">
+         <widget class="QPushButton" name="updatePhotostimParameters_pushButton">
           <property name="text">
-           <string>Run CalCheck</string>
+           <string>Update Parameters</string>
           </property>
          </widget>
         </item>
-        <item row="1" column="0">
+        <item row="0" column="0">
          <widget class="QLabel" name="label_21">
           <property name="text">
            <string>Trigger on:</string>
           </property>
          </widget>
         </item>
-        <item row="3" column="1">
-         <layout class="QHBoxLayout" name="horizontalLayout_3">
-          <item>
-           <widget class="QLineEdit" name="photostimDaqDevice_lineEdit">
-            <property name="enabled">
-             <bool>false</bool>
-            </property>
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="text">
-             <string>Dev5/ao1</string>
-            </property>
-            <property name="maxLength">
-             <number>500</number>
-            </property>
-           </widget>
-          </item>
-         </layout>
-        </item>
-        <item row="0" column="0">
-         <widget class="QCheckBox" name="EnablePhotostim_checkBox">
+        <item row="2" column="0">
+         <widget class="QPushButton" name="testPhotoStimTrigger_pushButton">
           <property name="text">
-           <string>Enable Photostim</string>
+           <string>Test trigger</string>
           </property>
          </widget>
         </item>
-        <item row="5" column="2">
-         <widget class="QLabel" name="label_31">
+        <item row="2" column="1">
+         <widget class="QPushButton" name="calcheck_pushButton">
           <property name="text">
-           <string>Duration (ms)</string>
-          </property>
-         </widget>
-        </item>
-        <item row="0" column="1">
-         <widget class="QPushButton" name="updatePhotostimParameters_pushButton">
-          <property name="text">
-           <string>Update Parameters</string>
+           <string>Run CalCheck</string>
           </property>
          </widget>
         </item>
@@ -1872,8 +1928,8 @@
      <widget class="QGroupBox" name="run_groupBox">
       <property name="geometry">
        <rect>
-        <x>1030</x>
-        <y>710</y>
+        <x>1010</x>
+        <y>640</y>
         <width>341</width>
         <height>51</height>
        </rect>
@@ -2005,12 +2061,12 @@
         <rect>
          <x>10</x>
          <y>20</y>
-         <width>322</width>
+         <width>311</width>
          <height>71</height>
         </rect>
        </property>
        <layout class="QGridLayout" name="gridLayout_14">
-        <item row="2" column="1">
+        <item row="1" column="0">
          <layout class="QHBoxLayout" name="horizontalLayout_14">
           <item>
            <widget class="QPushButton" name="rejectMode_pushButton">
@@ -2044,7 +2100,7 @@
           </item>
          </layout>
         </item>
-        <item row="1" column="1">
+        <item row="0" column="0">
          <layout class="QHBoxLayout" name="horizontalLayout_12">
           <item>
            <widget class="QPushButton" name="loadCalciumImg_pushButton">
@@ -2128,7 +2184,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1744</width>
+     <width>1661</width>
      <height>21</height>
     </rect>
    </property>

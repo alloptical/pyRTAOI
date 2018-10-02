@@ -47,14 +47,44 @@ class bLink(socket):
 
 		# send as one, added 20180423
 		self.sendall(self.add_prefix("C", xx+yy))
-
-
-		print("msg sent")
 		while self.CONNECTED:
 			try:
 				data = self._readline()
 				if 'Done' in data: 
-					print("reply recvd")
+					return False
+					break
+			except Exception as e:
+				print('receiving error: '+str(e))
+				self.CONNECTED = False
+				return True
+				break
+
+		return False
+
+	def send_duration(self,duration):
+		print('sending duration')
+		self.sendall(self.add_prefix("D", duration))
+		while self.CONNECTED:
+			try:
+				data = self._readline()
+				if 'Done' in data: 
+					return False
+					break
+			except Exception as e:
+				print('receiving error: '+str(e))
+				self.CONNECTED = False
+				return True
+				break
+
+		return False		
+
+
+	def send_coords_power(self,xx,yy,volt):
+		self.sendall(self.add_prefix("P", xx+yy+[volt]))
+		while self.CONNECTED:
+			try:
+				data = self._readline()
+				if 'Done' in data: 
 					return False
 					break
 			except Exception as e:

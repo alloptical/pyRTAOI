@@ -12,7 +12,7 @@ CAREFUL WHEN USING 'REPLACE ALL' - IT WILL QUIT, WITHOUT SAVING!!
 
 TO DO    log this to Notes ToDo_log when it's done and tested
 
-0 moving blink and photostim triggers to a separate thread as mainwindow is slow..
+0 moving blink and photostim triggers to a separate thread as mainwindow is slow -- done, eveyrthing became super slow with the photostim thread!!
 
 1. temporally save a sequence of phase masks in holoblink, display on slm on command
 
@@ -291,7 +291,7 @@ class DataStream(QObject):
 				p['FLAG_END_LOADING'] = True
 				self.stream_finished_signal.emit()
 
-#%% offline, read frames from tiff
+#% offline, read frames from tiff
 		elif p['FLAG_OFFLINE']:
 			# load movie
 			if p['moviePath'] != 'U:/simulate_movie/20170823.tif':
@@ -351,37 +351,66 @@ class imageSaver(QObject):
 		print('Total number of frames saved '+str(self.frameSaved))
 		self.finished_signal.emit()
 
-
+#%% photostim thread
 class Photostimer(QObject):
 	# send coordinates to blink and trigger photostimulation
 	status_signal            = pyqtSignal(str,name ='statusSignal')
 	finished_signal          = pyqtSignal()
-	totalNumPhotostim_signal = pyqtSignal(str,name = 'totalNumPhotostimSignal')
+	totalNumPhotostim_signal = pyqtSignal(int,name = 'totalNumPhotostimSignal')
 
 	def __init__(self, **kwargs ):
 		super(Photostimer,self).__init__()
 		self.pl = kwargs.get('prairie',[])
 		self.bl = kwargs.get('blink',[])
 		self.niPhotostimFullWriter =  kwargs.get('niPhotostimFullWriter',[])
+		self.niPhotoStimFullTask =  kwargs.get('niPhotoStimFullTask',[])
 		self.NumStimSent = 0
 		self.NI_2D_ARRAY = p['NI_2D_ARRAY']
 		self.NI_UNIT_POWER_ARRAY = p['NI_UNIT_POWER_ARRAY']
 		self.photoPowerPerCell = p['photoPowerPerCell']
-	
+		self.power_polyfit_p = p['power_polyfit_p']
+		p['FLAG_SKIP_FRAMES'] = False
+		duration = [];
+		duration.append(p['photoDuration'])
+		if self.bl.send_duration(duration):
+			print('duration setting error')
+
 	def photostim(self):
-		max_wait = 10
-		while p['FLAG_PHOTOSTIM_ENABLED'] and (not qtarget.empty()):
-			[thisX,thisY] = qtarget.get(timeout = max_wait)
-			print('this coords:')
-			print(thisX)
-			print(thisY)
-			qtarget.task_done()
-			print('photostimer got target coordinates')
-			self.sendTargetCoords(thisX,thisY)
-			self.sendPhotoStimTrigger(len(thisX))
-			print('photostim sent')
-			self.NumStimSent +=1
-			self.totalNumPhotostim_signal.emit(self.NumStimSent)
+		print('this is photostimer!')
+		try:
+			if (not qtarget.empty()):
+				[thisX,thisY] = qtarget.get(timeout = 10)
+				print('photostimer got target coordinates')
+				self.sendCoordsAndTriggerStim(thisX,thisY)
+				print('photostim sent')
+				self.NumStimSent +=1
+				self.totalNumPhotostim_signal.emit(self.NumStimSent)
+				qtarget.task_done()
+		except Exception as e:
+			print('photostim error')
+			print(e)
+
+	def sendCoordsAndTriggerStim(self,thisX,thisY):
+		p['FLAG_SKIP_FRAMES'] = True
+		self.NI_2D_ARRAY[1,:] = self.NI_UNIT_POWER_ARRAY *np.polyval(self.power_polyfit_p,self.photoPowerPerCell*len(thisX))
+		this_volt = np.polyval(self.power_polyfit_p,self.photoPowerPerCell*len(thisX))
+		print('sending coords')
+			# scale targets coordinates (to refZoom with which the SLM transform matrix was computed);
+		currentTargetX = [int((item-255.0)*p['targetScaleFactor']+255.0) for item in thisX]
+		currentTargetY = [int((item-255.0)*p['targetScaleFactor']+255.0) for item in thisY]
+		if not self.bl.send_coords_power(currentTargetX, currentTargetY,this_volt):
+			print('Phase mask updated')
+			self.niPhotostimFullWriter.write_many_sample(self.NI_2D_ARRAY,10.0)
+			while(not self.niPhotoStimFullTask.is_task_done()):
+				pass
+			print('photostim trigger sent')
+			self.niPhotoStimFullTask.stop()
+			self.niPhotostimFullWriter = stream_writers.AnalogMultiChannelWriter(self.niPhotoStimFullTask.out_stream,auto_start = True)
+		else:
+			print('Update phase mask ERROR!')
+			p['FLAG_BLINK_CONNECTED'] = False
+		p['FLAG_SKIP_FRAMES'] = False
+
 
 	def sendTargetCoords(self,thisX,thisY):
 		print('sending coords')
@@ -406,9 +435,9 @@ class Photostimer(QObject):
 			self.niPhotostimFullWriter.write_many_sample(self.NI_2D_ARRAY,10.0)
 			while(not self.niPhotoStimFullTask.is_task_done()):
 				pass
+			print('photostim trigger sent')
 			self.niPhotoStimFullTask.stop()
 			self.niPhotostimFullWriter = stream_writers.AnalogMultiChannelWriter(self.niPhotoStimFullTask.out_stream,auto_start = True)
-			print('photostim trigger sent')
 		except Exception as e:
 			print('send photostim trigger error')
 			print(e)
@@ -417,7 +446,7 @@ class Photostimer(QObject):
 		self.NI_2D_ARRAY = p['NI_2D_ARRAY']
 		self.NI_UNIT_POWER_ARRAY = p['NI_UNIT_POWER_ARRAY']
 		self.photoPowerPerCell = p['photoPowerPerCell']
-		
+
 #%% process thread
 class Worker(QObject):
 	# setup signals
@@ -435,6 +464,7 @@ class Worker(QObject):
 	getROImask_signal        = pyqtSignal(object, object,name = 'getROImaskSignal')
 	transDataToMain_signal   = pyqtSignal(object,object,object,object,object,object,object,name = 'transDataToMain')
 	updateTargetROIs_signal  = pyqtSignal()
+	triggerPhotostimer_signal= pyqtSignal()
 	finished_signal          = pyqtSignal()
 
 
@@ -703,10 +733,10 @@ class Worker(QObject):
 
 		# keep processing frames in qbuffer
 		while ((not p['FLAG_END_LOADING']) or (not qbuffer.empty())) and not STOP_JOB_FLAG:
-			app.processEvents(QEventLoop.ExcludeUserInputEvents)
+#			app.processEvents(QEventLoop.ExcludeUserInputEvents)
 
 			# skip frames contaminated by photostim
-			if frames_post_photostim>0 and frames_post_photostim<photo_duration:
+			if p['FLAG_SKIP_FRAMES'] or (frames_post_photostim>0 and frames_post_photostim<photo_duration):
 				frames_post_photostim+=1
 				qbuffer.get(timeout = max_wait)
 				qbuffer.task_done()
@@ -829,7 +859,10 @@ class Worker(QObject):
 											current_target_idx.append(cnm2.N)
 											num_stim_targets = len(p['currentTargetX'])
 											self.niTimingWriter.write_many_sample( p['NI_1D_ARRAY'],10.0)
-											self.sendCoords_signal.emit()
+#											self.sendCoords_signal.emit()
+											qtarget.put([p['currentTargetX'],p['currentTargetY']])
+											self.triggerPhotostimer_signal.emit()
+											frames_post_photostim = 1
 											self.updateTargetROIs_signal.emit()
 											FLAG_SEND_COORDS = False
 
@@ -926,7 +959,8 @@ class Worker(QObject):
 
 
 					elif p['photoProtoInx'] == CONSTANTS.PHOTO_FIX_FRAMES and framesProc == photo_stim_frames[num_photostim] and num_photostim < tot_num_photostim:
-						FLAG_TRIG_PHOTOSTIM = True
+						pass
+#						FLAG_TRIG_PHOTOSTIM = True # FOR TEST ONLY!!!!!!!
 
 					elif p['photoProtoInx'] == CONSTANTS.PHOTO_ABOVE_THRESH: # TODO: test the check for opsin
 						photostim_flag = self.RoiBuffer[:com_count, BufferPointer]-self.ROIlist_threshold[:com_count]
@@ -1381,7 +1415,9 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		p['currentTargetY'] = []
 		p['FLAG_AUTO_ADD_TARGETS'] = False
 		p['FLAG_BLINK_CONNECTED'] = False
+		p['FLAG_PHOTOSTIM_ENABLED'] = False
 		p['targetScaleFactor']  = 1 # currentZoom/refZoom
+		p['FLAG_SKIP_FRAMES'] = False
 
 		# reject list
 		p['rejectedX'] = []
@@ -1417,7 +1453,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		# configuration in GUI
 		self.trial_config = {}
 
-
 		# photostim power control
 		try:
 			p['power_polyfit_p'] = get_power_params()
@@ -1433,10 +1468,9 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		self.niPhotoStimWriter = None
 		self.niPhotostimFullWriter = None
 
-
 		# daq config
-		NI_SAMPLE_RATE = 20000
-		NI_TTL_NUM_SAMPLES = int(0.01*NI_SAMPLE_RATE)
+		NI_SAMPLE_RATE = 10000
+		NI_TTL_NUM_SAMPLES = int(0.01*NI_SAMPLE_RATE) #10 ms
 		NI_STIM_NUM_SAMPLES = int(p['photoDuration']*0.001*NI_SAMPLE_RATE)
 		p['NI_SAMPLE_RATE'] = NI_SAMPLE_RATE
 		p['NI_TTL_NUM_SAMPLES'] = NI_TTL_NUM_SAMPLES
@@ -1528,6 +1562,11 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 	def tempTest(self):
 		print('test button clicked')
+		try:
+			self.bl.send_coords_power(p['currentTargetX'],p['currentTargetY'],.3)
+		except Exception as e:
+			print(e)
+
 
 	def setConnects(self):
 		# load and save
@@ -1556,9 +1595,9 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 		# start worker
 		self.run_pushButton.clicked.connect(self.clickRun)
-		
+
 		# start photostimer
-		self.EnablePhotostim_checkBox.clicked.connect(self.enablePhotostim)
+		self.EnablePhotostim_checkBox.stateChanged.connect(self.enablePhotostim)
 		self.updatePhotostimParameters_pushButton.clicked.connect(self.updatePhotostimParameters)
 
 		# display
@@ -1742,13 +1781,11 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		else:
 			p['currentMoviePath'] = os.path.splitext(p['moviePath'])[0]+ '_rtaoi_DS_' + str(self.ds_factor) +'.tif'
 
-
 		if self.IsOffline or self.FLAG_PV_CONNECTED: # p['UseONACID'] or self.FLAG_PV_CONNECTED
 			try: self.resetFigure()
 			except: pass
 
 			self.c['keep_prev'] = False # default
-
 			if self.c['cnm2'].t > self.c['cnm2'].initbatch: # self.cnm2:
 				msg = QMessageBox()
 				msg.setText("Run again?")
@@ -1834,6 +1871,13 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.workerObject.getROImask_signal.connect(self.getROImask)
 			self.workerObject.updateTargetROIs_signal.connect(self.updateTargetROIs)
 
+			# emit signal to photostim thread
+			try:
+				self.workerObject.triggerPhotostimer_signal.connect(self.photostimObject.photostim)
+			except Exception as e:
+				print(e)
+				return
+
 			# start and finish
 			self.workerObject.transDataToMain_signal.connect(self.transDataToMain)
 			self.workerThread.started.connect(self.workerObject.work)
@@ -1868,6 +1912,57 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.updateStatusBar('No initialisation provided or PV not connected')
 			return
 
+
+	def enablePhotostim(self):
+		def resetPhotostimObject():
+			self.photostimObject = None
+		# setup photostim object if not present
+		if not p['FLAG_BLINK_CONNECTED']:
+			print('Check blink connection!')
+			self.EnablePhotostim_checkBox.setChecked(False)
+			return
+
+		p['FLAG_PHOTOSTIM_ENABLED'] = self.EnablePhotostim_checkBox.isChecked()
+		if p['FLAG_PHOTOSTIM_ENABLED']:
+			try:
+				# setup photostim object if not present
+				if not qtarget.empty():
+					with qtarget.mutex:
+						qtarget.queue.clear()
+					print('qtarget cleared!')
+
+				print('setting up photostim object...')
+				kwargs = {"blink": self.bl,"prairie": self.pl,"niPhotostimFullWriter":self.niPhotostimFullWriter,"niPhotoStimFullTask":self.niPhotoStimFullTask}
+				self.photostimObject = Photostimer(**kwargs)
+				self.photostimObject.moveToThread(self.photostimThread)
+				print('photostim object created')
+
+				self.photostimObject.status_signal.connect(self.updateStatusBar)
+				self.photostimObject.totalNumPhotostim_signal.connect(self.updateNumPhotostimLabel)
+				self.photostimObject.finished_signal.connect(self.photostimObject.deleteLater)  # delete qt (C++) instance later
+				self.photostimObject.finished_signal.connect(resetPhotostimObject) # remove python reference to photostimObject
+				self.photostimObject.finished_signal.connect(self.photostimThread.exit)
+				self.photostimThread.start()
+				self.updateStatusBar('Photostimer started')
+
+			except Exception as e:
+				print('Error initialising photostimer:')
+				print(e)
+				self.EnablePhotostim_checkBox.setChecked(False)
+				p['FLAG_PHOTOSTIM_ENABLED'] = False
+		else:
+			# stop and clean up photostimer thread
+			try:
+				if self.photostimObject:
+					self.photostimThread.wait(1)
+					self.photostimThread.quit()
+					self.photostimThread.wait() # ensures worker finished before next run can be started
+					print('photostim thread stopped')
+			except Exception as e:
+				print('photostim thread stop error:')
+				print(e)
+
+
 	def stop_thread(self):  # TODO: aborting t-series correct? when aborted, no return from prairie so disabled waiting
 		p['FLAG_END_LOADING'] = True
 #        self.stop_pushButton.clicked.disconnect(self.stop_thread)
@@ -1897,7 +1992,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		print('stop button disconnected')
 
 	def enableStimTrigger(self):
-		p['FLAG_STIM_TRIG_ENABLED'] = self.enableStimTrigger_checkBox.isChecked
+		p['FLAG_STIM_TRIG_ENABLED'] = self.enableStimTrigger_checkBox.isChecked()
 
 	def updatePhotostimParameters(self):
 		if self.photostimObject:
@@ -1905,51 +2000,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			print('updated parameters in photostimer')
 		else:
 			print('did not find photostim object')
-
-	def enablePhotostim(self):
-		def resetPhotostimObject():
-			self.photostimObject = None
-		# setup photostim object if not present
-		p['FLAG_PHOTOSTIM_ENABLED'] = self.EnablePhotostim_checkBox.isChecked
-		if p['FLAG_PHOTOSTIM_ENABLED']:
-			try:
-				# setup photostim object if not present
-				if not qtarget.empty():
-					with qtarget.mutex:
-						qtarget.queue.clear()
-					print('qtarget cleared!')
-
-				print('setting up photostim object...')
-				kwargs = {"blink": self.bl,"prairie": self.pl,"niPhotostimFullWriter":self.niPhotostimFullWriter}
-				self.photostimObject = Photostimer(**kwargs)
-				self.photostimObject.moveToThread(self.photostimThread)
-				print('photostim object created')
-
-				self.photostimObject.status_signal.connect(self.updateStatusBar)
-				self.photostimObject.totalNumPhotostim_signal.connect(self.updateNumPhotostimLabel)
-				self.photostimObject.finished_signal.connect(self.photostimObject.deleteLater)  # delete qt (C++) instance later
-				self.photostimObject.finished_signal.connect(resetPhotostimObject) # remove python reference to photostimObject
-				self.photostimObject.finished_signal.connect(self.photostimThread.exit)
-				self.photostimThread.start()
-				self.updateStatusBar('Photostimer started')
-
-			except Exception as e:
-				print('Error initialising photostimer:')
-				print(e)
-
-		else:
-			# stop and clean up photostimer thread
-			try:
-				if self.photostimObject:
-					self.photostimObject.stop()
-					self.photostimThread.wait(1)
-					self.photostimThread.quit()
-					self.photostimThread.wait() # ensures worker finished before next run can be started
-					print('photostim thread stopped')
-			except Exception as e:
-				print('photostim thread stop error:')
-				print(e)
-
 #%% mouse events:
 	def enterEvent(self,event):
 		self.graphicsView.setCursor(Qt.CrossCursor)
@@ -2143,7 +2193,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 	def autoAddClicked(self):
 		p['FLAG_AUTO_ADD_TARGETS'] = self.addNewROIsToTarget_checkBox.isChecked()
 		print('FLAG_AUTO_ADD_TARGETS = '+str(p['FLAG_AUTO_ADD_TARGETS']))
-		
+
 	def removeCells(self, CNN=False, save_init=True):
 		if self.rejectIdx:
 			rejected = True
@@ -2333,6 +2383,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.rejectIdx = []
 			p['rejectedX'] = []
 			p['rejectedY'] = []
+
+			p['FLAG_SKIP_FRAMES'] = False
 #            self.calcium_img_path = ''
 #            self.calciumMaskOn = False
 #            self.calcium_img = np.array([])
@@ -2473,7 +2525,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			item.setEnabled(True)
 
 		print('Remove mode off')
-		
+
 #%% Rejection mask
 	def loadCalciumImg(self):
 		calcium_img_path = str(QFileDialog.getOpenFileName(self, 'Load an avg calcium image', self.movie_folder, 'MPTIFF (*.tif)')[0])
@@ -3781,7 +3833,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		# import pdb
 		# pdb.set_trace()
 		self.updateImage(img)
-		
+
 	def refreshPlot(self, arr):
 		self.plotItem.clear()
 		for i in range(self.thisROIIdx):
@@ -3812,7 +3864,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 	def updateFrameInfo(self,FrameIdx):
 		self.CurrentFrameIdx_label.setText(str(FrameIdx))
-	
+
 	def updateNumPhotostimLabel(self, totalNumFrames):
 		self.totalNumPhotostim_label.setText(str(totalNumFrames))
 
