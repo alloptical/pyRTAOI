@@ -12,11 +12,9 @@ CAREFUL WHEN USING 'REPLACE ALL' - IT WILL QUIT, WITHOUT SAVING!!
 
 TO DO    log this to Notes ToDo_log when it's done and tested
 
-0 moving blink and photostim triggers to a separate thread as mainwindow is slow -- done, eveyrthing became super slow with the photostim thread!!
+0 test timing on rig
 
 1. temporally save a sequence of phase masks in holoblink, display on slm on command
-
-
 
 1. log data for offline anaysis - keep checking if everything is saved out
 7. photostim protocol - done, need to test on rig
@@ -360,29 +358,22 @@ class Photostimer(QObject):
 
 	def __init__(self, **kwargs ):
 		super(Photostimer,self).__init__()
-		self.pl = kwargs.get('prairie',[])
 		self.bl = kwargs.get('blink',[])
-		self.niPhotostimFullWriter =  kwargs.get('niPhotostimFullWriter',[])
-		self.niPhotoStimFullTask =  kwargs.get('niPhotoStimFullTask',[])
 		self.NumStimSent = 0
-		self.NI_2D_ARRAY = p['NI_2D_ARRAY']
-		self.NI_UNIT_POWER_ARRAY = p['NI_UNIT_POWER_ARRAY']
 		self.photoPowerPerCell = p['photoPowerPerCell']
 		self.power_polyfit_p = p['power_polyfit_p']
 		p['FLAG_SKIP_FRAMES'] = False
-		duration = [];
-		duration.append(p['photoDuration'])
-		if self.bl.send_duration(duration):
+
+		if self.bl.send_duration(p['photoDuration']):
 			print('duration setting error')
 
-	def photostim(self):
+	def photostimNewTargets(self):
 		print('this is photostimer!')
 		try:
 			if (not qtarget.empty()):
 				[thisX,thisY] = qtarget.get(timeout = 10)
-				print('photostimer got target coordinates')
 				self.sendCoordsAndTriggerStim(thisX,thisY)
-				print('photostim sent')
+				print('coords and stim sent')
 				self.NumStimSent +=1
 				self.totalNumPhotostim_signal.emit(self.NumStimSent)
 				qtarget.task_done()
@@ -390,62 +381,59 @@ class Photostimer(QObject):
 			print('photostim error')
 			print(e)
 
-	def sendCoordsAndTriggerStim(self,thisX,thisY):
+	def photostimCurrentTargets(self,num_stim_targets):
+		ERROR = False
 		p['FLAG_SKIP_FRAMES'] = True
-		self.NI_2D_ARRAY[1,:] = self.NI_UNIT_POWER_ARRAY *np.polyval(self.power_polyfit_p,self.photoPowerPerCell*len(thisX))
+		this_volt = np.polyval(self.power_polyfit_p,self.photoPowerPerCell*num_stim_targets)
+		if not self.bl.send_trigger_power(this_volt):
+			print('photostim sent from blink')
+		else:
+			print('photostimCurrentTargets: msg to blink ERROR!')
+			ERROR = True
+		p['FLAG_SKIP_FRAMES'] = False
+		return ERROR
+
+	def updateNewTargets(self):
+		ERROR = False
+		if (not qtarget.empty()):
+			[thisX,thisY] = qtarget.get(timeout = 10)
+			ERROR = self.sendCoordsAndTriggerStim(thisX,thisY,IF_PHOTOSTIM = False)
+			qtarget.task_done()
+			self.status_signal.emit('updated phasemask')
+			return ERROR
+		else:
+			return ERROR
+
+	def sendCoordsAndTriggerStim(self,thisX,thisY,IF_PHOTOSTIM = False):
+		ERROR = False
+		p['FLAG_SKIP_FRAMES'] = True
 		this_volt = np.polyval(self.power_polyfit_p,self.photoPowerPerCell*len(thisX))
 		print('sending coords')
 			# scale targets coordinates (to refZoom with which the SLM transform matrix was computed);
 		currentTargetX = [int((item-255.0)*p['targetScaleFactor']+255.0) for item in thisX]
 		currentTargetY = [int((item-255.0)*p['targetScaleFactor']+255.0) for item in thisY]
-		if not self.bl.send_coords_power(currentTargetX, currentTargetY,this_volt):
-			print('Phase mask updated')
-			self.niPhotostimFullWriter.write_many_sample(self.NI_2D_ARRAY,10.0)
-			while(not self.niPhotoStimFullTask.is_task_done()):
-				pass
-			print('photostim trigger sent')
-			self.niPhotoStimFullTask.stop()
-			self.niPhotostimFullWriter = stream_writers.AnalogMultiChannelWriter(self.niPhotoStimFullTask.out_stream,auto_start = True)
+
+		if IF_PHOTOSTIM:
+			if self.bl.send_coords_power(currentTargetX, currentTargetY,this_volt):
+				print('sendCoordsAndTriggerStim: msg to blink ERROR!')
+				ERROR = True
 		else:
-			print('Update phase mask ERROR!')
-			p['FLAG_BLINK_CONNECTED'] = False
+			if self.bl.send_coords(currentTargetX, currentTargetY):
+				print('sendCoordsAndTriggerStim: msg to blink ERROR!')
+				ERROR = True
 		p['FLAG_SKIP_FRAMES'] = False
+		return ERROR
 
-
-	def sendTargetCoords(self,thisX,thisY):
-		print('sending coords')
-		if p['FLAG_BLINK_CONNECTED']:
-			# scale targets coordinates (to refZoom with which the SLM transform matrix was computed);
-			# currentTargetXY should be coordinates in 512x512 frames
-			currentTargetX = [int((item-255.0)*p['targetScaleFactor']+255.0) for item in thisX]
-			currentTargetY = [int((item-255.0)*p['targetScaleFactor']+255.0) for item in thisY]
-			if(self.bl.CONNECTED):
-				if not self.bl.send_coords(currentTargetX, currentTargetY):
-					print('Phase mask updated')
-				else:
-					print('Update phase mask ERROR!')
-					p['FLAG_BLINK_CONNECTED'] = False
-			else:
-				self.status_signal.emit('Send coords faild, check blink connection')
-				p['FLAG_BLINK_CONNECTED'] = False
-
-	def sendPhotoStimTrigger(self, num_stim_targets):
-		self.NI_2D_ARRAY[1,:] = self.NI_UNIT_POWER_ARRAY *np.polyval(self.power_polyfit_p,self.photoPowerPerCell*num_stim_targets)
-		try:
-			self.niPhotostimFullWriter.write_many_sample(self.NI_2D_ARRAY,10.0)
-			while(not self.niPhotoStimFullTask.is_task_done()):
-				pass
-			print('photostim trigger sent')
-			self.niPhotoStimFullTask.stop()
-			self.niPhotostimFullWriter = stream_writers.AnalogMultiChannelWriter(self.niPhotoStimFullTask.out_stream,auto_start = True)
-		except Exception as e:
-			print('send photostim trigger error')
-			print(e)
 
 	def updatePhotostimParameters(self):
-		self.NI_2D_ARRAY = p['NI_2D_ARRAY']
-		self.NI_UNIT_POWER_ARRAY = p['NI_UNIT_POWER_ARRAY']
+		ERROR = False
 		self.photoPowerPerCell = p['photoPowerPerCell']
+		if self.bl.send_duration(p['photoDuration']):
+			print('duration setting error')
+			ERROR = True
+		else:
+			print('photostim parameters updated')
+		return ERROR
 
 #%% process thread
 class Worker(QObject):
@@ -464,7 +452,9 @@ class Worker(QObject):
 	getROImask_signal        = pyqtSignal(object, object,name = 'getROImaskSignal')
 	transDataToMain_signal   = pyqtSignal(object,object,object,object,object,object,object,name = 'transDataToMain')
 	updateTargetROIs_signal  = pyqtSignal()
-	triggerPhotostimer_signal= pyqtSignal()
+	photostimNewTargets_signal = pyqtSignal()
+	updateNewTargets_signal  = pyqtSignal()
+	photostimCurrentTargets_signal = pyqtSignal(int)
 	finished_signal          = pyqtSignal()
 
 
@@ -643,7 +633,6 @@ class Worker(QObject):
 			expect_components = True
 			com_count = len(accepted) #self.c['cnm2'].N
 			init_t = cnm2.initbatch
-#            com_count = self.com_count
 			K_init = self.c['K_init']
 
 
@@ -733,7 +722,7 @@ class Worker(QObject):
 
 		# keep processing frames in qbuffer
 		while ((not p['FLAG_END_LOADING']) or (not qbuffer.empty())) and not STOP_JOB_FLAG:
-#			app.processEvents(QEventLoop.ExcludeUserInputEvents)
+			app.processEvents(QEventLoop.ExcludeUserInputEvents)
 
 			# skip frames contaminated by photostim
 			if p['FLAG_SKIP_FRAMES'] or (frames_post_photostim>0 and frames_post_photostim<photo_duration):
@@ -747,6 +736,7 @@ class Worker(QObject):
 
 			elif frames_post_photostim == photo_duration:
 				frames_post_photostim = 0
+
 			# get data from queue
 			framesCaiman+=1
 			try:
@@ -858,16 +848,24 @@ class Worker(QObject):
 											p['currentTargetY'].append(y*ds_factor)
 											current_target_idx.append(cnm2.N)
 											num_stim_targets = len(p['currentTargetX'])
+
+											if p['FLAG_PHOTOSTIM_OUTSOURCED']
+												qtarget.put([p['currentTargetX'].copy(),p['currentTargetY'].copy()])
+												self.updateNewTargets_signal.emit()
+											else:
+												self.sendCoords_signal.emit()
+
+											# ---  test timing --- DELETE THIS LATER
 											self.niTimingWriter.write_many_sample( p['NI_1D_ARRAY'],10.0)
-#											self.sendCoords_signal.emit()
-											qtarget.put([p['currentTargetX'],p['currentTargetY']])
-											self.triggerPhotostimer_signal.emit()
-											frames_post_photostim = 1
+											self.photostimNewTargets_signal.emit()
+											# --- end test timing ---
+
 											self.updateTargetROIs_signal.emit()
 											FLAG_SEND_COORDS = False
 
 									self.getROImask_signal.emit(x,y) # add roi coords to list in main
 									print('add new component time:' + str("%.4f"%(time.time()-update_comp_time)))
+
 								except Exception as e:
 									print(e)
 
@@ -884,7 +882,7 @@ class Worker(QObject):
 
 								rejected_count += 1
 
-					# add data to buffer - NOT NECESSARY NOW
+					# add data to buffer 
 					try:
 						self.RoiBuffer[:com_count, BufferPointer] = cnm2.C_on[accepted, t_cnm]
 #						self.ROIlist_threshold[:com_count] = np.nanmean(self.RoiBuffer[:com_count,:], axis=1) + 2*np.nanstd(self.RoiBuffer[:com_count,:], axis=1)  # changed 3 to 2
@@ -916,13 +914,16 @@ class Worker(QObject):
 							# update phase mask
 							current_target_idx = np.unique(current_target_idx)
 							current_target_idx = current_target_idx.astype(int)
-							p['currentTargetX'] = list(ROIx[current_target_idx])  # TODO: not storing new ROI coords! change!!
+							p['currentTargetX'] = list(ROIx[current_target_idx])  
 							p['currentTargetY'] = list(ROIy[current_target_idx])
 
-							print('currentTargetX:')
-							print(p['currentTargetX'])
 
-							self.sendCoords_signal.emit()
+							if p['FLAG_PHOTOSTIM_OUTSOURCED']
+								qtarget.put([p['currentTargetX'].copy(),p['currentTargetY'].copy()])
+								self.updateNewTargets_signal.emit()
+							else:
+								self.sendCoords_signal.emit()
+
 							self.updateTargetROIs_signal.emit()
 							num_stim_targets = len(current_target_idx)
 
@@ -949,7 +950,7 @@ class Worker(QObject):
 							if framesProc == (photo_stim_frames[photostim_train_count-1] + self.replay_frames[replay_count]):
 								replay_count+=1
 								current_target_idx = self.replay_idx[replay_count].astype(int)
-								p['currentTargetX'] = list(ROIx[current_target_idx])  # TODO: not storing new ROI coords! change!!
+								p['currentTargetX'] = list(ROIx[current_target_idx])  
 								p['currentTargetY'] = list(ROIy[current_target_idx])
 								num_stim_targets = len(current_target_idx)
 								if (num_stim_targets>0):
@@ -959,8 +960,7 @@ class Worker(QObject):
 
 
 					elif p['photoProtoInx'] == CONSTANTS.PHOTO_FIX_FRAMES and framesProc == photo_stim_frames[num_photostim] and num_photostim < tot_num_photostim:
-						pass
-#						FLAG_TRIG_PHOTOSTIM = True # FOR TEST ONLY!!!!!!!
+						FLAG_TRIG_PHOTOSTIM = True 
 
 					elif p['photoProtoInx'] == CONSTANTS.PHOTO_ABOVE_THRESH: # TODO: test the check for opsin
 						photostim_flag = self.RoiBuffer[:com_count, BufferPointer]-self.ROIlist_threshold[:com_count]
@@ -979,7 +979,7 @@ class Worker(QObject):
 							print('photostim trigger true, current target idx')
 							print(current_target_idx)
 							if not np.array_equal(last_target_idx,current_target_idx):
-								p['currentTargetX'] = list(ROIx[current_target_idx])  # TODO: not storing new ROI coords! change!!
+								p['currentTargetX'] = list(ROIx[current_target_idx])  
 								p['currentTargetY'] = list(ROIy[current_target_idx])
 								FLAG_SEND_COORDS = True
 
@@ -998,7 +998,7 @@ class Worker(QObject):
 						if (num_stim_targets>0):
 							FLAG_TRIG_PHOTOSTIM = True
 							if not np.array_equal(last_target_idx,current_target_idx):
-								p['currentTargetX'] = list(ROIx[current_target_idx])  # TODO: not storing new ROI coords! change!!
+								p['currentTargetX'] = list(ROIx[current_target_idx])
 								p['currentTargetY'] = list(ROIy[current_target_idx])
 								FLAG_SEND_COORDS = True
 
@@ -1007,28 +1007,32 @@ class Worker(QObject):
 
 					# send out photostim triggers
 					if FLAG_TRIG_PHOTOSTIM:
-						# update phase mask
-						if FLAG_SEND_COORDS:
-							self.sendCoords_signal.emit()
-							# 20180930 - using global queue
-							qtarget.put([p['currentTargetX'].copy(),p['currentTargetY'].copy()])
+						if p['FLAG_PHOTOSTIM_OUTSOURCED']: # send trigger from photostimer
+							if FLAG_SEND_COORDS:
+								qtarget.put([p['currentTargetX'].copy(),p['currentTargetY'].copy()])
+								self.photostimNewTargets_signal.emit()
+							else:
+								self.photostimCurrentTargets_signal.emit(num_stim_targets)
 
-						# trigger spiral
-						print('sending photostim trigger')
-						p['NI_2D_ARRAY'][1,:] = NI_UNIT_POWER_ARRAY *np.polyval(power_polyfit_p,photoPowerPerCell*num_stim_targets)
-						self.sendPhotoStimTrig_signal.emit()
+						else: 
+							# update phase mask
+							if FLAG_SEND_COORDS:
+								self.sendCoords_signal.emit()
+							# trigger spiral
+							print('sending photostim trigger')
+							p['NI_2D_ARRAY'][1,:] = NI_UNIT_POWER_ARRAY *np.polyval(power_polyfit_p,photoPowerPerCell*num_stim_targets)
+							self.sendPhotoStimTrig_signal.emit()
+
 						FLAG_TRIG_PHOTOSTIM = False
+						if FLAG_SEND_COORDS:
+							self.updateTargetROIs_signal.emit() # update display
+							FLAG_SEND_COORDS = False
 
 						# take notes
 						online_photo_frames.append(framesProc)
 						online_photo_targets.append(current_target_idx[:])
 						online_photo_x.append(p['currentTargetX'][:])
 						online_photo_y.append(p['currentTargetY'][:])
-
-						# update display
-						if FLAG_SEND_COORDS:
-							self.updateTargetROIs_signal.emit()
-							FLAG_SEND_COORDS = False
 						num_photostim +=1
 						frames_post_photostim = 1
 						photo_stim_frames_caiman.append(framesCaiman)
@@ -1043,7 +1047,7 @@ class Worker(QObject):
 							current_target_idx = [] # reset target
 							current_target_frame = []
 
-					# Update display
+					# Update GUI display
 					if framesProc > refreshFrame-1: #frame_count>self.BufferLength-1:
 						if LastPlot == refreshFrame:
 							if p['plotOn']:
@@ -1415,7 +1419,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		p['currentTargetY'] = []
 		p['FLAG_AUTO_ADD_TARGETS'] = False
 		p['FLAG_BLINK_CONNECTED'] = False
-		p['FLAG_PHOTOSTIM_ENABLED'] = False
+		p['FLAG_PHOTOSTIM_OUTSOURCED'] = False
 		p['targetScaleFactor']  = 1 # currentZoom/refZoom
 		p['FLAG_SKIP_FRAMES'] = False
 
@@ -1597,7 +1601,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		self.run_pushButton.clicked.connect(self.clickRun)
 
 		# start photostimer
-		self.EnablePhotostim_checkBox.stateChanged.connect(self.enablePhotostim)
+		self.stimFromBlink_checkBox.stateChanged.connect(self.outsourcePhotostim)
 		self.updatePhotostimParameters_pushButton.clicked.connect(self.updatePhotostimParameters)
 
 		# display
@@ -1871,9 +1875,11 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.workerObject.getROImask_signal.connect(self.getROImask)
 			self.workerObject.updateTargetROIs_signal.connect(self.updateTargetROIs)
 
-			# emit signal to photostim thread
+			# signaling to photostim thread
 			try:
-				self.workerObject.triggerPhotostimer_signal.connect(self.photostimObject.photostim)
+				self.workerObject.photostimNewTargets_signal.connect(self.photostimObject.photostimNewTargets) # update phase mask and send photostim from blink
+				self.workerObject.updateNewTargets_signal.connect(self.photostimObject.updateNewTargets) # update phase mask
+				self.workerObject.photostimCurrentTargets_signal.connect(self.photostimObject.photostimCurrentTargets_signal)  # photostim only
 			except Exception as e:
 				print(e)
 				return
@@ -1913,17 +1919,17 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			return
 
 
-	def enablePhotostim(self):
+	def outsourcePhotostim(self):
 		def resetPhotostimObject():
 			self.photostimObject = None
 		# setup photostim object if not present
 		if not p['FLAG_BLINK_CONNECTED']:
 			print('Check blink connection!')
-			self.EnablePhotostim_checkBox.setChecked(False)
+			self.stimFromBlink_checkBox.setChecked(False)
 			return
 
-		p['FLAG_PHOTOSTIM_ENABLED'] = self.EnablePhotostim_checkBox.isChecked()
-		if p['FLAG_PHOTOSTIM_ENABLED']:
+		p['FLAG_PHOTOSTIM_OUTSOURCED'] = self.stimFromBlink_checkBox.isChecked()
+		if p['FLAG_PHOTOSTIM_OUTSOURCED']:
 			try:
 				# setup photostim object if not present
 				if not qtarget.empty():
@@ -1948,8 +1954,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			except Exception as e:
 				print('Error initialising photostimer:')
 				print(e)
-				self.EnablePhotostim_checkBox.setChecked(False)
-				p['FLAG_PHOTOSTIM_ENABLED'] = False
+				self.stimFromBlink_checkBox.setChecked(False)
+				p['FLAG_PHOTOSTIM_OUTSOURCED'] = False
 		else:
 			# stop and clean up photostimer thread
 			try:
@@ -4109,28 +4115,37 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			num_stim_targets = len(xcoord_list[i])
 
 			send_start = time.time()
-			if p['FLAG_BLINK_CONNECTED']:
-				self.sendCoords()
-				print('coords sent')
-			else:
-				ERROR_FLAG = True
-			print('send coords time'+ str("%.4f"%(time.time()-send_start)))
-
-
-			if (not ERROR_FLAG) and self.POWER_CONTROL_READY:
-				print('total power:'+str(power_array[i]*num_stim_targets))
-				try:
-					if power_array[i]==0:
-						p['NI_2D_ARRAY'][1,:] = p['NI_UNIT_POWER_ARRAY']*0
-					else:
-						p['NI_2D_ARRAY'][1,:] = p['NI_UNIT_POWER_ARRAY']*np.polyval(p['power_polyfit_p'],power_array[i]*num_stim_targets)
-					self.sendPhotoStimTrigger()
-				except Exception as e:
-					print(e)
+			if not p['FLAG_PHOTOSTIM_OUTSOURCED']:
+				# send from mainwindow
+				if p['FLAG_BLINK_CONNECTED']:
+					self.sendCoords()
+					print('coords sent')
+				else:
 					ERROR_FLAG = True
-				print('stim trigger sent')
+				print('send coords time'+ str("%.4f"%(time.time()-send_start)))
+
+
+				if (not ERROR_FLAG) and self.POWER_CONTROL_READY:
+					print('total power:'+str(power_array[i]*num_stim_targets))
+					try:
+						if power_array[i]==0:
+							p['NI_2D_ARRAY'][1,:] = p['NI_UNIT_POWER_ARRAY']*0
+						else:
+							p['NI_2D_ARRAY'][1,:] = p['NI_UNIT_POWER_ARRAY']*np.polyval(p['power_polyfit_p'],power_array[i]*num_stim_targets)
+						self.sendPhotoStimTrigger()
+					except Exception as e:
+						print(e)
+						ERROR_FLAG = True
+					print('stim trigger sent')
+				else:
+					ERROR_FLAG = True
 			else:
-				ERROR_FLAG = True
+				# send from photostimer and blink
+				qtarget.put([p['currentTargetX'].copy(),p['currentTargetY'].copy()])
+				if power_array[i]==0:
+					ERROR_FLAG = self.photostimObject.updateNewTargets()
+				else:
+					ERROR_FLAG = self.photostimObject.photostimNewTargets()
 
 			if not ERROR_FLAG:
 				print('pattern'+str(i)+' stimulated')

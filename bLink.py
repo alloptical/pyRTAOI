@@ -38,14 +38,9 @@ class bLink(socket):
 		Xmsg = bytes(prefix+str(len(Xmsg)).zfill(4),'utf-8')+ Xmsg
 		return Xmsg
 
-# x y should change together - TO DO
 
 	def send_coords(self,xx,yy):
 		# send coordinates, and wait until blink updated
-		# send as two commands - this is stupid
-		# self.sendall(self.add_prefix("X",xx)+self.add_prefix("Y",yy))
-
-		# send as one, added 20180423
 		self.sendall(self.add_prefix("C", xx+yy))
 		while self.CONNECTED:
 			try:
@@ -63,7 +58,7 @@ class bLink(socket):
 
 	def send_duration(self,duration):
 		print('sending duration')
-		self.sendall(self.add_prefix("D", duration))
+		self.sendall(self.add_prefix("D", [duration]))
 		while self.CONNECTED:
 			try:
 				data = self._readline()
@@ -80,7 +75,25 @@ class bLink(socket):
 
 
 	def send_coords_power(self,xx,yy,volt):
+		# send coords and control voltage for aom; use this when holoblink is set to trigger photostim
 		self.sendall(self.add_prefix("P", xx+yy+[volt]))
+		while self.CONNECTED:
+			try:
+				data = self._readline()
+				if 'Done' in data: 
+					return False
+					break
+			except Exception as e:
+				print('receiving error: '+str(e))
+				self.CONNECTED = False
+				return True
+				break
+
+		return False
+
+	def send_trigger_power(self,volt):
+		print('sending trigger')
+		self.sendall(self.add_prefix("T", [volt]))
 		while self.CONNECTED:
 			try:
 				data = self._readline()
