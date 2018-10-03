@@ -367,6 +367,13 @@ class Photostimer(QObject):
 		if self.bl.send_duration(p['photoDuration']):
 			print('duration setting error')
 
+		# setup a trigger for measure timing
+#		self.niTimingTask = daqtask.Task() # TTL trigger for measure timing
+#		self.niTimingTask.ao_channels.add_ao_voltage_chan('Dev5/ao7','timing_trig')
+#		self.niTimingWriter= stream_writers.AnalogSingleChannelWriter(self.niTimingTask.out_stream,True)
+#		self.niTimingWriter.write_one_sample(0,10.0)
+#		print('timing trigger set')
+
 	def photostimNewTargets(self):
 		print('this is photostimer!')
 		try:
@@ -406,6 +413,7 @@ class Photostimer(QObject):
 
 	def sendCoordsAndTriggerStim(self,thisX,thisY,IF_PHOTOSTIM = False):
 		ERROR = False
+		t0 = time.time()
 		p['FLAG_SKIP_FRAMES'] = True
 		this_volt = np.polyval(self.power_polyfit_p,self.photoPowerPerCell*len(thisX))
 		print('sending coords')
@@ -421,6 +429,10 @@ class Photostimer(QObject):
 			if self.bl.send_coords(currentTargetX, currentTargetY):
 				print('sendCoordsAndTriggerStim: msg to blink ERROR!')
 				ERROR = True
+
+#		self.niTimingWriter.write_many_sample( p['NI_1D_ARRAY'],10.0) # timing test - this trigger didnt work,, dont know why
+		print('echo received')
+		print(time.time() - t0) # almost same delay as TimerWoeker to BlinkSpiral when no photostim sent - tcp is not the major delay?
 		p['FLAG_SKIP_FRAMES'] = False
 		return ERROR
 
@@ -851,14 +863,13 @@ class Worker(QObject):
 
 											if p['FLAG_PHOTOSTIM_OUTSOURCED']:
 												qtarget.put([p['currentTargetX'].copy(),p['currentTargetY'].copy()])
-												self.updateNewTargets_signal.emit()
+#												self.updateNewTargets_signal.emit()
+												# ---  test timing --- DELETE THIS LATER
+												self.niTimingWriter.write_many_sample( p['NI_1D_ARRAY'],10.0)
+												self.photostimNewTargets_signal.emit()
 											else:
 												self.sendCoords_signal.emit()
 
-#											# ---  test timing --- DELETE THIS LATER
-#											self.niTimingWriter.write_many_sample( p['NI_1D_ARRAY'],10.0)
-#											self.photostimNewTargets_signal.emit()
-#											# --- end test timing ---
 
 											self.updateTargetROIs_signal.emit()
 											FLAG_SEND_COORDS = False
@@ -1483,6 +1494,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		try:
 			self.daq_array = np.ones((NI_TTL_NUM_SAMPLES-1), dtype = np.float)*5 # to write to single output channel
 			self.daq_array = np.append(self.daq_array,0)
+			self.daq_1s_array = np.ones((int(NI_SAMPLE_RATE)-1), dtype = np.float)*5
+			self.daq_1s_array = np.append(self.daq_1s_array,0)
 			self.niStimTask = daqtask.Task()
 			self.niPhotoStimTask = daqtask.Task() #  TTL trigger only
 			self.niPhotoStimFullTask = daqtask.Task() # TTL trigger plus power control
@@ -2172,7 +2185,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 	def sendTTLTrigger(self):
 		if self.StimTask_READY:
-			self.niStimWriter.write_many_sample(self.daq_array,10.0)
+			self.niStimWriter.write_many_sample(self.daq_1s_array,10.0)
 		if self.FlAG_stimSOCK_READY:
 			self.stimSOCK.sendall(bytes(str(p['senStimType']),'utf-8'))
 		print('stim trigger sent')
