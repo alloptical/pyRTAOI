@@ -570,36 +570,37 @@ class Worker(QObject):
 		print(self.replay_frames)
 #%% process frame
 	def work(self):
-		# local counts and copy of params
-		sens_stim_idx = 0
-		LastPlot = 0
-		framesProc = self.framesProc # all online frames
-		frames_skipped = []
-		framesCaiman = 0 # frames count passed to caiman
-		photo_stim_frames_caiman = []
-		stim_frames_caiman = []
-		refreshFrame = p['refreshFrame']
-		num_photostim = 0
-		current_target_idx = []
-		current_target_frames = []
-		replay_count = 0
-		photostim_train_count = 0
-		num_stim_targets = len(p['currentTargetX'])
-		last_target_idx = []
-		FLAG_TRIG_PHOTOSTIM = False
-		FLAG_SEND_COORDS = False
-		frames_post_photostim = 0
-		photo_duration = self.photo_duration
-		monitor_frames = p['staPostFrame']
-		wait_frames = p['photoWaitFrames']
-		baseline_frames = p['staPretFrame']
-		tot_num_photostim = self.tot_num_photostim
-		tot_num_senstim = self.tot_num_senstim
-		print('frames with photostim = ' + str(photo_duration))
-		buflength = self.BufferLength
-
-		# local param
+		print('this is work')
 		try:
+			# local counts and copy of params
+			last_com_count = 0
+			sens_stim_idx = 0
+			LastPlot = 0
+			framesProc = self.framesProc # all online frames
+			frames_skipped = []
+			framesCaiman = 0 # frames count passed to caiman
+			photo_stim_frames_caiman = []
+			stim_frames_caiman = []
+			refreshFrame = p['refreshFrame']
+			num_photostim = 0
+			current_target_idx = []
+			current_target_frames = []
+			replay_count = 0
+			photostim_train_count = 0
+			num_stim_targets = len(p['currentTargetX'])
+			last_target_idx = []
+			FLAG_TRIG_PHOTOSTIM = False
+			FLAG_SEND_COORDS = False
+			frames_post_photostim = 0
+			photo_duration = self.photo_duration
+			monitor_frames = p['staPostFrame']
+			wait_frames = p['photoWaitFrames']
+			baseline_frames = p['staPreFrame']
+			tot_num_photostim = self.tot_num_photostim
+			tot_num_senstim = self.tot_num_senstim
+			print('frames with photostim = ' + str(photo_duration))
+			buflength = self.BufferLength
+
 			FLAG_USE_ONACID = self.UseONACID
 			FLAG_SAVE_TIFF = p['saveAsTiff']
 			BufferPointer = self.BufferPointer
@@ -613,8 +614,10 @@ class Worker(QObject):
 			online_photo_y = []
 			online_thresh = []
 			online_clamp_level = []
+			print('local params in work set')
 
 		except Exception as e:
+			print('local params setting error:')
 			print(e)
 
 		# get power control prameters if provided
@@ -623,6 +626,7 @@ class Worker(QObject):
 			photoPowerPerCell = p['photoPowerPerCell']
 			NI_UNIT_POWER_ARRAY = p['NI_UNIT_POWER_ARRAY']
 		except:
+			print('power setting error')
 			pass
 
 		if FLAG_USE_ONACID:
@@ -736,6 +740,7 @@ class Worker(QObject):
 		else:
 			max_wait = 10 # timeout
 
+		print('Woker entering loop..')
 		# keep processing frames in qbuffer
 		while ((not p['FLAG_END_LOADING']) or (not qbuffer.empty())) and not STOP_JOB_FLAG:
 			app.processEvents(QEventLoop.ExcludeUserInputEvents)
@@ -858,14 +863,14 @@ class Worker(QObject):
 	#                            print(time_()-tt)
 								# add new ROI to photostim target, if required
 								try:
-									if p['FLAG_BLINK_CONNECTED'] and p['FLAG_AUTO_ADD_TARGETS']:
+									if p['FLAG_BLINK_CONNECTED'] and p['addNewROIsToTarget']:
 										if opsin_positive:  # add target only if opsin present
 											p['currentTargetX'].append(x*ds_factor)
 											p['currentTargetY'].append(y*ds_factor)
 											current_target_idx.append(cnm2.N)
 											num_stim_targets = len(p['currentTargetX'])
 
-											if p['FLAG_PHOTOSTIM_OUTSOURCED']:
+											if p['stimFromBlink']:
 												qtarget.put([p['currentTargetX'].copy(),p['currentTargetY'].copy()])
 #												self.updateNewTargets_signal.emit()
 												# ---  test timing --- DELETE THIS LATER
@@ -902,8 +907,9 @@ class Worker(QObject):
 						self.RoiBuffer[:com_count, BufferPointer] = cnm2.C_on[accepted, t_cnm]
 #						self.ROIlist_threshold[:com_count] = np.nanmean(self.RoiBuffer[:com_count,:], axis=1) + 2*np.nanstd(self.RoiBuffer[:com_count,:], axis=1)  # changed 3 to 2
 						# use noisy C to estimate noise:
-						self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
-						online_thresh.append([items for items in self.ROIlist_threshold[0:com_count]])
+						if not (p['photoProtoInx'] == CONSTANTS.PHOTO_CLAMP_DOWN):
+							self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+							online_thresh.append([items for items in self.ROIlist_threshold[0:com_count]])
 
 						 # record the buffer values for offline analysis
 						if store_all_online:
@@ -932,7 +938,7 @@ class Worker(QObject):
 							p['currentTargetX'] = list(ROIx[current_target_idx])
 							p['currentTargetY'] = list(ROIy[current_target_idx])
 
-							if p['FLAG_PHOTOSTIM_OUTSOURCED']:
+							if p['stimFromBlink']:
 								qtarget.put([p['currentTargetX'].copy(),p['currentTargetY'].copy()])
 								self.updateNewTargets_signal.emit()
 							else:
@@ -1020,12 +1026,18 @@ class Worker(QObject):
 						print(ROIx[current_target_idx])
 
 					elif p['photoProtoInx'] == CONSTANTS.PHOTO_CLAMP_DOWN:
-						if framesProc == stim_frames[sens_stim_idx-1]:
+						if framesProc == stim_frames[sens_stim_idx]-1:
 							# get baseline level
 							current_clamp_level= np.nanmean(cnm2.C_on[accepted, t_cnm - baseline_frames:t_cnm], axis=1) + np.nanstd(cnm2.noisyC[accepted, t_cnm - baseline_frames:t_cnm], axis=1)
 							online_clamp_level.append(current_clamp_level.copy())
+							self.ROIlist_threshold[:com_count] = current_clamp_level.copy()
+							last_com_count = com_count
+							print('updated clamp level')
+
 						if (sens_stim_idx>0 and framesProc < stim_frames[sens_stim_idx-1]+ monitor_frames and framesProc > stim_frames[sens_stim_idx-1])+ wait_frames:
-							photostim_flag = self.RoiBuffer[:com_count, BufferPointer]-current_clamp_level
+							# stim rois: 1.detected before this sensory stim and passed clamp level 2 detected during this sensory stim
+							photostim_flag = self.RoiBuffer[:last_com_count, BufferPointer]-current_clamp_level
+							photostim_flag = np.concatenate((photostim_flag,np.ones(com_count - last_com_count)))
 							above_thresh = np.array(photostim_flag>0)
 							current_target_idx = np.where(above_thresh == True)
 							num_stim_targets = len(current_target_idx)
@@ -1038,7 +1050,7 @@ class Worker(QObject):
 
 					# send out photostim triggers
 					if FLAG_TRIG_PHOTOSTIM:
-						if p['FLAG_PHOTOSTIM_OUTSOURCED']: # send trigger from photostimer
+						if p['stimFromBlink']: # send trigger from photostimer
 							if FLAG_SEND_COORDS:
 								qtarget.put([p['currentTargetX'].copy(),p['currentTargetY'].copy()])
 								self.photostimNewTargets_signal.emit()
@@ -1070,13 +1082,13 @@ class Worker(QObject):
 
 					# Trigger sensory stimulation
 					if sens_stim_idx < tot_num_senstim:
-						if p['FLAG_STIM_TRIG_ENABLED'] and framesProc == stim_frames[sens_stim_idx]: # send TTL
+						if p['enableStimTrigger'] and framesProc == stim_frames[sens_stim_idx]: # send TTL
 							self.sendTTLTrigger_signal.emit()
 							sens_stim_idx += 1
 							stim_frames_caiman.append(framesCaiman)
 							# reset target indices and frames (for replay protocols)
 							current_target_idx = [] # reset target
-							current_target_frame = []
+
 
 					# Update GUI display
 					if framesProc > refreshFrame-1: #frame_count>self.BufferLength-1:
@@ -1207,7 +1219,7 @@ class Worker(QObject):
 			save_dict['stim_frames_caiman'] = stim_frames_caiman
 			save_dict['frames_skipped'] = frames_skipped
 
-			if p['FLAG_STIM_TRIG_ENABLED'] :
+			if p['enableStimTrigger'] :
 				save_dict['sensory_stim_frames'] = self.stim_frames
 			else:
 				save_dict['sensory_stim_frames'] = []
@@ -1449,9 +1461,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		p['ExtraTargetY'] = []
 		p['currentTargetX'] = [] # keep track of what is currently on SLM
 		p['currentTargetY'] = []
-		p['FLAG_AUTO_ADD_TARGETS'] = False
 		p['FLAG_BLINK_CONNECTED'] = False
-		p['FLAG_PHOTOSTIM_OUTSOURCED'] = False
+		p['stimFromBlink'] = False
 		p['targetScaleFactor']  = 1 # currentZoom/refZoom
 		p['FLAG_SKIP_FRAMES'] = False
 
@@ -1470,7 +1481,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		self.IsOffline = False
 
 		# initialise FLAGs
-		p['FLAG_STIM_TRIG_ENABLED'] = False
+		p['enableStimTrigger'] = False
 		self.photoProtoInx = CONSTANTS.PHOTO_NONE
 
 		# make dir to save data temporally
@@ -1721,6 +1732,9 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 				p[trimmed_name] = float(obj.text())
 
 		# parameters not in widgets
+
+		self.photoProtoInx = self.photoProto_comboBox.currentIndex()
+
 		p['BufferLength'] = self.BufferLength
 		p['RoiBuffer'] = self.RoiBuffer
 		p['BufferPointer'] = self.BufferPointer
@@ -1946,7 +1960,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.streamObject.stream_finished_signal.connect(self.streamObject.deleteLater)  # seems it doesn't get deleted but stop disconnect sorts it
 #            self.streamObject.stream_finished_signal.connect(resetstreamObject)  # looks like stream object not deleted though
 			self.streamThread.start()
-			self.updateStatusBar('stream started')
 
 		else:
 			self.updateStatusBar('No initialisation provided or PV not connected')
@@ -1962,8 +1975,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.stimFromBlink_checkBox.setChecked(False)
 			return
 
-		p['FLAG_PHOTOSTIM_OUTSOURCED'] = self.stimFromBlink_checkBox.isChecked()
-		if p['FLAG_PHOTOSTIM_OUTSOURCED']:
+		p['stimFromBlink'] = self.stimFromBlink_checkBox.isChecked()
+		if p['stimFromBlink']:
 			try:
 				# setup photostim object if not present
 				if not qtarget.empty():
@@ -1989,7 +2002,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 				print('Error initialising photostimer:')
 				print(e)
 				self.stimFromBlink_checkBox.setChecked(False)
-				p['FLAG_PHOTOSTIM_OUTSOURCED'] = False
+				p['stimFromBlink'] = False
 		else:
 			# stop and clean up photostimer thread
 			try:
@@ -2032,7 +2045,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		print('stop button disconnected')
 
 	def enableStimTrigger(self):
-		p['FLAG_STIM_TRIG_ENABLED'] = self.enableStimTrigger_checkBox.isChecked()
+		p['enableStimTrigger'] = self.enableStimTrigger_checkBox.isChecked()
 
 	def updatePhotostimParameters(self):
 		if self.photostimObject:
@@ -2231,8 +2244,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.selectAllROIs()
 
 	def autoAddClicked(self):
-		p['FLAG_AUTO_ADD_TARGETS'] = self.addNewROIsToTarget_checkBox.isChecked()
-		print('FLAG_AUTO_ADD_TARGETS = '+str(p['FLAG_AUTO_ADD_TARGETS']))
+		p['addNewROIsToTarget'] = self.addNewROIsToTarget_checkBox.isChecked()
+		print('addNewROIsToTarget = '+str(p['addNewROIsToTarget']))
 
 	def removeCells(self, CNN=False, save_init=True):
 		if self.rejectIdx:
@@ -4149,7 +4162,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			num_stim_targets = len(xcoord_list[i])
 
 			send_start = time.time()
-			if not p['FLAG_PHOTOSTIM_OUTSOURCED']:
+			if not p['stimFromBlink']:
 				# send from mainwindow
 				if p['FLAG_BLINK_CONNECTED']:
 					self.sendCoords()

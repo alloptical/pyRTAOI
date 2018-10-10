@@ -53301,3 +53301,408 @@ Status Code: -200220
 2018-10-03 16:17:10,601 - __main__ - INFO - Started application
 2018-10-03 16:17:10,601 - __main__ - INFO - Started application
 2018-10-03 16:17:10,601 - __main__ - INFO - Started application
+2018-10-10 11:47:20,692 - __main__ - INFO - Started application
+2018-10-10 11:50:49,854 - __main__ - INFO - Started application
+2018-10-10 11:50:49,854 - __main__ - INFO - Started application
+2018-10-10 13:48:49,779 - __main__ - INFO - Started application
+2018-10-10 13:48:49,779 - __main__ - INFO - Started application
+2018-10-10 13:48:49,779 - __main__ - INFO - Started application
+2018-10-10 13:58:15,444 - __main__ - INFO - Started application
+2018-10-10 13:58:15,444 - __main__ - INFO - Started application
+2018-10-10 13:58:15,444 - __main__ - INFO - Started application
+2018-10-10 13:58:15,444 - __main__ - INFO - Started application
+2018-10-10 14:01:55,648 - __main__ - INFO - Started application
+2018-10-10 14:01:55,648 - __main__ - INFO - Started application
+2018-10-10 14:01:55,648 - __main__ - INFO - Started application
+2018-10-10 14:01:55,648 - __main__ - INFO - Started application
+2018-10-10 14:01:55,648 - __main__ - INFO - Started application
+2018-10-10 14:02:12,986 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:12,986 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:12,986 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:12,986 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:12,986 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,026 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,026 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,026 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,026 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,026 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,066 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,066 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,066 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,066 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,066 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,103 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,103 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,103 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,103 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,103 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,158 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,158 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,158 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,158 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,158 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,182 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,182 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,182 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,182 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,182 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,206 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,206 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,206 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,206 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,206 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,226 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,226 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,226 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,226 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,226 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,255 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,255 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,255 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,255 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,255 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,285 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,285 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,285 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,285 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,285 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,320 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,320 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,320 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,320 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,320 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,351 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,351 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,351 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,351 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,351 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,385 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,385 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,385 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,385 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,385 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,419 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,419 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,419 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,419 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:02:13,419 - __main__ - ERROR - local variable 'buflength' referenced before assignment
+Traceback (most recent call last):
+  File "C:/Users/User/Desktop/pyRTAOI-rig/pyRTAOI.py", line 917, in work
+    self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
+UnboundLocalError: local variable 'buflength' referenced before assignment
+2018-10-10 14:03:14,119 - __main__ - INFO - Started application
+2018-10-10 14:03:14,119 - __main__ - INFO - Started application
+2018-10-10 14:03:14,119 - __main__ - INFO - Started application
+2018-10-10 14:03:14,119 - __main__ - INFO - Started application
+2018-10-10 14:03:14,119 - __main__ - INFO - Started application
+2018-10-10 14:03:14,119 - __main__ - INFO - Started application
+2018-10-10 14:08:07,615 - __main__ - INFO - Started application
+2018-10-10 14:08:07,615 - __main__ - INFO - Started application
+2018-10-10 14:08:07,615 - __main__ - INFO - Started application
+2018-10-10 14:08:07,615 - __main__ - INFO - Started application
+2018-10-10 14:08:07,615 - __main__ - INFO - Started application
+2018-10-10 14:08:07,615 - __main__ - INFO - Started application
+2018-10-10 14:08:07,615 - __main__ - INFO - Started application
+2018-10-10 14:21:52,128 - __main__ - INFO - Started application
+2018-10-10 14:21:52,128 - __main__ - INFO - Started application
+2018-10-10 14:21:52,128 - __main__ - INFO - Started application
+2018-10-10 14:21:52,128 - __main__ - INFO - Started application
+2018-10-10 14:21:52,128 - __main__ - INFO - Started application
+2018-10-10 14:21:52,128 - __main__ - INFO - Started application
+2018-10-10 14:21:52,128 - __main__ - INFO - Started application
+2018-10-10 14:21:52,128 - __main__ - INFO - Started application
+2018-10-10 14:39:33,839 - __main__ - INFO - Started application
+2018-10-10 14:39:33,839 - __main__ - INFO - Started application
+2018-10-10 14:39:33,839 - __main__ - INFO - Started application
+2018-10-10 14:39:33,839 - __main__ - INFO - Started application
+2018-10-10 14:39:33,839 - __main__ - INFO - Started application
+2018-10-10 14:39:33,839 - __main__ - INFO - Started application
+2018-10-10 14:39:33,839 - __main__ - INFO - Started application
+2018-10-10 14:39:33,839 - __main__ - INFO - Started application
+2018-10-10 14:39:33,839 - __main__ - INFO - Started application
+2018-10-10 14:53:04,145 - __main__ - INFO - Started application
+2018-10-10 14:53:04,145 - __main__ - INFO - Started application
+2018-10-10 14:53:04,145 - __main__ - INFO - Started application
+2018-10-10 14:53:04,145 - __main__ - INFO - Started application
+2018-10-10 14:53:04,145 - __main__ - INFO - Started application
+2018-10-10 14:53:04,145 - __main__ - INFO - Started application
+2018-10-10 14:53:04,145 - __main__ - INFO - Started application
+2018-10-10 14:53:04,145 - __main__ - INFO - Started application
+2018-10-10 14:53:04,145 - __main__ - INFO - Started application
+2018-10-10 14:53:04,145 - __main__ - INFO - Started application
