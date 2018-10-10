@@ -132,6 +132,7 @@ class CONSTANTS():
 	PHOTO_UPON_DETECT  = 4
 	PHOTO_REPLAY_TRIAL = 5 # stimulate all responsive cells at once
 	PHOTO_REPLAY_TRAIN = 6 # stim in a sequence
+	PHOTO_CLAMP_DOWN = 7 # photostim after sensory stim until cell goes back to baseline (opto inhibition)
 
 #%%
 class MyThread(QThread):
@@ -590,6 +591,8 @@ class Worker(QObject):
 		frames_post_photostim = 0
 		photo_duration = self.photo_duration
 		monitor_frames = p['staPostFrame']
+		wait_frames = p['photoWaitFrames']
+		baseline_frames = p['staPretFrame']
 		tot_num_photostim = self.tot_num_photostim
 		tot_num_senstim = self.tot_num_senstim
 		print('frames with photostim = ' + str(photo_duration))
@@ -608,8 +611,9 @@ class Worker(QObject):
 			online_photo_targets = []
 			online_photo_x = []
 			online_photo_y = []
-
 			online_thresh = []
+			online_clamp_level = []
+
 		except Exception as e:
 			print(e)
 
@@ -928,7 +932,6 @@ class Worker(QObject):
 							p['currentTargetX'] = list(ROIx[current_target_idx])
 							p['currentTargetY'] = list(ROIy[current_target_idx])
 
-
 							if p['FLAG_PHOTOSTIM_OUTSOURCED']:
 								qtarget.put([p['currentTargetX'].copy(),p['currentTargetY'].copy()])
 								self.updateNewTargets_signal.emit()
@@ -1015,6 +1018,23 @@ class Worker(QObject):
 
 						print('ROIx of current targets:')
 						print(ROIx[current_target_idx])
+
+					elif p['photoProtoInx'] == CONSTANTS.PHOTO_CLAMP_DOWN:
+						if framesProc == stim_frames[sens_stim_idx-1]:
+							# get baseline level
+							current_clamp_level= np.nanmean(cnm2.C_on[accepted, t_cnm - baseline_frames:t_cnm], axis=1) + np.nanstd(cnm2.noisyC[accepted, t_cnm - baseline_frames:t_cnm], axis=1)
+							online_clamp_level.append(current_clamp_level.copy())
+						if (sens_stim_idx>0 and framesProc < stim_frames[sens_stim_idx-1]+ monitor_frames and framesProc > stim_frames[sens_stim_idx-1])+ wait_frames:
+							photostim_flag = self.RoiBuffer[:com_count, BufferPointer]-current_clamp_level
+							above_thresh = np.array(photostim_flag>0)
+							current_target_idx = np.where(above_thresh == True)
+							num_stim_targets = len(current_target_idx)
+							if (num_stim_targets>0):
+								FLAG_TRIG_PHOTOSTIM = True
+								if not np.array_equal(last_target_idx,current_target_idx):
+									p['currentTargetX'] = list(ROIx[current_target_idx])
+									p['currentTargetY'] = list(ROIy[current_target_idx])
+									FLAG_SEND_COORDS = True
 
 					# send out photostim triggers
 					if FLAG_TRIG_PHOTOSTIM:
@@ -1163,6 +1183,7 @@ class Worker(QObject):
 			save_dict['online_photo_x'] = online_photo_x
 			save_dict['online_photo_y'] = online_photo_y
 			save_dict['online_thresh'] = online_thresh
+			save_dict['online_clamp_level'] = online_clamp_level
 
 			save_dict['accepted_idx'] = accepted  # accepted currently stored inside cnm2 as well
 			save_dict['repeated_idx'] = []
