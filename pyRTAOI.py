@@ -507,7 +507,7 @@ class Worker(QObject):
 		self.flag_sta_recording = False
 		self.sta_frame_idx = 0
 		self.sta_trace_length = p['staPreFrame']+p['staPostFrame']
-		self.photo_duration= math.ceil(p['photoDuration']*0.001*30)+2 # in frames;  frame rate 30hz
+		self.photo_duration= math.ceil(p['photoDuration']*0.001*30) # in frames;  frame rate 30hz
 
 		# replay sequence
 		self.replay_idx = []
@@ -748,10 +748,12 @@ class Worker(QObject):
 			# skip frames contaminated by photostim
 			if p['FLAG_SKIP_FRAMES'] or (frames_post_photostim>0 and frames_post_photostim<photo_duration):
 				frames_post_photostim+=1
-				qbuffer.get(timeout = max_wait)
+				frame_in = qbuffer.get(timeout = max_wait)
 				qbuffer.task_done()
 				frames_skipped.append(framesProc)
 				framesProc += 1
+				if FLAG_SAVE_TIFF:
+					MyTiffwriter.save(frame_in)
 				print('framesProc'+str(framesProc)+'skipped')
 				continue
 
@@ -762,6 +764,8 @@ class Worker(QObject):
 			framesCaiman+=1
 			try:
 				frame_in = qbuffer.get(timeout = max_wait)
+				if FLAG_SAVE_TIFF:
+					MyTiffwriter.save(frame_in)
 			except Exception: # timeout exception
 				print('Timeout Exception: empty qbuffer')
 				break # this may be a problem for online too? stops reading the stream completely if timeout happens. continue?
