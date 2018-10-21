@@ -12,6 +12,9 @@ CAREFUL WHEN USING 'REPLACE ALL' - IT WILL QUIT, WITHOUT SAVING!!
 
 TO DO    log this to Notes ToDo_log when it's done and tested
 
+1. send train of photostim at fixed rate and ignore frames with photostim (for control experiment)
+2. shuffle trials with and without photostim
+
 0 test timing on rig
 
 1. temporally save a sequence of phase masks in holoblink, display on slm on command
@@ -503,11 +506,12 @@ class Worker(QObject):
 			print('No Prairie object provided')
 
 		# initialise stim frames
+		frame_rate = 30
 		self.photo_stim_frames = self.stim_frames + p['photoWaitFrames']
 		self.flag_sta_recording = False
 		self.sta_frame_idx = 0
 		self.sta_trace_length = p['staPreFrame']+p['staPostFrame']
-		self.photo_duration= math.ceil(p['photoDuration']*0.001*30) # in frames;  frame rate 30hz
+		self.photo_duration= math.ceil(p['photoDuration']*0.001*frame_rate) # in frames;  frame rate 30hz
 
 		# replay sequence
 		self.replay_idx = []
@@ -517,12 +521,18 @@ class Worker(QObject):
 		if p['photoProtoInx'] == CONSTANTS.PHOTO_REPLAY_TRIAL or p['photoProtoInx'] == CONSTANTS.PHOTO_REPLAY_TRAIN:
 			self.photo_stim_frames = self.stim_frames[1::2]+p['photoWaitFrames']
 			self.stim_frames = self.stim_frames[::2]
-			print('sensory stim frames:')
-			print(self.stim_frames)
-			print('photostim (start) frames:')
-			print(self.photo_stim_frames)
+
+		elif p['photoProtoInx'] == CONSTANTS.PHOTO_FIX_FRAMES:
+				relative_frames = math.ceil(frame_rate/p['photoFrequency'])*np.arange(0,p['photoNumStimsPerTrial'])+p['photoWaitFrames']
+				self.photo_stim_frames = np.concatenate( [item+relative_frames for item in self.stim_frames])
+
 		self.tot_num_photostim = len(self.photo_stim_frames)
 		self.tot_num_senstim = len(self.stim_frames)
+
+		print('sensory stim frames:')
+		print(self.stim_frames)
+		print('photostim (start) frames:')
+		print(self.photo_stim_frames)
 
 		# get current parameters
 		self.BufferLength = p['BufferLength']
@@ -864,7 +874,6 @@ class Worker(QObject):
 								else:
 									opsin.append(True)
 
-	#                            print(time_()-tt)
 								# add new ROI to photostim target, if required
 								try:
 									if p['FLAG_BLINK_CONNECTED'] and p['addNewROIsToTarget']:
@@ -876,10 +885,10 @@ class Worker(QObject):
 
 											if p['stimFromBlink']:
 												qtarget.put([p['currentTargetX'].copy(),p['currentTargetY'].copy()])
-#												self.updateNewTargets_signal.emit()
+												self.updateNewTargets_signal.emit()
 												# ---  test timing --- DELETE THIS LATER
-												self.niTimingWriter.write_many_sample( p['NI_1D_ARRAY'],10.0)
-												self.photostimNewTargets_signal.emit()
+#												self.niTimingWriter.write_many_sample( p['NI_1D_ARRAY'],10.0)
+#												self.photostimNewTargets_signal.emit()
 											else:
 												self.sendCoords_signal.emit()
 
@@ -892,10 +901,6 @@ class Worker(QObject):
 
 								except Exception as e:
 									print(e)
-
-								if com_count == p['MaxNumROIs']:
-									expect_components = False
-									print('Not accepting more components')
 							else:
 								if repeated:
 									repeated_idx.append(cnm2.N)
@@ -905,7 +910,11 @@ class Worker(QObject):
 									print('Rejected component found!')
 
 								rejected_count += 1
+					if com_count == p['MaxNumROIs']:
+						expect_components = False
 
+
+						print('Not accepting more components')
 					# add data to buffer
 					try:
 						self.RoiBuffer[:com_count, BufferPointer] = cnm2.C_on[accepted, t_cnm]
@@ -924,7 +933,6 @@ class Worker(QObject):
 						print('add data to buffer error')
 						print(e)
 						logger.exception(e)
-						print(self.RoiBuffer[:com_count,:])
 
 					# photostim protocols:
 					if p['photoProtoInx'] == CONSTANTS.PHOTO_REPLAY_TRIAL and num_photostim < tot_num_photostim:
@@ -1681,7 +1689,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		self.SendCoords_pushButton.clicked.connect(self.sendCoords)
 
 		# targets
-		self.addNewROIsToTarget_checkBox.clicked.connect(self.autoAddClicked)
 		self.selectAll_checkBox.clicked.connect(self.selectAllROIsClicked)
 		self.clearTargets_pushButton.clicked.connect(self.clearTargets)
 		self.updateTargets_pushButton.clicked.connect(self.updateTargets)
@@ -1752,6 +1759,12 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 		if self.POWER_CONTROL_READY:
 			self.updatePowerControl()
+		try:
+			self.c['cnm2'].max_num_added = p['MaxNumROIs']
+			print('max num rois updated')
+		except:
+			pass
+
 
 	def initialiseROI(self):
 		self.ALL_ROI_SELECTED = False
@@ -2246,10 +2259,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 	def selectAllROIsClicked(self):
 		if (self.selectAll_checkBox.isChecked):
 			self.selectAllROIs()
-
-	def autoAddClicked(self):
-		p['addNewROIsToTarget'] = self.addNewROIsToTarget_checkBox.isChecked()
-		print('addNewROIsToTarget = '+str(p['addNewROIsToTarget']))
 
 	def removeCells(self, CNN=False, save_init=True):
 		if self.rejectIdx:
@@ -3198,6 +3207,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 				self.reject_mask = self.c['reject_mask'] # if mask provided, change currently stored reject_mask
 
 			cnm2.t = cnm2.initbatch
+			cnm2.max_num_added = p['MaxNumROIs']
 
 			K = cnm2.N
 			self.c['cnm2'] = cnm2
