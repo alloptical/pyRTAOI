@@ -447,17 +447,17 @@
         </rect>
        </property>
        <layout class="QGridLayout" name="gridLayout_21">
-        <item row="0" column="3">
-         <widget class="QPushButton" name="testTTLTrigger_pushButton">
-          <property name="text">
-           <string>Test trigger</string>
-          </property>
-         </widget>
-        </item>
         <item row="0" column="0">
          <widget class="QCheckBox" name="enableStimTrigger_checkBox">
           <property name="text">
            <string>Enable trigger</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="4">
+         <widget class="QPushButton" name="testTTLTrigger_pushButton">
+          <property name="text">
+           <string>Test trigger</string>
           </property>
          </widget>
         </item>
@@ -480,7 +480,7 @@
           </property>
          </widget>
         </item>
-        <item row="0" column="2">
+        <item row="0" column="3">
          <widget class="QPushButton" name="connectSenStimTCP_pushButton">
           <property name="text">
            <string>connect TCP</string>
@@ -494,7 +494,7 @@
         <rect>
          <x>10</x>
          <y>50</y>
-         <width>371</width>
+         <width>374</width>
          <height>111</height>
         </rect>
        </property>
@@ -733,6 +733,13 @@
            </size>
           </property>
          </spacer>
+        </item>
+        <item row="1" column="5">
+         <widget class="QCheckBox" name="blockPostFrames_checkBox">
+          <property name="text">
+           <string>Block post frames</string>
+          </property>
+         </widget>
         </item>
        </layout>
       </widget>

@@ -531,8 +531,8 @@ class Worker(QObject):
 
 		print('sensory stim frames:')
 		print(self.stim_frames)
-		print('photostim (start) frames:')
-		print(self.photo_stim_frames)
+		print('num photostim (start) frames:')
+		print(self.tot_num_photostim)
 
 		# get current parameters
 		self.BufferLength = p['BufferLength']
@@ -583,6 +583,7 @@ class Worker(QObject):
 		print('this is work')
 		try:
 			# local counts and copy of params
+			blockPostFrames = p['blockPostFrames']
 			last_com_count = 0
 			sens_stim_idx = 0
 			LastPlot = 0
@@ -602,8 +603,10 @@ class Worker(QObject):
 			FLAG_TRIG_PHOTOSTIM = False
 			FLAG_SEND_COORDS = False
 			frames_post_photostim = 0
+			frames_post_stim = 0
 			photo_duration = self.photo_duration
 			monitor_frames = p['staPostFrame']
+			stim_duration = p['staPostFrame']
 			wait_frames = p['photoWaitFrames']
 			baseline_frames = p['staPreFrame']
 			tot_num_photostim = self.tot_num_photostim
@@ -749,13 +752,12 @@ class Worker(QObject):
 			max_wait = None  # wait till video loaded and buffer starts filling
 		else:
 			max_wait = 10 # timeout
-
+#%% Worker main Loop
 		print('Woker entering loop..')
 		# keep processing frames in qbuffer
 		while ((not p['FLAG_END_LOADING']) or (not qbuffer.empty())) and not STOP_JOB_FLAG:
 			app.processEvents(QEventLoop.ExcludeUserInputEvents)
-
-			# skip frames contaminated by photostim
+			# skip frames contaminated by photostim but save them to tiff
 			if p['FLAG_SKIP_FRAMES'] or (frames_post_photostim>0 and frames_post_photostim<photo_duration):
 				frames_post_photostim+=1
 				frame_in = qbuffer.get(timeout = max_wait)
@@ -766,9 +768,23 @@ class Worker(QObject):
 					MyTiffwriter.save(frame_in)
 				print('framesProc'+str(framesProc)+'skipped')
 				continue
-
 			elif frames_post_photostim == photo_duration:
 				frames_post_photostim = 0
+
+			# skip frames during (sensory) stimulation in case photostim is triggered during these frames outside of RTAOI
+			if blockPostFrames:
+				if frames_post_stim>0 and frames_post_stim<stim_duration:
+					frames_post_stim +=1
+					frame_in = qbuffer.get(timeout = max_wait)
+					qbuffer.task_done()
+					frames_skipped.append(framesProc)
+					framesProc += 1
+					if FLAG_SAVE_TIFF:
+						MyTiffwriter.save(frame_in)
+					print('framesProc'+str(framesProc)+'skipped')
+					continue
+				elif frames_post_stim == stim_duration:
+					frames_post_stim = 0
 
 			# get data from queue
 			framesCaiman+=1
@@ -802,9 +818,7 @@ class Worker(QObject):
 						templ = cnm2.Ab.dot(cnm2.C_on[:cnm2.M, t_cnm - 1]).reshape(cnm2.dims, order='F') * img_norm
 						frame_cor, shift = motion_correct_iteration_fast(frame_in, templ, max_shift, max_shift)
 						self.shifts.append(shift)
-
 	#                    print('caiman motion correction time:' + str("%.4f"%(time.time()-mot_corr_start)))
-
 					else:
 						frame_cor = frame_in
 
@@ -1001,8 +1015,6 @@ class Worker(QObject):
 						opsin_ok = np.array(opsin)
 						print('above thresh = ')
 						print(above_thresh)
-						print('opsin = ')
-						print(opsin_ok)
 						current_target_idx = np.where(above_thresh & opsin_ok == True)
 						num_stim_targets = len(current_target_idx)
 
@@ -1091,6 +1103,7 @@ class Worker(QObject):
 						num_photostim +=1
 						frames_post_photostim = 1
 						photo_stim_frames_caiman.append(framesCaiman)
+						print('Number photostim,',num_photostim)
 
 					# Trigger sensory stimulation
 					if sens_stim_idx < tot_num_senstim:
@@ -1100,6 +1113,7 @@ class Worker(QObject):
 							stim_frames_caiman.append(framesCaiman)
 							# reset target indices and frames (for replay protocols)
 							current_target_idx = [] # reset target
+							frames_post_stim = 1
 
 
 					# Update GUI display
@@ -1278,7 +1292,7 @@ class Worker(QObject):
 			try:  # potential error: 'numpy.float64' object cannot be interpreted as an integer
 				# save sta traces
 				self.sta_traces = STATraceMaker.make_sta_file(file_full_name=save_path,pre_samples = p['staPreFrame'],
-															  post_samples = p['staPostFrame'],num_init_frames = cnm2.initbatch)
+															  post_samples = p['staPostFrame'],num_init_frames = cnm2.initbatch, stim_frames_field ='stim_frames_caiman' )
 
 				sta_trial_avg = np.nanmean(self.sta_traces,1)
 				if(p['staAvgStopFrame']>p['staAvgStartFrame']):
@@ -2245,16 +2259,31 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		try:
 			if not p['SendPowerVolt']:
 				self.niPhotoStimWriter.write_many_sample( p['NI_1D_ARRAY'],10.0)
-			else:
+			elif not p['stimFromBlink']:
 				self.niPhotostimFullWriter.write_many_sample(p['NI_2D_ARRAY'],10.0)
 				while(not self.niPhotoStimFullTask.is_task_done()):
 					pass
 				self.niPhotoStimFullTask.stop()
 				self.niPhotostimFullWriter = stream_writers.AnalogMultiChannelWriter(self.niPhotoStimFullTask.out_stream,auto_start = True)
+			else:
+
+				self.photostimCurrentTargets(len(p['currentTargetX']))
 			print('photostim trigger sent')
 		except Exception as e:
 			print('send photostim trigger error')
 			print(e)
+
+	def photostimCurrentTargets(self,num_stim_targets):
+		ERROR = False
+		p['FLAG_SKIP_FRAMES'] = True
+		this_volt = np.polyval(p['power_polyfit_p'],p['photoPowerPerCell']*num_stim_targets)
+		if not self.bl.send_trigger_power(this_volt):
+			print('Photostimer msg: photostim sent from blink')
+		else:
+			print('photostimCurrentTargets: msg to blink ERROR!')
+			ERROR = True
+		p['FLAG_SKIP_FRAMES'] = False
+		return ERROR
 #%% Add/remove ROIs:
 	def selectAllROIsClicked(self):
 		if (self.selectAll_checkBox.isChecked):
@@ -3553,6 +3582,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 #            self.updateImage(cv2.resize(self.reject_mask.astype('uint8'), (512, 512), interpolation=cv2.INTER_CUBIC))
 
 	def showFOV(self):
+		print('show FOV clicked')
 		self.opsinMaskOn = False
 		self.showROIsOn = False
 #        self.calciumMaskOn = False
@@ -3561,53 +3591,71 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 	def plotSTAonMasks(self,sta_amp):
 		# show cells detected by caiman
 		# make a image with sta levels
+		print('show STA on mask clicked')
 		self.opsinMaskOn = False
 		cnm = self.c['cnm2']
+		print(cnm.gnb)
 
-		A = cnm.Ab[:, cnm.gnb:], cnm.Ab[:, :cnm.gnb].toarray()
+		A = cnm.Ab[:, cnm.gnb:cnm.M]
 
 		if issparse(A):
 			A = np.array(A.todense())
 		else:
 			A = np.array(A)
 
-		d, nr = np.shape(A)
+		print('shape A',A.shape)
 
 		# do not show rejected cells
 		nr = self.c['cnm2'].N
 		print('N = ',nr)
 		accepted = self.c['cnm2'].accepted
+		print('accepted index')
+		print(accepted)
 
 		# use sta value, otherwise use one
-		if sta_amp is None: # will show scaled amplitude of A
-			sta_amp = np.ones((nr,))*255
-		else: # normalise within component before multiply with sta
-			for i in accepted: # range(nr):
-				A[:,i] = A[:,i]/sum(A[:,i])
+		try:
+			if sta_amp is None: # will show scaled amplitude of A
+				print('input sta is None')
+				sta_amp = np.ones((nr,))*255
+			elif len(sta_amp) == 0:
+				print('making sta trace')
+				frames_to_average = range(p['staAvgStartFrame']+p['staPreFrame'],p['staAvgStopFrame']+p['staPreFrame'])
+				sta_amp = STATraceMaker.plotSTAtraces(self.sta_traces,frames_to_average = frames_to_average, IF_PLOT = False) # load from temp file
+				sta_amp = sta_amp(accepted)
+			else: # normalise within component before multiply with sta
+				print('normalise A')
+				for i in accepted: # range(nr):
+					A[:,i] = A[:,i]/sum(A[:,i])
 
+			print('using sta:')
+			print(sta_amp)
+			print(len(sta_amp))
+		except Exception as e:
+			print(e)
 		# put value into mask
-		cellMask = np.zeros((cnm.dims[1]*cnm.dims[0],))
+		try:
+			cellMask = np.zeros((cnm.dims[1]*cnm.dims[0],))
 
-		j = 0 # separate incrementer for sta_amp (all sta_amp traces are accepted)
+			j = 0
+			for i in accepted: # range(np.minimum(len(sta_amp),nr)):
+				if not np.isnan(sta_amp[j]):
+					cellMask+=A[:,i].flatten()*sta_amp[j]
+					j +=1
 
-		for i in accepted: # range(np.minimum(len(sta_amp),nr)):
-			if not np.isnan(sta_amp[j]):
-				cellMask+=A[:,i].flatten()*sta_amp[j]
-				j += 1
+			cellMask2D = np.reshape(cellMask,cnm.dims,order='F')
+			cellMask2D = cellMask2D/max(cellMask)*255
 
-		cellMask2D = np.reshape(cellMask,cnm.dims,order='F')
-		cellMask2D = cellMask2D/max(cellMask)*255
-
-		# show on a separate plot
-#		norm = plt.Normalize(0,1)
-#		im = plt.imshow(norm(cellMask2D),aspect = 'equal',cmap = 'Greys')
-#		plt.colorbar(im, orientation='horizontal')
-#		plt.show()
-
-		cellMask2D = np.repeat(cellMask2D[:,:,None],3,axis=-1)
-		self.imageItem.setImage(cv2.resize(cellMask2D, (512, 512), interpolation=cv2.INTER_CUBIC))
-		self.showROIsOn = True
-
+			# show on a separate plot
+	#		norm = plt.Normalize(0,1)
+	#		im = plt.imshow(norm(cellMask2D),aspect = 'equal',cmap = 'Greys')
+	#		plt.colorbar(im, orientation='horizontal')
+	#		plt.show()
+			cellMask2D = np.repeat(cellMask2D[:,:,None],3,axis=-1)
+			self.imageItem.setImage(cv2.resize(cellMask2D, (512, 512), interpolation=cv2.INTER_CUBIC))
+			self.showROIsOn = True
+		except Exception as e:
+			print('adding value to mask error')
+			print(e)
 	def plotSTA(self):
 		frames_to_average = range(p['staAvgStartFrame']+p['staPreFrame'],p['staAvgStopFrame']+p['staPreFrame'])
 		self.sta_amp=STATraceMaker.plotSTAtraces(self.sta_traces,frames_to_average = frames_to_average) # load from temp file
