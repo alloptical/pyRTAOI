@@ -761,8 +761,8 @@
         <rect>
          <x>10</x>
          <y>17</y>
-         <width>311</width>
-         <height>241</height>
+         <width>319</width>
+         <height>252</height>
         </rect>
        </property>
        <layout class="QGridLayout" name="gridLayout_19">
@@ -771,14 +771,7 @@
           <property name="verticalSpacing">
            <number>0</number>
           </property>
-          <item row="12" column="4">
-           <widget class="QLabel" name="label_34">
-            <property name="text">
-             <string>Merge thresh</string>
-            </property>
-           </widget>
-          </item>
-          <item row="9" column="2">
+          <item row="10" column="2">
            <widget class="QSpinBox" name="InitNumROIs_spinBox">
             <property name="minimum">
              <number>1</number>
@@ -789,13 +782,40 @@
            </widget>
           </item>
           <item row="13" column="4">
+           <widget class="QLabel" name="label_34">
+            <property name="text">
+             <string>Merge thresh</string>
+            </property>
+           </widget>
+          </item>
+          <item row="14" column="4">
            <widget class="QLabel" name="label_35">
             <property name="text">
              <string>Overlap thresh</string>
             </property>
            </widget>
           </item>
-          <item row="12" column="5">
+          <item row="1" column="0">
+           <widget class="QCheckBox" name="saveAsTiff_checkBox">
+            <property name="text">
+             <string>Save Raw tiff</string>
+            </property>
+           </widget>
+          </item>
+          <item row="13" column="2">
+           <widget class="QSpinBox" name="MaxNumROIs_spinBox">
+            <property name="minimum">
+             <number>1</number>
+            </property>
+            <property name="maximum">
+             <number>500</number>
+            </property>
+            <property name="value">
+             <number>40</number>
+            </property>
+           </widget>
+          </item>
+          <item row="13" column="5">
            <widget class="QDoubleSpinBox" name="merge_thresh_doubleSpinBox">
             <property name="decimals">
              <number>2</number>
@@ -814,7 +834,14 @@
             </property>
            </widget>
           </item>
-          <item row="13" column="5">
+          <item row="10" column="0">
+           <widget class="QLabel" name="label_5">
+            <property name="text">
+             <string>Init num ROIs</string>
+            </property>
+           </widget>
+          </item>
+          <item row="14" column="5">
            <widget class="QDoubleSpinBox" name="overlap_thresh_doubleSpinBox">
             <property name="decimals">
              <number>1</number>
@@ -833,34 +860,20 @@
             </property>
            </widget>
           </item>
-          <item row="1" column="0">
-           <widget class="QCheckBox" name="saveAsTiff_checkBox">
-            <property name="text">
-             <string>Save tiff</string>
-            </property>
-           </widget>
-          </item>
-          <item row="9" column="0">
-           <widget class="QLabel" name="label_5">
-            <property name="text">
-             <string>Init num ROIs</string>
-            </property>
-           </widget>
-          </item>
-          <item row="12" column="2">
-           <widget class="QSpinBox" name="MaxNumROIs_spinBox">
+          <item row="14" column="2">
+           <widget class="QSpinBox" name="cellRadius_spinBox_2">
             <property name="minimum">
              <number>1</number>
             </property>
             <property name="maximum">
-             <number>500</number>
+             <number>30</number>
             </property>
             <property name="value">
-             <number>40</number>
+             <number>10</number>
             </property>
            </widget>
           </item>
-          <item row="11" column="2">
+          <item row="12" column="2">
            <widget class="QDoubleSpinBox" name="dsFactor_doubleSpinBox">
             <property name="decimals">
              <number>2</number>
@@ -876,14 +889,14 @@
             </property>
            </widget>
           </item>
-          <item row="12" column="0">
-           <widget class="QLabel" name="label_3">
+          <item row="14" column="0">
+           <widget class="QLabel" name="label_30">
             <property name="text">
-             <string>Max num ROIs</string>
+             <string>Cell radius</string>
             </property>
            </widget>
           </item>
-          <item row="11" column="0">
+          <item row="12" column="0">
            <widget class="QLabel" name="label_7">
             <property name="text">
              <string>Downsampling</string>
@@ -891,72 +904,13 @@
            </widget>
           </item>
           <item row="13" column="0">
-           <widget class="QLabel" name="label_30">
+           <widget class="QLabel" name="label_3">
             <property name="text">
-             <string>Cell radius</string>
+             <string>Max num ROIs</string>
             </property>
            </widget>
           </item>
-          <item row="13" column="2">
-           <widget class="QSpinBox" name="cellRadius_spinBox_2">
-            <property name="minimum">
-             <number>1</number>
-            </property>
-            <property name="maximum">
-             <number>30</number>
-            </property>
-            <property name="value">
-             <number>10</number>
-            </property>
-           </widget>
-          </item>
-          <item row="9" column="4">
-           <widget class="QLabel" name="label_36">
-            <property name="text">
-             <string>Min SNR</string>
-            </property>
-           </widget>
-          </item>
-          <item row="9" column="5">
-           <widget class="QDoubleSpinBox" name="minSNR_doubleSpinBox">
-            <property name="decimals">
-             <number>1</number>
-            </property>
-            <property name="minimum">
-             <double>1.000000000000000</double>
-            </property>
-            <property name="maximum">
-             <double>30.000000000000000</double>
-            </property>
-            <property name="singleStep">
-             <double>0.500000000000000</double>
-            </property>
-            <property name="value">
-             <double>2.500000000000000</double>
-            </property>
-           </widget>
-          </item>
-          <item row="11" column="4">
-           <widget class="QLabel" name="label_37">
-            <property name="text">
-             <string>Rval thresh</string>
-            </property>
-           </widget>
-          </item>
-          <item row="9" column="3">
-           <spacer name="horizontalSpacer_13">
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>40</width>
-              <height>20</height>
-             </size>
-            </property>
-           </spacer>
-          </item>
-          <item row="11" column="5">
+          <item row="12" column="5">
            <widget class="QDoubleSpinBox" name="rval_thresh_doubleSpinBox">
             <property name="decimals">
              <number>2</number>
@@ -975,6 +929,52 @@
             </property>
            </widget>
           </item>
+          <item row="10" column="4">
+           <widget class="QLabel" name="label_36">
+            <property name="text">
+             <string>Min SNR</string>
+            </property>
+           </widget>
+          </item>
+          <item row="10" column="5">
+           <widget class="QDoubleSpinBox" name="minSNR_doubleSpinBox">
+            <property name="decimals">
+             <number>1</number>
+            </property>
+            <property name="minimum">
+             <double>1.000000000000000</double>
+            </property>
+            <property name="maximum">
+             <double>30.000000000000000</double>
+            </property>
+            <property name="singleStep">
+             <double>0.500000000000000</double>
+            </property>
+            <property name="value">
+             <double>2.500000000000000</double>
+            </property>
+           </widget>
+          </item>
+          <item row="12" column="4">
+           <widget class="QLabel" name="label_37">
+            <property name="text">
+             <string>Rval thresh</string>
+            </property>
+           </widget>
+          </item>
+          <item row="10" column="3">
+           <spacer name="horizontalSpacer_13">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
           <item row="0" column="0">
            <widget class="QCheckBox" name="UseONACID_checkBox">
             <property name="enabled">
@@ -985,22 +985,6 @@
             </property>
             <property name="checked">
              <bool>false</bool>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="4">
-           <widget class="QPushButton" name="loadMask_pushButton">
-            <property name="enabled">
-             <bool>true</bool>
-            </property>
-            <property name="text">
-             <string>Load mask</string>
-            </property>
-            <property name="iconSize">
-             <size>
-              <width>14</width>
-              <height>14</height>
-             </size>
             </property>
            </widget>
           </item>
@@ -1033,7 +1017,23 @@
             </property>
            </widget>
           </item>
-          <item row="8" column="5">
+          <item row="0" column="4">
+           <widget class="QPushButton" name="loadMask_pushButton">
+            <property name="enabled">
+             <bool>true</bool>
+            </property>
+            <property name="text">
+             <string>Load mask</string>
+            </property>
+            <property name="iconSize">
+             <size>
+              <width>14</width>
+              <height>14</height>
+             </size>
+            </property>
+           </widget>
+          </item>
+          <item row="9" column="5">
            <widget class="QDoubleSpinBox" name="CNNFilter_doubleSpinBox">
             <property name="decimals">
              <number>2</number>
@@ -1052,14 +1052,7 @@
             </property>
            </widget>
           </item>
-          <item row="8" column="4">
-           <widget class="QPushButton" name="CNNFilter_pushButton">
-            <property name="text">
-             <string>Filter</string>
-            </property>
-           </widget>
-          </item>
-          <item row="7" column="0">
+          <item row="8" column="0">
            <spacer name="verticalSpacer_2">
             <property name="orientation">
              <enum>Qt::Vertical</enum>
@@ -1072,18 +1065,19 @@
             </property>
            </spacer>
           </item>
-          <item row="8" column="0">
-           <spacer name="verticalSpacer_6">
-            <property name="orientation">
-             <enum>Qt::Vertical</enum>
+          <item row="9" column="4">
+           <widget class="QPushButton" name="CNNFilter_pushButton">
+            <property name="text">
+             <string>Filter</string>
             </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>20</width>
-              <height>40</height>
-             </size>
+           </widget>
+          </item>
+          <item row="2" column="0">
+           <widget class="QCheckBox" name="saveProcTiff_checkBox">
+            <property name="text">
+             <string>Save Proc tiff</string>
             </property>
-           </spacer>
+           </widget>
           </item>
          </layout>
         </item>
@@ -1155,7 +1149,7 @@
       <property name="geometry">
        <rect>
         <x>30</x>
-        <y>600</y>
+        <y>640</y>
         <width>511</width>
         <height>171</height>
        </rect>
@@ -1167,7 +1161,7 @@
         <x>560</x>
         <y>550</y>
         <width>441</width>
-        <height>221</height>
+        <height>261</height>
        </rect>
       </property>
       <property name="showGrid">
@@ -1272,12 +1266,68 @@
         <x>30</x>
         <y>560</y>
         <width>511</width>
-        <height>30</height>
+        <height>51</height>
        </rect>
       </property>
       <layout class="QGridLayout" name="gridLayout_9">
-       <item row="0" column="2">
-        <spacer name="horizontalSpacer_2">
+       <item row="0" column="4">
+        <widget class="QLabel" name="label_42">
+         <property name="text">
+          <string>Total photostim sent:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="1">
+        <widget class="QLabel" name="CurrentFrameIdx_label">
+         <property name="text">
+          <string>0</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="10">
+        <widget class="QLabel" name="xPos_label">
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="9">
+        <widget class="QLabel" name="label_18">
+         <property name="text">
+          <string> x =</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="11">
+        <widget class="QLabel" name="label_20">
+         <property name="text">
+          <string>y =</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="5">
+        <widget class="QLabel" name="totalNumPhotostim_label">
+         <property name="text">
+          <string>0</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="0">
+        <widget class="QLabel" name="label_2">
+         <property name="text">
+          <string> Current Frame:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="12">
+        <widget class="QLabel" name="yPos_label">
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="6">
+        <spacer name="horizontalSpacer_6">
          <property name="orientation">
           <enum>Qt::Horizontal</enum>
          </property>
@@ -1289,14 +1339,14 @@
          </property>
         </spacer>
        </item>
-       <item row="0" column="3">
-        <widget class="QLabel" name="label_42">
+       <item row="1" column="1">
+        <widget class="QPushButton" name="removeSelected_pushButton">
          <property name="text">
-          <string>Total photostim sent:</string>
+          <string>Remove selected</string>
          </property>
         </widget>
        </item>
-       <item row="0" column="7">
+       <item row="1" column="0">
         <widget class="QPushButton" name="removeMode_pushButton">
          <property name="enabled">
           <bool>true</bool>
@@ -1312,36 +1362,8 @@
          </property>
         </widget>
        </item>
-       <item row="0" column="10">
-        <widget class="QLabel" name="label_20">
-         <property name="text">
-          <string>y =</string>
-         </property>
-        </widget>
-       </item>
-       <item row="0" column="1">
-        <widget class="QLabel" name="CurrentFrameIdx_label">
-         <property name="text">
-          <string>0</string>
-         </property>
-        </widget>
-       </item>
-       <item row="0" column="9">
-        <widget class="QLabel" name="xPos_label">
-         <property name="text">
-          <string/>
-         </property>
-        </widget>
-       </item>
-       <item row="0" column="8">
-        <widget class="QLabel" name="label_18">
-         <property name="text">
-          <string> x =</string>
-         </property>
-        </widget>
-       </item>
-       <item row="0" column="5">
-        <spacer name="horizontalSpacer_6">
+       <item row="0" column="3">
+        <spacer name="horizontalSpacer_2">
          <property name="orientation">
           <enum>Qt::Horizontal</enum>
          </property>
@@ -1353,24 +1375,16 @@
          </property>
         </spacer>
        </item>
-       <item row="0" column="11">
-        <widget class="QLabel" name="yPos_label">
-         <property name="text">
-          <string/>
+       <item row="1" column="2">
+        <widget class="QPushButton" name="keepSelected_pushButton">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
          </property>
-        </widget>
-       </item>
-       <item row="0" column="0">
-        <widget class="QLabel" name="label_2">
          <property name="text">
-          <string> Current Frame:</string>
-         </property>
-        </widget>
-       </item>
-       <item row="0" column="4">
-        <widget class="QLabel" name="totalNumPhotostim_label">
-         <property name="text">
-          <string>0</string>
+          <string>  Keep selected  </string>
          </property>
         </widget>
        </item>

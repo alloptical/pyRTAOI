@@ -44,10 +44,6 @@ def pkl2mat(file_full_name = '',save_full_name = ''):
 	save_dict['cnm_f'] = f #cnm.f
 	save_dict['opsin_positive'] = cnm.opsin
 
-
-
-
-
 #    save_dict['frame_added'] = [x[1] for x in cnm.time_neuron_added]
 #    print(file_data['init_com_count'])
 #    print([x for x in cnm.time_neuron_added])
@@ -68,7 +64,8 @@ def pkl2mat(file_full_name = '',save_full_name = ''):
 	param_names = ['ds_factor', 'photo_stim_frames_caiman','K','min_SNR','gSig',
 				   'rval_thr','thresh_overlap','merge_thresh','expected_comps',
 				   'frame_added','online_photo_frames','online_photo_targets','accepted','accepted_idx',
-				   't_cnm','coms','opsin_mask','overlap','stim_frames_caiman','online_C','online_thresh','tottime']   # added record of new cells in pyrtaoi
+				   't_cnm','coms','opsin_mask','overlap','stim_frames_caiman','online_C','online_thresh','tottime',
+				   'frames_skipped','sensory_stim_frames','frame_deleted']   # added record of new cells in pyrtaoi
 	
 	for param in param_names:
 		try:

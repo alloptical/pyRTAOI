@@ -12,7 +12,6 @@ CAREFUL WHEN USING 'REPLACE ALL' - IT WILL QUIT, WITHOUT SAVING!!
 
 TO DO    log this to Notes ToDo_log when it's done and tested
 
-1. send train of photostim at fixed rate and ignore frames with photostim (for control experiment)
 2. shuffle trials with and without photostim
 
 0 test timing on rig
@@ -24,8 +23,6 @@ TO DO    log this to Notes ToDo_log when it's done and tested
 
 
 UPDATE REV40 PV SETTINGS MAX VOLTAGE FOR PHOTOSTIM CONTROL!!!
-
-
 
 '''
 
@@ -58,6 +55,7 @@ import pickle
 import logging
 import json
 from itertools import compress
+import pkl2mat
 
 # prairie link
 import pvlink
@@ -616,6 +614,7 @@ class Worker(QObject):
 
 			FLAG_USE_ONACID = self.UseONACID
 			FLAG_SAVE_TIFF = p['saveAsTiff']
+			FLAG_SAVE_PROC_TIFF = p['saveProcTiff']
 			BufferPointer = self.BufferPointer
 			photo_stim_frames = self.photo_stim_frames # predefined fixed frames
 			stim_frames = self.stim_frames # stim at fixed intervals
@@ -647,7 +646,6 @@ class Worker(QObject):
 			self.status_signal.emit('Using OnACID')
 
 			# Extract initialisation parameters
-			mot_corr = True # hard coded now; using motion correction from onacid
 			cnm2 = self.c['cnm2'] #deepcopy(cnm_init)
 			img_norm = self.c['img_norm'].copy().astype(np.float32)
 			img_min = self.c['img_min'].copy().astype(np.float32)
@@ -739,13 +737,14 @@ class Worker(QObject):
 		rejected = 0
 
 		# prepare to save frames to tiff file
-		if FLAG_SAVE_TIFF:
+		if FLAG_SAVE_TIFF or FLAG_SAVE_PROC_TIFF:
 			try:
 				MyTiffwriter =  tifffile.TiffWriter(p['currentMoviePath'], bigtiff=True)
 				print('movie will be saved as '+p['currentMoviePath'])
 			except Exception as e:
 				print('tiffwriter error:' + e)
 				FLAG_SAVE_TIFF = False
+				FLAG_SAVE_PROC_TIFF = False
 
 
 		if p['FLAG_OFFLINE']:
@@ -758,18 +757,21 @@ class Worker(QObject):
 		while ((not p['FLAG_END_LOADING']) or (not qbuffer.empty())) and not STOP_JOB_FLAG:
 			app.processEvents(QEventLoop.ExcludeUserInputEvents)
 			# skip frames contaminated by photostim but save them to tiff
-			if p['FLAG_SKIP_FRAMES'] or (frames_post_photostim>0 and frames_post_photostim<photo_duration):
-				frames_post_photostim+=1
-				frame_in = qbuffer.get(timeout = max_wait)
-				qbuffer.task_done()
-				frames_skipped.append(framesProc)
-				framesProc += 1
-				if FLAG_SAVE_TIFF:
-					MyTiffwriter.save(frame_in)
-				print('framesProc'+str(framesProc)+'skipped')
-				continue
-			elif frames_post_photostim == photo_duration:
-				frames_post_photostim = 0
+			if frames_post_photostim >0:
+				if p['FLAG_SKIP_FRAMES'] or (frames_post_photostim>0 and frames_post_photostim<photo_duration):
+					frames_post_photostim+=1
+					frame_in = qbuffer.get(timeout = max_wait)
+					qbuffer.task_done()
+					frames_skipped.append(framesProc)
+					framesProc += 1
+					if FLAG_SAVE_TIFF:
+						MyTiffwriter.save(frame_in)
+					print('framesProc'+str(framesProc)+'skipped')
+					continue
+				elif frames_post_photostim == photo_duration:
+					frames_post_photostim = 0
+			elif frames_post_photostim == -1: # let one more frame in
+				frames_post_photostim = 2
 
 			# skip frames during (sensory) stimulation in case photostim is triggered during these frames outside of RTAOI
 			if blockPostFrames:
@@ -810,17 +812,17 @@ class Worker(QObject):
 					# process current frame
 					if ds_factor > 1:
 						frame_in = cv2.resize(frame_in, img_norm.shape[::-1])   # downsampling
-
 					frame_in -= img_min                                       # make data non-negative
 
-					if mot_corr:                                            # motion correct
-	#                    mot_corr_start = time.time()
-						templ = cnm2.Ab.dot(cnm2.C_on[:cnm2.M, t_cnm - 1]).reshape(cnm2.dims, order='F') * img_norm
-						frame_cor, shift = motion_correct_iteration_fast(frame_in, templ, max_shift, max_shift)
-						self.shifts.append(shift)
-	#                    print('caiman motion correction time:' + str("%.4f"%(time.time()-mot_corr_start)))
-					else:
-						frame_cor = frame_in
+					# motion correction
+#                   mot_corr_start = time.time()
+					templ = cnm2.Ab.dot(cnm2.C_on[:cnm2.M, t_cnm - 1]).reshape(cnm2.dims, order='F') * img_norm
+					frame_cor, shift = motion_correct_iteration_fast(frame_in, templ, max_shift, max_shift)
+					self.shifts.append(shift)
+	#               print('caiman motion correction time:' + str("%.4f"%(time.time()-mot_corr_start)))
+
+					if FLAG_SAVE_PROC_TIFF:
+						MyTiffwriter.save(frame_in)
 
 					frame_cor = frame_cor / img_norm                            # normalize data-frame
 					cnm2.fit_next(t_cnm, frame_cor.reshape(-1, order='F'))      # run OnACID on this frame
@@ -889,32 +891,29 @@ class Worker(QObject):
 									opsin.append(True)
 
 								# add new ROI to photostim target, if required
-								try:
-									if p['FLAG_BLINK_CONNECTED'] and p['addNewROIsToTarget']:
-										if opsin_positive:  # add target only if opsin present
-											p['currentTargetX'].append(x*ds_factor)
-											p['currentTargetY'].append(y*ds_factor)
-											current_target_idx.append(cnm2.N)
-											num_stim_targets = len(p['currentTargetX'])
+								if p['FLAG_BLINK_CONNECTED'] and p['addNewROIsToTarget']:
+									if opsin_positive:  # add target only if opsin present
+										p['currentTargetX'].append(x*ds_factor)
+										p['currentTargetY'].append(y*ds_factor)
+										current_target_idx.append(cnm2.N)
+										num_stim_targets = len(p['currentTargetX'])
 
-											if p['stimFromBlink']:
-												qtarget.put([p['currentTargetX'].copy(),p['currentTargetY'].copy()])
-												self.updateNewTargets_signal.emit()
-												# ---  test timing --- DELETE THIS LATER
+										if p['stimFromBlink']:
+											qtarget.put([p['currentTargetX'].copy(),p['currentTargetY'].copy()])
+											self.updateNewTargets_signal.emit()
+											# ---  test timing --- DELETE THIS LATER
 #												self.niTimingWriter.write_many_sample( p['NI_1D_ARRAY'],10.0)
 #												self.photostimNewTargets_signal.emit()
-											else:
-												self.sendCoords_signal.emit()
+										else:
+											self.sendCoords_signal.emit()
 
 
-											self.updateTargetROIs_signal.emit()
-											FLAG_SEND_COORDS = False
+										self.updateTargetROIs_signal.emit()
+										FLAG_SEND_COORDS = False
 
-									self.getROImask_signal.emit(x,y) # add roi coords to list in main
-									print('add new component time:' + str("%.4f"%(time.time()-update_comp_time)))
+								self.getROImask_signal.emit(x,y) # add roi coords to list in main
+								print('add new component time:' + str("%.4f"%(time.time()-update_comp_time)))
 
-								except Exception as e:
-									print(e)
 							else:
 								if repeated:
 									repeated_idx.append(cnm2.N)
@@ -1074,10 +1073,13 @@ class Worker(QObject):
 
 					# send out photostim triggers
 					if FLAG_TRIG_PHOTOSTIM:
+						frames_post_photostim = 1
 						if p['stimFromBlink']: # send trigger from photostimer
 							if FLAG_SEND_COORDS:
 								qtarget.put([p['currentTargetX'].copy(),p['currentTargetY'].copy()])
 								self.photostimNewTargets_signal.emit()
+								frames_post_photostim = -1 # accept next frame during phasemask update 
+
 							else:
 								self.photostimCurrentTargets_signal.emit(num_stim_targets)
 
@@ -1101,7 +1103,6 @@ class Worker(QObject):
 						online_photo_x.append(p['currentTargetX'][:])
 						online_photo_y.append(p['currentTargetY'][:])
 						num_photostim +=1
-						frames_post_photostim = 1
 						photo_stim_frames_caiman.append(framesCaiman)
 						print('Number photostim,',num_photostim)
 
@@ -1114,7 +1115,6 @@ class Worker(QObject):
 							# reset target indices and frames (for replay protocols)
 							current_target_idx = [] # reset target
 							frames_post_stim = 1
-
 
 					# Update GUI display
 					if framesProc > refreshFrame-1: #frame_count>self.BufferLength-1:
@@ -1191,7 +1191,7 @@ class Worker(QObject):
 		print('number of photostims = ' + str(num_photostim))
 		self.status_signal.emit('Mean processing time is ' + str(np.nanmean(self.tottime))[:6] + ' sec.')
 
-		if FLAG_SAVE_TIFF:
+		if FLAG_SAVE_TIFF or FLAG_SAVE_PROC_TIFF:
 			MyTiffwriter.close()
 
 		if self.UseONACID:
@@ -1224,8 +1224,8 @@ class Worker(QObject):
 			save_dict['online_clamp_level'] = online_clamp_level
 
 			save_dict['accepted_idx'] = accepted  # accepted currently stored inside cnm2 as well
-			save_dict['repeated_idx'] = []
-			save_dict['rejected_idx'] = []
+			save_dict['repeated_idx'] = repeated_idx
+			save_dict['rejected_idx'] = rejected_idx
 
 			save_dict['frame_detected'] = frame_detected
 			save_dict['t_cnm'] = t_cnm
@@ -1244,6 +1244,7 @@ class Worker(QObject):
 			save_dict['photo_stim_frames_caiman'] = photo_stim_frames_caiman
 			save_dict['stim_frames_caiman'] = stim_frames_caiman
 			save_dict['frames_skipped'] = frames_skipped
+			save_dict['framesProc'] = framesProc
 
 			if p['enableStimTrigger'] :
 				save_dict['sensory_stim_frames'] = self.stim_frames
@@ -1270,10 +1271,7 @@ class Worker(QObject):
 				else:
 					movie_string = movie_name[:-4]
 
-
 				filename = movie_string + '_OnlineProc_DS_' + str(ds_factor) + '_' + timestr + '.pkl'
-
-
 
 				movie_folder = os.path.dirname(self.movie_name)
 				save_folder = os.path.join(movie_folder, 'pyrtaoi_results')  # save init result in a separate folder
@@ -1281,11 +1279,13 @@ class Worker(QObject):
 				if not os.path.exists(save_folder):
 					os.makedirs(save_folder)
 				save_path = os.path.join(save_folder, filename)
-
 #                else:
 #                    save_path = self.movie_name[:-4] + '_OnlineProc_' + timestr + '.pkl'   # save results in the same folder
 				print('OnACID result is being saved as: ' + save_path)
 				save_object(save_dict, save_path)
+				print('pkl file saved')
+				pkl2mat(file_full_name = save_path)
+				print('mat file saved')
 			except Exception as e:
 				print(e)
 
@@ -1305,6 +1305,7 @@ class Worker(QObject):
 				print('sta traces saved as: ' + save_name)
 
 			except Exception as e:
+				print('making sta error')
 				print(e)
 				self.sta_traces = []
 				sta_trial_avg_amp = 0
@@ -1642,31 +1643,33 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		except Exception as e:
 			print(e)
 
-
 	def setConnects(self):
 		# load and save
 		self.loadMoviePath_pushButton.clicked.connect(self.loadMoviePath)
 		self.loadRefMoviePath_pushButton.clicked.connect(self.loadRefMoviePath)
 		self.loadOpsinImgPath_pushButton.clicked.connect(self.loadOpsinImg)
-		self.createMask_pushButton.clicked.connect(self.createOpsinMask)
-		self.showCellsOnMask_pushButton.clicked.connect(self.showCellsOnMask)
 		self.loadMask_pushButton.clicked.connect(self.loadMask)
 		self.initialise_pushButton.clicked.connect(self.initialiseCaiman)
-		self.CNNFilter_pushButton.clicked.connect(self.filterResults)
-
 		self.saveConfig_pushButton.clicked.connect(self.saveConfig)
 		self.loadConfig_pushButton.clicked.connect(self.loadConfig)
 		self.saveResult_pushButton.clicked.connect(self.saveResults)
 		self.browseResultPath_pushButton.clicked.connect(self.browseResultPath)
+		self.loadCalciumImg_pushButton.clicked.connect(self.loadCalciumImg)
+		self.loadResultPath_pushButton.clicked.connect(self.loadResultPath)
+#        self.createRejectMask_pushButton.clicked.connect(self.autoCreateRejectMask)
+
+		# rois
+		self.createMask_pushButton.clicked.connect(self.createOpsinMask)
+		self.showCellsOnMask_pushButton.clicked.connect(self.showCellsOnMask)
 		self.removeMode_pushButton.clicked.connect(self.removeModeController)
 		self.rejectMode_pushButton.clicked.connect(self.rejectModeController)
 		self.resetRejectMask_pushButton.clicked.connect(self.resetRejectMask)
 		self.applyRejectMask_pushButton.clicked.connect(self.applyRejectMask)
 		self.rejectMaskDisplay_pushButton.clicked.connect(self.rejectMaskDisplay)
-		self.loadCalciumImg_pushButton.clicked.connect(self.loadCalciumImg)
-		self.loadResultPath_pushButton.clicked.connect(self.loadResultPath)
-#        self.createRejectMask_pushButton.clicked.connect(self.autoCreateRejectMask)
 		self.showCellsOnRejectedMask_pushButton.clicked.connect(self.showCellsOnRejectedMask)
+		self.CNNFilter_pushButton.clicked.connect(self.filterResults)
+		self.removeSelected_pushButton.clicked.connect(self.removeSelected)
+		self.keepSelected_pushButton.clicked.connect(self.keepSelected)
 
 		# start worker
 		self.run_pushButton.clicked.connect(self.clickRun)
@@ -2289,7 +2292,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		if (self.selectAll_checkBox.isChecked):
 			self.selectAllROIs()
 
-	def removeCells(self, CNN=False, save_init=True):
+	def removeCells(self, CNN=False, save_init=True, FLAG_KEEP_SELECTED = False):
 		if self.rejectIdx:
 			rejected = True
 			self.removeIdx = self.rejectIdx   # just remove rejected cells
@@ -2299,12 +2302,16 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		print('Removing ' + str(len(self.removeIdx)) + ' cells')
 
 		# idx_keep is local idx of current ROI selection
-		if CNN:
-			thisROIIdx = self.c['K_init']  # same as self.thisROIIdx in most cases
-			idx_keep = sorted(list(set(range(thisROIIdx)) - set(self.removeIdx)))  # removeIdx here could be orig idx // mostly local idx though
-		else:
+		if FLAG_KEEP_SELECTED:
 			thisROIIdx = self.thisROIIdx
-			idx_keep = sorted(list(set(range(thisROIIdx)) - set(self.removeIdx)))  # removeIdx here is local GUI idx
+			idx_keep = sorted(list(set(self.removeIdx)))  # removeIdx here is local GUI idx
+		else:
+			if CNN:
+				thisROIIdx = self.c['K_init']  # same as self.thisROIIdx in most cases
+				idx_keep = sorted(list(set(range(thisROIIdx)) - set(self.removeIdx)))  # removeIdx here could be orig idx // mostly local idx though
+			else:
+				thisROIIdx = self.thisROIIdx
+				idx_keep = sorted(list(set(range(thisROIIdx)) - set(self.removeIdx)))  # removeIdx here is local GUI idx
 
 		accepted = self.c['cnm2'].accepted
 		coms = self.c['coms_init'][accepted]
@@ -2586,11 +2593,9 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 	def removeModeController(self):
 		self.removeModeOn = not self.removeModeOn
-
 		if self.removeModeOn:
 			self.startRemoveMode()
-		else:
-			self.exitRemoveMode()
+
 
 	def startRemoveMode(self):
 		print('Remove mode on!')
@@ -2599,9 +2604,9 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			item.setEnabled(False)
 
 #        self.removeMode_pushButton.setEnabled(True)
-		self.removeMode_pushButton.setText('Remove selected')
+		self.removeMode_pushButton.setText('Quit remove mode')
 
-	def exitRemoveMode(self):
+	def removeSelected(self):
 		if self.removeIdx:
 			msg = QMessageBox()
 			msg.setText("Do you want to remove selected cells?")
@@ -2619,6 +2624,25 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		for item in self.groupBoxes:
 			item.setEnabled(True)
 
+		print('Remove mode off')
+
+	def keepSelected(self):
+		if self.removeIdx:
+			msg = QMessageBox()
+			msg.setText("Do you want to remove all other cells?")
+			msg.setWindowTitle('pyRTAOI Message')
+			msg.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+			retval = msg.exec_()
+			if(retval==QMessageBox.Ok):
+				self.removeCells(FLAG_KEEP_SELECTED = True)
+			else:
+				self.updateAllROIs()
+				self.removeIdx = []
+
+		self.removeMode_pushButton.setText('Start remove')
+
+		for item in self.groupBoxes:
+			item.setEnabled(True)
 		print('Remove mode off')
 
 #%% Rejection mask
