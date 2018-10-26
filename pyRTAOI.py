@@ -1776,9 +1776,11 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 		if self.POWER_CONTROL_READY:
 			self.updatePowerControl()
+
+		self.framesNeeded_label.setText('Frames needed:'+str(p['stimStartFrame']+p['interStimInterval']*p['numberStims']+p['staPostFrame']))
+					
 		try:
 			self.c['cnm2'].max_num_added = p['MaxNumROIs']
-			print('max num rois updated')
 		except:
 			pass
 
