@@ -2917,6 +2917,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			# load pkl file to main
 			with open(result_path, 'rb') as f:
 				file_data = pickle.load(f)
+			self.resultPath_lineEdit.setText(result_path)
 			cnm2 = file_data['cnm2']
 			online_C = file_data['online_C']
 			coms = file_data['coms']
