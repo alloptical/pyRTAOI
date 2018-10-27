@@ -180,7 +180,7 @@
         <x>560</x>
         <y>430</y>
         <width>331</width>
-        <height>101</height>
+        <height>111</height>
        </rect>
       </property>
       <property name="title">
@@ -223,7 +223,7 @@
         <item row="1" column="1">
          <widget class="QLineEdit" name="moviePath_lineEdit">
           <property name="text">
-           <string>U:/simulate_movie/20170823.tif</string>
+           <string/>
           </property>
          </widget>
         </item>
@@ -428,10 +428,10 @@
      <widget class="QGroupBox" name="StimOptions_groupBox">
       <property name="geometry">
        <rect>
-        <x>1240</x>
+        <x>1250</x>
         <y>20</y>
         <width>391</width>
-        <height>171</height>
+        <height>201</height>
        </rect>
       </property>
       <property name="title">
@@ -486,6 +486,19 @@
            <string>connect TCP</string>
           </property>
          </widget>
+        </item>
+        <item row="0" column="2">
+         <spacer name="horizontalSpacer_10">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>40</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
         </item>
        </layout>
       </widget>
@@ -734,14 +747,26 @@
           </property>
          </spacer>
         </item>
-        <item row="1" column="5">
+       </layout>
+      </widget>
+      <widget class="QWidget" name="horizontalLayoutWidget">
+       <property name="geometry">
+        <rect>
+         <x>9</x>
+         <y>170</y>
+         <width>371</width>
+         <height>21</height>
+        </rect>
+       </property>
+       <layout class="QHBoxLayout" name="horizontalLayout_2">
+        <item>
          <widget class="QCheckBox" name="blockPostFrames_checkBox">
           <property name="text">
            <string>Block post frames</string>
           </property>
          </widget>
         </item>
-        <item row="0" column="5">
+        <item>
          <widget class="QLabel" name="framesNeeded_label">
           <property name="text">
            <string>Frames needed: 0</string>
@@ -756,8 +781,8 @@
        <rect>
         <x>900</x>
         <y>150</y>
-        <width>331</width>
-        <height>271</height>
+        <width>341</width>
+        <height>281</height>
        </rect>
       </property>
       <property name="title">
@@ -1093,7 +1118,7 @@
           <item row="0" column="2" colspan="2">
            <widget class="QLineEdit" name="refMoviePath_lineEdit">
             <property name="text">
-             <string>U:/simulate_movie/20170823.tif</string>
+             <string/>
             </property>
            </widget>
           </item>
@@ -1132,24 +1157,6 @@
          </widget>
         </item>
        </layout>
-      </widget>
-      <widget class="QLabel" name="label_39">
-       <property name="geometry">
-        <rect>
-         <x>260</x>
-         <y>1</y>
-         <width>51</width>
-         <height>16</height>
-        </rect>
-       </property>
-       <property name="font">
-        <font>
-         <pointsize>8</pointsize>
-        </font>
-       </property>
-       <property name="text">
-        <string>Use mask</string>
-       </property>
       </widget>
      </widget>
      <widget class="GraphicsLayoutWidget" name="plotArea_graphicsLayoutWidget">
@@ -1404,7 +1411,7 @@
       <property name="geometry">
        <rect>
         <x>1010</x>
-        <y>540</y>
+        <y>550</y>
         <width>341</width>
         <height>101</height>
        </rect>
@@ -1473,7 +1480,7 @@
        <rect>
         <x>900</x>
         <y>20</y>
-        <width>331</width>
+        <width>341</width>
         <height>121</height>
        </rect>
       </property>
@@ -1502,7 +1509,7 @@
            <item row="0" column="1">
             <widget class="QLineEdit" name="opsinImgPath_lineEdit">
              <property name="text">
-              <string>U:/simulate_movie/20170823_Ch01.tif</string>
+              <string/>
              </property>
             </widget>
            </item>
@@ -1626,7 +1633,7 @@
       <property name="geometry">
        <rect>
         <x>1010</x>
-        <y>650</y>
+        <y>690</y>
         <width>341</width>
         <height>61</height>
        </rect>
@@ -1688,10 +1695,10 @@
      <widget class="QGroupBox" name="photostim_groupBox">
       <property name="geometry">
        <rect>
-        <x>1240</x>
-        <y>200</y>
+        <x>1250</x>
+        <y>230</y>
         <width>391</width>
-        <height>221</height>
+        <height>261</height>
        </rect>
       </property>
       <property name="title">
@@ -1701,7 +1708,7 @@
        <property name="geometry">
         <rect>
          <x>10</x>
-         <y>130</y>
+         <y>170</y>
          <width>371</width>
          <height>81</height>
         </rect>
@@ -1897,12 +1904,12 @@
         <rect>
          <x>10</x>
          <y>20</y>
-         <width>372</width>
-         <height>101</height>
+         <width>371</width>
+         <height>141</height>
         </rect>
        </property>
        <layout class="QGridLayout" name="gridLayout_20">
-        <item row="3" column="1">
+        <item row="5" column="1">
          <spacer name="verticalSpacer_5">
           <property name="orientation">
            <enum>Qt::Vertical</enum>
@@ -1915,20 +1922,10 @@
           </property>
          </spacer>
         </item>
-        <item row="0" column="2">
-         <widget class="QCheckBox" name="SendPowerVolt_checkBox">
+        <item row="0" column="0">
+         <widget class="QLabel" name="label_21">
           <property name="text">
-           <string>Ctr power</string>
-          </property>
-          <property name="checked">
-           <bool>true</bool>
-          </property>
-         </widget>
-        </item>
-        <item row="1" column="0">
-         <widget class="QCheckBox" name="stimFromBlink_checkBox">
-          <property name="text">
-           <string>Stim from Blink</string>
+           <string>Trigger on:</string>
           </property>
          </widget>
         </item>
@@ -1976,21 +1973,71 @@
           </item>
          </widget>
         </item>
-        <item row="1" column="1">
+        <item row="1" column="3">
          <widget class="QPushButton" name="updatePhotostimParameters_pushButton">
           <property name="text">
-           <string>Update Parameters</string>
+           <string>Update Params</string>
           </property>
          </widget>
         </item>
-        <item row="0" column="0">
-         <widget class="QLabel" name="label_21">
+        <item row="4" column="0">
+         <widget class="QLabel" name="label_32">
           <property name="text">
-           <string>Trigger on:</string>
+           <string>Power Dev/Ch</string>
+          </property>
+         </widget>
+        </item>
+        <item row="4" column="1">
+         <widget class="QLineEdit" name="powerDaqDevice_lineEdit">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="text">
+           <string>Dev5/ao0</string>
+          </property>
+          <property name="maxLength">
+           <number>500</number>
           </property>
          </widget>
         </item>
         <item row="0" column="3">
+         <widget class="QPushButton" name="testPhotoStimTrigger_pushButton">
+          <property name="text">
+           <string>Test trigger</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="3">
+         <widget class="QPushButton" name="calcheck_pushButton">
+          <property name="text">
+           <string>Run CalCheck</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="QCheckBox" name="stimFromBlink_checkBox">
+          <property name="text">
+           <string>Stim from Blink</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="QCheckBox" name="SendPowerVolt_checkBox">
+          <property name="text">
+           <string>Ctr power</string>
+          </property>
+          <property name="checked">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="2">
          <spacer name="horizontalSpacer_8">
           <property name="orientation">
            <enum>Qt::Horizontal</enum>
@@ -2002,20 +2049,6 @@
            </size>
           </property>
          </spacer>
-        </item>
-        <item row="1" column="3">
-         <widget class="QPushButton" name="calcheck_pushButton">
-          <property name="text">
-           <string>Run CalCheck</string>
-          </property>
-         </widget>
-        </item>
-        <item row="1" column="2">
-         <widget class="QPushButton" name="testPhotoStimTrigger_pushButton">
-          <property name="text">
-           <string>Test trigger</string>
-          </property>
-         </widget>
         </item>
         <item row="2" column="0">
          <widget class="QLabel" name="label_23">
@@ -2046,32 +2079,6 @@
           </property>
          </widget>
         </item>
-        <item row="2" column="2">
-         <widget class="QLabel" name="label_32">
-          <property name="text">
-           <string>Power Dev/Ch</string>
-          </property>
-         </widget>
-        </item>
-        <item row="2" column="3">
-         <widget class="QLineEdit" name="powerDaqDevice_lineEdit">
-          <property name="enabled">
-           <bool>false</bool>
-          </property>
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="text">
-           <string>Dev5/ao0</string>
-          </property>
-          <property name="maxLength">
-           <number>500</number>
-          </property>
-         </widget>
-        </item>
        </layout>
       </widget>
      </widget>
@@ -2079,7 +2086,7 @@
       <property name="geometry">
        <rect>
         <x>1010</x>
-        <y>720</y>
+        <y>760</y>
         <width>341</width>
         <height>51</height>
        </rect>
@@ -2198,8 +2205,8 @@
       <property name="geometry">
        <rect>
         <x>900</x>
-        <y>430</y>
-        <width>331</width>
+        <y>440</y>
+        <width>341</width>
         <height>101</height>
        </rect>
       </property>
