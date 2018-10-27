@@ -8,8 +8,8 @@ caiman_data = load('Y:\zzhang\Data\20181024\pyrtaoi_results\20181024_L527_t_0008
 
 
 %% stim parameter - CHANGE THIS
-num_stim_type = 8; % orientations
-num_stim_per_type = 4;
+num_stim_type = 4; % orientations
+num_stim_per_type = 8;
 vis_duration = 30; % frames
 photo_duration = 90; % frames
 
@@ -125,7 +125,6 @@ end
 
 cnm_plot_options = CNMFSetParms;
 cnm_plot_options.roi_color = [colormap(lines);colormap(lines);colormap(lines)];
-close all
 
 figure('name','fov')
 subplot(1,2,1)

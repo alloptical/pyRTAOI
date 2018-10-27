@@ -431,7 +431,7 @@
         <x>1250</x>
         <y>20</y>
         <width>391</width>
-        <height>201</height>
+        <height>181</height>
        </rect>
       </property>
       <property name="title">
@@ -508,7 +508,7 @@
          <x>10</x>
          <y>50</y>
          <width>374</width>
-         <height>111</height>
+         <height>106</height>
         </rect>
        </property>
        <layout class="QGridLayout" name="gridLayout">
@@ -753,14 +753,14 @@
        <property name="geometry">
         <rect>
          <x>9</x>
-         <y>170</y>
+         <y>150</y>
          <width>371</width>
          <height>21</height>
         </rect>
        </property>
        <layout class="QHBoxLayout" name="horizontalLayout_2">
         <item>
-         <widget class="QCheckBox" name="blockPostFrames_checkBox">
+         <widget class="QCheckBox" name="blockPostFrames_checkBox_2">
           <property name="text">
            <string>Block post frames</string>
           </property>
@@ -1402,6 +1402,13 @@
          </property>
         </widget>
        </item>
+       <item row="1" column="4">
+        <widget class="QPushButton" name="updateFixTargets_pushButton">
+         <property name="text">
+          <string>Update fix targets</string>
+         </property>
+        </widget>
+       </item>
       </layout>
      </widget>
      <widget class="QGroupBox" name="groupBox">
@@ -1696,19 +1703,370 @@
       <property name="geometry">
        <rect>
         <x>1250</x>
-        <y>230</y>
+        <y>210</y>
         <width>391</width>
-        <height>261</height>
+        <height>331</height>
        </rect>
       </property>
       <property name="title">
        <string>Photostim options</string>
       </property>
+      <widget class="QWidget" name="gridLayoutWidget_2">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>20</y>
+         <width>371</width>
+         <height>115</height>
+        </rect>
+       </property>
+       <layout class="QGridLayout" name="gridLayout_20">
+        <item row="0" column="0">
+         <widget class="QLabel" name="label_21">
+          <property name="text">
+           <string>Trigger on:</string>
+          </property>
+         </widget>
+        </item>
+        <item row="5" column="1">
+         <spacer name="verticalSpacer_5">
+          <property name="orientation">
+           <enum>Qt::Vertical</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>20</width>
+            <height>40</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+        <item row="1" column="3">
+         <widget class="QPushButton" name="updatePhotostimParameters_pushButton">
+          <property name="text">
+           <string>Update Params</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QComboBox" name="photoProto_comboBox">
+          <item>
+           <property name="text">
+            <string>None</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Fix frames</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Above thresh</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Below thresh</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Upon detection</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Replay trial</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Replay train</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Clamp down</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string/>
+           </property>
+          </item>
+         </widget>
+        </item>
+        <item row="4" column="0">
+         <widget class="QLabel" name="label_32">
+          <property name="text">
+           <string>Power Dev/Ch</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="3">
+         <widget class="QPushButton" name="calcheck_pushButton">
+          <property name="text">
+           <string>Run CalCheck</string>
+          </property>
+         </widget>
+        </item>
+        <item row="4" column="1">
+         <widget class="QLineEdit" name="powerDaqDevice_lineEdit">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="text">
+           <string>Dev5/ao0</string>
+          </property>
+          <property name="maxLength">
+           <number>500</number>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="3">
+         <widget class="QPushButton" name="testPhotoStimTrigger_pushButton">
+          <property name="text">
+           <string>Test trigger</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="QCheckBox" name="stimFromBlink_checkBox">
+          <property name="text">
+           <string>Stim from Blink</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="QCheckBox" name="SendPowerVolt_checkBox">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="text">
+           <string>Ctr power</string>
+          </property>
+          <property name="checked">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="1">
+         <widget class="QLineEdit" name="photostimDaqDevice_lineEdit">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="layoutDirection">
+           <enum>Qt::LeftToRight</enum>
+          </property>
+          <property name="text">
+           <string>Dev5/ao1</string>
+          </property>
+          <property name="maxLength">
+           <number>500</number>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="2">
+         <spacer name="horizontalSpacer_8">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>40</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+        <item row="2" column="0">
+         <widget class="QLabel" name="label_23">
+          <property name="text">
+           <string>Trigger Dev/Ch</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="gridLayoutWidget_14">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>227</y>
+         <width>341</width>
+         <height>91</height>
+        </rect>
+       </property>
+       <layout class="QGridLayout" name="gridLayout_22">
+        <item row="3" column="1">
+         <widget class="QSpinBox" name="numExtraSensoryPhoto_spinBox">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="maximum">
+           <number>100</number>
+          </property>
+          <property name="singleStep">
+           <number>0</number>
+          </property>
+          <property name="value">
+           <number>20</number>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="0">
+         <widget class="QCheckBox" name="ifExtraSensoryPhoto_checkBox">
+          <property name="text">
+           <string>sensory+ photo</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QLabel" name="label_46">
+          <property name="text">
+           <string>Num. trials</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="QCheckBox" name="ifExtraSensory_checkBox">
+          <property name="text">
+           <string>sensory alone</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="0">
+         <widget class="QLabel" name="label_39">
+          <property name="text">
+           <string>Control trial type</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="QSpinBox" name="numExtraSensory_spinBox">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="maximum">
+           <number>100</number>
+          </property>
+          <property name="singleStep">
+           <number>0</number>
+          </property>
+          <property name="value">
+           <number>20</number>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="0">
+         <widget class="QCheckBox" name="ifExtraPhoto_checkBox">
+          <property name="text">
+           <string>photo alone</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="1">
+         <widget class="QSpinBox" name="numExtraPhoto_spinBox">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="maximum">
+           <number>100</number>
+          </property>
+          <property name="singleStep">
+           <number>0</number>
+          </property>
+          <property name="value">
+           <number>20</number>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="3">
+         <widget class="QPushButton" name="plotTrialTypes_pushButton">
+          <property name="text">
+           <string>Plot trial type</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="4">
+         <layout class="QHBoxLayout" name="horizontalLayout_3">
+          <item>
+           <spacer name="horizontalSpacer_12">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+         </layout>
+        </item>
+        <item row="2" column="2">
+         <spacer name="horizontalSpacer_11">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>40</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+        <item row="2" column="3">
+         <widget class="QCheckBox" name="shuffleTrials_checkBox">
+          <property name="text">
+           <string>Shuffle </string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+      <widget class="Line" name="line">
+       <property name="geometry">
+        <rect>
+         <x>7</x>
+         <y>210</y>
+         <width>381</width>
+         <height>20</height>
+        </rect>
+       </property>
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+      </widget>
       <widget class="QWidget" name="gridLayoutWidget_10">
        <property name="geometry">
         <rect>
          <x>10</x>
-         <y>170</y>
+         <y>140</y>
          <width>371</width>
          <height>81</height>
         </rect>
@@ -1894,188 +2252,6 @@
           </property>
           <property name="value">
            <number>100</number>
-          </property>
-         </widget>
-        </item>
-       </layout>
-      </widget>
-      <widget class="QWidget" name="gridLayoutWidget_2">
-       <property name="geometry">
-        <rect>
-         <x>10</x>
-         <y>20</y>
-         <width>371</width>
-         <height>141</height>
-        </rect>
-       </property>
-       <layout class="QGridLayout" name="gridLayout_20">
-        <item row="5" column="1">
-         <spacer name="verticalSpacer_5">
-          <property name="orientation">
-           <enum>Qt::Vertical</enum>
-          </property>
-          <property name="sizeHint" stdset="0">
-           <size>
-            <width>20</width>
-            <height>40</height>
-           </size>
-          </property>
-         </spacer>
-        </item>
-        <item row="0" column="0">
-         <widget class="QLabel" name="label_21">
-          <property name="text">
-           <string>Trigger on:</string>
-          </property>
-         </widget>
-        </item>
-        <item row="0" column="1">
-         <widget class="QComboBox" name="photoProto_comboBox">
-          <item>
-           <property name="text">
-            <string>None</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>Fix frames</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>Above thresh</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>Below thresh</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>Upon detection</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>Replay trial</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>Replay train</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>Clamp to baseline</string>
-           </property>
-          </item>
-         </widget>
-        </item>
-        <item row="1" column="3">
-         <widget class="QPushButton" name="updatePhotostimParameters_pushButton">
-          <property name="text">
-           <string>Update Params</string>
-          </property>
-         </widget>
-        </item>
-        <item row="4" column="0">
-         <widget class="QLabel" name="label_32">
-          <property name="text">
-           <string>Power Dev/Ch</string>
-          </property>
-         </widget>
-        </item>
-        <item row="4" column="1">
-         <widget class="QLineEdit" name="powerDaqDevice_lineEdit">
-          <property name="enabled">
-           <bool>false</bool>
-          </property>
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="text">
-           <string>Dev5/ao0</string>
-          </property>
-          <property name="maxLength">
-           <number>500</number>
-          </property>
-         </widget>
-        </item>
-        <item row="0" column="3">
-         <widget class="QPushButton" name="testPhotoStimTrigger_pushButton">
-          <property name="text">
-           <string>Test trigger</string>
-          </property>
-         </widget>
-        </item>
-        <item row="2" column="3">
-         <widget class="QPushButton" name="calcheck_pushButton">
-          <property name="text">
-           <string>Run CalCheck</string>
-          </property>
-         </widget>
-        </item>
-        <item row="1" column="1">
-         <widget class="QCheckBox" name="stimFromBlink_checkBox">
-          <property name="text">
-           <string>Stim from Blink</string>
-          </property>
-         </widget>
-        </item>
-        <item row="1" column="0">
-         <widget class="QCheckBox" name="SendPowerVolt_checkBox">
-          <property name="text">
-           <string>Ctr power</string>
-          </property>
-          <property name="checked">
-           <bool>true</bool>
-          </property>
-         </widget>
-        </item>
-        <item row="1" column="2">
-         <spacer name="horizontalSpacer_8">
-          <property name="orientation">
-           <enum>Qt::Horizontal</enum>
-          </property>
-          <property name="sizeHint" stdset="0">
-           <size>
-            <width>40</width>
-            <height>20</height>
-           </size>
-          </property>
-         </spacer>
-        </item>
-        <item row="2" column="0">
-         <widget class="QLabel" name="label_23">
-          <property name="text">
-           <string>Trigger Dev/Ch</string>
-          </property>
-         </widget>
-        </item>
-        <item row="2" column="1">
-         <widget class="QLineEdit" name="photostimDaqDevice_lineEdit">
-          <property name="enabled">
-           <bool>false</bool>
-          </property>
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="layoutDirection">
-           <enum>Qt::LeftToRight</enum>
-          </property>
-          <property name="text">
-           <string>Dev5/ao1</string>
-          </property>
-          <property name="maxLength">
-           <number>500</number>
           </property>
          </widget>
         </item>
