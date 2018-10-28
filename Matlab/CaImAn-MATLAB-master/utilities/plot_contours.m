@@ -133,7 +133,7 @@ fontname = 'helvetica';
     if display_numbers
         lbl = strtrim(cellstr(num2str((1:size(Aor,2))')));
         for i = ind_show
-            text(round(cm(i,2)),round(cm(i,1)),strtrim(cellstr(num2str(i))),'color',[.9 .9 .9],'fontsize',16,'fontname',fontname,'fontweight','bold');
+            text(round(cm(i,2)),round(cm(i,1)),strtrim(cellstr(num2str(i))),'color',[255,0,0]./255,'fontsize',12,'fontname',fontname,'fontweight','bold');
         end
     end
     axis off;

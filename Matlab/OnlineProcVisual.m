@@ -4,12 +4,12 @@
 
 % ZZ 2018
 % load data
-caiman_data = load('Y:\zzhang\Data\20181024\pyrtaoi_results\20181024_L527_t_0008_rtaoi_DS_2.0_OnlineProc_DS_2.0_162652.mat') 
+caiman_data = load('F:\Data\Zoe\20181028\pyrtaoi_results\20181028_L528_t_0007_rtaoi_DS_2.0_OnlineProc_DS_2.0_190733.mat') 
 
 
 %% stim parameter - CHANGE THIS
 num_stim_type = 4; % orientations
-num_stim_per_type = 8;
+num_stim_per_type = 10;
 vis_duration = 30; % frames
 photo_duration = 90; % frames
 
@@ -127,13 +127,20 @@ cnm_plot_options = CNMFSetParms;
 cnm_plot_options.roi_color = [colormap(lines);colormap(lines);colormap(lines)];
 
 figure('name','fov')
-subplot(1,2,1)
+subplot(1,3,1)
 imagesc(com_fov)
 colormap(gray)
 axis square
 title('Detected ROIs')
 
-subplot(1,2,2)
+
+subplot(1,3,2)
+plot_contours(sparse(double(cnm_A)),cnm_image,cnm_plot_options,1,[],[],[1 1 1]);
+colormap(gray)
+axis square
+title('GCaMP')
+
+subplot(1,3,3)
 hold on
 [CC,jsf] = plot_contours(sparse(double(cnm_A)),caiman_data.opsin_mask,cnm_plot_options,1,[],[],[1 1 1]);
 title('Opsin mask')

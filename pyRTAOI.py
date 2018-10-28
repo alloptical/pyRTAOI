@@ -32,6 +32,7 @@ import random
 import os
 import glob
 import math
+import scipy.io as sio
 
 # Qt
 import GUI
@@ -56,7 +57,7 @@ import pickle
 import logging
 import json
 from itertools import compress
-import pkl2mat
+from pkl2mat import pkl2mat
 
 # prairie link
 import pvlink
@@ -461,6 +462,7 @@ class Worker(QObject):
 	refreshScatter_signal    = pyqtSignal(object)
 	showROIIdx_signal        = pyqtSignal(name = 'showROIIdx')
 	sendTTLTrigger_signal    = pyqtSignal()
+	sendTrialStartTrigger_signal = pyqtSignal()
 	sendCoords_signal        = pyqtSignal(name = 'sendCoordsSignal')
 	sendPhotoStimTrig_signal = pyqtSignal()
 	getROImask_signal        = pyqtSignal(object, object,name = 'getROImaskSignal')
@@ -481,9 +483,6 @@ class Worker(QObject):
 		self.ROIlist = kwargs.get('ROIlist',dict())
 		print('worker pl empty? ' + str(self.pl == []))
 
-		# sta traces
-		p['stimStopFrame'] = p['stimStartFrame']+p['numberStims']*p['interStimInterval']+p['staPreFrame']
-		self.stim_frames = np.arange(p['stimStartFrame'],p['stimStopFrame']+1,p['interStimInterval'])
 
 		# count processed frames
 		self.framesProc = 0
@@ -505,7 +504,8 @@ class Worker(QObject):
 
 		# initialise stim frames
 		frame_rate = 30
-		self.photo_stim_frames = self.stim_frames + p['photoWaitFrames']
+		self.photo_stim_frames = p['photo_stim_frames']
+		self.stim_frames = p['sen_stim_frames']
 		self.flag_sta_recording = False
 		self.sta_frame_idx = 0
 		self.sta_trace_length = p['staPreFrame']+p['staPostFrame']
@@ -515,9 +515,6 @@ class Worker(QObject):
 		self.replay_idx = []
 		self.replay_frames = []
 
-		# reconfigure stim frames (if photostim protocol = 5, i.e. replay sesensory response in the previous trial)
-		self.photo_stim_frames = p['photo_stim_frames']
-		self.stim_frames = p['sen_stim_frames'] 
 
 #		#####  Delete this #####
 #		if p['photoProtoInx'] == CONSTANTS.PHOTO_REPLAY_TRIAL or p['photoProtoInx'] == CONSTANTS.PHOTO_REPLAY_TRAIN:
@@ -556,12 +553,12 @@ class Worker(QObject):
 		# make Temp folder
 		self.save_dir = p['temp_save_dir']
 
-		# setup a trigger for measure timing
-		self.niTimingTask = daqtask.Task() # TTL trigger for measure timing
-		self.niTimingTask.ao_channels.add_ao_voltage_chan('Dev5/ao5','timing_trig')
-		self.niTimingWriter= stream_writers.AnalogSingleChannelWriter(self.niTimingTask.out_stream,True)
-		self.niTimingWriter.write_one_sample(0,10.0)
-		print('timing trigger set')
+#		# setup a trigger for measure timing - using this as trial start trigger
+#		self.niTimingTask = daqtask.Task() # TTL trigger for measure timing
+#		self.niTimingTask.ao_channels.add_ao_voltage_chan('Dev5/ao7','timing_trig')
+#		self.niTimingWriter= stream_writers.AnalogSingleChannelWriter(self.niTimingTask.out_stream,True)
+#		self.niTimingWriter.write_one_sample(0,10.0)
+#		print('timing trigger set')
 
 		global STOP_JOB_FLAG
 		STOP_JOB_FLAG = False
@@ -623,7 +620,7 @@ class Worker(QObject):
 			BufferPointer = self.BufferPointer
 			photo_stim_frames = self.photo_stim_frames # predefined fixed frames
 			stim_frames = self.stim_frames # stim at fixed intervals
-			
+
 			# control trials
 			numExtraPhoto = len(p['extraPhotoFrames'])
 			numExtraSensory = len(p['extraSensoryFrames'])
@@ -637,6 +634,7 @@ class Worker(QObject):
 			extraSensoryPhoto_caiman = []
 			extraSensory_caiman = []
 			extraPhoto_caiman = []
+			FLAG_TRIAL_START = False
 
 			# Local buffer for recording online protocol
 			online_photo_frames = []
@@ -646,7 +644,6 @@ class Worker(QObject):
 			online_thresh = []
 			online_clamp_level = []
 			print('local params in work set')
-			photoProtoInx = p['photoProtoInx']
 
 		except Exception as e:
 			print('local params setting error:')
@@ -683,6 +680,8 @@ class Worker(QObject):
 			rejected_count = cnm2.N - len(accepted)
 			expect_components = True
 			com_count = len(accepted) #self.c['cnm2'].N
+			if com_count == p['MaxNumROIs']:
+				expect_components = False
 			init_t = cnm2.initbatch
 			K_init = self.c['K_init']
 
@@ -792,6 +791,7 @@ class Worker(QObject):
 					frames_post_photostim = 0
 			elif frames_post_photostim == -1: # let one more frame in
 				frames_post_photostim = 2
+
 
 			# skip frames during (sensory) stimulation in case photostim is triggered during these frames outside of RTAOI
 			if blockPostFrames:
@@ -943,9 +943,10 @@ class Worker(QObject):
 									print('Rejected component found!')
 
 								rejected_count += 1
-					if com_count == p['MaxNumROIs']:
-						expect_components = False
-						print('Not accepting more components')
+						if com_count == p['MaxNumROIs']:
+							expect_components = False
+
+
 
 					# add data to buffer
 					try:
@@ -1020,6 +1021,7 @@ class Worker(QObject):
 								if (num_stim_targets>0):
 									FLAG_TRIG_PHOTOSTIM = True
 									FLAG_SEND_COORDS = True
+
 									print('photostim triggered')
 
 
@@ -1030,26 +1032,26 @@ class Worker(QObject):
 
 						if countExtraSensoryPhoto < numExtraSensoryPhoto:
 							if framesProc == extraSensoryPhotoFrames[countExtraSensoryPhoto]:
+								FLAG_TRIAL_START = True
 								FLAG_TRIG_PHOTOSTIM = True
-
 						if countExtraPhoto < numExtraPhoto:
 							if framesProc == extraPhotoFrames[countExtraPhoto]:
 								p['currentTargetX'] = p['fixedTargetX'].copy()
 								p['currentTargetY'] = p['fixedTargetY'].copy()
+								num_stim_targets = len(p['fixedTargetX'])
+								current_target_idx = [] # reset target
+								FLAG_TRIAL_START = True
 								FLAG_SEND_COORDS = True
 								FLAG_TRIG_PHOTOSTIM = True
-								countExtraPhoto +=1
-
 
 					elif p['photoProtoInx'] == CONSTANTS.PHOTO_ABOVE_THRESH: # TODO: test the check for opsin
 						photostim_flag = self.RoiBuffer[:com_count, BufferPointer]-self.ROIlist_threshold[:com_count]
-						last_target_idx = np.copy(current_target_idx)
 						above_thresh = np.array(photostim_flag>0)
 						opsin_ok = np.array(opsin)
 						print('above thresh = ')
 						print(above_thresh)
 						current_target_idx = np.where(above_thresh & opsin_ok == True)
-						num_stim_targets = len(current_target_idx)
+						num_stim_targets = len(current_target_idx[0])
 
 						if (num_stim_targets>0):
 							FLAG_TRIG_PHOTOSTIM = True
@@ -1065,24 +1067,26 @@ class Worker(QObject):
 
 						if countExtraSensoryPhoto < numExtraSensoryPhoto:
 							if framesProc == extraSensoryPhotoFrames[countExtraSensoryPhoto]:
+								FLAG_TRIAL_START = True
 								FLAG_TRIG_PHOTOSTIM = True
-
 						if countExtraPhoto < numExtraPhoto:
 							if framesProc == extraPhotoFrames[countExtraPhoto]:
 								p['currentTargetX'] = p['fixedTargetX'].copy()
 								p['currentTargetY'] = p['fixedTargetY'].copy()
+								num_stim_targets = len(p['fixedTargetX'])
+								current_target_idx = [] # reset target
+								FLAG_TRIAL_START = True
 								FLAG_SEND_COORDS = True
 								FLAG_TRIG_PHOTOSTIM = True
-								countExtraPhoto +=1
+
 
 
 					elif p['photoProtoInx'] == CONSTANTS.PHOTO_BELOW_THRESH:
 						photostim_flag = self.ROIlist_threshold[:com_count] - self.RoiBuffer[:com_count, BufferPointer]
-						last_target_idx = np.copy(current_target_idx)
 						above_thresh = np.array(photostim_flag>0)
 						opsin_ok = np.array(opsin)
 						current_target_idx = np.where(above_thresh & opsin_ok == True)
-						num_stim_targets = len(current_target_idx)
+						num_stim_targets = len(current_target_idx[0])
 
 						if (num_stim_targets>0):
 							FLAG_TRIG_PHOTOSTIM = True
@@ -1096,11 +1100,21 @@ class Worker(QObject):
 
 						if countExtraSensoryPhoto < numExtraSensoryPhoto:
 							if framesProc == extraSensoryPhotoFrames[countExtraSensoryPhoto]:
+								FLAG_TRIAL_START = True
+								FLAG_TRIG_PHOTOSTIM = True
+						if countExtraPhoto < numExtraPhoto:
+							if framesProc == extraPhotoFrames[countExtraPhoto]:
+								p['currentTargetX'] = p['fixedTargetX'].copy()
+								p['currentTargetY'] = p['fixedTargetY'].copy()
+								num_stim_targets = len(p['fixedTargetX'])
+								current_target_idx = [] # reset target
+								FLAG_TRIAL_START = True
+								FLAG_SEND_COORDS = True
 								FLAG_TRIG_PHOTOSTIM = True
 
 
 					elif p['photoProtoInx'] == CONSTANTS.PHOTO_CLAMP_DOWN:
-						if framesProc == stim_frames[sens_stim_idx]-1:
+						if sens_stim_idx < tot_num_senstim and framesProc == stim_frames[sens_stim_idx]-1:
 							# get baseline level
 							current_clamp_level= np.nanmean(cnm2.C_on[accepted, t_cnm - baseline_frames:t_cnm], axis=1) + np.nanstd(cnm2.noisyC[accepted, t_cnm - baseline_frames:t_cnm], axis=1)
 							online_clamp_level.append(current_clamp_level.copy())
@@ -1108,24 +1122,34 @@ class Worker(QObject):
 							last_com_count = com_count
 							print('updated clamp level')
 
-						if (sens_stim_idx>0 and framesProc < stim_frames[sens_stim_idx-1]+ monitor_frames and framesProc > stim_frames[sens_stim_idx-1])+ wait_frames:
+
+						if sens_stim_idx>0 and framesProc < stim_frames[sens_stim_idx-1]+ monitor_frames and framesProc > stim_frames[sens_stim_idx-1]+ wait_frames:
 							# stim rois: 1.detected before this sensory stim and passed clamp level 2 detected during this sensory stim
 							photostim_flag = self.RoiBuffer[:last_com_count, BufferPointer]-current_clamp_level
 							photostim_flag = np.concatenate((photostim_flag,np.ones(com_count - last_com_count)))
 							above_thresh = np.array(photostim_flag>0)
-							current_target_idx = np.where(above_thresh == True)
-							num_stim_targets = len(current_target_idx)
+							opsin_ok = np.array(opsin)
+							current_target_idx = np.where(above_thresh & opsin_ok == True)
+							num_stim_targets = len(current_target_idx[0])
 							if (num_stim_targets>0):
 								FLAG_TRIG_PHOTOSTIM = True
+								print('photostim on:')
+								print(current_target_idx)
 								if not np.array_equal(last_target_idx,current_target_idx):
 									p['currentTargetX'] = list(ROIx[current_target_idx])
 									p['currentTargetY'] = list(ROIy[current_target_idx])
 									FLAG_SEND_COORDS = True
+									print('different target found:')
+									print(last_target_idx)
+									print(current_target_idx)
 
-						elif (countExtraSensoryPhoto>0 and framesProc < extraSensoryPhotoFrames[countExtraSensoryPhoto-1]+ monitor_frames and framesProc > extraSensoryPhotoFrames[countExtraSensoryPhoto-1])+ wait_frames:
+
+						elif countExtraSensoryPhoto>0 and framesProc < extraSensoryPhotoFrames[countExtraSensoryPhoto-1]+ monitor_frames and framesProc > extraSensoryPhotoFrames[countExtraSensoryPhoto-1]+ wait_frames:
+							num_stim_targets = len(p['fixedTargetX'])
 							FLAG_TRIG_PHOTOSTIM = True
 
-						elif (countExtraPhoto>0 and framesProc < extraPhotoFrames[countExtraPhoto-1]+ monitor_frames and framesProc > extraPhotoFrames[countExtraPhoto-1])+ wait_frames:
+						elif countExtraPhoto>0 and framesProc < extraPhotoFrames[countExtraPhoto-1]+ monitor_frames and framesProc > extraPhotoFrames[countExtraPhoto-1]+ wait_frames:
+							num_stim_targets = len(p['fixedTargetX'])
 							FLAG_TRIG_PHOTOSTIM = True
 
 					# Trigger sensory stimulation
@@ -1137,40 +1161,56 @@ class Worker(QObject):
 							# reset target indices and frames (for replay protocols)
 							current_target_idx = [] # reset target
 							frames_post_stim = 1
+							FLAG_TRIAL_START = True
 
 					if countExtraSensoryPhoto <numExtraSensoryPhoto:
 						if p['enableStimTrigger'] and framesProc == extraSensoryPhotoFrames[countExtraSensoryPhoto]: # send TTL
 							self.sendTTLTrigger_signal.emit()
 							p['currentTargetX'] = p['fixedTargetX'].copy()
 							p['currentTargetY'] = p['fixedTargetY'].copy()
+							num_stim_targets = len(p['fixedTargetX'])
+							current_target_idx = [] # reset target
 							FLAG_SEND_COORDS = True
 							countExtraSensoryPhoto += 1
 							extraSensoryPhoto_caiman.append(framesCaiman)
 							frames_post_stim = 1
+							FLAG_TRIAL_START = True
+
 					if countExtraSensory <numExtraSensory:
 						if p['enableStimTrigger'] and framesProc == extraSensoryFrames[countExtraSensory]: # send TTL
 							self.sendTTLTrigger_signal.emit()
 							countExtraSensory += 1
 							extraSensory_caiman.append(framesCaiman)
 							frames_post_stim = 1
+							FLAG_TRIAL_START = True
 
 					if countExtraPhoto <numExtraPhoto:
-						if framesProc == extraSensoryFrames[countExtraPhoto]: # send TTL
+						if framesProc == extraPhotoFrames[countExtraPhoto]: # send TTL
 							p['currentTargetX'] = p['fixedTargetX'].copy()
 							p['currentTargetY'] = p['fixedTargetY'].copy()
+							num_stim_targets = len(p['fixedTargetX'])
+							current_target_idx = [] # reset target
 							FLAG_SEND_COORDS = True
 							countExtraPhoto += 1
 							extraPhoto_caiman.append(framesCaiman)
 							frames_post_stim = 1
+							FLAG_TRIAL_START = True
+
+					# Send out trial start trigger
+					if FLAG_TRIAL_START:
+						self.sendTrialStartTrigger_signal.emit()
+						print('trial start trigger sent')
+						FLAG_TRIAL_START = False
 
 					# Trigger photostimulation
 					if FLAG_TRIG_PHOTOSTIM:
 						frames_post_photostim = 1
+						last_target_idx = np.copy(current_target_idx)
 						if p['stimFromBlink']: # send trigger from photostimer
 							if FLAG_SEND_COORDS:
 								qtarget.put([p['currentTargetX'].copy(),p['currentTargetY'].copy()])
 								self.photostimNewTargets_signal.emit()
-								frames_post_photostim = -1 # accept next frame during phasemask update 
+								frames_post_photostim = -1 # accept next frame during phasemask update
 
 							else:
 								self.photostimCurrentTargets_signal.emit(num_stim_targets)
@@ -1330,6 +1370,18 @@ class Worker(QObject):
 			save_dict['frames_skipped'] = frames_skipped
 			save_dict['framesProc'] = framesProc
 
+			save_dict['extraSensoryPhoto_caiman'] = extraSensoryPhoto_caiman
+			save_dict['extraPhoto_caiman'] = extraPhoto_caiman
+			save_dict['extraSensory_caiman'] = extraSensory_caiman
+
+			save_dict['all_trial_types'] = p['all_trial_types']
+			save_dict['all_trial_frames'] = p['all_trial_frames']
+
+			# save out mat file for STAMovieMaker
+			mat_dict = dict()
+			mat_dict['oris'] = p['all_trial_types']
+			mat_dict['frames'] = p['all_trial_frames']
+
 			if p['enableStimTrigger'] :
 				save_dict['sensory_stim_frames'] = self.stim_frames
 			else:
@@ -1341,7 +1393,7 @@ class Worker(QObject):
 				save_dict['overlap'] = overlap
 				# opsin currently as a property of cnm2
 			except: pass
-		
+
 			try:
 				save_dict['p'] = p
 			except:
@@ -1361,6 +1413,7 @@ class Worker(QObject):
 					movie_string = movie_name[:-4]
 
 				filename = movie_string + '_OnlineProc_DS_' + str(ds_factor) + '_' + timestr + '.pkl'
+				matname =  movie_string + '_OnlineProc_DS_' + str(ds_factor) + '_TrialType' + '.mat'
 
 				movie_folder = os.path.dirname(self.movie_name)
 				save_folder = os.path.join(movie_folder, 'pyrtaoi_results')  # save init result in a separate folder
@@ -1368,13 +1421,19 @@ class Worker(QObject):
 				if not os.path.exists(save_folder):
 					os.makedirs(save_folder)
 				save_path = os.path.join(save_folder, filename)
+				mat_save_path = os.path.join(save_folder, matname)
 #                else:
 #                    save_path = self.movie_name[:-4] + '_OnlineProc_' + timestr + '.pkl'   # save results in the same folder
 				print('OnACID result is being saved as: ' + save_path)
 				save_object(save_dict, save_path)
 				print('pkl file saved')
+
+				sio.savemat(mat_save_path,mat_dict)
+				print('tiral type fle saved')
+
 				pkl2mat(file_full_name = save_path)
 				print('mat file saved')
+
 			except Exception as e:
 				print(e)
 
@@ -1407,14 +1466,14 @@ class Worker(QObject):
 			del ROIx
 			del ROIy
 
-		try:
-			self.niTimingWriter.write_one_sample(0,10.0)
-			self.niTimingTask.stop()
-			self.niTimingTask.close()
-			del self.niTimingWriter
-			print('closed timing trigger task')
-		except Exception as e:
-			print(e)
+#		try:
+#			self.niTimingWriter.write_one_sample(0,10.0)
+#			self.niTimingTask.stop()
+#			self.niTimingTask.close()
+#			del self.niTimingWriter
+#			print('closed timing trigger task')
+#		except Exception as e:
+#			print(e)
 
 		# finishing
 		self.finished_signal.emit()
@@ -1614,6 +1673,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 		# get gui elements
 		self.getValues()
+		self.updateTrialType()
 
 		# configuration in GUI
 		self.trial_config = {}
@@ -1640,6 +1700,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		p['NI_SAMPLE_RATE'] = NI_SAMPLE_RATE
 		p['NI_TTL_NUM_SAMPLES'] = NI_TTL_NUM_SAMPLES
 		self.StimTask_READY = False
+		self.TrialTask_READY = False
 
 		try:
 			self.daq_array = np.ones((NI_TTL_NUM_SAMPLES-1), dtype = np.float)*5 # to write to single output channel
@@ -1650,7 +1711,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.niPhotoStimTask = daqtask.Task() #  TTL trigger only
 			self.niPhotoStimFullTask = daqtask.Task() # TTL trigger plus power control
 			p['NI_1D_ARRAY'] = self.daq_array
-		except: pass
+		except:
+			print('setting daq tasks error')
 
 		try: # sensory stim
 			self.niStimTask.ao_channels.add_ao_voltage_chan(p['stimDaqDevice']) # ao3
@@ -1660,9 +1722,24 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.StimTask_READY = True
 
 		except Exception as e:
-			print(str(e))
+			print(e)
 			logger.exception(e)
-			self.updateStatusBar(str(e))
+			time.sleep(2)
+
+		try: # trial start trigger
+			self.niTrialStartTask = daqtask.Task()
+			self.niTrialStartTask.ao_channels.add_ao_voltage_chan('Dev5/ao0','trialStart')
+			self.niTrialStartWriter = stream_writers.AnalogSingleChannelWriter(self.niTrialStartTask.out_stream,True)
+			self.niTrialStartWriter.write_one_sample(0,10.0)
+			self.niTrialStartWriter.write_one_sample(1,10.0)
+			time.sleep(1)
+			self.niTrialStartWriter.write_one_sample(0,10.0)
+			print('trial start channel created')
+			self.TrialTask_READY = True
+
+		except Exception as e:
+			print(e)
+			logger.exception(e)
 			time.sleep(2)
 
 		try: # photo stim
@@ -1679,7 +1756,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.niPhotoStimWriter.write_one_sample(0,10.0)
 			print('single channel photostim trigger set')
 
-			# multi-channel writer - send triggers and voltage to power control device  - need test
+			# multi-channel writer - send triggers and voltage to power control device  - worked when using ao0 and ao1
 			self.niPhotoStimFullTask.ao_channels.add_ao_voltage_chan(p['photostimDaqDevice'],'photostim_trig')
 			self.niPhotoStimFullTask.ao_channels.add_ao_voltage_chan(p['powerDaqDevice'],'photostim_power')
 			self.niPhotostimFullWriter = stream_writers.AnalogMultiChannelWriter(self.niPhotoStimFullTask.out_stream,auto_start = True)
@@ -1730,7 +1807,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 	def tempTest(self):
 		print('test button clicked')
 		try:
-			self.bl.send_coords_power(p['currentTargetX'],p['currentTargetY'],.3)
+			self.sendTrialStartTrigger()
 		except Exception as e:
 			print(e)
 
@@ -1816,6 +1893,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		self.test_pushButton.clicked.connect(self.tempTest)
 		self.reset_pushButton.clicked.connect(self.resetAll)
 		self.plotTrialTypes_pushButton.clicked.connect(self.plotTrialTypes)
+		self.updateTrialType_pushButton.clicked.connect(self.updateTrialType)
 
 		# auto add connects to update p and trial config plot whenever anything changes
 		widgets = (QComboBox, QCheckBox, QLineEdit, QSpinBox, QDoubleSpinBox)
@@ -1866,13 +1944,13 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 		self.flipRowChanged()
 		self.currentZoomChanged()
-		self.updateTrialType()
 
 		if self.POWER_CONTROL_READY:
 			self.updatePowerControl()
+		p['tot_num_trials'] = p['numberStims']+p['ifExtraSensory']*p['numExtraSensory']+ p['ifExtraPhoto']*p['numExtraPhoto']+p['numExtraSensoryPhoto']*p['ifExtraSensoryPhoto']
 
-		self.framesNeeded_label.setText('Frames needed:'+str(p['stimStartFrame']+p['interStimInterval']*p['numberStims']+p['staPostFrame']))
-					
+		self.framesNeeded_label.setText('Frames needed:'+str(p['stimStartFrame']+p['interStimInterval']*p['tot_num_trials']+p['staPostFrame']))
+
 		try:
 			self.c['cnm2'].max_num_added = p['MaxNumROIs']
 		except:
@@ -1922,7 +2000,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		pl.xlabel('Frames')
 		pl.show(block=False)
 
-		print('end of plot')
+		print('tot num trials:'+str(p['tot_num_trials']))
 #%% threading control functions:
 	def takeRefMovie(self):
 		# take reference movie by starting t-series in prairie and save as multipage tiffs
@@ -1979,12 +2057,12 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		photo_stim_frames = []
 
 		# adding control trials
-		if p['photoProtoInx'] in [CONSTANTS.PHOTO_FIX_FRAMES, CONSTANTS.PHOTO_CLAMP_DOWN,CONSTANTS.PHOTO_REPLAY_TRAIN,CONSTANTS.PHOTO_CLAMP_DOWN]:
-			ifCloseloopTrials = 1
-		else:
-			ifCloseloopTrials = 0
+#		if p['photoProtoInx'] in [CONSTANTS.PHOTO_FIX_FRAMES, CONSTANTS.PHOTO_CLAMP_DOWN,CONSTANTS.PHOTO_REPLAY_TRAIN,CONSTANTS.PHOTO_CLAMP_DOWN]:
+		ifCloseloopTrials = 1
+#		else:
+#			ifCloseloopTrials = 0
 
-		tot_num_trials = p['numberStims']+p['ifExtraSensory']*p['numExtraSensory']+ p['ifExtraPhoto']*p['numExtraPhoto']+p['numExtraSensoryPhoto']*p['ifExtraSensoryPhoto']
+		tot_num_trials = p['tot_num_trials']
 
 		all_trial_types = []
 		all_trial_frames = p['stimStartFrame']+p['interStimInterval']*np.arange(0,tot_num_trials)
@@ -1996,7 +2074,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			all_trial_types+=[3]*p['numExtraPhoto']
 		if p['ifExtraSensoryPhoto']:
 			all_trial_types+=[4]*p['numExtraSensoryPhoto']
-		
+
 		if p['shuffleTrials']:
 			random.shuffle(all_trial_types)
 
@@ -2005,15 +2083,17 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		p['extraPhotoFrames'] =  [all_trial_frames[i] for i,x in enumerate(all_trial_types) if x == 3]
 		p['extraSensoryPhotoFrames'] =  [all_trial_frames[i] for i,x in enumerate(all_trial_types) if x == 4]
 
-		
+
 			# FLAG_FIX_PHOTO
 		# closed-loop photo and sensory are coupled in these protocols
 		if p['photoProtoInx'] == CONSTANTS.PHOTO_REPLAY_TRIAL or p['photoProtoInx'] == CONSTANTS.PHOTO_REPLAY_TRAIN:
 			photo_stim_frames = sen_stim_frames+p['photoWaitFrames']
 			sen_stim_frames = sen_stim_frames[::2]
-		if p['photoProtoInx'] == CONSTANTS.PHOTO_FIX_FRAMES: 
+		if p['photoProtoInx'] == CONSTANTS.PHOTO_FIX_FRAMES:
 			relative_frames = math.ceil(frame_rate/p['photoFrequency'])*np.arange(0,p['photoNumStimsPerTrial'])+p['photoWaitFrames']
 			photo_stim_frames = np.concatenate( [item+relative_frames for item in sen_stim_frames])
+
+		# save to global p
 		p['sen_stim_frames'] = sen_stim_frames
 		p['photo_stim_frames'] = photo_stim_frames
 		p['all_trial_types'] = all_trial_types
@@ -2153,6 +2233,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 			# triggers
 			self.workerObject.sendTTLTrigger_signal.connect(self.sendTTLTrigger)
+			self.workerObject.sendTrialStartTrigger_signal.connect(self.sendTrialStartTrigger)
 			self.workerObject.sendCoords_signal.connect(self.sendCoords)
 			self.workerObject.sendPhotoStimTrig_signal.connect(self.sendPhotoStimTrigger)
 			self.workerThread.start()
@@ -2428,9 +2509,20 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 	def sendTTLTrigger(self):
 		if self.StimTask_READY:
 			self.niStimWriter.write_many_sample(self.daq_1s_array,10.0)
+			print('stim trigger sent')
+			return
 		if self.FlAG_stimSOCK_READY:
 			self.stimSOCK.sendall(bytes(str(p['senStimType']),'utf-8'))
-		print('stim trigger sent')
+			print('stim trigger sent')
+			return
+
+
+	def sendTrialStartTrigger(self):
+		if self.TrialTask_READY:
+			self.niTrialStartWriter.write_many_sample(self.daq_1s_array,10.0)
+			print('trial start trigger sent')
+		else:
+			print('tiral start trigger not ready')
 
 	def sendPhotoStimTrigger(self):
 		try:
@@ -2585,7 +2677,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			plt.close()
 
 		self.updateTargets()
-		self.updateStatusBar('Removed ' + str(len(self.removeIdx)) + ' cells')
+		self.updateStatusBar('Removed ' + str(len(remove_idx)) + ' components')
 
 		# clear removeIdx array
 		self.removeIdx = []
@@ -2769,7 +2861,10 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		self.removeModeOn = not self.removeModeOn
 		if self.removeModeOn:
 			self.startRemoveMode()
-
+		else:
+			self.removeMode_pushButton.setText('Start remove')
+			for item in self.groupBoxes:
+				item.setEnabled(True)
 
 	def startRemoveMode(self):
 		print('Remove mode on!')
@@ -2794,6 +2889,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 				self.removeIdx = []
 
 		self.removeMode_pushButton.setText('Start remove')
+		self.removeModeOn = False
 
 		for item in self.groupBoxes:
 			item.setEnabled(True)
@@ -2814,7 +2910,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 				self.removeIdx = []
 
 		self.removeMode_pushButton.setText('Start remove')
-
+		self.removeModeOn = False
 		for item in self.groupBoxes:
 			item.setEnabled(True)
 		print('Remove mode off')
@@ -4252,6 +4348,14 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.niStimTask.stop()
 			self.niStimTask.close()
 			del self.niStimTask
+		except Exception as e:
+			print(e)
+
+		try:
+			self.niTrialStartWriter.write_one_sample(0,10.0)
+			self.niTrialStartTask.stop()
+			self.niTrialStartTask.close()
+			del self.niTrialStartTask
 		except Exception as e:
 			print(e)
 

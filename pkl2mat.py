@@ -31,9 +31,6 @@ def pkl2mat(file_full_name = '',save_full_name = ''):
 	cnm = file_data['cnm2']
 	A, b = cnm.Ab[:, cnm.gnb:], cnm.Ab[:, :cnm.gnb].toarray()
 	C, f = cnm.C_on[cnm.gnb:cnm.M], cnm.C_on[:cnm.gnb]
-	keys = vars(cnm)
-	for each in keys:
-		print(each)
 	S = cnm.S
 	
 	if issparse(A):
@@ -65,7 +62,7 @@ def pkl2mat(file_full_name = '',save_full_name = ''):
 				   'rval_thr','thresh_overlap','merge_thresh','expected_comps',
 				   'frame_added','online_photo_frames','online_photo_targets','accepted','accepted_idx',
 				   't_cnm','coms','opsin_mask','overlap','stim_frames_caiman','online_C','online_thresh','tottime',
-				   'frames_skipped','sensory_stim_frames','frame_deleted']   # added record of new cells in pyrtaoi
+				   'frames_skipped','sensory_stim_frames','frame_detected']   # added record of new cells in pyrtaoi
 	
 	for param in param_names:
 		try:

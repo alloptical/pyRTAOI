@@ -114,6 +114,7 @@ def make_sta_file(file_full_name = '',save_full_name = '', stim_frames = [],
 
 	# save to file
 	np.save(save_full_name,norm_trials)
+	print('saved sta file')
 
 	return norm_trials
 

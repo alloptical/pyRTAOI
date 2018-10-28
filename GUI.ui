@@ -464,7 +464,7 @@
         <item row="0" column="1">
          <widget class="QLineEdit" name="stimDaqDevice_lineEdit">
           <property name="enabled">
-           <bool>false</bool>
+           <bool>true</bool>
           </property>
           <property name="sizePolicy">
            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
@@ -473,7 +473,7 @@
            </sizepolicy>
           </property>
           <property name="text">
-           <string>Dev5/ao3</string>
+           <string>Dev5/ao1</string>
           </property>
           <property name="maxLength">
            <number>500</number>
@@ -1398,14 +1398,7 @@
           </sizepolicy>
          </property>
          <property name="text">
-          <string>  Keep selected  </string>
-         </property>
-        </widget>
-       </item>
-       <item row="1" column="4">
-        <widget class="QPushButton" name="updateFixTargets_pushButton">
-         <property name="text">
-          <string>Update fix targets</string>
+          <string>Remove Unselected</string>
          </property>
         </widget>
        </item>
@@ -1814,7 +1807,7 @@
         <item row="4" column="1">
          <widget class="QLineEdit" name="powerDaqDevice_lineEdit">
           <property name="enabled">
-           <bool>false</bool>
+           <bool>true</bool>
           </property>
           <property name="sizePolicy">
            <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
@@ -1823,7 +1816,7 @@
            </sizepolicy>
           </property>
           <property name="text">
-           <string>Dev5/ao0</string>
+           <string>Dev5/ao4</string>
           </property>
           <property name="maxLength">
            <number>500</number>
@@ -1847,7 +1840,7 @@
         <item row="1" column="0">
          <widget class="QCheckBox" name="SendPowerVolt_checkBox">
           <property name="enabled">
-           <bool>false</bool>
+           <bool>true</bool>
           </property>
           <property name="text">
            <string>Ctr power</string>
@@ -1860,7 +1853,7 @@
         <item row="2" column="1">
          <widget class="QLineEdit" name="photostimDaqDevice_lineEdit">
           <property name="enabled">
-           <bool>false</bool>
+           <bool>true</bool>
           </property>
           <property name="sizePolicy">
            <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
@@ -1872,7 +1865,7 @@
            <enum>Qt::LeftToRight</enum>
           </property>
           <property name="text">
-           <string>Dev5/ao1</string>
+           <string>Dev5/ao3</string>
           </property>
           <property name="maxLength">
            <number>500</number>
@@ -1905,14 +1898,91 @@
        <property name="geometry">
         <rect>
          <x>20</x>
-         <y>227</y>
-         <width>341</width>
-         <height>91</height>
+         <y>220</y>
+         <width>361</width>
+         <height>108</height>
         </rect>
        </property>
        <layout class="QGridLayout" name="gridLayout_22">
+        <item row="1" column="0">
+         <widget class="QCheckBox" name="ifExtraSensory_checkBox">
+          <property name="text">
+           <string>sensory alone</string>
+          </property>
+         </widget>
+        </item>
         <item row="3" column="1">
          <widget class="QSpinBox" name="numExtraSensoryPhoto_spinBox">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="maximum">
+           <number>100</number>
+          </property>
+          <property name="singleStep">
+           <number>0</number>
+          </property>
+          <property name="value">
+           <number>20</number>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="0">
+         <widget class="QLabel" name="label_39">
+          <property name="text">
+           <string>Control trial type</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="0">
+         <widget class="QCheckBox" name="ifExtraPhoto_checkBox">
+          <property name="text">
+           <string>photo alone</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="4">
+         <layout class="QHBoxLayout" name="horizontalLayout_3">
+          <item>
+           <widget class="QPushButton" name="updateTrialType_pushButton">
+            <property name="text">
+             <string>Update trials</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item row="0" column="1">
+         <widget class="QLabel" name="label_46">
+          <property name="text">
+           <string>Num. trials</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="1">
+         <widget class="QSpinBox" name="numExtraPhoto_spinBox">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="maximum">
+           <number>100</number>
+          </property>
+          <property name="singleStep">
+           <number>0</number>
+          </property>
+          <property name="value">
+           <number>20</number>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="QSpinBox" name="numExtraSensory_spinBox">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
             <horstretch>0</horstretch>
@@ -1937,95 +2007,26 @@
           </property>
          </widget>
         </item>
-        <item row="0" column="1">
-         <widget class="QLabel" name="label_46">
+        <item row="0" column="4">
+         <widget class="QCheckBox" name="shuffleTrials_checkBox">
           <property name="text">
-           <string>Num. trials</string>
+           <string>Shuffle </string>
           </property>
          </widget>
         </item>
-        <item row="1" column="0">
-         <widget class="QCheckBox" name="ifExtraSensory_checkBox">
+        <item row="2" column="4">
+         <widget class="QPushButton" name="updateFixTargets_pushButton">
           <property name="text">
-           <string>sensory alone</string>
+           <string>Update fix targets</string>
           </property>
          </widget>
         </item>
-        <item row="0" column="0">
-         <widget class="QLabel" name="label_39">
-          <property name="text">
-           <string>Control trial type</string>
-          </property>
-         </widget>
-        </item>
-        <item row="1" column="1">
-         <widget class="QSpinBox" name="numExtraSensory_spinBox">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="maximum">
-           <number>100</number>
-          </property>
-          <property name="singleStep">
-           <number>0</number>
-          </property>
-          <property name="value">
-           <number>20</number>
-          </property>
-         </widget>
-        </item>
-        <item row="2" column="0">
-         <widget class="QCheckBox" name="ifExtraPhoto_checkBox">
-          <property name="text">
-           <string>photo alone</string>
-          </property>
-         </widget>
-        </item>
-        <item row="2" column="1">
-         <widget class="QSpinBox" name="numExtraPhoto_spinBox">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="maximum">
-           <number>100</number>
-          </property>
-          <property name="singleStep">
-           <number>0</number>
-          </property>
-          <property name="value">
-           <number>20</number>
-          </property>
-         </widget>
-        </item>
-        <item row="3" column="3">
+        <item row="3" column="4">
          <widget class="QPushButton" name="plotTrialTypes_pushButton">
           <property name="text">
            <string>Plot trial type</string>
           </property>
          </widget>
-        </item>
-        <item row="1" column="4">
-         <layout class="QHBoxLayout" name="horizontalLayout_3">
-          <item>
-           <spacer name="horizontalSpacer_12">
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>40</width>
-              <height>20</height>
-             </size>
-            </property>
-           </spacer>
-          </item>
-         </layout>
         </item>
         <item row="2" column="2">
          <spacer name="horizontalSpacer_11">
@@ -2039,13 +2040,6 @@
            </size>
           </property>
          </spacer>
-        </item>
-        <item row="2" column="3">
-         <widget class="QCheckBox" name="shuffleTrials_checkBox">
-          <property name="text">
-           <string>Shuffle </string>
-          </property>
-         </widget>
         </item>
        </layout>
       </widget>
