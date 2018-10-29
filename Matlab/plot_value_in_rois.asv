@@ -4,7 +4,7 @@ IF_NORM_PIX = 0;
 IF_CONTOUR = 1;
 IF_SHOW_OPSIN = 0;
 colorlut = [];
-zlimit = []; % dummy dots to force colorlut matching preset max and min range
+zlimit = []
 for v = 1:numel(varargin)
     if strcmpi(varargin{v},'IF_NORM_PIX')
         IF_NORM_PIX = varargin{v+1};
@@ -35,14 +35,12 @@ for i = 1:size(cell_struct,2)
     end
     
 end
-
 if isempty(zlimit)
     zlimit = [min(all_values),max(all_values)];
 else
     img(1) = zlimit(1);
     img(2) = zlimit(2);
 end
-
 hold on
 imagesc(img);
 if isempty(colorlut)

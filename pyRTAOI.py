@@ -1206,6 +1206,7 @@ class Worker(QObject):
 						FLAG_TRIG_PHOTOSTIM = False
 						FLAG_SEND_COORDS = False
 
+					FLAG_SEND_COORDS = False # delete this later!
 					if FLAG_TRIG_PHOTOSTIM:
 						frames_post_photostim = 1
 						if p['stimFromBlink']: # send trigger from photostimer

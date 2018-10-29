@@ -4,8 +4,11 @@
 
 % ZZ 2018
 %% add path - change this for rig
-addpath(genpath('Y:\zzhang\Python\pyRTAOI\Matlab'));
-cd('Y:\zzhang\Python\pyRTAOI\Matlab');
+clear all
+close all
+clc
+addpath(genpath('C:\Users\User\Desktop\pyRTAOI-rig\Matlab'));
+cd('C:\Users\User\Desktop\pyRTAOI-rig\Matlab');
 
 %%
 % load data
@@ -256,9 +259,6 @@ for i = 1:num_comp
             cell_struct(i).pref_orient = find(tuning == max(tuning));           
         end
         
-        if (cell_struct(i).off_amp>1) && (~ cell_struct(i).is_sensory)
-            cell_struct(i).is_offcell = 1;
-        end
         cell_struct(i).('tuning') = tuning;
     else
         for s = 1:num_stim_type
@@ -284,7 +284,7 @@ title('Opsin mask')
 
 ax1 = subplot(1,2,2)
 value_field = 'pref_orient';
-plot_value_in_rois( cell_struct, value_field,[256 256],ax1,'colorlut',[[1,1,1];opt.type_color],'IF_NORM_PIX',0,'IF_CONTOUR',1,'IF_SHOW_OPSIN',1);
+plot_value_in_rois( cell_struct, value_field,[256 256],ax1,'colorlut',[[1,1,1];opt.type_color],'IF_NORM_PIX',0,'IF_CONTOUR',1,'IF_SHOW_OPSIN',1,'zlimit',[0 4]);
 set(gca,'Ydir','reverse')
 title('Sensory cells (colored by pref. orientation)')
 
