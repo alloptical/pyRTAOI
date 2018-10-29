@@ -3,8 +3,15 @@
 % run this to quickly find sensory-opsin-positve cells  
 
 % ZZ 2018
+%% add path - change this for rig
+addpath(genpath('Y:\zzhang\Python\pyRTAOI\Matlab'));
+cd('Y:\zzhang\Python\pyRTAOI\Matlab');
+
+%%
 % load data
-caiman_data = load('F:\Data\Zoe\20181028\pyrtaoi_results\20181028_L528_t_0007_rtaoi_DS_2.0_OnlineProc_DS_2.0_190733.mat') 
+[file,path] = uigetfile('*.mat');
+disp(['Loaded file :',fullfile(path,file)])
+caiman_data = load(fullfile(path,file)) 
 
 
 %% stim parameter - CHANGE THIS
@@ -17,7 +24,6 @@ photo_duration = 90; % frames
 opt.N = 2;
 opt.all_reset_frames = 30;
 opt.pre_exp_frames = 0;
-opt.window_size = 60;
 opt.sta_pre_frames = 30;
 opt.sta_post_frames = 120;
 opt.sta_baseline_frames = 30;
@@ -54,7 +60,7 @@ indices = round(linspace(1,size(hsv_lut,1),num_stim_type));
 opt.trial_color = [];
 num_trials = numel(sens_stim_frames);
 opt.trial_color = zeros(num_trials,3);
-opt.tint_factor = 0.7;
+opt.tint_factor = 0.6;
 opt.type_color = tint(hsv_lut(indices(1:num_stim_type),:),opt.tint_factor);
 for s = 1:num_stim_type
 opt.trial_color(s+[1:num_stim_type:num_stim_type*num_stim_per_type]-1,:) = repmat(opt.type_color(s,:) ,num_stim_per_type,1);
@@ -204,6 +210,10 @@ for i = 1:numel(glob_stim_frames)
     plot([glob_stim_frames(i) glob_stim_frames(i)],ylim,'color',opt.trial_color(i,:))
 end
 
+for i = 1:numel(glob_stim_frames)
+    plot([glob_stim_frames(i) glob_stim_frames(i)]+vis_duration,ylim,'color',opt.trial_color(i,:),'linestyle',':')
+end
+
 %% stim triggered average 
 for i = 1:num_comp
     this_cell_trace = cnm_struct(i).deconvC_full;
@@ -225,7 +235,6 @@ for i = 1:num_comp
         % average across all stim types
         [~,~,~,~,~,cell_struct(i).sta_traces,cell_struct(i).sta_trace] = make_sta_from_traces(this_cell_trace,sens_stim_frames,opt.sta_pre_frames,opt.sta_post_frames,1:opt.sta_baseline_frames);
         cell_struct(i).sta_amp = mean(cell_struct(i).sta_trace(opt.sta_pre_frames:opt.sta_pre_frames+opt.sta_avg_frames));
-        cell_struct(i).off_amp = mean(cell_struct(i).sta_trace(opt.sta_pre_frames+vis_duration+[1:opt.offcell_avg_frames]));
         
         if  cell_struct(i).sta_amp > opt.sta_thresh
             cell_struct(i).is_sensory = 1;
@@ -233,10 +242,12 @@ for i = 1:num_comp
         
         % get sta for each stim type
         tuning = nan(1,num_stim_type);
+        offtuning = nan(1,num_stim_type);
         for s = 1:num_stim_type
             [~,~,~,~,~,sta_struct.exp(i).(['type' num2str(s) '_traces']),sta_struct.exp(i).(['type' num2str(s) '_avg'])] =...
                 make_sta_from_traces(this_cell_trace,vis_stim_frames{s} ,opt.sta_pre_frames,opt.sta_post_frames,1:opt.sta_baseline_frames);
             tuning(s) = nanmean(sta_struct.exp(i).(['type' num2str(s) '_avg'])(opt.sta_pre_frames:opt.sta_pre_frames+opt.sta_avg_frames));
+            offtuning(s) = nanmean(sta_struct.exp(i).(['type' num2str(s) '_avg'])(opt.sta_pre_frames+vis_duration+[1:opt.offcell_avg_frames]));
             cell_struct(i).(['stim', num2str(s) 'amp']) = tuning(s);
         end
         
@@ -263,13 +274,60 @@ end
 [~,~,~,~,~,bg_sta_traces,bg_sta_trace] =...
     make_sta_from_traces(backgroundC,sens_stim_frames ,opt.sta_pre_frames,opt.sta_post_frames,1:opt.sta_baseline_frames);
 
-% Show sensory cells on maps
-ax1 = figure('name','pref. orientation on fov');
+%% Show sensory cells on maps
+figure('name','pref. orientation on fov');
+subplot(1,2,1)
+plot_contours(sparse(double(cnm_A)),caiman_data.opsin_mask,cnm_plot_options,1,[],[],[1 1 1]);
+colorbar('location','southoutside');
+set(gca,'YDir','reverse')
+title('Opsin mask')
+
+ax1 = subplot(1,2,2)
 value_field = 'pref_orient';
 plot_value_in_rois( cell_struct, value_field,[256 256],ax1,'colorlut',[[1,1,1];opt.type_color],'IF_NORM_PIX',0,'IF_CONTOUR',1,'IF_SHOW_OPSIN',1);
 set(gca,'Ydir','reverse')
 title('Sensory cells (colored by pref. orientation)')
 
+%% Plot STAs for visual cells
+figure('name','condition sta traces')
+num_plot_cols = 4;
+num_sensory = length(find(extractfield(cell_struct,'is_sensory')==1));
+num_plot_rows = ceil(num_sensory/num_plot_cols);
+plot_count = 1;
+for i = 1:num_comp
+    if cell_struct(i).is_sensory == 0
+        continue
+    end
+    subtightplot(num_plot_rows,num_plot_cols,plot_count)
+    % plot traces
+    hold on
+    for t = 1:size(cell_struct(i).sta_traces,1)
+        plot(cell_struct(i).sta_traces(t,:),'color',opt.trial_color(t,:) ,'linewidth',1)
+    end
+    plot(cell_struct(i).sta_trace,'color',[.5 .5 .5],'linewidth',1.5)
+    
+    xlim([0 opt.sta_pre_frames+opt.sta_post_frames+1])
+    set(gca,'xtick',[],'xcolor',[1 1 1])
+    axis square
+    
+    if(isempty(find(accepted_idx==i)))
+        text(1,1,['ROI ' num2str(i)],'units','normalized','color',[.7 .7 .7],'Horizontalalignment','right','VerticalAlignment','top')
+    else
+        text(1,1,['ROI ' num2str(i)],'units','normalized','color','black','Horizontalalignment','right','VerticalAlignment','top')
+    end
+    
+    if(~isempty(find(opsin_positive_idx==i)))
+        text(1,1,['ROI ' num2str(i)],'units','normalized','color','r','Horizontalalignment','right','VerticalAlignment','top')
+    end
+    box off
+    if( cell_struct(i).is_sensory)
+        box on
+        set(gca,'XColor',tint([1,0,0],0.5),'YColor',tint([1,0,0],0.5),'linewidth',3)
+    end
+    plot_count = plot_count+1;
+    
+end
+suptitle('Sensory cells, stim-triggered response')
 %% Show STA on maps
 figure('name','sta on fov','position',[200 200 1200 800])
 plot_row = 2;
@@ -283,7 +341,8 @@ for s = 1:num_stim_type
     title(['Stim' num2str(s)])
 end
 
-
+%%
+%%%%%%%%%%%%%%%%%%% MORE DETIALED PLOTS GOES BELOW %%%%%%%%%%%%%%%%%%%%%%%%
 %% Plot STAs for all components
 figure('name','condition sta traces')
 num_plot_cols = 6;

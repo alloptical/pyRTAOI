@@ -101,22 +101,24 @@ figure; hold on
 plot_offset = 5;
 stim_cell_count = 1;
 non_stim_cell_count = 1;
-
+sub1_i = 0;
+sub2_i = 0;
 for i = 1:num_comp
     % cells not stimulated
     if cell_struct(i).opsin_positive == 0
-%         subplot(2,1,1)
-%         hold on
-        plot(cnm_struct(i).noisyC+i*plot_offset,'color',cnm_plot_options.roi_color(i,:))
-        plot(cnm_struct(i).deconvC+i*plot_offset,'color',[.5 .5 .5],'linewidth',1.5)
+        subplot(3,1,1)
+        hold on
+%         plot(cnm_struct(i).noisyC+i*plot_offset,'color',cnm_plot_options.roi_color(i,:))
+        plot(cnm_struct(i).deconvC+sub1_i*plot_offset,'color',[.5 .5 .5],'linewidth',1.5)
         non_stim_cell_count = non_stim_cell_count+1;
+        sub1_i = sub1_i+1;
     else
-%         subplot(2,1,2)
-%         hold on
-        plot(cnm_struct(i).noisyC+i*plot_offset,'color',cnm_plot_options.roi_color(i,:))
-        plot(cnm_struct(i).deconvC+i*plot_offset,'color','black','linewidth',1.5)
+        subplot(3,1,2:3)
+        hold on
+%         plot(cnm_struct(i).noisyC+i*plot_offset,'color',cnm_plot_options.roi_color(i,:))
+        plot(cnm_struct(i).deconvC+sub2_i*plot_offset,'color','black','linewidth',1.5)
         stim_cell_count = stim_cell_count+1;
-
+        sub2_i = sub2_i+1;
     end
 end
 xlabel('Frames')
@@ -129,7 +131,7 @@ for i = 1:numel(stim_frames)
     plot([stim_frames(i) stim_frames(i)],ylim,'r')
 end
 
-
+export_fig  D:\pyRTAOI_data\stim_at_fixed_frames\GCaMP6f\plots\20180909_t003_traces.pdf -painters 
 %% stim triggered average
 opt.N = 2;
 opt.all_reset_frames = 30;

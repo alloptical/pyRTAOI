@@ -12,9 +12,8 @@ CAREFUL WHEN USING 'REPLACE ALL' - IT WILL QUIT, WITHOUT SAVING!!
 
 TO DO    log this to Notes ToDo_log when it's done and tested
 
-2. shuffle trials with and without photostim
-   plot trial types before worker starts
 
+-1. save out fixed targets centroid image
 0 test timing on rig
 
 1. temporally save a sequence of phase masks in holoblink, display on slm on command
@@ -1203,9 +1202,12 @@ class Worker(QObject):
 						FLAG_TRIAL_START = False
 
 					# Trigger photostimulation
+					if p['FLAG_SKIP_FRAMES']:
+						FLAG_TRIG_PHOTOSTIM = False
+						FLAG_SEND_COORDS = False
+
 					if FLAG_TRIG_PHOTOSTIM:
 						frames_post_photostim = 1
-						last_target_idx = np.copy(current_target_idx)
 						if p['stimFromBlink']: # send trigger from photostimer
 							if FLAG_SEND_COORDS:
 								qtarget.put([p['currentTargetX'].copy(),p['currentTargetY'].copy()])
@@ -1224,6 +1226,7 @@ class Worker(QObject):
 							p['NI_2D_ARRAY'][1,:] = NI_UNIT_POWER_ARRAY *np.polyval(power_polyfit_p,photoPowerPerCell*num_stim_targets)
 							self.sendPhotoStimTrig_signal.emit()
 
+						last_target_idx = np.copy(current_target_idx)
 						FLAG_TRIG_PHOTOSTIM = False
 						if FLAG_SEND_COORDS:
 							self.updateTargetROIs_signal.emit() # update display
@@ -1237,7 +1240,6 @@ class Worker(QObject):
 						num_photostim +=1
 						photo_stim_frames_caiman.append(framesCaiman)
 						print('Number photostim,',num_photostim)
-
 
 
 					# Update GUI display
