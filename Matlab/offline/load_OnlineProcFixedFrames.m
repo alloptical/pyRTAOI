@@ -3,7 +3,7 @@
 % caiman_data = load('D:\pyRTAOI data\stim_at_fixed_frames\20180822_OG299_t_0002_rtaoi_DS_2.0.tirtaoi_OnlineProc_DS_2.0_170940.mat')
 % caiman_data = load('D:\pyRTAOI data\stim_at_fixed_frames\20180830_OG323_t_0004_rtaoi_DS_2.0_OnlineProc_DS_2.0_163232.mat')
 % caiman_data = load('D:\pyRTAOI data\stim_at_fixed_frames\20180907_OG328_t_0007_rtaoi_DS_2.0_OnlineProc_DS_2.0_160113.mat')
-caiman_data = load('D:\pyRTAOI data\stim_at_fixed_frames\GCaMP6f\20180909_OG347_t_0003_rtaoi_DS_2.0_OnlineProc_DS_2.0_140615.mat') % - example
+caiman_data = load('D:\pyRTAOI_data\stim_at_fixed_frames\GCaMP6f\20180909_OG347_t_0003_rtaoi_DS_2.0_OnlineProc_DS_2.0_140615.mat') % - example_
 % caiman_data = load('D:\pyRTAOI data\stim_at_fixed_frames\GCaMP6f\20180910_OG349_t_0004_rtaoi_DS_2.0_OnlineProc_DS_2.0_163941.mat') 
 % caiman_data = load('D:\pyRTAOI data\stim_at_fixed_frames\20180910_OG349_t_0005_rtaoi_DS_2.0_OnlineProc_DS_2.0_164300.mat') 
 
@@ -108,14 +108,14 @@ for i = 1:num_comp
     if cell_struct(i).opsin_positive == 0
         subplot(3,1,1)
         hold on
-%         plot(cnm_struct(i).noisyC+i*plot_offset,'color',cnm_plot_options.roi_color(i,:))
+        plot(cnm_struct(i).noisyC+i*plot_offset,'color',cnm_plot_options.roi_color(i,:))
         plot(cnm_struct(i).deconvC+sub1_i*plot_offset,'color',[.5 .5 .5],'linewidth',1.5)
         non_stim_cell_count = non_stim_cell_count+1;
         sub1_i = sub1_i+1;
     else
         subplot(3,1,2:3)
         hold on
-%         plot(cnm_struct(i).noisyC+i*plot_offset,'color',cnm_plot_options.roi_color(i,:))
+        plot(cnm_struct(i).noisyC+i*plot_offset,'color',cnm_plot_options.roi_color(i,:))
         plot(cnm_struct(i).deconvC+sub2_i*plot_offset,'color','black','linewidth',1.5)
         stim_cell_count = stim_cell_count+1;
         sub2_i = sub2_i+1;
@@ -130,8 +130,22 @@ xlim([0 size(cnm_struct(1).noisyC,2)])
 for i = 1:numel(stim_frames)
     plot([stim_frames(i) stim_frames(i)],ylim,'r')
 end
+% export_fig  D:\pyRTAOI_data\stim_at_fixed_frames\GCaMP6f\plots\20180909_t003_traces.pdf -painters 
 
-export_fig  D:\pyRTAOI_data\stim_at_fixed_frames\GCaMP6f\plots\20180909_t003_traces.pdf -painters 
+%% plot traces by imagesc
+opsin_positive = find(extractfield(cell_struct,'opsin_positive')==1);
+opsin_cell_traces = cell2mat({cnm_struct(opsin_positive).deconvC}');
+figure('position',[100 100 1200 300])
+imagesc(opsin_cell_traces)
+colormap(gray)
+set(gca,'YDir','reverse')
+hold on
+for i = 1:numel(stim_frames)
+    plot([stim_frames(i) stim_frames(i)],ylim,'r')
+end
+% export_fig  C:\Users\Zihui\Dropbox\pyRTAOI_demo_figure\photostim_fix_frames\20180909_t003_traces.pdf -painters 
+
+
 %% stim triggered average
 opt.N = 2;
 opt.all_reset_frames = 30;
@@ -237,3 +251,4 @@ plot_value_in_rois( cell_struct, value_field,[256 256],ax2,'colorlut',colorlut,'
 title('Photostim-triggered average')
 
 suptitle('20180909 OG347 GCaMP6f+C1V1')
+% export_fig  D:\pyRTAOI_data\stim_at_fixed_frames\GCaMP6f\plots\20180909_t003_FOV.pdf -painters 

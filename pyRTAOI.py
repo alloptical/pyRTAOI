@@ -1206,7 +1206,8 @@ class Worker(QObject):
 						FLAG_TRIG_PHOTOSTIM = False
 						FLAG_SEND_COORDS = False
 
-					FLAG_SEND_COORDS = False # delete this later!
+#					FLAG_SEND_COORDS = False # delete this later!
+					FLAG_TRIG_PHOTOSTIM = False  # delete this later!
 					if FLAG_TRIG_PHOTOSTIM:
 						frames_post_photostim = 1
 						if p['stimFromBlink']: # send trigger from photostimer
@@ -2215,13 +2216,14 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.workerObject.updateTargetROIs_signal.connect(self.updateTargetROIs)
 
 			# signaling to photostim thread
-			try:
-				self.workerObject.photostimNewTargets_signal.connect(self.photostimObject.photostimNewTargets) # update phase mask and send photostim from blink
-				self.workerObject.updateNewTargets_signal.connect(self.photostimObject.updateNewTargets) # update phase mask
-				self.workerObject.photostimCurrentTargets_signal.connect(self.photostimObject.photostimCurrentTargets)  # photostim only
-			except Exception as e:
-				print(e)
-				return
+			if not self.IsOffline:
+				try:
+					self.workerObject.photostimNewTargets_signal.connect(self.photostimObject.photostimNewTargets) # update phase mask and send photostim from blink
+					self.workerObject.updateNewTargets_signal.connect(self.photostimObject.updateNewTargets) # update phase mask
+					self.workerObject.photostimCurrentTargets_signal.connect(self.photostimObject.photostimCurrentTargets)  # photostim only
+				except Exception as e:
+					print(e)
+					return
 
 			# start and finish
 			self.workerObject.transDataToMain_signal.connect(self.transDataToMain)
