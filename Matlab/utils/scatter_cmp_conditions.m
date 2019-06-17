@@ -47,8 +47,9 @@ addParameter(par,'BinWidth',10);
 addParameter(par,'displayopt','off');
 addParameter(par,'Normalization','probability')
 addParameter(par,'DisplayStyle','stairs')
-
-
+addParameter(par,'BriefXlabel',0)
+addParameter(par,'ShowMeanInXlabel',0)
+addParameter(par,'VeryBriefXlabel',0)
 parse(par,varargin{:})
 if(~ isempty(par.Results.tail))
     tail = par.Results.tail;
@@ -111,6 +112,18 @@ end
 if(~isempty(par.Results.DisplayStyle))
     DisplayStyle = par.Results.DisplayStyle;
 end
+
+if(~isempty(par.Results.BriefXlabel))
+    BriefXlabel = par.Results.BriefXlabel;
+end
+
+if(~isempty(par.Results.BriefXlabel))
+    ShowMeanInXlabel = par.Results.ShowMeanInXlabel;
+end
+
+if(~isempty(par.Results.VeryBriefXlabel))
+    VeryBriefXlabel = par.Results.VeryBriefXlabel;
+end
 % plot each field in value
 hold on
 fields = fieldnames(values);
@@ -127,6 +140,8 @@ for m = 1:num_plot
 end
 mat_all_values = nan(max_size,num_plot);
 num_samples = zeros(1,num_plot);
+num_nonnan_samples = zeros(1,num_plot);
+
 for m =1:num_plot
     temp_value = extractfield(values,char(fields{m}))';
     if(size(temp_value,2)>1)
@@ -135,6 +150,7 @@ for m =1:num_plot
     %     animal_value = arrayfun(@(x)nanmean(extractfield(values(x),fields{m})),1:size(values,2));
     mat_all_values(1:length(temp_value),m)= temp_value;
     num_samples(m) = length(temp_value);
+    num_nonnan_samples(m) = length(find(~isnan(temp_value)>0));
 end
 
 % % stat stest on all combinations of fields
@@ -162,7 +178,11 @@ if(~(strcmp(test_type,'anova')||(strcmp(test_type,'KW'))))
                 case 'ttest'
                     [h,P]=ttest(mat_all_values(:,idx1),mat_all_values(:,idx2));
                 case 'ranksum'
+                    try
                     [P,h] = ranksum(mat_all_values(:,idx1),mat_all_values(:,idx2));
+                    catch
+                        P = 1; h = 0;
+                    end
                 case 'ttest2'
                     [h,P]=ttest2(mat_all_values(:,idx1),mat_all_values(:,idx2),'tail',tail);
                 case 'signrank'
@@ -246,8 +266,13 @@ if ~IfPlotPrePostOnly   % plot all conditions
                     scatter(x_positions(i).*ones(size(temp_value))+jitters,temp_value,15,'MarkerFaceColor',color_lut(i,:),'MarkerEdgeColor','none');
                 end
             else
+                
                 for j = 1:numel(temp_value)
-                    scatter(x_positions(i),temp_value(j),50,'MarkerEdgeColor',[1 1 1],'MarkerFaceColor',animal_colors(j,:),'MarkerFaceAlpha',0.5)
+                    jitters = 0;
+                    if IfAddJitter
+                        jitters = randi([-200 200],1)./200.*x_interval.*0.1;                      
+                    end
+                    scatter(x_positions(i)+jitters,temp_value(j),50,'MarkerEdgeColor',[1 1 1],'MarkerFaceColor',animal_colors(j,:),'MarkerFaceAlpha',0.5)
                 end
             end
         end
@@ -267,8 +292,12 @@ if ~IfPlotPrePostOnly   % plot all conditions
                  hp(i) = histogram(temp_value,'Normalization',Normalization,'DisplayStyle',DisplayStyle,'facecolor',color_lut(i,:), 'edgecolor','none','Binwidth',BinWidth,'FaceAlpha',1);
              end
          end  
-         
-        legend(hp,fields)
+        legend_name = {};
+        for ii = 1:numel(fields)
+            legend_name{ii} = strrep(fields{ii},'_', ' ');
+        end
+        
+        legend(hp,legend_name,'Location','northwest')
     end
     
     
@@ -292,34 +321,47 @@ end
 if(~IfHistogram)
     ylabel(plot_name)
 else
-    plot_name = strrep(plot_name,'_',' ')
+    plot_name = strrep(plot_name,'_',' ');
     title(plot_name)
     ylabel(Normalization)
 end
 
 % show stats if only two fields are compared
-if(num_plot == 2)
-    xlabel({[ test_type ' P=' num2str(P,'%10.1e') ' h= ' num2str(h)];...
-        ['Difference: ' num2str(diff_value,'%10.3f')];...
+if ~ BriefXlabel
+    if(num_plot == 2)
+        xlabel({[ test_type ' P=' num2str(P,'%10.1e') ' h= ' num2str(h)];...
+            ['#Samples: ' num2str(num_samples)];...
+            ['#Numeric: ' num2str(num_nonnan_samples)];...
+            ['Mean: '  num2str(mean_values(1),'%10.3f') '; '  num2str(mean_values(end),'%10.3f')];...
+            ['Median:' num2str(median_values(1),'%10.3f') '; '  num2str(median_values(end),'%10.3f')]
+            ['SE: '  num2str(se_values(1),'%10.3f') '; '  num2str(se_values(end),'%10.3f') ];...
+            ['SD: '  num2str(sd_values(1),'%10.3f') '; '  num2str(sd_values(end),'%10.3f') ];...
+            ['Skewness: '  num2str(sk_values(1),'%10.3f') '; '  num2str(sk_values(end),'%10.3f')];...
+            ['%Difference: ' num2str(diff_value,'%10.3f')]})
+    else
+        xlabel({ 
+            ['#Samples: ' num2str(num_samples)];...
+            ['#Numeric: ' num2str(num_nonnan_samples)];...
+            ['Mean:  ' num2str(mean_values,'%10.3f')];...
+            ['Median:' num2str(median_values,'%10.3f')];...
+            ['SE:    '  num2str(se_values,'%10.3f')];...
+            ['SD: '  num2str(sd_values,'%10.3f')];...
+            ['Skew:  '  num2str(sk_values,'%10.3f')] })
+        
+    end
+elseif ShowMeanInXlabel
+    xlabel({['#Samples: ' num2str(num_samples)];...
+        ['#Numeric: ' num2str(num_nonnan_samples)];...
         ['Mean: '  num2str(mean_values(1),'%10.3f') '; '  num2str(mean_values(end),'%10.3f')];...
-        ['Median:' num2str(median_values(1),'%10.3f') '; '  num2str(median_values(end),'%10.3f')]
-        ['SE: '  num2str(se_values(1),'%10.3f') '; '  num2str(se_values(end),'%10.3f') ];...
-        ['SD: '  num2str(sd_values(1),'%10.3f') '; '  num2str(sd_values(end),'%10.3f') ];...
-        ['Skewness: '  num2str(sk_values(1),'%10.3f') '; '  num2str(sk_values(end),'%10.3f')];...
-        ['#Samples: ' num2str(num_samples)]})
-else
-    xlabel({
-        ['Mean:  ' num2str(mean_values,'%10.3f')];...
-        ['Median:' num2str(median_values,'%10.3f')];...
-        ['SE:    '  num2str(se_values,'%10.3f')];...
-        ['SD: '  num2str(sd_values,'%10.3f')];...
-        ['Skew:  '  num2str(sk_values,'%10.3f')];...
-        ['#Samples: ' num2str(num_samples)]})
+        ['SD: '  num2str(sd_values(1),'%10.3f') '; '  num2str(sd_values(end),'%10.3f')]})
     
+else
+     xlabel({[ test_type ' P=' num2str(P,'%10.1e') ' h= ' num2str(h)]})
+end
+if VeryBriefXlabel
+    xlabel({['Mean: '  num2str(mean_values,'%10.3f')]})
 end
 set(gcf,'color','w')
-
-
 y_pos = double(1.1*max(max(mat_all_values)));
 
 end

@@ -60,9 +60,9 @@ def pkl2mat(file_full_name = '',save_full_name = ''):
 	# copy parameters
 	param_names = ['ds_factor', 'photo_stim_frames_caiman','K','min_SNR','gSig',
 				   'rval_thr','thresh_overlap','merge_thresh','expected_comps',
-				   'frame_added','online_photo_frames','online_photo_targets','accepted','accepted_idx',
+				   'frame_added','online_photo_frames','online_photo_targets','repeated_idx','accepted_idx','rejected_idx',
 				   't_cnm','coms','opsin_mask','overlap','stim_frames_caiman','online_C','online_thresh','tottime',
-				   'frames_skipped','sensory_stim_frames','frame_detected']   # added record of new cells in pyrtaoi
+				   'frames_skipped','sensory_stim_frames','frame_detected','init_com_count']   # added record of new cells in pyrtaoi
 	
 	for param in param_names:
 		try:

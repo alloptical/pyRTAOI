@@ -216,6 +216,35 @@ end
 for i = 1:numel(glob_stim_frames)
     plot([glob_stim_frames(i) glob_stim_frames(i)]+vis_duration,ylim,'color',opt.trial_color(i,:),'linestyle',':')
 end
+% export_fig  C:\Users\Zihui\Dropbox\pyRTAOI_demo_figure\visual_stim_inihib\20181029_t016_traces_blacklines.pdf -painters 
+
+%% traces as imagesc - comment this out, for poster only
+all_traces = cell2mat({cnm_struct.deconvC_full}');
+ds_factor = 10;
+ds_all_traces = nan(size(all_traces,1),ceil(size(all_traces,2)/ds_factor));
+% downsample for print
+for r = 1:size(all_traces,1)
+ds_all_traces(r,:) = downsample(all_traces(r,:),10);
+end
+
+figure('position',[100 100 1200 300])
+imagesc(ds_all_traces)
+colormap(gray)
+colormap(b2r(0,35))
+colorbar('eastoutside')
+set(gca,'YDir','reverse')
+hold on
+axis off
+
+for i = 1:numel(glob_stim_frames)
+    plot([glob_stim_frames(i) glob_stim_frames(i)]./ds_factor,ylim,'color',opt.trial_color(i,:))
+end
+
+for i = 1:numel(glob_stim_frames)
+    plot([[glob_stim_frames(i) glob_stim_frames(i)]+vis_duration]./ds_factor,ylim,'color',opt.trial_color(i,:),'linestyle',':')
+end
+% export_fig  C:\Users\Zihui\Dropbox\pyRTAOI_demo_figure\visual_stim_inihib\20181029_t016_traces_red.pdf -painters 
+
 
 %% stim triggered average 
 for i = 1:num_comp
@@ -276,18 +305,38 @@ end
 
 %% Show sensory cells on maps
 figure('name','pref. orientation on fov');
-subplot(1,2,1)
-plot_contours(sparse(double(cnm_A)),caiman_data.opsin_mask,cnm_plot_options,1,[],[],[1 1 1]);
+
+subplot(1,3,1)
+imagesc(com_fov)
+colormap(gray)
+colorbar('location','southoutside');
+axis square
+title('Detected ROIs')
+
+
+subplot(1,3,2)
+% plot_contours(sparse(double(cnm_A)),caiman_data.opsin_mask,cnm_plot_options,0,[],[],[1 1 1]);
+imagesc(caiman_data.opsin_mask)
+axis square
 colorbar('location','southoutside');
 set(gca,'YDir','reverse')
 title('Opsin mask')
 
-ax1 = subplot(1,2,2)
+ax1 = subplot(1,3,3)
 value_field = 'pref_orient';
 plot_value_in_rois( cell_struct, value_field,[256 256],ax1,'colorlut',[[1,1,1];opt.type_color],'IF_NORM_PIX',0,'IF_CONTOUR',1,'IF_SHOW_OPSIN',1,'zlimit',[0 4]);
 set(gca,'Ydir','reverse')
 title('Sensory cells (colored by pref. orientation)')
 
+% export_fig  C:\Users\Zihui\Dropbox\pyRTAOI_demo_figure\visual_stim_inihib\20181029_t016_FOV_maps.pdf -painters 
+% %% example -delete later
+% ax1 = figure
+% temp_colors = [[251 185 47];[169 207 137];[147 109 173];[242 151 189]]./255;
+% value_field = 'pref_orient';
+% plot_value_in_rois( cell_struct, value_field,[256 256],ax1,'colorlut',[[1,1,1];temp_colors],'IF_NORM_PIX',0,'IF_CONTOUR',1,'IF_SHOW_OPSIN',1,'zlimit',[0 4]);
+% set(gca,'Ydir','reverse')
+% title('Sensory cells (colored by pref. orientation)')
+% %  export_fig  C:\Users\Zihui\Dropbox\pyRTAOI_demo_figure\visual_stim_inihib\20181029_t016_FOV_uglycolored.pdf -painters 
 %% Plot STAs for visual cells
 figure('name','condition sta traces')
 num_plot_cols = 4;
@@ -336,10 +385,11 @@ sta_img = struct();
 for s = 1:num_stim_type
     ax1 = subplot(plot_row,plot_col,s);
     value_field = ['stim', num2str(s) 'amp'];
-    sta_img.(value_field) = plot_value_in_rois( cell_struct, value_field,[256 256],ax1,'IF_NORM_PIX',0,'IF_CONTOUR',1,'IF_SHOW_OPSIN',1);
+    sta_img.(value_field) = plot_value_in_rois( cell_struct, value_field,[256 256],ax1,'IF_NORM_PIX',0,'IF_CONTOUR',0,'IF_SHOW_OPSIN',1);
     set(gca,'Ydir','reverse')
     title(['Stim' num2str(s)])
 end
+% export_fig  C:\Users\Zihui\Dropbox\pyRTAOI_demo_figure\visual_stim_inihib\20181029_t016_4sta_on_maps.pdf -painters 
 
 %%
 %%%%%%%%%%%%%%%%%%% MORE DETIALED PLOTS GOES BELOW %%%%%%%%%%%%%%%%%%%%%%%%

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1669</width>
-    <height>896</height>
+    <width>1723</width>
+    <height>893</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -17,10 +17,10 @@
    <widget class="QTabWidget" name="tabWidget">
     <property name="geometry">
      <rect>
-      <x>0</x>
+      <x>10</x>
       <y>0</y>
-      <width>1651</width>
-      <height>851</height>
+      <width>1701</width>
+      <height>971</height>
      </rect>
     </property>
     <property name="currentIndex">
@@ -33,7 +33,7 @@
      <widget class="GraphicsLayoutWidget" name="ImageWindow">
       <property name="geometry">
        <rect>
-        <x>30</x>
+        <x>20</x>
         <y>30</y>
         <width>512</width>
         <height>512</height>
@@ -420,6 +420,25 @@
             </item>
            </widget>
           </item>
+          <item row="3" column="3">
+           <widget class="QPushButton" name="showROIIdx_pushButton">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="minimumSize">
+             <size>
+              <width>0</width>
+              <height>20</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>Show ROI Idx</string>
+            </property>
+           </widget>
+          </item>
          </layout>
         </item>
        </layout>
@@ -430,8 +449,8 @@
        <rect>
         <x>1250</x>
         <y>20</y>
-        <width>391</width>
-        <height>181</height>
+        <width>421</width>
+        <height>421</height>
        </rect>
       </property>
       <property name="title">
@@ -442,7 +461,7 @@
         <rect>
          <x>10</x>
          <y>20</y>
-         <width>371</width>
+         <width>401</width>
          <height>25</height>
         </rect>
        </property>
@@ -450,7 +469,7 @@
         <item row="0" column="0">
          <widget class="QCheckBox" name="enableStimTrigger_checkBox">
           <property name="text">
-           <string>Enable trigger</string>
+           <string>Enable stim trigger</string>
           </property>
          </widget>
         </item>
@@ -507,12 +526,12 @@
         <rect>
          <x>10</x>
          <y>50</y>
-         <width>374</width>
-         <height>106</height>
+         <width>401</width>
+         <height>152</height>
         </rect>
        </property>
        <layout class="QGridLayout" name="gridLayout">
-        <item row="3" column="1">
+        <item row="4" column="1">
          <widget class="QSpinBox" name="senStimType_spinBox">
           <property name="minimum">
            <number>1</number>
@@ -528,7 +547,47 @@
           </property>
          </widget>
         </item>
-        <item row="3" column="4">
+        <item row="0" column="1">
+         <widget class="QSpinBox" name="stimStartFrame_spinBox">
+          <property name="minimum">
+           <number>1</number>
+          </property>
+          <property name="maximum">
+           <number>9000</number>
+          </property>
+          <property name="value">
+           <number>238</number>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="2">
+         <spacer name="horizontalSpacer_4">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>40</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+        <item row="4" column="0">
+         <widget class="QLabel" name="label_19">
+          <property name="text">
+           <string>TCP cmd/StimType</string>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="3">
+         <widget class="QLabel" name="label_14">
+          <property name="text">
+           <string>Avg start (post-hoc STA)</string>
+          </property>
+         </widget>
+        </item>
+        <item row="4" column="4">
          <widget class="QSpinBox" name="staAvgStopFrame_spinBox">
           <property name="sizePolicy">
            <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
@@ -550,60 +609,21 @@
           </property>
          </widget>
         </item>
-        <item row="3" column="0">
-         <widget class="QLabel" name="label_19">
+        <item row="0" column="3">
+         <widget class="QLabel" name="label_10">
           <property name="text">
-           <string>TCP cmd</string>
+           <string>Pre frame (baseline)</string>
           </property>
          </widget>
         </item>
-        <item row="0" column="1">
-         <widget class="QSpinBox" name="stimStartFrame_spinBox">
-          <property name="minimum">
-           <number>1</number>
-          </property>
-          <property name="maximum">
-           <number>9000</number>
-          </property>
-          <property name="value">
-           <number>238</number>
-          </property>
-         </widget>
-        </item>
-        <item row="2" column="3">
-         <widget class="QLabel" name="label_14">
+        <item row="2" column="0">
+         <widget class="QLabel" name="label_8">
           <property name="text">
-           <string>Avg start</string>
+           <string>Stim interval (trial length)</string>
           </property>
          </widget>
         </item>
-        <item row="1" column="2">
-         <spacer name="horizontalSpacer_4">
-          <property name="orientation">
-           <enum>Qt::Horizontal</enum>
-          </property>
-          <property name="sizeHint" stdset="0">
-           <size>
-            <width>40</width>
-            <height>20</height>
-           </size>
-          </property>
-         </spacer>
-        </item>
-        <item row="2" column="5">
-         <spacer name="horizontalSpacer_5">
-          <property name="orientation">
-           <enum>Qt::Horizontal</enum>
-          </property>
-          <property name="sizeHint" stdset="0">
-           <size>
-            <width>40</width>
-            <height>20</height>
-           </size>
-          </property>
-         </spacer>
-        </item>
-        <item row="1" column="1">
+        <item row="2" column="1">
          <widget class="QSpinBox" name="interStimInterval_spinBox">
           <property name="minimum">
            <number>1</number>
@@ -616,28 +636,21 @@
           </property>
          </widget>
         </item>
-        <item row="0" column="3">
-         <widget class="QLabel" name="label_10">
-          <property name="text">
-           <string>Pre frame</string>
-          </property>
-         </widget>
-        </item>
-        <item row="1" column="0">
-         <widget class="QLabel" name="label_8">
-          <property name="text">
-           <string>Inter stim interval</string>
-          </property>
-         </widget>
-        </item>
-        <item row="3" column="3">
+        <item row="4" column="3">
          <widget class="QLabel" name="label_15">
           <property name="text">
-           <string>Avg stop</string>
+           <string>Avg stop ( post-hoc STA)</string>
           </property>
          </widget>
         </item>
-        <item row="1" column="4">
+        <item row="2" column="3">
+         <widget class="QLabel" name="label_11">
+          <property name="text">
+           <string>Post frame (monitor)</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="4">
          <widget class="QSpinBox" name="staPostFrame_spinBox">
           <property name="sizePolicy">
            <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
@@ -656,10 +669,26 @@
           </property>
          </widget>
         </item>
-        <item row="1" column="3">
-         <widget class="QLabel" name="label_11">
+        <item row="3" column="1">
+         <widget class="QSpinBox" name="numberStims_spinBox">
+          <property name="minimum">
+           <number>1</number>
+          </property>
+          <property name="maximum">
+           <number>1000</number>
+          </property>
+          <property name="value">
+           <number>15</number>
+          </property>
+          <property name="displayIntegerBase">
+           <number>10</number>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="0">
+         <widget class="QLabel" name="label_9">
           <property name="text">
-           <string>Post frame</string>
+           <string>Numer of stims</string>
           </property>
          </widget>
         </item>
@@ -682,30 +711,7 @@
           </property>
          </widget>
         </item>
-        <item row="2" column="0">
-         <widget class="QLabel" name="label_9">
-          <property name="text">
-           <string>Numer of stims</string>
-          </property>
-         </widget>
-        </item>
-        <item row="2" column="1">
-         <widget class="QSpinBox" name="numberStims_spinBox">
-          <property name="minimum">
-           <number>1</number>
-          </property>
-          <property name="maximum">
-           <number>500</number>
-          </property>
-          <property name="value">
-           <number>15</number>
-          </property>
-          <property name="displayIntegerBase">
-           <number>10</number>
-          </property>
-         </widget>
-        </item>
-        <item row="2" column="4">
+        <item row="3" column="4">
          <widget class="QSpinBox" name="staAvgStartFrame_spinBox">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
@@ -727,14 +733,7 @@
           </property>
          </widget>
         </item>
-        <item row="0" column="0">
-         <widget class="QLabel" name="label_6">
-          <property name="text">
-           <string>Start frame</string>
-          </property>
-         </widget>
-        </item>
-        <item row="4" column="1">
+        <item row="5" column="1">
          <spacer name="verticalSpacer_4">
           <property name="orientation">
            <enum>Qt::Vertical</enum>
@@ -747,20 +746,86 @@
           </property>
          </spacer>
         </item>
+        <item row="0" column="0">
+         <widget class="QLabel" name="label_6">
+          <property name="text">
+           <string>Stim start frame (TrialOn)</string>
+          </property>
+         </widget>
+        </item>
+        <item row="5" column="0">
+         <widget class="QCheckBox" name="ConditionOnStimType_checkBox">
+          <property name="text">
+           <string>Condition on StimType</string>
+          </property>
+          <property name="checked">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="5" column="3">
+         <widget class="QLabel" name="label_49">
+          <property name="text">
+           <string>% Conditioned trials</string>
+          </property>
+         </widget>
+        </item>
+        <item row="5" column="4">
+         <widget class="QSpinBox" name="pcConditionTrial_spinBox">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="minimum">
+           <number>1</number>
+          </property>
+          <property name="maximum">
+           <number>100</number>
+          </property>
+          <property name="value">
+           <number>100</number>
+          </property>
+          <property name="displayIntegerBase">
+           <number>10</number>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="QLabel" name="label_50">
+          <property name="text">
+           <string>Offset frames (Start monitor)</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="QSpinBox" name="offsetFrames_spinBox">
+          <property name="minimum">
+           <number>0</number>
+          </property>
+          <property name="maximum">
+           <number>9000</number>
+          </property>
+          <property name="value">
+           <number>1</number>
+          </property>
+         </widget>
+        </item>
        </layout>
       </widget>
       <widget class="QWidget" name="horizontalLayoutWidget">
        <property name="geometry">
         <rect>
          <x>9</x>
-         <y>150</y>
-         <width>371</width>
+         <y>210</y>
+         <width>401</width>
          <height>21</height>
         </rect>
        </property>
        <layout class="QHBoxLayout" name="horizontalLayout_2">
         <item>
-         <widget class="QCheckBox" name="blockPostFrames_checkBox_2">
+         <widget class="QCheckBox" name="blockPostFrames_checkBox">
           <property name="text">
            <string>Block post frames</string>
           </property>
@@ -775,6 +840,175 @@
         </item>
        </layout>
       </widget>
+      <widget class="Line" name="line">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>270</y>
+         <width>401</width>
+         <height>20</height>
+        </rect>
+       </property>
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+      </widget>
+      <widget class="QWidget" name="gridLayoutWidget_14">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>290</y>
+         <width>401</width>
+         <height>117</height>
+        </rect>
+       </property>
+       <layout class="QGridLayout" name="gridLayout_22">
+        <item row="2" column="0">
+         <widget class="QCheckBox" name="ifExtraPhoto_checkBox">
+          <property name="text">
+           <string>photo alone</string>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="1">
+         <widget class="QSpinBox" name="numExtraSensoryPhoto_spinBox">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="maximum">
+           <number>1000</number>
+          </property>
+          <property name="singleStep">
+           <number>0</number>
+          </property>
+          <property name="value">
+           <number>20</number>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="QCheckBox" name="ifExtraSensory_checkBox">
+          <property name="text">
+           <string>sensory alone</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="0">
+         <widget class="QLabel" name="label_39">
+          <property name="text">
+           <string>Control trial types </string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QLabel" name="label_46">
+          <property name="text">
+           <string>Num. trials</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="4">
+         <layout class="QHBoxLayout" name="horizontalLayout_3">
+          <item>
+           <widget class="QPushButton" name="updateTrialType_pushButton">
+            <property name="text">
+             <string>Update trials</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item row="2" column="1">
+         <widget class="QSpinBox" name="numExtraPhoto_spinBox">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="maximum">
+           <number>1000</number>
+          </property>
+          <property name="singleStep">
+           <number>0</number>
+          </property>
+          <property name="value">
+           <number>20</number>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="QSpinBox" name="numExtraSensory_spinBox">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="maximum">
+           <number>1000</number>
+          </property>
+          <property name="singleStep">
+           <number>0</number>
+          </property>
+          <property name="value">
+           <number>20</number>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="0">
+         <widget class="QCheckBox" name="ifExtraSensoryPhoto_checkBox">
+          <property name="text">
+           <string>sensory+ photo</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="2">
+         <widget class="QCheckBox" name="shuffleTrials_checkBox">
+          <property name="text">
+           <string>Shuffle </string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="4">
+         <widget class="QPushButton" name="updateFixTargets_pushButton">
+          <property name="text">
+           <string>Update fix targets</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="4">
+         <widget class="QPushButton" name="plotTrialTypes_pushButton">
+          <property name="text">
+           <string>Plot trial type</string>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="4">
+         <widget class="QPushButton" name="loadTrialOrder_pushButton">
+          <property name="text">
+           <string>Load trialOrder( pyBehavior)</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="2">
+         <spacer name="horizontalSpacer_11">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>40</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+       </layout>
+      </widget>
      </widget>
      <widget class="QGroupBox" name="caiman_groupBox">
       <property name="geometry">
@@ -782,19 +1016,19 @@
         <x>900</x>
         <y>150</y>
         <width>341</width>
-        <height>281</height>
+        <height>311</height>
        </rect>
       </property>
       <property name="title">
-       <string>Caiman initialisation</string>
+       <string>Caiman settings</string>
       </property>
       <widget class="QWidget" name="gridLayoutWidget_13">
        <property name="geometry">
         <rect>
          <x>10</x>
          <y>17</y>
-         <width>319</width>
-         <height>252</height>
+         <width>323</width>
+         <height>281</height>
         </rect>
        </property>
        <layout class="QGridLayout" name="gridLayout_19">
@@ -803,38 +1037,79 @@
           <property name="verticalSpacing">
            <number>0</number>
           </property>
-          <item row="10" column="2">
+          <item row="2" column="0">
+           <widget class="QCheckBox" name="saveProcTiff_checkBox">
+            <property name="text">
+             <string>Save Proc tiff</string>
+            </property>
+           </widget>
+          </item>
+          <item row="8" column="4">
+           <widget class="QPushButton" name="CNNFilter_pushButton">
+            <property name="text">
+             <string>  Run CNN Filter  </string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="4">
+           <widget class="QPushButton" name="loadMask_pushButton">
+            <property name="enabled">
+             <bool>true</bool>
+            </property>
+            <property name="text">
+             <string>Load mask</string>
+            </property>
+            <property name="iconSize">
+             <size>
+              <width>14</width>
+              <height>14</height>
+             </size>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="5">
+           <widget class="QRadioButton" name="UseOpsinMask_radioButton">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
+            <property name="text">
+             <string>C1V1</string>
+            </property>
+            <property name="checkable">
+             <bool>true</bool>
+            </property>
+            <property name="autoExclusive">
+             <bool>false</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="5">
+           <widget class="QRadioButton" name="UseOnacidMask_radioButton">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
+            <property name="text">
+             <string>From file</string>
+            </property>
+            <property name="autoExclusive">
+             <bool>false</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="9" column="2">
            <widget class="QSpinBox" name="InitNumROIs_spinBox">
             <property name="minimum">
              <number>1</number>
+            </property>
+            <property name="maximum">
+             <number>500</number>
             </property>
             <property name="value">
              <number>15</number>
             </property>
            </widget>
           </item>
-          <item row="13" column="4">
-           <widget class="QLabel" name="label_34">
-            <property name="text">
-             <string>Merge thresh</string>
-            </property>
-           </widget>
-          </item>
-          <item row="14" column="4">
-           <widget class="QLabel" name="label_35">
-            <property name="text">
-             <string>Overlap thresh</string>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="0">
-           <widget class="QCheckBox" name="saveAsTiff_checkBox">
-            <property name="text">
-             <string>Save Raw tiff</string>
-            </property>
-           </widget>
-          </item>
-          <item row="13" column="2">
+          <item row="12" column="2">
            <widget class="QSpinBox" name="MaxNumROIs_spinBox">
             <property name="minimum">
              <number>1</number>
@@ -847,7 +1122,14 @@
             </property>
            </widget>
           </item>
-          <item row="13" column="5">
+          <item row="13" column="4">
+           <widget class="QLabel" name="label_35">
+            <property name="text">
+             <string>Overlap thresh</string>
+            </property>
+           </widget>
+          </item>
+          <item row="12" column="5">
            <widget class="QDoubleSpinBox" name="merge_thresh_doubleSpinBox">
             <property name="decimals">
              <number>2</number>
@@ -866,14 +1148,44 @@
             </property>
            </widget>
           </item>
-          <item row="10" column="0">
+          <item row="12" column="4">
+           <widget class="QLabel" name="label_34">
+            <property name="text">
+             <string>Merge thresh</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QCheckBox" name="saveAsTiff_checkBox">
+            <property name="text">
+             <string>Save Raw tiff</string>
+            </property>
+           </widget>
+          </item>
+          <item row="9" column="0">
            <widget class="QLabel" name="label_5">
             <property name="text">
              <string>Init num ROIs</string>
             </property>
            </widget>
           </item>
-          <item row="14" column="5">
+          <item row="11" column="2">
+           <widget class="QDoubleSpinBox" name="dsFactor_doubleSpinBox">
+            <property name="decimals">
+             <number>2</number>
+            </property>
+            <property name="minimum">
+             <double>1.000000000000000</double>
+            </property>
+            <property name="maximum">
+             <double>15.000000000000000</double>
+            </property>
+            <property name="value">
+             <double>2.000000000000000</double>
+            </property>
+           </widget>
+          </item>
+          <item row="13" column="5">
            <widget class="QDoubleSpinBox" name="overlap_thresh_doubleSpinBox">
             <property name="decimals">
              <number>1</number>
@@ -892,7 +1204,7 @@
             </property>
            </widget>
           </item>
-          <item row="14" column="2">
+          <item row="13" column="2">
            <widget class="QSpinBox" name="cellRadius_spinBox_2">
             <property name="minimum">
              <number>1</number>
@@ -905,44 +1217,35 @@
             </property>
            </widget>
           </item>
-          <item row="12" column="2">
-           <widget class="QDoubleSpinBox" name="dsFactor_doubleSpinBox">
-            <property name="decimals">
-             <number>2</number>
-            </property>
-            <property name="minimum">
-             <double>1.000000000000000</double>
-            </property>
-            <property name="maximum">
-             <double>15.000000000000000</double>
-            </property>
-            <property name="value">
-             <double>2.000000000000000</double>
-            </property>
-           </widget>
-          </item>
-          <item row="14" column="0">
-           <widget class="QLabel" name="label_30">
-            <property name="text">
-             <string>Cell radius</string>
-            </property>
-           </widget>
-          </item>
           <item row="12" column="0">
-           <widget class="QLabel" name="label_7">
-            <property name="text">
-             <string>Downsampling</string>
-            </property>
-           </widget>
-          </item>
-          <item row="13" column="0">
            <widget class="QLabel" name="label_3">
             <property name="text">
              <string>Max num ROIs</string>
             </property>
            </widget>
           </item>
-          <item row="12" column="5">
+          <item row="9" column="4">
+           <widget class="QLabel" name="label_36">
+            <property name="text">
+             <string>Min SNR</string>
+            </property>
+           </widget>
+          </item>
+          <item row="13" column="0">
+           <widget class="QLabel" name="label_30">
+            <property name="text">
+             <string>Cell radius</string>
+            </property>
+           </widget>
+          </item>
+          <item row="11" column="0">
+           <widget class="QLabel" name="label_7">
+            <property name="text">
+             <string>Downsampling</string>
+            </property>
+           </widget>
+          </item>
+          <item row="11" column="5">
            <widget class="QDoubleSpinBox" name="rval_thresh_doubleSpinBox">
             <property name="decimals">
              <number>2</number>
@@ -961,40 +1264,7 @@
             </property>
            </widget>
           </item>
-          <item row="10" column="4">
-           <widget class="QLabel" name="label_36">
-            <property name="text">
-             <string>Min SNR</string>
-            </property>
-           </widget>
-          </item>
-          <item row="10" column="5">
-           <widget class="QDoubleSpinBox" name="minSNR_doubleSpinBox">
-            <property name="decimals">
-             <number>1</number>
-            </property>
-            <property name="minimum">
-             <double>1.000000000000000</double>
-            </property>
-            <property name="maximum">
-             <double>30.000000000000000</double>
-            </property>
-            <property name="singleStep">
-             <double>0.500000000000000</double>
-            </property>
-            <property name="value">
-             <double>2.500000000000000</double>
-            </property>
-           </widget>
-          </item>
-          <item row="12" column="4">
-           <widget class="QLabel" name="label_37">
-            <property name="text">
-             <string>Rval thresh</string>
-            </property>
-           </widget>
-          </item>
-          <item row="10" column="3">
+          <item row="9" column="3">
            <spacer name="horizontalSpacer_13">
             <property name="orientation">
              <enum>Qt::Horizontal</enum>
@@ -1020,52 +1290,40 @@
             </property>
            </widget>
           </item>
-          <item row="0" column="5">
-           <widget class="QRadioButton" name="UseOnacidMask_radioButton">
-            <property name="enabled">
-             <bool>false</bool>
-            </property>
+          <item row="11" column="4">
+           <widget class="QLabel" name="label_37">
             <property name="text">
-             <string>From file</string>
-            </property>
-            <property name="autoExclusive">
-             <bool>false</bool>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="5">
-           <widget class="QRadioButton" name="UseOpsinMask_radioButton">
-            <property name="enabled">
-             <bool>false</bool>
-            </property>
-            <property name="text">
-             <string>C1V1</string>
-            </property>
-            <property name="checkable">
-             <bool>true</bool>
-            </property>
-            <property name="autoExclusive">
-             <bool>false</bool>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="4">
-           <widget class="QPushButton" name="loadMask_pushButton">
-            <property name="enabled">
-             <bool>true</bool>
-            </property>
-            <property name="text">
-             <string>Load mask</string>
-            </property>
-            <property name="iconSize">
-             <size>
-              <width>14</width>
-              <height>14</height>
-             </size>
+             <string>Rval thresh</string>
             </property>
            </widget>
           </item>
           <item row="9" column="5">
+           <widget class="QDoubleSpinBox" name="minSNR_doubleSpinBox">
+            <property name="decimals">
+             <number>1</number>
+            </property>
+            <property name="minimum">
+             <double>1.000000000000000</double>
+            </property>
+            <property name="maximum">
+             <double>30.000000000000000</double>
+            </property>
+            <property name="singleStep">
+             <double>0.500000000000000</double>
+            </property>
+            <property name="value">
+             <double>2.500000000000000</double>
+            </property>
+           </widget>
+          </item>
+          <item row="8" column="0">
+           <widget class="QLabel" name="label_48">
+            <property name="text">
+             <string>CNN threshold</string>
+            </property>
+           </widget>
+          </item>
+          <item row="8" column="2">
            <widget class="QDoubleSpinBox" name="CNNFilter_doubleSpinBox">
             <property name="decimals">
              <number>2</number>
@@ -1084,33 +1342,6 @@
             </property>
            </widget>
           </item>
-          <item row="8" column="0">
-           <spacer name="verticalSpacer_2">
-            <property name="orientation">
-             <enum>Qt::Vertical</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>20</width>
-              <height>40</height>
-             </size>
-            </property>
-           </spacer>
-          </item>
-          <item row="9" column="4">
-           <widget class="QPushButton" name="CNNFilter_pushButton">
-            <property name="text">
-             <string>Filter</string>
-            </property>
-           </widget>
-          </item>
-          <item row="2" column="0">
-           <widget class="QCheckBox" name="saveProcTiff_checkBox">
-            <property name="text">
-             <string>Save Proc tiff</string>
-            </property>
-           </widget>
-          </item>
          </layout>
         </item>
         <item row="2" column="1">
@@ -1118,7 +1349,7 @@
           <item row="0" column="2" colspan="2">
            <widget class="QLineEdit" name="refMoviePath_lineEdit">
             <property name="text">
-             <string/>
+             <string>(tif or pkl)</string>
             </property>
            </widget>
           </item>
@@ -1126,6 +1357,16 @@
            <widget class="QLabel" name="label_4">
             <property name="text">
              <string>Reference Path</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="4">
+           <widget class="QCheckBox" name="initMotionCorr_checkBox">
+            <property name="text">
+             <string>Init motion corr</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
             </property>
            </widget>
           </item>
@@ -1152,7 +1393,7 @@
         <item row="4" column="1">
          <widget class="QPushButton" name="initialise_pushButton">
           <property name="text">
-           <string>Initialise</string>
+           <string>Initialise (auto save)</string>
           </property>
          </widget>
         </item>
@@ -1162,7 +1403,7 @@
      <widget class="GraphicsLayoutWidget" name="plotArea_graphicsLayoutWidget">
       <property name="geometry">
        <rect>
-        <x>30</x>
+        <x>20</x>
         <y>640</y>
         <width>511</width>
         <height>171</height>
@@ -1174,7 +1415,7 @@
        <rect>
         <x>560</x>
         <y>550</y>
-        <width>441</width>
+        <width>331</width>
         <height>261</height>
        </rect>
       </property>
@@ -1277,17 +1518,24 @@
      <widget class="QWidget" name="gridLayoutWidget_8">
       <property name="geometry">
        <rect>
-        <x>30</x>
+        <x>20</x>
         <y>560</y>
-        <width>511</width>
+        <width>524</width>
         <height>51</height>
        </rect>
       </property>
       <layout class="QGridLayout" name="gridLayout_9">
-       <item row="0" column="4">
+       <item row="0" column="9">
+        <widget class="QLabel" name="xPos_label">
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="3">
         <widget class="QLabel" name="label_42">
          <property name="text">
-          <string>Total photostim sent:</string>
+          <string>Tot. photostim sent:</string>
          </property>
         </widget>
        </item>
@@ -1299,30 +1547,16 @@
         </widget>
        </item>
        <item row="0" column="10">
-        <widget class="QLabel" name="xPos_label">
-         <property name="text">
-          <string/>
-         </property>
-        </widget>
-       </item>
-       <item row="0" column="9">
-        <widget class="QLabel" name="label_18">
-         <property name="text">
-          <string> x =</string>
-         </property>
-        </widget>
-       </item>
-       <item row="0" column="11">
         <widget class="QLabel" name="label_20">
          <property name="text">
           <string>y =</string>
          </property>
         </widget>
        </item>
-       <item row="0" column="5">
-        <widget class="QLabel" name="totalNumPhotostim_label">
+       <item row="0" column="8">
+        <widget class="QLabel" name="label_18">
          <property name="text">
-          <string>0</string>
+          <string> x =</string>
          </property>
         </widget>
        </item>
@@ -1333,30 +1567,24 @@
          </property>
         </widget>
        </item>
-       <item row="0" column="12">
+       <item row="0" column="4">
+        <widget class="QLabel" name="totalNumPhotostim_label">
+         <property name="text">
+          <string>0</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="11">
         <widget class="QLabel" name="yPos_label">
          <property name="text">
           <string/>
          </property>
         </widget>
        </item>
-       <item row="0" column="6">
-        <spacer name="horizontalSpacer_6">
-         <property name="orientation">
-          <enum>Qt::Horizontal</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>40</width>
-           <height>20</height>
-          </size>
-         </property>
-        </spacer>
-       </item>
        <item row="1" column="1">
         <widget class="QPushButton" name="removeSelected_pushButton">
          <property name="text">
-          <string>Remove selected</string>
+          <string> Remove selected </string>
          </property>
         </widget>
        </item>
@@ -1366,7 +1594,7 @@
           <bool>true</bool>
          </property>
          <property name="text">
-          <string>Start remove</string>
+          <string>  Start remove mode  </string>
          </property>
          <property name="iconSize">
           <size>
@@ -1376,8 +1604,8 @@
          </property>
         </widget>
        </item>
-       <item row="0" column="3">
-        <spacer name="horizontalSpacer_2">
+       <item row="0" column="5">
+        <spacer name="horizontalSpacer_6">
          <property name="orientation">
           <enum>Qt::Horizontal</enum>
          </property>
@@ -1398,7 +1626,7 @@
           </sizepolicy>
          </property>
          <property name="text">
-          <string>Remove Unselected</string>
+          <string> Remove Unselected </string>
          </property>
         </widget>
        </item>
@@ -1410,8 +1638,8 @@
       </property>
       <property name="geometry">
        <rect>
-        <x>1010</x>
-        <y>550</y>
+        <x>900</x>
+        <y>580</y>
         <width>341</width>
         <height>101</height>
        </rect>
@@ -1632,7 +1860,7 @@
      <widget class="QGroupBox" name="config_groupBox">
       <property name="geometry">
        <rect>
-        <x>1010</x>
+        <x>900</x>
         <y>690</y>
         <width>341</width>
         <height>61</height>
@@ -1696,9 +1924,9 @@
       <property name="geometry">
        <rect>
         <x>1250</x>
-        <y>210</y>
-        <width>391</width>
-        <height>331</height>
+        <y>450</y>
+        <width>421</width>
+        <height>361</height>
        </rect>
       </property>
       <property name="title">
@@ -1709,7 +1937,7 @@
         <rect>
          <x>10</x>
          <y>20</y>
-         <width>371</width>
+         <width>401</width>
          <height>115</height>
         </rect>
        </property>
@@ -1785,6 +2013,11 @@
           </item>
           <item>
            <property name="text">
+            <string>Weighted sum</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
             <string/>
            </property>
           </item>
@@ -1843,7 +2076,7 @@
            <bool>true</bool>
           </property>
           <property name="text">
-           <string>Ctr power</string>
+           <string>Control power</string>
           </property>
           <property name="checked">
            <bool>true</bool>
@@ -1894,174 +2127,12 @@
         </item>
        </layout>
       </widget>
-      <widget class="QWidget" name="gridLayoutWidget_14">
-       <property name="geometry">
-        <rect>
-         <x>20</x>
-         <y>220</y>
-         <width>361</width>
-         <height>108</height>
-        </rect>
-       </property>
-       <layout class="QGridLayout" name="gridLayout_22">
-        <item row="1" column="0">
-         <widget class="QCheckBox" name="ifExtraSensory_checkBox">
-          <property name="text">
-           <string>sensory alone</string>
-          </property>
-         </widget>
-        </item>
-        <item row="3" column="1">
-         <widget class="QSpinBox" name="numExtraSensoryPhoto_spinBox">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="maximum">
-           <number>100</number>
-          </property>
-          <property name="singleStep">
-           <number>0</number>
-          </property>
-          <property name="value">
-           <number>20</number>
-          </property>
-         </widget>
-        </item>
-        <item row="0" column="0">
-         <widget class="QLabel" name="label_39">
-          <property name="text">
-           <string>Control trial type</string>
-          </property>
-         </widget>
-        </item>
-        <item row="2" column="0">
-         <widget class="QCheckBox" name="ifExtraPhoto_checkBox">
-          <property name="text">
-           <string>photo alone</string>
-          </property>
-         </widget>
-        </item>
-        <item row="1" column="4">
-         <layout class="QHBoxLayout" name="horizontalLayout_3">
-          <item>
-           <widget class="QPushButton" name="updateTrialType_pushButton">
-            <property name="text">
-             <string>Update trials</string>
-            </property>
-           </widget>
-          </item>
-         </layout>
-        </item>
-        <item row="0" column="1">
-         <widget class="QLabel" name="label_46">
-          <property name="text">
-           <string>Num. trials</string>
-          </property>
-         </widget>
-        </item>
-        <item row="2" column="1">
-         <widget class="QSpinBox" name="numExtraPhoto_spinBox">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="maximum">
-           <number>100</number>
-          </property>
-          <property name="singleStep">
-           <number>0</number>
-          </property>
-          <property name="value">
-           <number>20</number>
-          </property>
-         </widget>
-        </item>
-        <item row="1" column="1">
-         <widget class="QSpinBox" name="numExtraSensory_spinBox">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="maximum">
-           <number>100</number>
-          </property>
-          <property name="singleStep">
-           <number>0</number>
-          </property>
-          <property name="value">
-           <number>20</number>
-          </property>
-         </widget>
-        </item>
-        <item row="3" column="0">
-         <widget class="QCheckBox" name="ifExtraSensoryPhoto_checkBox">
-          <property name="text">
-           <string>sensory+ photo</string>
-          </property>
-         </widget>
-        </item>
-        <item row="0" column="4">
-         <widget class="QCheckBox" name="shuffleTrials_checkBox">
-          <property name="text">
-           <string>Shuffle </string>
-          </property>
-         </widget>
-        </item>
-        <item row="2" column="4">
-         <widget class="QPushButton" name="updateFixTargets_pushButton">
-          <property name="text">
-           <string>Update fix targets</string>
-          </property>
-         </widget>
-        </item>
-        <item row="3" column="4">
-         <widget class="QPushButton" name="plotTrialTypes_pushButton">
-          <property name="text">
-           <string>Plot trial type</string>
-          </property>
-         </widget>
-        </item>
-        <item row="2" column="2">
-         <spacer name="horizontalSpacer_11">
-          <property name="orientation">
-           <enum>Qt::Horizontal</enum>
-          </property>
-          <property name="sizeHint" stdset="0">
-           <size>
-            <width>40</width>
-            <height>20</height>
-           </size>
-          </property>
-         </spacer>
-        </item>
-       </layout>
-      </widget>
-      <widget class="Line" name="line">
-       <property name="geometry">
-        <rect>
-         <x>7</x>
-         <y>210</y>
-         <width>381</width>
-         <height>20</height>
-        </rect>
-       </property>
-       <property name="orientation">
-        <enum>Qt::Horizontal</enum>
-       </property>
-      </widget>
       <widget class="QWidget" name="gridLayoutWidget_10">
        <property name="geometry">
         <rect>
          <x>10</x>
          <y>140</y>
-         <width>371</width>
+         <width>401</width>
          <height>81</height>
         </rect>
        </property>
@@ -2251,11 +2322,143 @@
         </item>
        </layout>
       </widget>
+      <widget class="QWidget" name="horizontalLayoutWidget_2">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>240</y>
+         <width>401</width>
+         <height>31</height>
+        </rect>
+       </property>
+       <layout class="QHBoxLayout" name="horizontalLayout_weighsum">
+        <item>
+         <widget class="QLabel" name="label_47">
+          <property name="text">
+           <string>ROI(sum) threshold</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QDoubleSpinBox" name="ROIsumThresh_doubleSpinBox">
+          <property name="decimals">
+           <number>2</number>
+          </property>
+          <property name="minimum">
+           <double>0.000000000000000</double>
+          </property>
+          <property name="maximum">
+           <double>1.000000000000000</double>
+          </property>
+          <property name="singleStep">
+           <double>0.100000000000000</double>
+          </property>
+          <property name="value">
+           <double>0.000000000000000</double>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <spacer name="horizontalSpacer_12">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>40</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="ROIsumBelow_checkBox">
+          <property name="text">
+           <string>below</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="ROIsumAbove_checkBox">
+          <property name="text">
+           <string>above</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+      <widget class="Line" name="line_2">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>220</y>
+         <width>401</width>
+         <height>20</height>
+        </rect>
+       </property>
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+      </widget>
+      <widget class="QWidget" name="gridLayoutWidget_15">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>280</y>
+         <width>401</width>
+         <height>71</height>
+        </rect>
+       </property>
+       <layout class="QGridLayout" name="gridLayout_23">
+        <item row="1" column="1">
+         <widget class="QLineEdit" name="triggerConfigPath_lineEdit">
+          <property name="text">
+           <string>trigger config file</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="QPushButton" name="loadTriggerConfig_pushButton">
+          <property name="text">
+           <string>Load trigger Config</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QLineEdit" name="targetCentroidsPath_lineEdit">
+          <property name="text">
+           <string>target image file</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="0">
+         <widget class="QPushButton" name="loadTargetCentroid_pushButton">
+          <property name="text">
+           <string>Load target image</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="2">
+         <widget class="QPushButton" name="saveCurrentTargetCentroids_pushButton">
+          <property name="text">
+           <string>Save current targets</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="2">
+         <widget class="QPushButton" name="removeButTrigger_pushButton">
+          <property name="text">
+           <string>Remove other ROIs</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
      </widget>
      <widget class="QGroupBox" name="run_groupBox">
       <property name="geometry">
        <rect>
-        <x>1010</x>
+        <x>900</x>
         <y>760</y>
         <width>341</width>
         <height>51</height>
@@ -2375,7 +2578,7 @@
       <property name="geometry">
        <rect>
         <x>900</x>
-        <y>440</y>
+        <y>470</y>
         <width>341</width>
         <height>101</height>
        </rect>
@@ -2495,10 +2698,10 @@
      <widget class="QWidget" name="gridLayoutWidget_5">
       <property name="geometry">
        <rect>
-        <x>130</x>
+        <x>60</x>
         <y>0</y>
-        <width>991</width>
-        <height>761</height>
+        <width>1571</width>
+        <height>801</height>
        </rect>
       </property>
       <layout class="QGridLayout" name="plot_gridLayout"/>
@@ -2511,7 +2714,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1669</width>
+     <width>1723</width>
      <height>21</height>
     </rect>
    </property>

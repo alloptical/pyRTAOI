@@ -1,5 +1,5 @@
 %% load data
-data_folder = 'D:\pyRTAOI data\stim_at_fixed_frames\GCaMP6f';
+data_folder = 'D:\pyRTAOI_data\stim_at_fixed_frames\GCaMP6f';
 file_list = dir(data_folder);
 file_list = file_list(cellfun(@(x)contains(x,'.mat'),{file_list.name}));
 file_names = {file_list.name};
@@ -28,8 +28,8 @@ indices = round(linspace(1,size(hsv,1),num_trials));
 for i = 1:num_trials
 opt.trial_color(i,:) = tint(hsv(indices(i),:),opt.tint_factor);
 end
-opt.fig_save_path = 'D:\pyRTAOI data\stim_at_fixed_frames\GCaMP6f\plots';
-%% process data
+opt.fig_save_path = 'D:\pyRTAOI_data\stim_at_fixed_frames\GCaMP6f\plots';
+%% process data - done skip this
 all_data = struct();
 for f = 1:num_files
     this_file = [data_folder filesep file_names{f}];
@@ -43,7 +43,9 @@ for f = 1:num_files
 end
 % save('D:\pyRTAOI data\stim_at_fixed_frames\GCaMP6f\procData\20181008_gcamp6f_stimfixedframes_data','all_data')
 % save('D:\pyRTAOI data\stim_at_fixed_frames\GCaMP6f\procData\20181008_gcamp6f_stimfixedframes_opt','opt')
-
+%% load from saved struct 
+load('D:\pyRTAOI_data\stim_at_fixed_frames\GCaMP6f\procData\20181008_gcamp6f_stimfixedframes_data')
+load('D:\pyRTAOI_data\stim_at_fixed_frames\GCaMP6f\procData\20181008_gcamp6f_stimfixedframes_opt')
 %% timing
 pro_time = cell2mat({all_data.proc_time}).*1000;
 figure('name','process time per frame');
@@ -51,13 +53,19 @@ hold on
 histogram(pro_time,'facecolor',[.5 .5 .5],'edgecolor','none','normalization','probability');
 axis square
 avg_time = mean(pro_time);
+med_time = median(pro_time);
 frame_time = 33.3;
 plot([frame_time frame_time],[0 0.3],':','color','r','linewidth',2)
 plot([avg_time avg_time],[0 0.3],':','color',[.3 .3 .3],'linewidth',2)
+plot([med_time med_time],[0 0.3],':','color',[.7 .7 .7],'linewidth',2)
+
 xlabel('Procesing time (ms)')
 ylabel('Fraction of frames')
-text(1,1,['Avg proc time: ' num2str(avg_time,3) 'ms'],'units','normalized', 'horizontalalignment','right')
-
+text(1,1,['Avg. proc. time: ' num2str(avg_time,3) 'ms'],'units','normalized', 'horizontalalignment','right','color',[.3 .3 .3])
+text(1,.95,['Med. proc. time: ' num2str(med_time,3) 'ms'],'units','normalized', 'horizontalalignment','right','color',[.7 .7 .7])
+text(1,.9,'Frame rate: 30 Hz','units','normalized', 'horizontalalignment','right','color','r')
+xlim([0 50])
+% export_fig  D:\pyRTAOI_data\stim_at_fixed_frames\GCaMP6f\plots\proc_time.pdf -painters 
 %% photostim responses
 sta_traces = struct();
 sta_traces.target = [];
@@ -82,15 +90,16 @@ plot(sta_traces.target','color',[.7 .7 .7])
 plot(median(sta_traces.target,1),'black','linewidth',2)
 axis square
 ylim(ylmit)
-title('targeted mcherry+')
+title(['targeted mcherry+: ', num2str(length(cell2mat(all_target_idx'))),'rois'])
 subplot(1,2,2)
+
 hold on
 plot(sta_traces.nontarget','color',[.7 .7 .7])
 plot(median(sta_traces.nontarget,1),'black','linewidth',2)
 ylim(ylmit)
-title('not targeted')
+title(['not targeted:'  num2str(length(cell2mat(all_nontarget_idx'))),'rois'])
 axis square
-
+% export_fig  D:\pyRTAOI_data\stim_at_fixed_frames\GCaMP6f\plots\all_sta_black_median.pdf -painters 
 %% photostim amplitude
 sta_amp = struct();
 sta_amp.target = [];
@@ -133,7 +142,7 @@ subplot(1,2,2)
 values = struct();
 values.percent_cells_responsive = percent_cells_responsive;
 scatter_cmp_conditions(values,'% responsive',1,[],'connect_scatter',0)
-
+export_fig  D:\pyRTAOI_data\stim_at_fixed_frames\GCaMP6f\plots\num_response_summary.pdf -painters 
 
 
 

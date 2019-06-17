@@ -51,7 +51,7 @@ else
     colormap(ax,colorlut)
 end
 
- textcolor = [.3 .3 .3];
+textcolor = [.3 .3 .3];
  
  if IF_CONTOUR
      try
@@ -69,24 +69,24 @@ end
          10,textcolor)
  end
 
-for i = 1:size(cell_struct,2)
-
-    if IF_CONTOUR
-        temp_img = zeros((size(img)));
-
-            for j = 1:numel(cell_struct(i).coordinates(:,1))
-                temp_img(cell_struct(i).coordinates(j,1),cell_struct(i).coordinates(j,2)) = 1;
-            end
-            contour(temp_img,'LineColor',[.5 .5 .5], 'linewidth', 1);
-            if cell_struct(i).num_trials>0
-                contour(temp_img,'LineColor',[1 0 0], 'linewidth', 1);
-            end
-    end
-    
-
-    text(round(cell_struct(i).centroid(:,2)),...
-        round(cell_struct(i).centroid(:,1)),num2str(i),'color',textcolor,'fontweight','bold');
-end
+% for i = 1:size(cell_struct,2)
+% 
+%     if IF_CONTOUR
+%         temp_img = zeros((size(img)));
+% 
+%             for j = 1:numel(cell_struct(i).coordinates(:,1))
+%                 temp_img(cell_struct(i).coordinates(j,1),cell_struct(i).coordinates(j,2)) = 1;
+%             end
+%             contour(temp_img,'LineColor',[.5 .5 .5], 'linewidth', 1);
+%             if cell_struct(i).num_trials>0
+%                 contour(temp_img,'LineColor',[1 0 0], 'linewidth', 1);
+%             end
+%     end
+%     
+% 
+%     text(round(cell_struct(i).centroid(:,2)),...
+%         round(cell_struct(i).centroid(:,1)),num2str(i),'color',textcolor,'fontweight','bold');
+% end
 
 xlim([1,size(img,1)])
 ylim([1,size(img,2)])

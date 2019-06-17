@@ -83,7 +83,9 @@ fontname = 'helvetica';
             if size(Coor{i},2) > 1
                 cont = medfilt1(Coor{i}')';
                 cont = [cont,cont(:,2)];
-                plot(cont(1,2:end),cont(2,2:end),'Color',options.roi_color(i,:), 'linewidth', 2); hold on;
+%                 plot(cont(1,2:end),cont(2,2:end),'Color',options.roi_color(i,:), 'linewidth', 2); hold on;
+                plot(cont(1,2:end),cont(2,2:end),'Color',[1 0 0], 'linewidth', 2); hold on;
+
             end            
         end
     else
@@ -118,7 +120,7 @@ fontname = 'helvetica';
                 if ~isempty(BW2)
                     for ii = 1:length(BW2)
                         BW2{ii} = fliplr(BW2{ii});
-                        plot(BW2{ii}(:,1),BW2{ii}(:,2),'Color',options.roi_color(i,:), 'linewidth', 2);
+                        plot(BW2{ii}(:,1),BW2{ii}(:,2),'Color',[1,0,0], 'linewidth', 2);
                     end
                     CC{i} = BW2{1}';
                     fp = find(BW);

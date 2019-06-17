@@ -9,23 +9,28 @@
 SPYDER HAS NO AUTOSAVE FUNCTION!  (only autosaves when script is run)
 CAREFUL WHEN USING 'REPLACE ALL' - IT WILL QUIT, WITHOUT SAVING!!
 
+UPDATE REV40 PV SETTINGS MAX VOLTAGE FOR PHOTOSTIM CONTROL!!!
 
 TO DO    log this to Notes ToDo_log when it's done and tested
 
-
--1. save out fixed targets centroid image
-0 test timing on rig
-
-1. temporally save a sequence of phase masks in holoblink, display on slm on command
-
-1. log data for offline anaysis - keep checking if everything is saved out
-7. photostim protocol - done, need to test on rig
+-0. multiply selected cells by weight and compare with threshold - done, test on rig
+-1. test motion correction on gpu using caiman code - using onacid template matching, working well
+-2. disable adding components - done
 
 
-UPDATE REV40 PV SETTINGS MAX VOLTAGE FOR PHOTOSTIM CONTROL!!!
+3. load and save out fixed targets centroid image - done
+4. temporally save a sequence of phase masks in holoblink, display on slm on command
+5. load threshold and weights file - done
+5.5 check trialon trigger - current stim trigger is for sensory stim directly - added 'offsetFrames', done
+6. configure stim types from pybehavior output file - done
+7. seed cell detection by cell masks from previous recordings
+8. set different targets for stim types
+
+test timing on rig
+log data for offline anaysis - keep checking if everything is saved out
 
 '''
-
+#%% imports
 import sys
 import random
 import os
@@ -38,7 +43,7 @@ import GUI
 from PyQt5.QtCore import Qt,QObject, pyqtSignal, QThread, QTimer, QRectF, QUrl,QPoint, QRect, QSize,QPointF,QSizeF, QSettings, QCoreApplication, QDir, QEventLoop
 from PyQt5.QtWidgets import (QComboBox, QCheckBox, QLineEdit, QSpinBox, QLabel,
 							 QDoubleSpinBox, QFileDialog, QApplication, QWidget,
-							 QDesktopWidget, QMainWindow, QMessageBox, QTableWidgetItem)
+							 QDesktopWidget, QMainWindow, QMessageBox, QTableWidgetItem,QAbstractScrollArea)
 from PyQt5.QtGui import QFont, QColor, QIcon, QPalette, QDesktopServices, QImage, QPixmap, QPainter,QPen,QBrush
 
 
@@ -104,7 +109,7 @@ from nidaqmx import stream_writers
 from queue import Queue
 
 # power control voltage
-from loadPowerFile import get_power_params
+from loadMatFile import get_power_params, get_trigger_params
 
 # sta
 from utils import STATraceMaker
@@ -112,7 +117,7 @@ from utils import STATraceMaker
 #socket
 import socket
 
-# configure logging
+#%% configure logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 handler = logging.FileHandler('errors.log')  # create a file handler
@@ -135,7 +140,8 @@ class CONSTANTS():
 	PHOTO_REPLAY_TRIAL = 5 # stimulate all responsive cells at once
 	PHOTO_REPLAY_TRAIN = 6 # stim in a sequence
 	PHOTO_CLAMP_DOWN = 7 # photostim after sensory stim until cell goes back to baseline (opto inhibition)
-#%%
+	PHOTO_WEIGH_SUM = 8 # compare weighted average of ROI values with tresh
+
 class MyThread(QThread):
 	def run(self):
 		self.exec_()
@@ -167,7 +173,7 @@ class DataStream(QObject):
 		print('this is stream func')
 		p['FLAG_END_LOADING'] = False
 
-# streaming data from PV
+#%% prepare streaming data from PV
 		if self.FLAG_PV_CONNECTED and not p['FLAG_OFFLINE']:
 			# PYCUDA
 			import pycuda.driver as cuda
@@ -239,7 +245,7 @@ class DataStream(QObject):
 			incorrectCount = 0
 			incorrectLimit = 5000
 
-			# start imaging
+#%% start imaging loop
 			num_samples = self.pl.send_recv(_rrd) # flush
 			if not self.pl.send_done(self.pl._ts): # t-series
 				self.FLAG_SCANNING = True
@@ -296,7 +302,7 @@ class DataStream(QObject):
 			# load movie
 			if p['moviePath'] != 'U:/simulate_movie/20170823.tif':
 				print('Loading video')
-				Y_ = cm.load(p['moviePath'], subindices=slice(0,10000,None))
+				Y_ = cm.load(p['moviePath'])
 				print(Y_.shape)
 				print('Video loaded')
 			else:
@@ -449,7 +455,7 @@ class Photostimer(QObject):
 			print('photostim parameters updated')
 		return ERROR
 
-#%% process thread
+#%% processing thread
 class Worker(QObject):
 	# setup signals
 	status_signal            = pyqtSignal(str,name ='statusSignal')
@@ -482,7 +488,6 @@ class Worker(QObject):
 		self.ROIlist = kwargs.get('ROIlist',dict())
 		print('worker pl empty? ' + str(self.pl == []))
 
-
 		# count processed frames
 		self.framesProc = 0
 
@@ -502,9 +507,9 @@ class Worker(QObject):
 			print('No Prairie object provided')
 
 		# initialise stim frames
-		frame_rate = 30
+		frame_rate = 30 # hard-coded
 		self.photo_stim_frames = p['photo_stim_frames']
-		self.stim_frames = p['sen_stim_frames']
+		self.stim_frames = p['sen_stim_frames'] # trialOn triggers 
 		self.flag_sta_recording = False
 		self.sta_frame_idx = 0
 		self.sta_trace_length = p['staPreFrame']+p['staPostFrame']
@@ -514,18 +519,8 @@ class Worker(QObject):
 		self.replay_idx = []
 		self.replay_frames = []
 
-
-#		#####  Delete this #####
-#		if p['photoProtoInx'] == CONSTANTS.PHOTO_REPLAY_TRIAL or p['photoProtoInx'] == CONSTANTS.PHOTO_REPLAY_TRAIN:
-#			self.photo_stim_frames = self.stim_frames[1::2]+p['photoWaitFrames']
-#			self.stim_frames = self.stim_frames[::2]
-#
-#		elif p['photoProtoInx'] == CONSTANTS.PHOTO_FIX_FRAMES:
-#				relative_frames = math.ceil(frame_rate/p['photoFrequency'])*np.arange(0,p['photoNumStimsPerTrial'])+p['photoWaitFrames']
-#				self.photo_stim_frames = np.concatenate( [item+relative_frames for item in self.stim_frames])
-#		#####  End Delete this #####
-
-		self.tot_num_photostim = len(self.photo_stim_frames)
+		# count
+		self.tot_num_photostim = len(self.photo_stim_frames) # only used for replay or fixed-photostim protocols
 		self.tot_num_senstim = len(self.stim_frames)
 
 		print('sensory stim frames:')
@@ -577,7 +572,7 @@ class Worker(QObject):
 		print('replay idx and frames:')
 		print(self.replay_idx)
 		print(self.replay_frames)
-#%% process frame
+
 	def work(self):
 		print('this is work')
 		try:
@@ -599,15 +594,15 @@ class Worker(QObject):
 			photostim_train_count = 0
 			num_stim_targets = len(p['currentTargetX'])
 			last_target_idx = []
-			FLAG_TRIG_PHOTOSTIM = False
-			FLAG_SEND_COORDS = False
 			frames_post_photostim = 0
 			frames_post_stim = 0
 			photo_duration = self.photo_duration
-			monitor_frames = p['staPostFrame']
+			monitor_frames = p['staPostFrame']+p['offsetFrames'] # offsetFramaes are frame to start monitoring wrt stim start trigger frame (use it when TTL are trialOn triggers for pybehavior rather than direct sensory stim triggers )
 			stim_duration = p['staPostFrame']
 			wait_frames = p['photoWaitFrames']
 			baseline_frames = p['staPreFrame']
+			ROIsumThresh = p['ROIsumThresh']
+			photostim_flag = 0
 			tot_num_photostim = self.tot_num_photostim
 			tot_num_senstim = self.tot_num_senstim
 			print('frames with photostim = ' + str(photo_duration))
@@ -619,6 +614,10 @@ class Worker(QObject):
 			BufferPointer = self.BufferPointer
 			photo_stim_frames = self.photo_stim_frames # predefined fixed frames
 			stim_frames = self.stim_frames # stim at fixed intervals
+
+			# flags for photostim and slm signals
+			FLAG_TRIG_PHOTOSTIM = False
+			FLAG_SEND_COORDS = False
 
 			# control trials
 			numExtraPhoto = len(p['extraPhotoFrames'])
@@ -674,13 +673,15 @@ class Worker(QObject):
 			reject_mask = self.c['reject_mask']
 
 			# Define OnACID parameters
-			max_shift = np.ceil(10./ds_factor).astype('int')  # max shift allowed
+			max_shift = np.ceil(50./ds_factor).astype('int')  # max shift allowed
 			accepted = [ix+gnb for ix in cnm2.accepted] # count from 1 for easy C_on access
 			rejected_count = cnm2.N - len(accepted)
 			expect_components = True
+			cnm2.update_num_comps = True
 			com_count = len(accepted) #self.c['cnm2'].N
 			if com_count == p['MaxNumROIs']:
 				expect_components = False
+				cnm2.update_num_comps = False
 			init_t = cnm2.initbatch
 			K_init = self.c['K_init']
 
@@ -689,7 +690,7 @@ class Worker(QObject):
 			print('number of initial rois '+str(len(accepted)))
 			ROIx = np.asarray([item.get("ROIx") for item in self.ROIlist[:com_count]])   # could also predefine ROIx/y as arrays of bigger size (e.g. 100) and fill them in instad of append
 			ROIy = np.asarray([item.get("ROIy") for item in self.ROIlist[:com_count]])
-
+			ROIw = np.asarray([item.get("weight") for item in self.ROIlist[:com_count]])
 			# Keep or discard previous online cells if rerunning OnACID
 			keep_full_traces = True  # keep full trace history of the previous session (may be necessary for deconv of last minibatch, otherwise errors possible)
 			if keep_prev:
@@ -750,7 +751,6 @@ class Worker(QObject):
 		# store info on why cell was not included
 		repeated_idx = []
 		rejected_idx = []
-
 		repeated = 0
 		rejected = 0
 
@@ -791,7 +791,6 @@ class Worker(QObject):
 			elif frames_post_photostim == -1: # let one more frame in
 				frames_post_photostim = 2
 
-
 			# skip frames during (sensory) stimulation in case photostim is triggered during these frames outside of RTAOI
 			if blockPostFrames:
 				if frames_post_stim>0 and frames_post_stim<stim_duration:
@@ -817,6 +816,7 @@ class Worker(QObject):
 				print('Timeout Exception: empty qbuffer')
 				break # this may be a problem for online too? stops reading the stream completely if timeout happens. continue?
 
+			# timer for processing time
 			t0 = time.time()
 			framesProc = framesProc+1
 
@@ -833,15 +833,16 @@ class Worker(QObject):
 						frame_in = cv2.resize(frame_in, img_norm.shape[::-1])   # downsampling
 					frame_in -= img_min                                       # make data non-negative
 
-					# motion correction
+					# motion correction: template matching with denoised frame
 #                   mot_corr_start = time.time()
 					templ = cnm2.Ab.dot(cnm2.C_on[:cnm2.M, t_cnm - 1]).reshape(cnm2.dims, order='F') * img_norm
 					frame_cor, shift = motion_correct_iteration_fast(frame_in, templ, max_shift, max_shift)
 					self.shifts.append(shift)
 	#               print('caiman motion correction time:' + str("%.4f"%(time.time()-mot_corr_start)))
 
+					# save to tiff (normalised but not motion corrected)
 					if FLAG_SAVE_PROC_TIFF:
-						MyTiffwriter.save(frame_in)
+						MyTiffwriter.save(frame_cor)
 
 					frame_cor = frame_cor / img_norm                            # normalize data-frame
 					cnm2.fit_next(t_cnm, frame_cor.reshape(-1, order='F'))      # run OnACID on this frame
@@ -944,7 +945,7 @@ class Worker(QObject):
 								rejected_count += 1
 						if com_count == p['MaxNumROIs']:
 							expect_components = False
-
+							cnm2.update_num_comps = False
 
 
 					# add data to buffer
@@ -966,8 +967,62 @@ class Worker(QObject):
 						print(e)
 						logger.exception(e)
 
-					# photostim protocols:
-					if p['photoProtoInx'] == CONSTANTS.PHOTO_REPLAY_TRIAL and num_photostim < tot_num_photostim:
+					#%% photostim protocols:
+					if p['photoProtoInx'] == CONSTANTS.PHOTO_WEIGH_SUM:
+						# for closed-loop trials
+						if sens_stim_idx < tot_num_senstim and framesProc == stim_frames[sens_stim_idx]-1:
+							# get baseline level
+							current_bs_level= np.nanmean(cnm2.C_on[accepted, t_cnm - baseline_frames:t_cnm], axis=1)
+
+						if sens_stim_idx>0 and framesProc < stim_frames[sens_stim_idx-1]+ monitor_frames and framesProc > stim_frames[sens_stim_idx-1]+ wait_frames:
+							if p['ROIsumAbove']:
+								photostim_flag = np.sum(np.multiply(self.RoiBuffer[:com_count, BufferPointer],ROIw))-current_bs_level- ROIsumThresh
+							elif p['ROIsumBelow']:
+								photostim_flag = ROIsumThresh - (np.sum(np.multiply(self.RoiBuffer[:com_count, BufferPointer],ROIw))-current_bs_level)
+							if photostim_flag>0:
+								num_stim_targets = len(p['fixedTargetX'])
+								FLAG_TRIG_PHOTOSTIM = True
+
+					elif p['photoProtoInx'] == CONSTANTS.PHOTO_CLAMP_DOWN:
+						# for closed-loop trials
+						if sens_stim_idx < tot_num_senstim and framesProc == stim_frames[sens_stim_idx]-1:
+							# get baseline level
+							current_clamp_level= np.nanmean(cnm2.C_on[accepted, t_cnm - baseline_frames:t_cnm], axis=1) + np.nanstd(cnm2.noisyC[accepted, t_cnm - baseline_frames:t_cnm], axis=1)
+							online_clamp_level.append(current_clamp_level.copy())
+							self.ROIlist_threshold[:com_count] = current_clamp_level.copy()
+							last_com_count = com_count
+							print('updated clamp level')
+
+						if sens_stim_idx>0 and framesProc < stim_frames[sens_stim_idx-1]+ monitor_frames and framesProc > stim_frames[sens_stim_idx-1]+ wait_frames:
+							# stim rois: 1.detected before this sensory stim and passed clamp level 2 detected during this sensory stim
+							photostim_flag = self.RoiBuffer[:last_com_count, BufferPointer]-current_clamp_level
+							photostim_flag = np.concatenate((photostim_flag,np.ones(com_count - last_com_count)))
+							above_thresh = np.array(photostim_flag>0)
+							opsin_ok = np.array(opsin)
+							current_target_idx = np.where(above_thresh & opsin_ok == True)
+							num_stim_targets = len(current_target_idx[0])
+							if (num_stim_targets>0):
+								FLAG_TRIG_PHOTOSTIM = True
+								print('photostim on:')
+								print(current_target_idx)
+								if not np.array_equal(last_target_idx,current_target_idx):
+									p['currentTargetX'] = list(ROIx[current_target_idx])
+									p['currentTargetY'] = list(ROIy[current_target_idx])
+									FLAG_SEND_COORDS = True
+									print('different target found:')
+									print(last_target_idx)
+									print(current_target_idx)
+
+
+						elif countExtraSensoryPhoto>0 and framesProc < extraSensoryPhotoFrames[countExtraSensoryPhoto-1]+ monitor_frames and framesProc > extraSensoryPhotoFrames[countExtraSensoryPhoto-1]+ wait_frames:
+							num_stim_targets = len(p['fixedTargetX'])
+							FLAG_TRIG_PHOTOSTIM = True
+
+						elif countExtraPhoto>0 and framesProc < extraPhotoFrames[countExtraPhoto-1]+ monitor_frames and framesProc > extraPhotoFrames[countExtraPhoto-1]+ wait_frames:
+							num_stim_targets = len(p['fixedTargetX'])
+							FLAG_TRIG_PHOTOSTIM = True
+
+					elif p['photoProtoInx'] == CONSTANTS.PHOTO_REPLAY_TRIAL and num_photostim < tot_num_photostim:
 						if (sens_stim_idx>0 and framesProc < stim_frames[sens_stim_idx-1]+ monitor_frames and framesProc > stim_frames[sens_stim_idx-1]):
 							# add responsive cells to target group
 							photostim_flag = self.RoiBuffer[:com_count, BufferPointer]-self.ROIlist_threshold[:com_count]
@@ -1020,9 +1075,7 @@ class Worker(QObject):
 								if (num_stim_targets>0):
 									FLAG_TRIG_PHOTOSTIM = True
 									FLAG_SEND_COORDS = True
-
 									print('photostim triggered')
-
 
 					elif p['photoProtoInx'] == CONSTANTS.PHOTO_FIX_FRAMES:
 						if num_photostim < tot_num_photostim:
@@ -1078,8 +1131,6 @@ class Worker(QObject):
 								FLAG_SEND_COORDS = True
 								FLAG_TRIG_PHOTOSTIM = True
 
-
-
 					elif p['photoProtoInx'] == CONSTANTS.PHOTO_BELOW_THRESH:
 						photostim_flag = self.ROIlist_threshold[:com_count] - self.RoiBuffer[:com_count, BufferPointer]
 						above_thresh = np.array(photostim_flag>0)
@@ -1110,46 +1161,6 @@ class Worker(QObject):
 								FLAG_TRIAL_START = True
 								FLAG_SEND_COORDS = True
 								FLAG_TRIG_PHOTOSTIM = True
-
-
-					elif p['photoProtoInx'] == CONSTANTS.PHOTO_CLAMP_DOWN:
-						if sens_stim_idx < tot_num_senstim and framesProc == stim_frames[sens_stim_idx]-1:
-							# get baseline level
-							current_clamp_level= np.nanmean(cnm2.C_on[accepted, t_cnm - baseline_frames:t_cnm], axis=1) + np.nanstd(cnm2.noisyC[accepted, t_cnm - baseline_frames:t_cnm], axis=1)
-							online_clamp_level.append(current_clamp_level.copy())
-							self.ROIlist_threshold[:com_count] = current_clamp_level.copy()
-							last_com_count = com_count
-							print('updated clamp level')
-
-
-						if sens_stim_idx>0 and framesProc < stim_frames[sens_stim_idx-1]+ monitor_frames and framesProc > stim_frames[sens_stim_idx-1]+ wait_frames:
-							# stim rois: 1.detected before this sensory stim and passed clamp level 2 detected during this sensory stim
-							photostim_flag = self.RoiBuffer[:last_com_count, BufferPointer]-current_clamp_level
-							photostim_flag = np.concatenate((photostim_flag,np.ones(com_count - last_com_count)))
-							above_thresh = np.array(photostim_flag>0)
-							opsin_ok = np.array(opsin)
-							current_target_idx = np.where(above_thresh & opsin_ok == True)
-							num_stim_targets = len(current_target_idx[0])
-							if (num_stim_targets>0):
-								FLAG_TRIG_PHOTOSTIM = True
-								print('photostim on:')
-								print(current_target_idx)
-								if not np.array_equal(last_target_idx,current_target_idx):
-									p['currentTargetX'] = list(ROIx[current_target_idx])
-									p['currentTargetY'] = list(ROIy[current_target_idx])
-									FLAG_SEND_COORDS = True
-									print('different target found:')
-									print(last_target_idx)
-									print(current_target_idx)
-
-
-						elif countExtraSensoryPhoto>0 and framesProc < extraSensoryPhotoFrames[countExtraSensoryPhoto-1]+ monitor_frames and framesProc > extraSensoryPhotoFrames[countExtraSensoryPhoto-1]+ wait_frames:
-							num_stim_targets = len(p['fixedTargetX'])
-							FLAG_TRIG_PHOTOSTIM = True
-
-						elif countExtraPhoto>0 and framesProc < extraPhotoFrames[countExtraPhoto-1]+ monitor_frames and framesProc > extraPhotoFrames[countExtraPhoto-1]+ wait_frames:
-							num_stim_targets = len(p['fixedTargetX'])
-							FLAG_TRIG_PHOTOSTIM = True
 
 					# Trigger sensory stimulation
 					if sens_stim_idx < tot_num_senstim:
@@ -1417,7 +1428,7 @@ class Worker(QObject):
 					movie_string = movie_name[:-4]
 
 				filename = movie_string + '_OnlineProc_DS_' + str(ds_factor) + '_' + timestr + '.pkl'
-				matname =  movie_string + '_OnlineProc_DS_' + str(ds_factor) + '_TrialType' + '.mat'
+				matname =  movie_string + '_OnlineProc_DS_' + str(ds_factor) +  '_' + timestr + '_TrialType' + '.mat'
 
 				movie_folder = os.path.dirname(self.movie_name)
 				save_folder = os.path.join(movie_folder, 'pyrtaoi_results')  # save init result in a separate folder
@@ -1441,29 +1452,9 @@ class Worker(QObject):
 			except Exception as e:
 				print(e)
 
-			try:  # potential error: 'numpy.float64' object cannot be interpreted as an integer
-				# save sta traces
-				self.sta_traces = STATraceMaker.make_sta_file(file_full_name=save_path,pre_samples = p['staPreFrame'],
-															  post_samples = p['staPostFrame'],num_init_frames = cnm2.initbatch, stim_frames_field ='stim_frames_caiman' )
-
-				sta_trial_avg = np.nanmean(self.sta_traces,1)
-				if(p['staAvgStopFrame']>p['staAvgStartFrame']):
-					sta_trial_avg_amp = np.nanmean(sta_trial_avg[:,p['staAvgStartFrame']+p['staPreFrame']:p['staAvgStopFrame']+p['staPreFrame']],1)
-					self.sta_amp_signal.emit(sta_trial_avg_amp[:com_count])
-				else:
-					self.status_signal.emit('Check sta average range')
-				save_name = os.getcwd()+'/Temp/sta_traces.npy'
-				np.save(save_name, self.sta_traces)
-				print('sta traces saved as: ' + save_name)
-
-			except Exception as e:
-				print('making sta error')
-				print(e)
-				self.sta_traces = []
-				sta_trial_avg_amp = 0
 
 			# transfer data to main and show traces in plot tab
-			self.transDataToMain_signal.emit(cnm2, self.online_C, coms, accepted, t_cnm, sta_trial_avg_amp, self.sta_traces)
+			self.transDataToMain_signal.emit(cnm2, self.online_C, coms, accepted, t_cnm,[],[])
 
 			# delete big variables
 			del self.c
@@ -1492,7 +1483,7 @@ class Worker(QObject):
 		STOP_JOB_FLAG = True
 
 
-#%%
+#%% Main GUI
 class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 	'''
 	The GUI window
@@ -1508,7 +1499,10 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		self.presets_dir = os.path.join(self.install_dir, 'Presets')
 		if not os.path.exists(self.presets_dir):
 			os.makedirs(self.presets_dir)
-
+		
+		# trial type
+		p['trialOrder'] = []
+		p['all_trial_types'] = []
 
 		# prairie default settings - maybe move to a xml and load from there
 		self.PV_IP = '128.40.156.161'  # bruker 2: TCP_IP = '128.40.202.220'
@@ -1572,7 +1566,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		# initialise ROI list
 		self.InitNumROIs = 3
 		self.MaxNumROIs = 30  # desired number of cells
-		self.thisROIIdx = 0
+		self.thisROIIdx = 0  # current number of ROIs
 		self.ALL_ROI_SELECTED = False
 		self.ROIlist = dict()
 		self.resetROIlist()
@@ -1592,14 +1586,19 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		self.TargetPen = pg.mkPen(color = (255,112,75), width = 3, style = Qt.DotLine)
 		self.RemovePen = pg.mkPen(color = (255,255,0), width = 3, style = Qt.DotLine)
 		self.RejectPen = pg.mkPen(color = (255, 0, 0), width = 3, style = Qt.SolidLine)
+		self.TriggerPen = pg.mkPen(color = (137,182,255), width = 3, style = Qt.DotLine)
 		self.Targetcontour_item = pg.ScatterPlotItem()
 		self.Targetcontour_item.setBrush(self.scatterbrush)
 		self.graphicsView.addItem(self.Targetcontour_item)
+		self.Triggercontour_item = pg.ScatterPlotItem()
+		self.Triggercontour_item.setBrush(self.scatterbrush)
+		self.graphicsView.addItem(self.Triggercontour_item)
 
 		# dictionary of ROIs
 		self.ROIlist = [dict() for i in range(self.MaxNumROIs)]
-		self.Thresh_tableWidget.setColumnCount(4)
-		self.Thresh_tableWidget.setHorizontalHeaderLabels(['X','Y','Threshold','STA'])
+		self.Thresh_tableWidget.setColumnCount(5)
+		self.Thresh_tableWidget.setHorizontalHeaderLabels(['X','Y','Thresh','W','STA'])
+		self.Thresh_tableWidget.setSizeAdjustPolicy(QAbstractScrollArea.AdjustToContents)
 		self.updateTable()
 
 		# display settings
@@ -1630,6 +1629,11 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		self.sta_traces = np.array([])
 		self.sta_amp = None
 
+		# trigger list
+		self.TriggerIdx = []
+		self.TriggerWeights = []
+		self.TriggerFrames = []
+
 		# photostim target list
 		self.numTargets = 0
 		self.bl = []
@@ -1655,8 +1659,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		self.groupBoxes = [self.Prairie_groupBox,self.caiman_groupBox,
 						   self.Blink_groupBox, self.opsinMask_groupBox,
 						   self.StimOptions_groupBox, self.OfflineAnalysis_groupBox,
-						   self.DisplayOptions_groupBox, self.photostim_groupBox,
-						   self.groupBox, self.config_groupBox, self.run_groupBox]
+						   self.photostim_groupBox,
+						   self.groupBox, self.config_groupBox, self.run_groupBox] # removed self.DisplayOptions_groupBox
 
 		# offline
 		self.IsOffline = False
@@ -1814,7 +1818,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.sendTrialStartTrigger()
 		except Exception as e:
 			print(e)
-
+#%% connect GUI elements
 	def setConnects(self):
 		# load and save
 		self.loadMoviePath_pushButton.clicked.connect(self.loadMoviePath)
@@ -1828,13 +1832,16 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		self.browseResultPath_pushButton.clicked.connect(self.browseResultPath)
 		self.loadCalciumImg_pushButton.clicked.connect(self.loadCalciumImg)
 		self.loadResultPath_pushButton.clicked.connect(self.loadResultPath)
+		self.loadTargetCentroid_pushButton.clicked.connect(self.loadTargetCentroid)
+		self.loadTriggerConfig_pushButton.clicked.connect(self.loadTriggerConfig)
+		self.saveCurrentTargetCentroids_pushButton.clicked.connect(self.saveCurrentTargetCentroids)
 #        self.createRejectMask_pushButton.clicked.connect(self.autoCreateRejectMask)
 
 		# rois
 		self.createMask_pushButton.clicked.connect(self.createOpsinMask)
 		self.showCellsOnMask_pushButton.clicked.connect(self.showCellsOnMask)
-		self.removeMode_pushButton.clicked.connect(self.removeModeController)
-		self.rejectMode_pushButton.clicked.connect(self.rejectModeController)
+		self.removeMode_pushButton.clicked.connect(self.removeModeController) # remove manually selected or CNN filtered ROIs
+		self.rejectMode_pushButton.clicked.connect(self.rejectModeController) # reject filled cells in gcamp image
 		self.resetRejectMask_pushButton.clicked.connect(self.resetRejectMask)
 		self.applyRejectMask_pushButton.clicked.connect(self.applyRejectMask)
 		self.rejectMaskDisplay_pushButton.clicked.connect(self.rejectMaskDisplay)
@@ -1858,6 +1865,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		self.plotSTAonMasks_pushButton.clicked.connect(lambda: self.plotSTAonMasks(self.sta_amp))
 		self.showComponents_pushButton.clicked.connect(lambda: self.plotSTAonMasks(None))
 		self.showFOV_pushButton.clicked.connect(self.showFOV)
+		self.showROIIdx_pushButton.clicked.connect(self.showIdx)
 		self.loadProcData_pushButton.clicked.connect(self.loadProcData)
 
 		# triggers
@@ -1865,6 +1873,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		self.testTTLTrigger_pushButton.clicked.connect(self.testTTLTrigger)
 		self.testPhotoStimTrigger_pushButton.clicked.connect(self.testPhotoStimTrigger)
 		self.connectSenStimTCP_pushButton.clicked.connect(self.connectSenStimTCP)
+		self.removeButTrigger_pushButton.clicked.connect(self.removeButTrigger)
 
 		# running mode
 		self.IsOffline_radioButton.toggled.connect(self.switch_IsOffline)
@@ -1892,12 +1901,18 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 		# calibration check
 		self.calcheck_pushButton.clicked.connect(self.calCheck)
+		
+		# set weights (in ROIlist table)
+		self.Thresh_tableWidget.itemChanged.connect(self.tableItemChanged)
 
 		# others
 		self.test_pushButton.clicked.connect(self.tempTest)
 		self.reset_pushButton.clicked.connect(self.resetAll)
+
+		# tiral types
 		self.plotTrialTypes_pushButton.clicked.connect(self.plotTrialTypes)
 		self.updateTrialType_pushButton.clicked.connect(self.updateTrialType)
+		self.loadTrialOrder_pushButton.clicked.connect(self.loadTrialOrder)
 
 		# auto add connects to update p and trial config plot whenever anything changes
 		widgets = (QComboBox, QCheckBox, QLineEdit, QSpinBox, QDoubleSpinBox)
@@ -1977,7 +1992,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 		# clear scatter plot
 		self.ROIcontour_item.clear()
-#%% control trials
+#%% set trial types
 	def updateFixTargets(self):
 		p['fixedTargetX'] = p['currentTargetX'].copy()
 		p['fixedTargetY'] = p['currentTargetY'].copy()
@@ -2005,6 +2020,64 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		pl.show(block=False)
 
 		print('tot num trials:'+str(p['tot_num_trials']))
+
+
+	def updateTrialType(self):
+		frame_rate = 30
+		# these protocols require trains of trials:
+		# PHOTO_FIX_FRAMES PHOTO_REPLAY_TRIAL PHOTO_REPLAY_TRAIN PHOTO_CLAMP_DOWN
+
+		p['extraSensoryFrames'] = []
+		p['extraSensoryPhotoFrames'] = []
+		p['extraPhotoFrames'] = []
+		photo_stim_frames = []
+		tot_num_trials = p['tot_num_trials']
+		all_trial_frames = p['stimStartFrame']+p['interStimInterval']*np.arange(0,tot_num_trials)
+
+
+		# adding control trials
+#		if p['photoProtoInx'] in [CONSTANTS.PHOTO_FIX_FRAMES, CONSTANTS.PHOTO_CLAMP_DOWN,CONSTANTS.PHOTO_REPLAY_TRAIN,CONSTANTS.PHOTO_CLAMP_DOWN]:
+		ifCloseloopTrials = 1
+#		else:
+#			ifCloseloopTrials = 0
+		if not p['all_trial_types']:
+			all_trial_types = []
+			if ifCloseloopTrials:
+				all_trial_types+=[1]*p['numberStims']
+			if p['ifExtraSensory']:
+				all_trial_types+=[2]*p['numExtraSensory']
+			if p ['ifExtraPhoto']:
+				all_trial_types+=[3]*p['numExtraPhoto']
+			if p['ifExtraSensoryPhoto']:
+				all_trial_types+=[4]*p['numExtraSensoryPhoto']
+			print('generated trial types')
+		else:
+			all_trial_types = p['all_trial_types']
+			print('using trial types from trialOrder file')
+
+		if p['shuffleTrials']:
+			random.shuffle(all_trial_types)
+
+		sen_stim_frames = [all_trial_frames[i] for i,x in enumerate(all_trial_types) if x == 1] # these will be closed-loop trials for clamping down experiments
+		p['extraSensoryFrames'] =  [all_trial_frames[i] for i,x in enumerate(all_trial_types) if x == 2]
+		p['extraPhotoFrames'] =  [all_trial_frames[i] for i,x in enumerate(all_trial_types) if x == 3]
+		p['extraSensoryPhotoFrames'] =  [all_trial_frames[i] for i,x in enumerate(all_trial_types) if x == 4]
+
+
+			# FLAG_FIX_PHOTO
+		# closed-loop photo and sensory are coupled in these protocols
+		if p['photoProtoInx'] == CONSTANTS.PHOTO_REPLAY_TRIAL or p['photoProtoInx'] == CONSTANTS.PHOTO_REPLAY_TRAIN:
+			photo_stim_frames = sen_stim_frames+p['photoWaitFrames']
+			sen_stim_frames = sen_stim_frames[::2]
+		if p['photoProtoInx'] == CONSTANTS.PHOTO_FIX_FRAMES:
+			relative_frames = math.ceil(frame_rate/p['photoFrequency'])*np.arange(0,p['photoNumStimsPerTrial'])+p['photoWaitFrames']
+			photo_stim_frames = np.concatenate( [item+relative_frames for item in sen_stim_frames])
+
+		# save to global p
+		p['sen_stim_frames'] = sen_stim_frames
+		p['photo_stim_frames'] = photo_stim_frames
+		p['all_trial_types'] = all_trial_types
+		p['all_trial_frames'] = all_trial_frames
 #%% threading control functions:
 	def takeRefMovie(self):
 		# take reference movie by starting t-series in prairie and save as multipage tiffs
@@ -2049,59 +2122,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		else:
 			print('check pv connection')
 			self.updateStatusBar('Check PV connection')
-
-	def updateTrialType(self):
-		frame_rate = 30
-		# these protocols require trains of trials:
-		# PHOTO_FIX_FRAMES PHOTO_REPLAY_TRIAL PHOTO_REPLAY_TRAIN PHOTO_CLAMP_DOWN
-		sen_stim_frames = p['stimStartFrame']+p['interStimInterval']*np.arange(0,p['numberStims'])
-		p['extraSensoryFrames'] = []
-		p['extraSensoryPhotoFrames'] = []
-		p['extraPhotoFrames'] = []
-		photo_stim_frames = []
-
-		# adding control trials
-#		if p['photoProtoInx'] in [CONSTANTS.PHOTO_FIX_FRAMES, CONSTANTS.PHOTO_CLAMP_DOWN,CONSTANTS.PHOTO_REPLAY_TRAIN,CONSTANTS.PHOTO_CLAMP_DOWN]:
-		ifCloseloopTrials = 1
-#		else:
-#			ifCloseloopTrials = 0
-
-		tot_num_trials = p['tot_num_trials']
-
-		all_trial_types = []
-		all_trial_frames = p['stimStartFrame']+p['interStimInterval']*np.arange(0,tot_num_trials)
-		if ifCloseloopTrials:
-			all_trial_types+=[1]*p['numberStims']
-		if p['ifExtraSensory']:
-			all_trial_types+=[2]*p['numExtraSensory']
-		if p ['ifExtraPhoto']:
-			all_trial_types+=[3]*p['numExtraPhoto']
-		if p['ifExtraSensoryPhoto']:
-			all_trial_types+=[4]*p['numExtraSensoryPhoto']
-
-		if p['shuffleTrials']:
-			random.shuffle(all_trial_types)
-
-		sen_stim_frames = [all_trial_frames[i] for i,x in enumerate(all_trial_types) if x == 1]
-		p['extraSensoryFrames'] =  [all_trial_frames[i] for i,x in enumerate(all_trial_types) if x == 2]
-		p['extraPhotoFrames'] =  [all_trial_frames[i] for i,x in enumerate(all_trial_types) if x == 3]
-		p['extraSensoryPhotoFrames'] =  [all_trial_frames[i] for i,x in enumerate(all_trial_types) if x == 4]
-
-
-			# FLAG_FIX_PHOTO
-		# closed-loop photo and sensory are coupled in these protocols
-		if p['photoProtoInx'] == CONSTANTS.PHOTO_REPLAY_TRIAL or p['photoProtoInx'] == CONSTANTS.PHOTO_REPLAY_TRAIN:
-			photo_stim_frames = sen_stim_frames+p['photoWaitFrames']
-			sen_stim_frames = sen_stim_frames[::2]
-		if p['photoProtoInx'] == CONSTANTS.PHOTO_FIX_FRAMES:
-			relative_frames = math.ceil(frame_rate/p['photoFrequency'])*np.arange(0,p['photoNumStimsPerTrial'])+p['photoWaitFrames']
-			photo_stim_frames = np.concatenate( [item+relative_frames for item in sen_stim_frames])
-
-		# save to global p
-		p['sen_stim_frames'] = sen_stim_frames
-		p['photo_stim_frames'] = photo_stim_frames
-		p['all_trial_types'] = all_trial_types
-		p['all_trial_frames'] = all_trial_frames
 
 
 	def clickRun(self):
@@ -2163,7 +2183,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			# ensure correct param values following init are displayed
 			print('setting parameter values in gui')
 			self.dsFactor_doubleSpinBox.setValue(self.ds_factor)
-			self.cellRadius_spinBox_2.setValue(self.cell_radius)
+			self.cellRadius_spinBox.setValue(self.cell_radius)
 			self.minSNR_doubleSpinBox.setValue(self.min_SNR)
 			self.rval_thresh_doubleSpinBox.setValue(self.rval_thr)
 			self.merge_thresh_doubleSpinBox.setValue(self.merge_thresh)
@@ -2178,6 +2198,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 					self.ROIlist[ROIIdx]["ROIcolor"] = self.random_color()
 					self.ROIlist[ROIIdx]["threshold"] = list()
 					self.ROIlist[ROIIdx]["STA"] = list()
+					self.ROIlist[ROIIdx]["weight"] = 1
 
 				self.MaxNumROIs = self.MaxNumROIs_spinBox.value()
 
@@ -2237,7 +2258,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.workerObject.finished_signal.connect(resetworkerObject) # remove python reference to workerObject
 
 			# triggers
-			self.workerObject.sendTTLTrigger_signal.connect(self.sendTTLTrigger)
+			self.workerObject.sendTTLTrigger_signal.connect(self.sendTTLTrigger) # TTL and/or TCP trigger
 			self.workerObject.sendTrialStartTrigger_signal.connect(self.sendTrialStartTrigger)
 			self.workerObject.sendCoords_signal.connect(self.sendCoords)
 			self.workerObject.sendPhotoStimTrig_signal.connect(self.sendPhotoStimTrigger)
@@ -2514,11 +2535,11 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 	def sendTTLTrigger(self):
 		if self.StimTask_READY:
 			self.niStimWriter.write_many_sample(self.daq_1s_array,10.0)
-			print('stim trigger sent')
+			print('stim TTL trigger sent')
 			return
 		if self.FlAG_stimSOCK_READY:
 			self.stimSOCK.sendall(bytes(str(p['senStimType']),'utf-8'))
-			print('stim trigger sent')
+			print('stim TCP trigger sent')
 			return
 
 
@@ -2606,7 +2627,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 				print('Different indeces - check')  # this should never be a problem
 
 
-######## just added -- probs remove#############
+# just added -- probs remove #
 #        orig_rej_idx = []
 #        try:
 #            rejected = sorted(list(set(range(self.c['K_init'])) - set(accepted)))
@@ -2628,9 +2649,9 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 #
 #        print('orig rej idx', orig_rej_idx)
 #        self.c['rejected_idx'] = orig_rej_idx
-		  #########################################
+# 
 
-		# do not include rejected cells during removal
+#  do not include rejected cells during removal
 #        orig_rej_idx = self.c['rejected_idx']
 #        print('orig rej idx', orig_rej_idx)
 #        print('orig keep idx', orig_keep_idx)
@@ -2671,7 +2692,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 		self.prepareOnacid(save_init=save_init)
 
-		# after new roi list initialised, adjust targets --> below doesn't work anymore but checkOpsin in prepareOnacid sorts it
+# after new roi list initialised, adjust targets --> below doesn't work anymore but checkOpsin in prepareOnacid sorts it
 #        for idx in sorted(self.removeIdx, reverse=True):
 #            if idx in self.TargetIdx:
 #                self.TargetIdx.remove(idx)
@@ -2686,6 +2707,16 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 		# clear removeIdx array
 		self.removeIdx = []
+	def removeButTrigger(self):
+		self.removeIdx = self.TriggerIdx
+		self.removeCells(FLAG_KEEP_SELECTED = True )
+		# load weights and threshold
+		self.ROIsumThresh_doubleSpinBox.setValue(self.TriggerThresh)
+		for idx in range(self.thisROIIdx):
+			self.ROIlist[idx]["weight"] = self.TriggerWeights[idx]
+		self.updateTable()
+		self.getValues()
+
 
 	def clearTargets(self):
 		msg = QMessageBox()
@@ -2719,6 +2750,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.ROIlist[ROIIdx]["ROIcolor"] = self.random_color()
 			self.ROIlist[ROIIdx]["threshold"] = list()
 			self.ROIlist[ROIIdx]["STA"] = list()
+			self.ROIlist[ROIIdx]["weight"] = 1 # default weight is 1
 		# print(self.ROIlist[ROIIdx]["ROIcolor"])
 
 	def resetAll(self):
@@ -2761,6 +2793,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 #            self.calcium_img_path = ''
 #            self.calciumMaskOn = False
 #            self.calcium_img = np.array([])
+			# clear trial type
+			p['all_trial_types'] = []
 
 			# buffer for sta traces
 			self.sta_traces = np.array([])
@@ -2848,8 +2882,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 	def updateTargetROIs(self):
 		self.Targetcontour_item.clear()
 		self.Targetcontour_item.addPoints(x = p['currentTargetX'], y = p['currentTargetY'], pen = self.TargetPen, size = self.RoiRadius*2+5)
-		print('target rois updated')
-
 
 	def updateRejectROIs(self, display=False):
 		self.Targetcontour_item.addPoints(x = p['rejectedX'], y = p['rejectedY'], pen = self.RejectPen, size = self.RoiRadius*2+5)  # added
@@ -2868,6 +2900,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.startRemoveMode()
 		else:
 			self.removeMode_pushButton.setText('Start remove')
+			self.updateAllROIs()
+			self.removeIdx = []
 			for item in self.groupBoxes:
 				item.setEnabled(True)
 
@@ -3211,6 +3245,10 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 				self.ROIlist[ROIIdx]["ROIx"]= list()
 				self.ROIlist[ROIIdx]["ROIy"] = list()
 				self.ROIlist[ROIIdx]["ROIcolor"] = self.random_color()
+				self.ROIlist[ROIIdx]["threshold"] = list()
+				self.ROIlist[ROIIdx]["STA"] = list()
+				self.ROIlist[ROIIdx]["weight"] = 1 # default weight is 1
+
 			self.updateTable()
 			accepted_idx = cnm2.accepted
 			for i in range(0,len(accepted_idx)):
@@ -3255,7 +3293,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.movie_folder = os.path.dirname(os.path.dirname(self.ref_movie_path))
 
 			self.refMoviePath_lineEdit.setText(self.ref_movie_path)
-			print('Reference movie selected')
+			print('Initialisation file selected')
 
 	def resetMask(self):
 		self.UseOnacidMask_radioButton.setChecked(False)
@@ -3359,7 +3397,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 
 		# init parameters
-		if movie_ext == '.tif':
+		if movie_ext == '.tif' or movie_ext == '.tiff':
 			ds_factor = self.dsFactor_doubleSpinBox.value()
 			K = self.InitNumROIs_spinBox.value()
 
@@ -3378,14 +3416,14 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 		# process image or load from pkl file directly
 		if cnmf_init:
-			if movie_ext == '.tif':
+			if movie_ext == '.tif'or movie_ext == '.tiff':
 				K = self.InitNumROIs_spinBox.value()
 				print('Starting CNMF initialisation with tiff file')
 				lframe, init_values = initialise(self.ref_movie_path, init_method='cnmf',
 												 K=K, gSig=gSig, initbatch=500,
 												 ds_factor=ds_factor, rval_thr=rval_thr,
 												 thresh_overlap=thresh_overlap,
-												 save_init=True, mot_corr=True,
+												 save_init=True, mot_corr=p['initMotionCorr'],
 												 merge_thresh=merge_thresh,
 												 decay_time=0.2, min_SNR=min_SNR)
 
@@ -3398,7 +3436,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 		elif opsin_seeded:
 			if self.A_opsin.size:
-				if movie_ext == '.tif':
+				if movie_ext == '.tif' or movie_ext == '.tiff':
 					expected_dim = int(512/ds_factor)
 					mask_dim = int(np.sqrt(self.A_opsin.shape[0]))
 					equal_size = mask_dim == expected_dim
@@ -3412,7 +3450,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 													 ds_factor=ds_factor, initbatch=500,
 													 rval_thr=rval_thr, merge_thresh=merge_thresh,
 													 thresh_overlap=thresh_overlap,
-													 save_init=True, mot_corr=True,
+													 save_init=True, mot_corr=p['initMotionCorr'],
 													 min_SNR=min_SNR) #, CNN_filter=True)
 				else:
 					self.updateStatusBar('A non-tif file was provided - select a tif movie to initialise with a mask')
@@ -3422,7 +3460,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 
 		elif mask_seeded:
-			if movie_ext == '.tif':
+			if movie_ext == '.tif' or movie_ext == '.tiff':
 				expected_dim = int(512/ds_factor)
 				mask_dim = int(np.sqrt(self.A_loaded.shape[0]))
 				equal_size = mask_dim == expected_dim
@@ -3434,7 +3472,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 				print('Starting seeded initialisation using the mask provided')
 				lframe, init_values = initialise(self.ref_movie_path, init_method='seeded', Ain=self.A_loaded,
 												 ds_factor=ds_factor, initbatch=500, rval_thr=0.85,
-												 thresh_overlap=0.1, save_init=True, mot_corr=True,
+												 thresh_overlap=0.1, save_init=True, mot_corr=p['initMotionCorr'],
 												 merge_thresh=0.85)
 
 			else:
@@ -3489,7 +3527,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			# Reset previous settings
 			try:
 				self.c['cnm2']
-
 				self.ROIcontour_item.clear()
 				self.deleteTextItems()
 				self.plotItem.clear()
@@ -3628,8 +3665,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 		if self.c['thresh_cnn'] == thresh_cnn:
 			return
-		else:
-			self.deleteTextItems()
 
 		if self.c['CNN_filter']:
 			if len(self.c['cnn_removed_idx']):
@@ -3646,8 +3681,9 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 				A = cnm_struct.Ab[:, cnm_struct.gnb:cnm_struct.M]
 
 			print('A shape', A.shape)
-			gSig = cnm_struct.gSig
+			gSig = cnm_struct.gSig #  expected half size of neurons
 
+			print('using model in: ',os.path.join(caiman_datadir(), 'model', 'cnn_model'))
 			predictions, final_crops = evaluate_components_CNN(
 				A, self.dims, gSig, model_name=os.path.join(caiman_datadir(), 'model', 'cnn_model'))
 
@@ -3659,9 +3695,20 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.c['thresh_cnn'] = thresh_cnn
 #            self.c['idx_components'] = idx_keep_CNN
 			print('idx remove', idx_rem_CNN)
-
+			
+			# debug select cells to remove
 			self.removeIdx = idx_rem_CNN
-			self.removeCells(CNN=True)
+			self.removeModeOn = True
+			for idx in self.removeIdx:
+				ROI_x = self.ROIlist[idx]["ROIx"]
+				ROI_y = self.ROIlist[idx]["ROIy"]
+				self.Targetcontour_item.addPoints(x = [ROI_x], y = [ROI_y], pen = self.RemovePen, size =  self.RoiRadius*2+5)
+
+			self.startRemoveMode()
+			# end of debug
+
+#			self.removeIdx = idx_rem_CNN
+#			self.removeCells(CNN=True)
 
 		# reset previous CNN filter
 		else:
@@ -3821,9 +3868,10 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		return QColor(r, g, b)
 
 	def updateTable(self):
+		# re-create the whole table in the table to those in the ROIlist
 		self.Thresh_tableWidget.clear()  # empty the table
-		self.Thresh_tableWidget.setHorizontalHeaderLabels(['X','Y','Threshold','STA'])  # column names disappear with clearing
-		self.Thresh_tableWidget.setColumnCount(4)
+		self.Thresh_tableWidget.setHorizontalHeaderLabels(['X','Y','Thresh','W','STA'])  # column names disappear with clearing
+		self.Thresh_tableWidget.setColumnCount(5)
 
 		if self.thisROIIdx > self.MaxNumROIs:  # do not allow to miss detected cells
 			self.MaxNumROIs = self.thisROIIdx + 10
@@ -3836,36 +3884,47 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		self.STA_labels = [QTableWidgetItem() for i in range(NumROIs)]
 		self.X_labels = [QTableWidgetItem() for i in range(NumROIs)]
 		self.Y_labels = [QTableWidgetItem() for i in range(NumROIs)]
+		self.W_labels = [QTableWidgetItem() for i in range(NumROIs)]
 
-#        self.ROIcontour_item.clear()
-		# if ROIs present, refill the table
-#        self.ALL_ROI_SELECTED = False
 
-#        for ROIIdx in self.c['cnm2'].accepted:
 		for ROIIdx in range(self.thisROIIdx):
-
-#            if ROIIdx == self.MaxNumROIs:
-#                self.ALL_ROI_SELECTED = True
-#                print('All allowed ROIs selected!')
-#                break
 
 			thisROIx = self.ROIlist[ROIIdx]["ROIx"]
 			thisROIy = self.ROIlist[ROIIdx]["ROIy"]
+			thisW = self.ROIlist[ROIIdx]["weight"]
 			qcolor = self.ROIlist[ROIIdx]["ROIcolor"]
-
-#            self.ROIcontour_item.addPoints(x = [thisROIx], y = [thisROIy], pen = pg.mkPen(qcolor, width=2), size = self.RoiRadius*2)
 
 			tempbrush = QBrush(qcolor)
 			self.X_labels[ROIIdx].setForeground(tempbrush)
 			self.Y_labels[ROIIdx].setForeground(tempbrush)
 			self.Thresh_labels[ROIIdx].setForeground(tempbrush)
+			self.W_labels[ROIIdx].setForeground(tempbrush)
 
 			self.X_labels[ROIIdx].setText(str('{:.0f}'.format(thisROIx)))
 			self.Y_labels[ROIIdx].setText(str('{:.0f}'.format(thisROIy)))
+			self.W_labels[ROIIdx].setText(str('{:.3f}'.format(thisW)))
+			
+			# make items read-only
+			self.X_labels[ROIIdx].setFlags(Qt.ItemIsEditable)
+			self.Y_labels[ROIIdx].setFlags(Qt.ItemIsEditable)
 
+			# put item in table
 			self.Thresh_tableWidget.setItem(ROIIdx,0,self.X_labels[ROIIdx])
 			self.Thresh_tableWidget.setItem(ROIIdx,1,self.Y_labels[ROIIdx])
 			self.Thresh_tableWidget.setItem(ROIIdx,2,self.Thresh_labels[ROIIdx])
+			self.Thresh_tableWidget.setItem(ROIIdx,3,self.W_labels[ROIIdx])
+		
+		self.Thresh_tableWidget.resizeColumnsToContents
+		
+		
+			
+	def tableItemChanged(self,item):
+		row = item.row()
+		col = item.column()
+		if col==3: #only deal with change in weights
+			self.ROIlist[row]["weight"] = item.text()
+		else:
+			return	
 
 	def displayImg(self,event):
 		if self.opsinMaskOn:
@@ -3880,6 +3939,10 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 #        elif self.calciumMaskOn:
 #            self.updateImage(cv2.resize(self.reject_mask.astype('uint8'), (512, 512), interpolation=cv2.INTER_CUBIC))
+
+	def showIdx(self):
+		self.deleteTextItems()
+		self.showROIIdx()
 
 	def showFOV(self):
 		print('show FOV clicked')
@@ -3909,8 +3972,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		nr = self.c['cnm2'].N
 		print('N = ',nr)
 		accepted = self.c['cnm2'].accepted
-		print('accepted index')
-		print(accepted)
+#		print('accepted index')
+#		print(accepted)
 
 		# use sta value, otherwise use one
 		try:
@@ -3927,9 +3990,9 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 				for i in accepted: # range(nr):
 					A[:,i] = A[:,i]/sum(A[:,i])
 
-			print('using sta:')
-			print(sta_amp)
-			print(len(sta_amp))
+#			print('using sta:')
+#			print(sta_amp)
+#			print(len(sta_amp))
 		except Exception as e:
 			print(e)
 		# put value into mask
@@ -4039,7 +4102,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.ax1 = self.fig.add_axes([0.05, 0.55, 0.4, 0.4])
 			self.ax3 = self.fig.add_axes([0.55, 0.55, 0.4, 0.4])
 			self.ax2 = self.fig.add_axes([0.05, 0.1, 0.9, 0.4])
-			self.s_comp = Slider(self.axcomp, 'Component', 0, nr + nb - 1, valinit=0)
+			self.s_comp = Slider(self.axcomp, 'Component', 0, nr + nb - 1, valinit=0, facecolor = [.5, .5, .5])
 
 			vmax = np.percentile(img, 95)
 
@@ -4308,7 +4371,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		self.usesOnacidMask = self.UseOnacidMask_radioButton.isChecked()
 		if self.usesOpsinMask and self.usesOnacidMask:
 			self.UseOnacidMask_radioButton.setChecked(False)
-
+#%% close and cleanup
 	def closeEvent(self,event):
 		# override closeEvent method in Qt
 		print('form closing, PV connection = ' + str(self.FLAG_PV_CONNECTED))
@@ -4408,7 +4471,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		event.accept()
 
 
-#%% save and load configuration
+#%% load/save configuration
 	def saveConfig(self):
 		widgets = (QComboBox, QCheckBox, QLineEdit, QSpinBox, QDoubleSpinBox)
 		for obj in self.findChildren(widgets):
@@ -4476,6 +4539,102 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		saveResultsPath = QFileDialog.getSaveFileName (self, 'Select save path', p['saveResultPath'], '.pkl')
 		p['saveResultPath'] = saveResultsPath[0]+saveResultsPath[1]
 		self.saveResultPath_lineEdit.setText(p['saveResultPath'])
+
+	def loadTrialOrder(self):
+			filepath = str(QFileDialog.getOpenFileName(self, 'Load trial sequence', p['saveResultPath'], '*.txt')[0])
+			if filepath:
+				arr = np.genfromtxt(filepath, delimiter=',')
+				p['trialOrder'] = arr[0].astype(np.int)
+				# update trial types 
+				p['tot_num_trials'] = len(p['trialOrder'])
+				tot_num_trials = p['tot_num_trials']
+				trialOrder_types = np.unique(np.array(p['trialOrder']))
+
+				# enable conditioning for a fraction of trials, for specified stimType
+				condition_idx = []
+				fraction_trials = p['pcConditionTrial']/100
+				for i in range(len(trialOrder_types)):
+					if p['ConditionOnStimType'] & (trialOrder_types[i]!= p['senStimType']):
+						continue
+					this_condition_idx = [ii for ii, x in enumerate(p['trialOrder']) if x == trialOrder_types[i]]
+					this_num_idx = len(this_condition_idx)
+					this_keep_idx= random.sample(range(this_num_idx),round(this_num_idx*fraction_trials))
+					this_condition_idx = [x for ii, x in enumerate(this_condition_idx) if ii in this_keep_idx]
+					condition_idx += this_condition_idx
+
+				num_condition_trials = len(condition_idx)
+				all_trial_types = [2]*p['tot_num_trials']
+				for i in condition_idx:
+					all_trial_types[i] = 1
+
+				# update GUI and p
+				p['all_trial_types'] = all_trial_types
+				p['numberStims'] = num_condition_trials
+				self.numberStims_spinBox.setValue(num_condition_trials)
+				p['numExtraSensory'] = tot_num_trials - num_condition_trials
+				self.numExtraSensory_spinBox.setValue(p['numExtraSensory'])
+				self.ifExtraPhoto_checkBox.setCheckState(Qt.Unchecked)
+				p['ifExtraPhoto'] = False
+				self.ifExtraSensoryPhoto_checkBox.setCheckState(Qt.Unchecked)
+				p['ifExtraSensoryPhoto'] = False
+				if p['numExtraSensory']>0:
+					p['ifExtraSensory'] = True
+					self.ifExtraSensory_checkBox.setCheckState(Qt.Checked)
+				self.shuffleTrials_checkBox.setCheckState(Qt.Unchecked)
+				p['shuffleTrials'] = False
+				
+				self.updateStatusBar('Loaded trial type from trialOrder file')
+				self.updateTrialType()
+
+	def loadTriggerConfig(self):
+		trigger_config_path = str(QFileDialog.getOpenFileName(self, 'Load trigger configeration', self.movie_folder, 'mat (*.mat);;All files (*.*)')[0])
+		if trigger_config_path:
+			self.triggerConfigPath_lineEdit.setText(trigger_config_path)
+			[self.TriggerIdx,self.TriggerWeights,self.TriggerFrames, self.TriggerThresh] = get_trigger_params(trigger_config_path)
+#			preview trigger cell positions
+			print(self.TriggerIdx)
+			self.Triggercontour_item.clear()
+			self.Triggercontour_item.addPoints(x = [self.ROIlist[i]["ROIx"] for i in self.TriggerIdx], y = [self.ROIlist[i]["ROIy"] for i in self.TriggerIdx], pen = self.TriggerPen, size = self.RoiRadius*2+3)
+
+	def loadTargetCentroid(self):
+		self.target_img_path = str(QFileDialog.getOpenFileName(self, 'Load target centroids', self.movie_folder, 'MPTIFF (*.tif);;All files (*.*)')[0])
+		if self.target_img_path:
+			self.targetCentroidsPath_lineEdit.setText(self.target_img_path)
+			target_image = cm.load(self.target_img_path)
+			cols,rows = np.where(target_image>0)
+			
+			# reset targets
+			self.clearTargets()
+			
+			# delet existing extra targets if they are too close to the new loaded ones
+			det_dist = 10
+			idx_remove = []
+
+			for roi_idx in range(len(rows)):
+				for extra_idx in range(len(p['ExtraTargetX'])):
+						x = p['ExtraTargetX'][extra_idx]
+						y = p['ExtraTargetY'][extra_idx]
+	
+						detected = abs(x - rows[roi_idx]) <= det_dist and abs(y - cols[roi_idx]) <= det_dist
+						if detected:
+							print('An ROI overlaps with an extra target. Removing the extra duplicate.')
+							idx_remove.append(extra_idx)
+
+			for idx in sorted(idx_remove, reverse=True):
+				del p['ExtraTargetX'][idx]
+				del p['ExtraTargetY'][idx]
+
+			p['ExtraTargetX'].extend(rows)
+			p['ExtraTargetY'].extend(cols)
+			
+			self.updateTargets()
+
+	def saveCurrentTargetCentroids(self):
+		save_img = np.zeros([512, 512], dtype=np.float)
+		for idx in range(self.numTargets):
+			save_img[int(p['currentTargetY'][idx])][int(p['currentTargetX'][idx])] = 255
+		filepath = str(QFileDialog.getSaveFileName(self, 'Save as preset...', 'Tiffs', 'Tiff file (*.tif)')[0])
+		cv2.imwrite(filepath,save_img)
 
 #%% calibration check (burn spots)
 	def calCheck(self):
