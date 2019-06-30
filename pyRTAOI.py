@@ -510,7 +510,7 @@ class Worker(QObject):
 		# initialise stim frames
 		frame_rate = 30 # hard-coded
 		self.photo_stim_frames = p['photo_stim_frames']
-		self.stim_frames = p['sen_stim_frames'] # trialOn triggers 
+		self.stim_frames = p['sen_stim_frames'] # trialOn triggers
 		self.flag_sta_recording = False
 		self.sta_frame_idx = 0
 		self.sta_trace_length = p['staPreFrame']+p['staPostFrame']
@@ -1512,10 +1512,11 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		self.presets_dir = os.path.join(self.install_dir, 'Presets')
 		if not os.path.exists(self.presets_dir):
 			os.makedirs(self.presets_dir)
-		
+
 		# trial type
 		p['trialOrder'] = []
 		p['all_trial_types'] = []
+
 
 		# prairie default settings - maybe move to a xml and load from there
 		self.PV_IP = '128.40.156.161'  # bruker 2: TCP_IP = '128.40.202.220'
@@ -1914,10 +1915,10 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 		# calibration check
 		self.calcheck_pushButton.clicked.connect(self.calCheck)
-		
+
 		# sequence stimulation config
 		self.configSeqStim_pushButton.clicked.connect(self.configSeqStim)
-		
+
 		# set weights (in ROIlist table)
 		self.Thresh_tableWidget.itemChanged.connect(self.tableItemChanged)
 
@@ -2056,7 +2057,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		ifCloseloopTrials = 1
 #		else:
 #			ifCloseloopTrials = 0
-		if not p['all_trial_types']:
+		if not p['useExternalTrialOrder']:
 			all_trial_types = []
 			if ifCloseloopTrials:
 				all_trial_types+=[1]*p['numberStims']
@@ -2068,8 +2069,49 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 				all_trial_types+=[4]*p['numExtraSensoryPhoto']
 			print('generated trial types')
 		else:
-			all_trial_types = p['all_trial_types']
-			print('using trial types from trialOrder file')
+			if len(p['trialOrder']>0):
+				# update trial types according to external file
+				p['tot_num_trials'] = len(p['trialOrder'])
+				tot_num_trials = p['tot_num_trials']
+				trialOrder_types = np.unique(np.array(p['trialOrder']))
+
+				# enable conditioning for a fraction of trials, for specified stimType
+				condition_idx = []
+				fraction_trials = p['pcConditionTrial']/100
+				for i in range(len(trialOrder_types)):
+					if p['ConditionOnStimType'] & (trialOrder_types[i]!= p['senStimType']):
+						continue
+					this_condition_idx = [ii for ii, x in enumerate(p['trialOrder']) if x == trialOrder_types[i]]
+					this_num_idx = len(this_condition_idx)
+					this_keep_idx= random.sample(range(this_num_idx),round(this_num_idx*fraction_trials))
+					this_condition_idx = [x for ii, x in enumerate(this_condition_idx) if ii in this_keep_idx]
+					condition_idx += this_condition_idx
+
+				num_condition_trials = len(condition_idx)
+				all_trial_types = [2]*p['tot_num_trials']
+				for i in condition_idx:
+					all_trial_types[i] = 1
+
+				# update GUI and p
+				p['all_trial_types'] = all_trial_types
+				p['numberStims'] = num_condition_trials
+				self.numberStims_spinBox.setValue(num_condition_trials)
+				p['numExtraSensory'] = tot_num_trials - num_condition_trials
+				self.numExtraSensory_spinBox.setValue(p['numExtraSensory'])
+				self.ifExtraPhoto_checkBox.setCheckState(Qt.Unchecked)
+				p['ifExtraPhoto'] = False
+				self.ifExtraSensoryPhoto_checkBox.setCheckState(Qt.Unchecked)
+				p['ifExtraSensoryPhoto'] = False
+				if p['numExtraSensory']>0:
+					p['ifExtraSensory'] = True
+					self.ifExtraSensory_checkBox.setCheckState(Qt.Checked)
+				self.shuffleTrials_checkBox.setCheckState(Qt.Unchecked)
+				p['shuffleTrials'] = False
+
+				print('using trial types from trialOrder file')
+			else:
+				print('load trial type file!')
+				return
 
 		if p['shuffleTrials']:
 			random.shuffle(all_trial_types)
@@ -2665,7 +2707,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 #
 #        print('orig rej idx', orig_rej_idx)
 #        self.c['rejected_idx'] = orig_rej_idx
-# 
+#
 
 #  do not include rejected cells during removal
 #        orig_rej_idx = self.c['rejected_idx']
@@ -3711,7 +3753,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.c['thresh_cnn'] = thresh_cnn
 #            self.c['idx_components'] = idx_keep_CNN
 			print('idx remove', idx_rem_CNN)
-			
+
 			# debug select cells to remove
 			self.removeIdx = idx_rem_CNN
 			self.removeModeOn = True
@@ -3919,7 +3961,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.X_labels[ROIIdx].setText(str('{:.0f}'.format(thisROIx)))
 			self.Y_labels[ROIIdx].setText(str('{:.0f}'.format(thisROIy)))
 			self.W_labels[ROIIdx].setText(str('{:.3f}'.format(thisW)))
-			
+
 			# make items read-only
 			self.X_labels[ROIIdx].setFlags(Qt.ItemIsEditable)
 			self.Y_labels[ROIIdx].setFlags(Qt.ItemIsEditable)
@@ -3929,18 +3971,18 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.Thresh_tableWidget.setItem(ROIIdx,1,self.Y_labels[ROIIdx])
 			self.Thresh_tableWidget.setItem(ROIIdx,2,self.Thresh_labels[ROIIdx])
 			self.Thresh_tableWidget.setItem(ROIIdx,3,self.W_labels[ROIIdx])
-		
+
 		self.Thresh_tableWidget.resizeColumnsToContents
-		
-		
-			
+
+
+
 	def tableItemChanged(self,item):
 		row = item.row()
 		col = item.column()
 		if col==3: #only deal with change in weights
 			self.ROIlist[row]["weight"] = item.text()
 		else:
-			return	
+			return
 
 	def displayImg(self,event):
 		if self.opsinMaskOn:
@@ -4561,45 +4603,10 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			if filepath:
 				arr = np.genfromtxt(filepath, delimiter=',')
 				p['trialOrder'] = arr[0].astype(np.int)
-				# update trial types 
-				p['tot_num_trials'] = len(p['trialOrder'])
-				tot_num_trials = p['tot_num_trials']
-				trialOrder_types = np.unique(np.array(p['trialOrder']))
 
-				# enable conditioning for a fraction of trials, for specified stimType
-				condition_idx = []
-				fraction_trials = p['pcConditionTrial']/100
-				for i in range(len(trialOrder_types)):
-					if p['enablePhotoForAllSenStimTypes'] == False & p['ConditionOnStimType'] & (trialOrder_types[i]!= p['senStimType']):
-						continue
-					this_condition_idx = [ii for ii, x in enumerate(p['trialOrder']) if x == trialOrder_types[i]]
-					this_num_idx = len(this_condition_idx)
-					this_keep_idx= random.sample(range(this_num_idx),round(this_num_idx*fraction_trials))
-					this_condition_idx = [x for ii, x in enumerate(this_condition_idx) if ii in this_keep_idx]
-					condition_idx += this_condition_idx
-
-				num_condition_trials = len(condition_idx)
-				all_trial_types = [2]*p['tot_num_trials']
-				for i in condition_idx:
-					all_trial_types[i] = 1
-
-				# update GUI and p
-				p['all_trial_types'] = all_trial_types
-				p['numberStims'] = num_condition_trials
-				self.numberStims_spinBox.setValue(num_condition_trials)
-				p['numExtraSensory'] = tot_num_trials - num_condition_trials
-				self.numExtraSensory_spinBox.setValue(p['numExtraSensory'])
-				self.ifExtraPhoto_checkBox.setCheckState(Qt.Unchecked)
-				p['ifExtraPhoto'] = False
-				self.ifExtraSensoryPhoto_checkBox.setCheckState(Qt.Unchecked)
-				p['ifExtraSensoryPhoto'] = False
-				if p['numExtraSensory']>0:
-					p['ifExtraSensory'] = True
-					self.ifExtraSensory_checkBox.setCheckState(Qt.Checked)
-				self.shuffleTrials_checkBox.setCheckState(Qt.Unchecked)
-				p['shuffleTrials'] = False
-				
 				self.updateStatusBar('Loaded trial type from trialOrder file')
+				p['useExternalTrialOrder'] = True
+				self.useExternalTrialOrder_checkBox.setCheckState(Qt.Checked)
 				self.updateTrialType()
 
 	def loadTriggerConfig(self):
@@ -4618,10 +4625,10 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.targetCentroidsPath_lineEdit.setText(self.target_img_path)
 			target_image = cm.load(self.target_img_path)
 			cols,rows = np.where(target_image>0)
-			
+
 			# reset targets
 			self.clearTargets()
-			
+
 			# delet existing extra targets if they are too close to the new loaded ones
 			det_dist = 10
 			idx_remove = []
@@ -4630,7 +4637,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 				for extra_idx in range(len(p['ExtraTargetX'])):
 						x = p['ExtraTargetX'][extra_idx]
 						y = p['ExtraTargetY'][extra_idx]
-	
+
 						detected = abs(x - rows[roi_idx]) <= det_dist and abs(y - cols[roi_idx]) <= det_dist
 						if detected:
 							print('An ROI overlaps with an extra target. Removing the extra duplicate.')
@@ -4642,7 +4649,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 			p['ExtraTargetX'].extend(rows)
 			p['ExtraTargetY'].extend(cols)
-			
+
 			self.updateTargets()
 
 	def saveCurrentTargetCentroids(self):
@@ -4749,7 +4756,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		p['fixedTargetX'] = p['currentTargetX'].copy()
 		p['fixedTargetY'] = p['currentTargetY'].copy()
 		num_targets = len(p['fixedTargetX'])
-		print('seq stim num targets:') 
+		print('seq stim num targets:')
 		print(num_targets)
 		num_repeats = p['numberRepeats']  # using stim condif
 		target_idx = [i for i in range(num_targets)]
