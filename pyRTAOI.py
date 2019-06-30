@@ -25,7 +25,7 @@ TO DO    log this to Notes ToDo_log when it's done and tested
 6. configure stim types from pybehavior output file - done
 7. seed cell detection by cell masks from previous recordings
 8. set different targets for stim types
-
+9. photoexcitability check (stim one by one after detection) - done, test on rig
 test timing on rig
 log data for offline anaysis - keep checking if everything is saved out
 
@@ -141,6 +141,7 @@ class CONSTANTS():
 	PHOTO_REPLAY_TRAIN = 6 # stim in a sequence
 	PHOTO_CLAMP_DOWN = 7 # photostim after sensory stim until cell goes back to baseline (opto inhibition)
 	PHOTO_WEIGH_SUM = 8 # compare weighted average of ROI values with tresh
+	PHOTO_SEQUENCE = 9
 
 class MyThread(QThread):
 	def run(self):
@@ -518,6 +519,9 @@ class Worker(QObject):
 		# replay sequence
 		self.replay_idx = []
 		self.replay_frames = []
+
+		# stim sequence
+		self.sequence_idx = p['photo_sequence_idx']
 
 		# count
 		self.tot_num_photostim = len(self.photo_stim_frames) # only used for replay or fixed-photostim protocols
@@ -1021,6 +1025,15 @@ class Worker(QObject):
 						elif countExtraPhoto>0 and framesProc < extraPhotoFrames[countExtraPhoto-1]+ monitor_frames and framesProc > extraPhotoFrames[countExtraPhoto-1]+ wait_frames:
 							num_stim_targets = len(p['fixedTargetX'])
 							FLAG_TRIG_PHOTOSTIM = True
+					elif p['photoProtoInx'] == CONSTANTS.PHOTO_SEQUENCE:
+						if num_photostim < tot_num_photostim:
+							if framesProc == photo_stim_frames[num_photostim]:
+								current_target_idx = p['photo_sequence_idx'][num_photostim]
+								p['currentTargetX'] = list(p['fixedTargetX'][current_target_idx])
+								p['currentTargetY'] = list(p['fixedTargetY'][current_target_idx])
+								FLAG_TRIG_PHOTOSTIM = True
+								FLAG_SEND_COORDS = True
+								print('photostim triggered')
 
 					elif p['photoProtoInx'] == CONSTANTS.PHOTO_REPLAY_TRIAL and num_photostim < tot_num_photostim:
 						if (sens_stim_idx>0 and framesProc < stim_frames[sens_stim_idx-1]+ monitor_frames and framesProc > stim_frames[sens_stim_idx-1]):
@@ -1901,6 +1914,9 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 		# calibration check
 		self.calcheck_pushButton.clicked.connect(self.calCheck)
+		
+		# sequence stimulation config
+		self.configSeqStim_pushButton.clicked.connect(self.configSeqStim)
 		
 		# set weights (in ROIlist table)
 		self.Thresh_tableWidget.itemChanged.connect(self.tableItemChanged)
@@ -4554,7 +4570,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 				condition_idx = []
 				fraction_trials = p['pcConditionTrial']/100
 				for i in range(len(trialOrder_types)):
-					if p['ConditionOnStimType'] & (trialOrder_types[i]!= p['senStimType']):
+					if p['enablePhotoForAllSenStimTypes'] == False & p['ConditionOnStimType'] & (trialOrder_types[i]!= p['senStimType']):
 						continue
 					this_condition_idx = [ii for ii, x in enumerate(p['trialOrder']) if x == trialOrder_types[i]]
 					this_num_idx = len(this_condition_idx)
@@ -4671,7 +4687,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		self.Targetcontour_item.addPoints(x = burntx, y = burnty, pen = burntPen, size = self.RoiRadius*2+5)
 		self.Targetcontour_item.addPoints(x = skipx, y = skipy, pen = skipPen, size = self.RoiRadius*2)
 
-
 		# confirm if start buring
 		msg = QMessageBox()
 		msg.setText("Start burning spots?")
@@ -4725,6 +4740,26 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 				print('pattern'+str(i)+' stimulated')
 			else:
 				print('calcheck error, check daq and/or blink connection!')
+#%% photoexcitability check
+	def configSeqStim(self):
+		# setup configuration for stimulating current targets one by one in randomised sequence
+
+		self.photoProto_comboBox.setCurrentIndex(CONSTANTS.PHOTO_SEQUENCE)
+		p['photo_sequence_idx'] = []
+		p['fixedTargetX'] = p['currentTargetX'].copy()
+		p['fixedTargetY'] = p['currentTargetY'].copy()
+		num_targets = len(p['fixedTargetX'])
+		print('seq stim num targets:') 
+		print(num_targets)
+		num_repeats = p['numberRepeats']  # using stim condif
+		target_idx = [i for i in range(num_targets)]
+		tot_num_trials = num_targets*num_repeats
+		p['photo_stim_frames'] =  p['stimStartFrame']+p['interStimInterval']*np.arange(0,tot_num_trials)
+		self.numberStims_spinBox.setValue(tot_num_trials)
+		sequence_idx = []
+		for r in range(num_repeats):
+			sequence_idx.extend(random.sample(target_idx,num_targets))
+
 
 #%% drag drop
 	def dragEnterEvent( self, event ):
