@@ -4,6 +4,7 @@ IF_NORM_PIX = 0;
 IF_CONTOUR = 1;
 IF_SHOW_OPSIN = 0;
 colorlut = [];
+jsf = [];
 zlimit = []; % dummy dots to force colorlut matching preset max and min range
 for v = 1:numel(varargin)
     if strcmpi(varargin{v},'IF_NORM_PIX')
@@ -16,6 +17,8 @@ for v = 1:numel(varargin)
         IF_SHOW_OPSIN = varargin{v+1};
     elseif  strcmpi(varargin(v),'zlimit') 
         zlimit = varargin{v+1};
+    elseif  strcmpi(varargin(v),'jsf') 
+        jsf = varargin{v+1};
     end        
 end
 

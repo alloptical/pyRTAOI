@@ -29,7 +29,7 @@ __global__ void sample_mean(short* matrix, int pixelsPerLine,
 					num_sample += 1;
 				}
 			}
-
+			result[result_idx] = 0;
 			if (num_sample>0){ result[result_idx] = this_value / num_sample; }
 		}
 	}

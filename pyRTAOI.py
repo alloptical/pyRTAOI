@@ -88,7 +88,7 @@ from caiman.utils.visualization import get_contours
 from caiman.utils.utils import load_object, save_object
 from caiman.paths import caiman_datadir
 from caiman.components_evaluation import evaluate_components_CNN
-
+from caiman.source_extraction.cnmf.online_cnmf import RingBuffer
 # plot libs
 import matplotlib
 matplotlib.use('QT5Agg', force=True) # Ensure using PyQt5 backend
@@ -211,7 +211,7 @@ class DataStream(QObject):
 								num_sample += 1;
 							}
 						}
-
+						result[result_idx] = 0;
 						if (num_sample>0){ result[result_idx] = this_value / num_sample; }
 					}
 				}
@@ -484,84 +484,87 @@ class Worker(QObject):
 		super(Worker,self).__init__()
 
 		# get parameters from Main thread
-		self.c = kwargs.get('caiman',{})
-		self.pl = kwargs.get('prairie',[])
-		self.ROIlist = kwargs.get('ROIlist',dict())
-		print('worker pl empty? ' + str(self.pl == []))
+		try:
+			self.c = kwargs.get('caiman',{})
+			self.pl = kwargs.get('prairie',[])
+			self.ROIlist = kwargs.get('ROIlist',dict())
+			print('worker pl empty? ' + str(self.pl == []))
 
-		# count processed frames
-		self.framesProc = 0
+			# count processed frames
+			self.framesProc = 0
 
-		# FLAGS
-		self.UseONACID = p['UseONACID']
-		print('use onacid? ', self.UseONACID)
-		self.FLAG_PV_CONNECTED = p['FLAG_PV_CONNECTED']
-		self.FLAG_OFFLINE = p['FLAG_OFFLINE']
-		print('pv connected? ' + str(self.FLAG_PV_CONNECTED))
-		print('offline analysis ' + str(self.FLAG_OFFLINE))
+			# FLAGS
+			self.UseONACID = p['UseONACID']
+			print('use onacid? ', self.UseONACID)
+			self.FLAG_PV_CONNECTED = p['FLAG_PV_CONNECTED']
+			self.FLAG_OFFLINE = p['FLAG_OFFLINE']
+			print('pv connected? ' + str(self.FLAG_PV_CONNECTED))
+			print('offline analysis ' + str(self.FLAG_OFFLINE))
 
-		if self.c == {}:
-			self.UseONACID = False
-			print('No reference movie provided')
+			if self.c == {}:
+				self.UseONACID = False
+				print('No reference movie provided')
 
-		if self.pl == []:
-			print('No Prairie object provided')
+			if self.pl == []:
+				print('No Prairie object provided')
 
-		# initialise stim frames
-		frame_rate = 30 # hard-coded
-		self.photo_stim_frames = p['photo_stim_frames']
-		self.stim_frames = p['sen_stim_frames'] # trialOn triggers
-		self.flag_sta_recording = False
-		self.sta_frame_idx = 0
-		self.sta_trace_length = p['staPreFrame']+p['staPostFrame']
-		self.photo_duration= math.ceil(p['photoDuration']*0.001*frame_rate) # in frames;  frame rate 30hz
+			# initialise stim frames
+			frame_rate = 30 # hard-coded
+			self.photo_stim_frames = p['photo_stim_frames']
+			self.stim_frames = p['sen_stim_frames'] # trialOn triggers
+			self.flag_sta_recording = False
+			self.sta_frame_idx = 0
+			self.sta_trace_length = p['staPreFrame']+p['staPostFrame']
+			self.photo_duration= math.ceil(p['photoDuration']*0.001*frame_rate) # in frames;  frame rate 30hz
 
-		# replay sequence
-		self.replay_idx = []
-		self.replay_frames = []
+			# replay sequence
+			self.replay_idx = []
+			self.replay_frames = []
 
-		# stim sequence
-		self.sequence_idx = p['photo_sequence_idx']
+			# stim sequence
+			self.sequence_idx = p['photo_sequence_idx']
 
-		# count
-		self.tot_num_photostim = len(self.photo_stim_frames) # only used for replay or fixed-photostim protocols
-		self.tot_num_senstim = len(self.stim_frames)
+			# count
+			self.tot_num_photostim = len(self.photo_stim_frames) # only used for replay or fixed-photostim protocols
+			self.tot_num_senstim = len(self.stim_frames)
 
-		print('sensory stim frames:')
-		print(self.stim_frames)
-		print('num photostim (start) frames:')
-		print(self.tot_num_photostim)
+			print('sensory stim frames:')
+			print(self.stim_frames)
+			print('num photostim (start) frames:'+str(self.tot_num_photostim))
 
-		# get current parameters
-		self.BufferLength = p['BufferLength']
-		self.RoiBuffer = p['RoiBuffer']
-		self.BufferPointer = p['BufferPointer']
-		self.ROIlist_threshold = np.zeros(p['MaxNumROIs'])
+			# get current parameters
+			self.BufferLength = p['BufferLength']
+			self.RoiBuffer = p['RoiBuffer']
+			self.BufferPointer = p['BufferPointer']
+			self.ROIlist_threshold = np.zeros(p['MaxNumROIs'])
+	#
+	#		self.T1 = self.c['T1']
+			self.online_C = np.zeros_like(self.c['cnm2'].C_on)
 
-		self.T1 = self.c['T1']
-		self.online_C = np.zeros_like(self.c['cnm2'].C_on)
+	#        self.dist_thresh = 21 # reject new rois too close to existing rois
+			self.display_shift = False  # option to display motion correction shift
+			self.tottime = []
 
-#        self.dist_thresh = 21 # reject new rois too close to existing rois
-		self.display_shift = False  # option to display motion correction shift
-		self.tottime = []
+			# lateral motion
+			self.shifts = []
 
-		# lateral motion
-		self.shifts = []
+			# make Temp folder
+			self.save_dir = p['temp_save_dir']
 
-		# make Temp folder
-		self.save_dir = p['temp_save_dir']
+	#		# setup a trigger for measure timing - using this as trial start trigger
+	#		self.niTimingTask = daqtask.Task() # TTL trigger for measure timing
+	#		self.niTimingTask.ao_channels.add_ao_voltage_chan('Dev5/ao7','timing_trig')
+	#		self.niTimingWriter= stream_writers.AnalogSingleChannelWriter(self.niTimingTask.out_stream,True)
+	#		self.niTimingWriter.write_one_sample(0,10.0)
+	#		print('timing trigger set')
 
-#		# setup a trigger for measure timing - using this as trial start trigger
-#		self.niTimingTask = daqtask.Task() # TTL trigger for measure timing
-#		self.niTimingTask.ao_channels.add_ao_voltage_chan('Dev5/ao7','timing_trig')
-#		self.niTimingWriter= stream_writers.AnalogSingleChannelWriter(self.niTimingTask.out_stream,True)
-#		self.niTimingWriter.write_one_sample(0,10.0)
-#		print('timing trigger set')
+			global STOP_JOB_FLAG
+			STOP_JOB_FLAG = False
 
-		global STOP_JOB_FLAG
-		STOP_JOB_FLAG = False
-
-		p['FLAG_END_LOADING'] = False
+			p['FLAG_END_LOADING'] = False
+			print('worker initialised')
+		except Exception as e:
+			print('Worker init error:' + e)
 
 	def sortTargets(self,target_idx,target_frames):
 		# generate sequence of phase masks
@@ -609,7 +612,8 @@ class Worker(QObject):
 			photostim_flag = 0
 			tot_num_photostim = self.tot_num_photostim
 			tot_num_senstim = self.tot_num_senstim
-			print('frames with photostim = ' + str(photo_duration))
+			print('duration per photostim = ' + str(photo_duration)+' frames')
+			print('tot num photostim = ' + str(tot_num_photostim))
 			buflength = self.BufferLength
 
 			FLAG_USE_ONACID = self.UseONACID
@@ -617,6 +621,8 @@ class Worker(QObject):
 			FLAG_SAVE_PROC_TIFF = p['saveProcTiff']
 			BufferPointer = self.BufferPointer
 			photo_stim_frames = self.photo_stim_frames # predefined fixed frames
+			print('photostim frames:')
+			print(photo_stim_frames)
 			stim_frames = self.stim_frames # stim at fixed intervals
 
 			# flags for photostim and slm signals
@@ -648,7 +654,7 @@ class Worker(QObject):
 			print('local params in work set')
 
 		except Exception as e:
-			print('local params setting error:')
+			print('work local params setting error:')
 			print(e)
 
 		# get power control prameters if provided
@@ -666,6 +672,9 @@ class Worker(QObject):
 
 			# Extract initialisation parameters
 			cnm2 = self.c['cnm2'] #deepcopy(cnm_init)
+			print('cnm2 t = ')
+			print(self.c['cnm2'].t)
+
 			img_norm = self.c['img_norm'].copy().astype(np.float32)
 			img_min = self.c['img_min'].copy().astype(np.float32)
 			ds_factor = self.c['ds_factor']
@@ -679,11 +688,13 @@ class Worker(QObject):
 			# Define OnACID parameters
 			max_shift = np.ceil(50./ds_factor).astype('int')  # max shift allowed
 			accepted = [ix+gnb for ix in cnm2.accepted] # count from 1 for easy C_on access
+			print('worker accepted index:')
+			print(accepted)
 			rejected_count = cnm2.N - len(accepted)
 			expect_components = True
 			cnm2.update_num_comps = True
 			com_count = len(accepted) #self.c['cnm2'].N
-			if com_count == p['MaxNumROIs']:
+			if p['addNewROIs']==False or com_count == p['MaxNumROIs']:
 				expect_components = False
 				cnm2.update_num_comps = False
 			init_t = cnm2.initbatch
@@ -700,7 +711,8 @@ class Worker(QObject):
 			if keep_prev:
 				coms_init = self.c['coms']
 				if keep_full_traces:
-					t_cnm = cnm2.t
+					t_cnm = self.c['cnm2'].t
+					print(t_cnm)
 #                else:
 ##                    mbs = cnm2.minibatch_shape
 #                    init_shape = cnm2.initbatch
@@ -851,7 +863,7 @@ class Worker(QObject):
 					frame_cor = frame_cor / img_norm                            # normalize data-frame
 					cnm2.fit_next(t_cnm, frame_cor.reshape(-1, order='F'))      # run OnACID on this frame
 
-					# detect new compunents
+#%% detect new compunents
 					if expect_components:
 						update_comp_time = time.time()
 						if cnm2.N - (com_count+rejected_count) == 1:
@@ -971,7 +983,7 @@ class Worker(QObject):
 						print(e)
 						logger.exception(e)
 
-					#%% photostim protocols:
+#%% photostim protocols:
 					if p['photoProtoInx'] == CONSTANTS.PHOTO_WEIGH_SUM:
 						# for closed-loop trials
 						if sens_stim_idx < tot_num_senstim and framesProc == stim_frames[sens_stim_idx]-1:
@@ -1028,11 +1040,12 @@ class Worker(QObject):
 					elif p['photoProtoInx'] == CONSTANTS.PHOTO_SEQUENCE:
 						if num_photostim < tot_num_photostim:
 							if framesProc == photo_stim_frames[num_photostim]:
-								current_target_idx = p['photo_sequence_idx'][num_photostim]
-								p['currentTargetX'] = list(p['fixedTargetX'][current_target_idx])
-								p['currentTargetY'] = list(p['fixedTargetY'][current_target_idx])
+								current_target_idx = self.sequence_idx[num_photostim]
+								p['currentTargetX'] = [p['fixedTargetX'][current_target_idx]]
+								p['currentTargetY'] = [p['fixedTargetY'][current_target_idx]]
 								FLAG_TRIG_PHOTOSTIM = True
 								FLAG_SEND_COORDS = True
+								current_target_idx = [current_target_idx] # make it a list
 								print('photostim triggered')
 
 					elif p['photoProtoInx'] == CONSTANTS.PHOTO_REPLAY_TRIAL and num_photostim < tot_num_photostim:
@@ -1231,7 +1244,6 @@ class Worker(QObject):
 						FLAG_SEND_COORDS = False
 
 #					FLAG_SEND_COORDS = False # delete this later!
-					FLAG_TRIG_PHOTOSTIM = False  # delete this later!
 					if FLAG_TRIG_PHOTOSTIM:
 						frames_post_photostim = 1
 						if p['stimFromBlink']: # send trigger from photostimer
@@ -1258,7 +1270,7 @@ class Worker(QObject):
 							self.updateTargetROIs_signal.emit() # update display
 							FLAG_SEND_COORDS = False
 
-						# take notes
+						# take notes and update counts
 						online_photo_frames.append(framesProc)
 						online_photo_targets.append(current_target_idx[:])
 						online_photo_x.append(p['currentTargetX'][:])
@@ -1321,6 +1333,9 @@ class Worker(QObject):
 				except Exception as e:
 					print('this is main loop error')
 					print(e)
+					exc_type, exc_obj, exc_tb = sys.exc_info()
+					fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+					print(exc_type, fname, exc_tb.tb_lineno)
 
 			# else not using onACID
 			else:
@@ -1347,63 +1362,83 @@ class Worker(QObject):
 			MyTiffwriter.close()
 
 		if self.UseONACID:
-			self.BufferPointer = BufferPointer
-			self.BufferPointer = 0
-			# show indices on viewbox
-			self.showROIIdx_signal.emit()
+			try:
+				self.BufferPointer = BufferPointer
+				self.BufferPointer = 0
+				# show indices on viewbox
+				self.showROIIdx_signal.emit()
 
-			accepted = [idx-1 for idx in accepted] # count from 0
-			cnm2.accepted = accepted # for easier access in MainWindow
-			self.c['cnm2'].t = t_cnm
-			self.c['coms'] = coms
-			if opsin_mask.size:
-				cnm2.opsin = opsin
+				accepted = [idx-1 for idx in accepted] # count from 0
+				cnm2.accepted = accepted # for easier access in MainWindow
+				cnm2.t = t_cnm
+				self.c['cnm2'].t = t_cnm
+				self.c['coms'] = coms
+				if opsin_mask.size:
+					cnm2.opsin = opsin
 
-			frame_detected_init = np.ones(K_init).astype('int')*cnm2.initbatch
-			frame_detected = np.concatenate((frame_detected_init, frame_extra_detected))
+				frame_detected_init = np.ones(K_init).astype('int')*cnm2.initbatch
+				frame_detected = np.concatenate((frame_detected_init, frame_extra_detected))
 
-			# save results to the results folder
-			self.movie_name = p['currentMoviePath']
+				# save results to the results folder
+				self.movie_name = p['currentMoviePath']
 
-			save_dict = dict()
-			save_dict['cnm2'] = cnm2  # opsin info a part of cnm struct for now
-			save_dict['online_C']  = self.online_C
-			save_dict['init_com_count'] = K_init # com_count from init file (in case any cells removed from init file)
-			save_dict['online_com_count'] = com_count
-			save_dict['online_photo_x'] = online_photo_x
-			save_dict['online_photo_y'] = online_photo_y
-			save_dict['online_thresh'] = online_thresh
-			save_dict['online_clamp_level'] = online_clamp_level
+				save_dict = dict()
+				save_dict['cnm2'] = deepcopy(cnm2)  # opsin info a part of cnm struct for now
+				save_dict['online_C']  = self.online_C
+				save_dict['init_com_count'] = K_init # com_count from init file (in case any cells removed from init file)
+				save_dict['online_com_count'] = com_count
+				save_dict['online_photo_x'] = online_photo_x
+				save_dict['online_photo_y'] = online_photo_y
+				save_dict['online_thresh'] = online_thresh
+				save_dict['online_clamp_level'] = online_clamp_level
 
-			save_dict['accepted_idx'] = accepted  # accepted currently stored inside cnm2 as well
-			save_dict['repeated_idx'] = repeated_idx
-			save_dict['rejected_idx'] = rejected_idx
+				save_dict['accepted_idx'] = accepted  # accepted currently stored inside cnm2 as well
+				save_dict['repeated_idx'] = repeated_idx
+				save_dict['rejected_idx'] = rejected_idx
 
-			save_dict['frame_detected'] = frame_detected
-			save_dict['t_cnm'] = t_cnm
-			save_dict['tottime'] = self.tottime
-			save_dict['shifts'] = self.shifts
-			save_dict['coms'] = coms
-			save_dict['ds_factor'] = ds_factor
+				save_dict['frame_detected'] = frame_detected
+				save_dict['t_cnm'] = t_cnm
+				save_dict['tottime'] = self.tottime
+				save_dict['shifts'] = self.shifts
+				save_dict['coms'] = coms
+				save_dict['ds_factor'] = ds_factor
+				save_dict['t_init'] = init_t
 
-			# for easier offline check
-			save_dict['Cn'] = self.c['Cn_init']
-			save_dict['img_norm'] = img_norm
-			save_dict['img_min'] = img_min
+				# for easier offline check
+#				save_dict['Cn'] = self.c['Cn_init']
+				save_dict['img_norm'] = img_norm
+				save_dict['img_min'] = img_min
 
-			save_dict['online_photo_frames'] = online_photo_frames
-			save_dict['online_photo_targets'] = online_photo_targets
-			save_dict['photo_stim_frames_caiman'] = photo_stim_frames_caiman
-			save_dict['stim_frames_caiman'] = stim_frames_caiman
-			save_dict['frames_skipped'] = frames_skipped
-			save_dict['framesProc'] = framesProc
+				save_dict['online_photo_frames'] = online_photo_frames
+				save_dict['online_photo_targets'] = online_photo_targets
+				save_dict['photo_stim_frames_caiman'] = photo_stim_frames_caiman
+				save_dict['stim_frames_caiman'] = stim_frames_caiman
+				save_dict['frames_skipped'] = frames_skipped
+				save_dict['framesProc'] = framesProc
 
-			save_dict['extraSensoryPhoto_caiman'] = extraSensoryPhoto_caiman
-			save_dict['extraPhoto_caiman'] = extraPhoto_caiman
-			save_dict['extraSensory_caiman'] = extraSensory_caiman
+				save_dict['extraSensoryPhoto_caiman'] = extraSensoryPhoto_caiman
+				save_dict['extraPhoto_caiman'] = extraPhoto_caiman
+				save_dict['extraSensory_caiman'] = extraSensory_caiman
 
-			save_dict['all_trial_types'] = p['all_trial_types']
-			save_dict['all_trial_frames'] = p['all_trial_frames']
+				save_dict['all_trial_types'] = p['all_trial_types']
+				save_dict['all_trial_frames'] = p['all_trial_frames']
+
+				save_dict['keep_prev'] = keep_prev
+				save_dict['reject_mask'] = reject_mask
+			# keep notes of initialisation file used
+			except Exception as e:
+				print('this is making save dict error')
+				print(e)
+				exc_type, exc_obj, exc_tb = sys.exc_info()
+				fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+				print(exc_type, fname, exc_tb.tb_lineno)
+			try:
+				save_dict['coms_init'] = self.c['coms_init']
+				save_dict['cnm_init'] = self.c['cnm_init']
+				save_dict['coms_init_orig'] = self.c['coms_init_orig']
+				save_dict['cnm_init_orig'] = self.c['cnm_init_orig']
+			except:
+				print('init fields not found')
 
 			# save out mat file for STAMovieMaker
 			mat_dict = dict()
@@ -1516,7 +1551,10 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		# trial type
 		p['trialOrder'] = []
 		p['all_trial_types'] = []
+		p['photo_sequence_idx'] = []
 
+		# camain init
+		p['FLAG_USING_RESULT_FILE'] = False
 
 		# prairie default settings - maybe move to a xml and load from there
 		self.PV_IP = '128.40.156.161'  # bruker 2: TCP_IP = '128.40.202.220'
@@ -1526,7 +1564,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		self.FLAG_PV_CONNECTED = False
 		self.pl = []
 		self.refZoom = 1.14
-
 
 		# Blink settings
 		self.BLINK_IP = '128.40.156.163'
@@ -1609,7 +1646,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		self.graphicsView.addItem(self.Triggercontour_item)
 
 		# dictionary of ROIs
-		self.ROIlist = [dict() for i in range(self.MaxNumROIs)]
+		self.ROIlist = [dict() for i in range(self.MaxNumROIs)] # this only include accepted rois
 		self.Thresh_tableWidget.setColumnCount(5)
 		self.Thresh_tableWidget.setHorizontalHeaderLabels(['X','Y','Thresh','W','STA'])
 		self.Thresh_tableWidget.setSizeAdjustPolicy(QAbstractScrollArea.AdjustToContents)
@@ -1711,6 +1748,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		self.workerObject = None
 		self.streamObject = None
 		self.imageSaverObject = None
+		self.photostimObject = None
 		self.niStimWriter = None
 		self.niPhotoStimWriter = None
 		self.niPhotostimFullWriter = None
@@ -2016,7 +2054,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		print('fixed targets updated')
 
 	def plotTrialTypes(self):
-
 		type_names1 = ['extraSensory','extraPhoto','extraSensoryPhoto']
 		type_names2 = ['ExtraSensory','ExtraPhoto','ExtraSensoryPhoto']
 		pl.figure()
@@ -2054,9 +2091,11 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 		# adding control trials
 #		if p['photoProtoInx'] in [CONSTANTS.PHOTO_FIX_FRAMES, CONSTANTS.PHOTO_CLAMP_DOWN,CONSTANTS.PHOTO_REPLAY_TRAIN,CONSTANTS.PHOTO_CLAMP_DOWN]:
-		ifCloseloopTrials = 1
-#		else:
-#			ifCloseloopTrials = 0
+		if p['photoProtoInx'] != CONSTANTS.PHOTO_SEQUENCE:
+			ifCloseloopTrials = 1
+		else:
+			ifCloseloopTrials = 0
+
 		if not p['useExternalTrialOrder']:
 			all_trial_types = []
 			if ifCloseloopTrials:
@@ -2130,7 +2169,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		if p['photoProtoInx'] == CONSTANTS.PHOTO_FIX_FRAMES:
 			relative_frames = math.ceil(frame_rate/p['photoFrequency'])*np.arange(0,p['photoNumStimsPerTrial'])+p['photoWaitFrames']
 			photo_stim_frames = np.concatenate( [item+relative_frames for item in sen_stim_frames])
-
+		if p['photoProtoInx'] == CONSTANTS.PHOTO_SEQUENCE:
+			photo_stim_frames = p['photo_stim_frames'].copy()
 		# save to global p
 		p['sen_stim_frames'] = sen_stim_frames
 		p['photo_stim_frames'] = photo_stim_frames
@@ -2224,7 +2264,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 						curr_count = self.c['cnm2'].N
 						self.c['cnm2'].t = self.c['cnm2'].initbatch
 						self.removeIdx = np.arange(self.c['K_init'],curr_count)
-						self.removeCells(save_init=False)
+						self.removeCells(save_init=False,reinitiate = not p['FLAG_USING_RESULT_FILE'])
 					else:
 						self.c['keep_prev'] = True
 				else:
@@ -2247,7 +2287,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.merge_thresh_doubleSpinBox.setValue(self.merge_thresh)
 			self.overlap_thresh_doubleSpinBox.setValue(self.thresh_overlap)
 
-			if self.MaxNumROIs_spinBox.value() != self.MaxNumROIs:
+			print('updating ROI list')
+			if self.MaxNumROIs_spinBox.value() > self.MaxNumROIs:
 				for extraROI in range(self.MaxNumROIs_spinBox.value() - self.MaxNumROIs):  # add extra fields to ROIlist
 					self.ROIlist.append(dict())
 					ROIIdx = self.MaxNumROIs + extraROI
@@ -2295,7 +2336,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.workerObject.updateTargetROIs_signal.connect(self.updateTargetROIs)
 
 			# signaling to photostim thread
-			if not self.IsOffline:
+			if (not self.IsOffline) and self.photostimObject!=None:
 				try:
 					self.workerObject.photostimNewTargets_signal.connect(self.photostimObject.photostimNewTargets) # update phase mask and send photostim from blink
 					self.workerObject.updateNewTargets_signal.connect(self.photostimObject.updateNewTargets) # update phase mask
@@ -2322,6 +2363,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.workerObject.sendPhotoStimTrig_signal.connect(self.sendPhotoStimTrigger)
 			self.workerThread.start()
 			self.updateStatusBar('Worker started')
+			print('worker thread started')
 
 			# start stream thread
 			kwargs = {"prairie": self.pl}
@@ -2642,7 +2684,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		if (self.selectAll_checkBox.isChecked):
 			self.selectAllROIs()
 
-	def removeCells(self, CNN=False, save_init=True, FLAG_KEEP_SELECTED = False):
+	def removeCells(self, CNN=False, save_init=True, FLAG_KEEP_SELECTED = False, reinitiate = True):
 		if self.rejectIdx:
 			rejected = True
 			self.removeIdx = self.rejectIdx   # just remove rejected cells
@@ -2651,128 +2693,74 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			rejected = False
 		print('Removing ' + str(len(self.removeIdx)) + ' cells')
 
-		# idx_keep is local idx of current ROI selection
-		if FLAG_KEEP_SELECTED:
-			thisROIIdx = self.thisROIIdx
-			idx_keep = sorted(list(set(self.removeIdx)))  # removeIdx here is local GUI idx
+		accepted = self.c['cnm2'].accepted
+		print(accepted)
+
+		if len(accepted) == self.c['coms_init'].shape[0]:
+			print('coms_init size and accepted size are equal')
 		else:
-			if CNN:
-				thisROIIdx = self.c['K_init']  # same as self.thisROIIdx in most cases
-				idx_keep = sorted(list(set(range(thisROIIdx)) - set(self.removeIdx)))  # removeIdx here could be orig idx // mostly local idx though
+			print('coms_init size and accepted size are NOT equal!')
+			return
+
+		if CNN: # deal with global indexing - to do
+			thisROIIdx = self.c['K_init']  # same as self.thisROIIdx in most cases
+			glb_idx_keep = sorted(list(set(range(thisROIIdx)) - set(self.removeIdx)))  # removeIdx here could be orig idx // mostly local idx though
+			glb_idx_accepted = list(set(glb_idx_keep).intersection(accepted))
+			idx_keep = [accepted.index(x) for x in glb_idx_accepted]
+
+		else:  # deal with ROI indexing
+			if FLAG_KEEP_SELECTED:
+				thisROIIdx = self.thisROIIdx
+				idx_keep = sorted(list(set(self.removeIdx)))  # removeIdx here is local GUI idx
 			else:
 				thisROIIdx = self.thisROIIdx
 				idx_keep = sorted(list(set(range(thisROIIdx)) - set(self.removeIdx)))  # removeIdx here is local GUI idx
 
-		accepted = self.c['cnm2'].accepted
-		coms = self.c['coms_init'][accepted]
-		print('coms shape', coms.shape)
-		keep_coms = coms[idx_keep]
+		glb_idx_accepted = [accepted[x] for x in idx_keep]
+		print(glb_idx_accepted)
 
-		print('idx keep', idx_keep)
-		print('len', len(idx_keep))
+		self.c['idx_components'] = glb_idx_accepted
+		if reinitiate: # initiate again, only work if starts with init file
+			self.prepareOnacid(save_init=save_init,idx_components =glb_idx_accepted)
+		else: # change 'accepted' in cnm and update ROIlist
+			cnm2 = deepcopy(self.c['cnm_init'])
+			cnm2.accepted = glb_idx_accepted
+			self.c['cnm2'] = cnm2
+			self.c['coms_init'] = self.c['coms_init'][idx_keep]
+			self.initialiseROI()
+			print(self.c['coms_init'].shape)
+			for i in range(self.c['coms_init'].shape[0]): # cnm2.accepted: #range(K):
+				y, x = self.c['coms_init'][i]  # reversed
+				self.getROImask(thisROIx = x, thisROIy = y)
+			print('ROI list done')
+			self.plotOnacidTraces(t=self.c['t_cnm'],online=True)
 
-		# remove chosen cells  -- old version resulting in array length errors for large number of deleted cells!
-#        self.c['cnm2'].remove_components(self.removeIdx)
-
-		coms_init_orig = self.c['coms_init_orig']
-		orig_keep_idx = []
-
-		for pair in keep_coms: #self.c['coms_init'] :
-			idx = np.where(pair == coms_init_orig)[0]
-			if idx[0] == idx[1]:
-				orig_keep_idx.append(idx[0])
-			else:
-				print('Different indeces - check')  # this should never be a problem
-
-
-# just added -- probs remove #
-#        orig_rej_idx = []
-#        try:
-#            rejected = sorted(list(set(range(self.c['K_init'])) - set(accepted)))
-#
-#            if len(rejected):
-#                coms = self.c['coms_init']
-#                coms_init_orig = self.c['coms_init_orig']
-#
-#                rejected_coms = coms[rejected]
-#
-#                for pair in rejected_coms:
-#                    idx = np.where(pair == coms_init_orig)[0]
-#                    if idx[0] == idx[1]:
-#                        orig_rej_idx.append(idx[0])
-#                    else:
-#                        print('Different indeces - check')
-#        except Exception as e:
-#            print(e)
-#
-#        print('orig rej idx', orig_rej_idx)
-#        self.c['rejected_idx'] = orig_rej_idx
-#
-
-#  do not include rejected cells during removal
-#        orig_rej_idx = self.c['rejected_idx']
-#        print('orig rej idx', orig_rej_idx)
-#        print('orig keep idx', orig_keep_idx)
-
-		orig_K = coms_init_orig.shape[0]
-#        print('orig K', orig_K)
-		print('orig indx keep', orig_keep_idx)
-		orig_remove_idx = list(set(range(orig_K)) - set(orig_keep_idx)) # - set(orig_rej_idx))  # all removed cell indices
-#        print('orig rem idx', orig_remove_idx)
-
-		if CNN:
-			remove_idx = list(set(orig_remove_idx) - set(self.c['removed_idx']) - set(self.c['rejected_idx']))
-			self.c['cnn_removed_idx'] = sorted(remove_idx)
-		else:
-			if self.c['CNN_filter']:
-				cnn_remove_idx = self.c['cnn_removed_idx']
-				remove_idx = list(set(orig_remove_idx) - set(cnn_remove_idx))  # keep manually removed indeces here only
-			else:
-				remove_idx = orig_remove_idx
-
-			if rejected:
-				remove_idx = list(set(remove_idx) - set(self.c['removed_idx']))
-				self.c['rejected_idx'] = sorted(remove_idx)
-			else:
-				remove_idx = list(set(remove_idx) - set(self.c['rejected_idx']))
-				self.c['removed_idx'] = sorted(remove_idx)
-
-
-		print('rejected idx', self.c['rejected_idx'])
-		print('removed idx', self.c['removed_idx'])
-		print('cnn removed idx', self.c['cnn_removed_idx'])
-
-
-		self.c['idx_components'] = orig_keep_idx # + orig_rej_idx   # use orig idx for onacid preparation
-
-#        if orig_rej_idx:
-#            self.checkRejectedMask()
-
-		self.prepareOnacid(save_init=save_init)
-
-# after new roi list initialised, adjust targets --> below doesn't work anymore but checkOpsin in prepareOnacid sorts it
-#        for idx in sorted(self.removeIdx, reverse=True):
-#            if idx in self.TargetIdx:
-#                self.TargetIdx.remove(idx)
-#            self.TargetIdx = [target-1 if target>idx else target for target in self.TargetIdx]
 
 		if self.showROIsOn:
 			self.plotSTAonMasks(None)
 			plt.close()
 
 		self.updateTargets()
-		self.updateStatusBar('Removed ' + str(len(remove_idx)) + ' components')
+		self.showROIIdx()
+		self.updateStatusBar('Removed ' + str(len(accepted)-len(glb_idx_accepted)) + ' components')
 
 		# clear removeIdx array
 		self.removeIdx = []
 	def removeButTrigger(self):
 		self.removeIdx = self.TriggerIdx
-		self.removeCells(FLAG_KEEP_SELECTED = True )
+		self.removeCells(FLAG_KEEP_SELECTED = True,reinitiate = not p['FLAG_USING_RESULT_FILE'] )
 		# load weights and threshold
 		self.ROIsumThresh_doubleSpinBox.setValue(self.TriggerThresh)
 		for idx in range(self.thisROIIdx):
 			self.ROIlist[idx]["weight"] = self.TriggerWeights[idx]
 		self.updateTable()
+		self.showROIIdx()
+
+		if p['FLAG_USING_RESULT_FILE'] :
+			self.plotOnacidTraces(t=self.c['t_cnm'],online=True)
+		else:
+			self.plotOnacidTraces(t=self.c['cnm_init'].initbatch)
+
 		self.getValues()
 
 
@@ -2980,7 +2968,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			msg.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
 			retval = msg.exec_()
 			if(retval==QMessageBox.Ok):
-				self.removeCells()
+				self.removeCells(reinitiate = not p['FLAG_USING_RESULT_FILE'])
 			else:
 				self.updateAllROIs()
 				self.removeIdx = []
@@ -3001,7 +2989,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			msg.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
 			retval = msg.exec_()
 			if(retval==QMessageBox.Ok):
-				self.removeCells(FLAG_KEEP_SELECTED = True)
+				self.removeCells(FLAG_KEEP_SELECTED = True, reinitiate = not p['FLAG_USING_RESULT_FILE'] )
 			else:
 				self.updateAllROIs()
 				self.removeIdx = []
@@ -3443,148 +3431,181 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.UseOnacidMask_radioButton.setChecked(False)
 
 #%% caiman initialisation
-	def initialiseCaiman(self):
-		self.deleteTextItems()
-
-		if self.ref_movie_path:
-			movie_ext = os.path.splitext(p['refMoviePath'])[1]
-			self.updateStatusBar('Initialising...')
-		else:
-			self.updateStatusBar('No reference movie selected!')
-			return
-
-
-		# init parameters
-		if movie_ext == '.tif' or movie_ext == '.tiff':
-			ds_factor = self.dsFactor_doubleSpinBox.value()
-			K = self.InitNumROIs_spinBox.value()
-
-			cell_radius = self.cellRadius_spinBox_2.value()
-			gSig = (cell_radius, cell_radius)
-			min_SNR = self.minSNR_doubleSpinBox.value()
-			rval_thr = self.rval_thresh_doubleSpinBox.value()  # for component quality
-			merge_thresh = self.merge_thresh_doubleSpinBox.value()
-			thresh_overlap = self.overlap_thresh_doubleSpinBox.value()
-
-
-		# init method to be used
-		opsin_seeded = self.UseOpsinMask_radioButton.isChecked()
-		mask_seeded = self.UseOnacidMask_radioButton.isChecked()
-		cnmf_init = not (opsin_seeded or mask_seeded)
-
-		# process image or load from pkl file directly
-		if cnmf_init:
-			if movie_ext == '.tif'or movie_ext == '.tiff':
-				K = self.InitNumROIs_spinBox.value()
-				print('Starting CNMF initialisation with tiff file')
-				lframe, init_values = initialise(self.ref_movie_path, init_method='cnmf',
-												 K=K, gSig=gSig, initbatch=500,
-												 ds_factor=ds_factor, rval_thr=rval_thr,
-												 thresh_overlap=thresh_overlap,
-												 save_init=True, mot_corr=p['initMotionCorr'],
-												 merge_thresh=merge_thresh,
-												 decay_time=0.2, min_SNR=min_SNR)
-
-			elif movie_ext == '.pkl':
-				print('Loading initialisation file')
-				init_values = load_object(self.ref_movie_path)
-				ds_factor = init_values['ds_factor']
-				self.dsFactor_doubleSpinBox.setValue(ds_factor)
-
-
-		elif opsin_seeded:
-			if self.A_opsin.size:
-				if movie_ext == '.tif' or movie_ext == '.tiff':
-					expected_dim = int(512/ds_factor)
-					mask_dim = int(np.sqrt(self.A_opsin.shape[0]))
-					equal_size = mask_dim == expected_dim
-					if not equal_size:
-						print('Change of donwsampling detected; resizing opsin mask')
-						self.createOpsinMask()
-
-					print('Starting seeded initialisation using the opsin mask')
-					lframe, init_values = initialise(self.ref_movie_path, init_method='seeded',
-													 Ain=self.A_opsin, gSig=gSig,
-													 ds_factor=ds_factor, initbatch=500,
-													 rval_thr=rval_thr, merge_thresh=merge_thresh,
-													 thresh_overlap=thresh_overlap,
-													 save_init=True, mot_corr=p['initMotionCorr'],
-													 min_SNR=min_SNR) #, CNN_filter=True)
-				else:
-					self.updateStatusBar('A non-tif file was provided - select a tif movie to initialise with a mask')
-					return
+	def initialiseCaiman(self,FLAG_USING_RESULT_FILE = False):
+		try:
+			self.deleteTextItems()
+			if self.ref_movie_path:
+				movie_ext = os.path.splitext(p['refMoviePath'])[1]
+				movie_name = os.path.splitext(p['refMoviePath'])[0]
+				print(movie_name)
+				self.updateStatusBar('Initialising...')
 			else:
-				self.updateStatusBar('No opsin mask created!')
-
-
-		elif mask_seeded:
-			if movie_ext == '.tif' or movie_ext == '.tiff':
-				expected_dim = int(512/ds_factor)
-				mask_dim = int(np.sqrt(self.A_loaded.shape[0]))
-				equal_size = mask_dim == expected_dim
-				if not equal_size:
-					self.updateStatusBar('Mask dimension mismatch. Change downsampling back to ' + str(512/mask_dim)[:4] +
-										 ' or select a different mask')
-					return
-
-				print('Starting seeded initialisation using the mask provided')
-				lframe, init_values = initialise(self.ref_movie_path, init_method='seeded', Ain=self.A_loaded,
-												 ds_factor=ds_factor, initbatch=500, rval_thr=0.85,
-												 thresh_overlap=0.1, save_init=True, mot_corr=p['initMotionCorr'],
-												 merge_thresh=0.85)
-
-			else:
-				self.updateStatusBar('A non-tif file was provided - select a tif movie to initialise with a mask')
+				self.updateStatusBar('No reference movie selected!')
 				return
 
 
-		self.c = init_values # caiman object
-		self.c['coms_init_orig'] = self.c['coms_init']  # keep original com data
-		self.dims = self.c['cnm_init'].dims
+			# init parameters
+			if movie_ext == '.tif' or movie_ext == '.tiff':
+				ds_factor = self.dsFactor_doubleSpinBox.value()
+				K = self.InitNumROIs_spinBox.value()
+
+				cell_radius = self.cellRadius_spinBox_2.value()
+				gSig = (cell_radius, cell_radius)
+				min_SNR = self.minSNR_doubleSpinBox.value()
+				rval_thr = self.rval_thresh_doubleSpinBox.value()  # for component quality
+				merge_thresh = self.merge_thresh_doubleSpinBox.value()
+				thresh_overlap = self.overlap_thresh_doubleSpinBox.value()
 
 
-		if movie_ext == '.pkl':
-			cnm = init_values['cnm_init']
-			cell_radius = round(cnm.gSig[0]*ds_factor)
-			rval_thr = cnm.rval_thr
-			merge_thresh = cnm.merge_thresh
-			thresh_overlap = cnm.thresh_overlap
-			try:
-				min_SNR = init_values['min_SNR']
-			except:
-				min_SNR = 2.5 # default
+			# init method to be used
+			opsin_seeded = self.UseOpsinMask_radioButton.isChecked()
+			mask_seeded = self.UseOnacidMask_radioButton.isChecked()
+			cnmf_init = not (opsin_seeded or mask_seeded)
 
-			self.cellRadius_spinBox_2.setValue(cell_radius)
-			self.rval_thresh_doubleSpinBox.setValue(rval_thr)
-			self.merge_thresh_doubleSpinBox.setValue(merge_thresh)
-			self.overlap_thresh_doubleSpinBox.setValue(thresh_overlap)
-			self.minSNR_doubleSpinBox.setValue(min_SNR)
+			# process image or load from pkl file directly
+			if cnmf_init:
+				if movie_ext == '.tif'or movie_ext == '.tiff':
+					K = self.InitNumROIs_spinBox.value()
+					print('Starting CNMF initialisation with tiff file')
+					lframe, init_values = initialise(self.ref_movie_path, init_method='cnmf',
+													 K=K, gSig=gSig, initbatch=500,
+													 ds_factor=ds_factor, rval_thr=rval_thr,
+													 thresh_overlap=thresh_overlap,
+													 save_init=True, mot_corr=p['initMotionCorr'],
+													 merge_thresh=merge_thresh,
+													 decay_time=0.2, min_SNR=min_SNR)
 
-
-		self.cell_radius = cell_radius
-		self.min_SNR = min_SNR
-		self.rval_thr = rval_thr
-		self.merge_thresh = merge_thresh
-		self.thresh_overlap = thresh_overlap
-		self.ds_factor = ds_factor
-		self.rejectIdx = []
-		self.c['rejected_idx'] = [] # temp; remove
-
-		if opsin_seeded:
-			thresh_cnn = 0.1 # default thresh for c1v1 mask
-			self.CNNFilter_doubleSpinBox.setValue(thresh_cnn)
-			self.filterResults(init=True)
-		else:
-			self.prepareOnacid(save_init=False)
-
-		self.updateStatusBar('Initialision completed: ' + str(self.c['cnm2'].N) + ' cells found')
+				elif movie_ext == '.pkl':
+					print('Loading initialisation file...')
+					init_values = load_object(self.ref_movie_path)
+					print(init_values.keys())
+					ds_factor = init_values['ds_factor']
+					self.dsFactor_doubleSpinBox.setValue(ds_factor)
+					print('...done')
 
 
-	def prepareOnacid(self, show_results=True, save_init=True):
+			elif opsin_seeded:
+				if self.A_opsin.size:
+					if movie_ext == '.tif' or movie_ext == '.tiff':
+						expected_dim = int(512/ds_factor)
+						mask_dim = int(np.sqrt(self.A_opsin.shape[0]))
+						equal_size = mask_dim == expected_dim
+						if not equal_size:
+							print('Change of donwsampling detected; resizing opsin mask')
+							self.createOpsinMask()
+
+						print('Starting seeded initialisation using the opsin mask')
+						lframe, init_values = initialise(self.ref_movie_path, init_method='seeded',
+														 Ain=self.A_opsin, gSig=gSig,
+														 ds_factor=ds_factor, initbatch=500,
+														 rval_thr=rval_thr, merge_thresh=merge_thresh,
+														 thresh_overlap=thresh_overlap,
+														 save_init=True, mot_corr=p['initMotionCorr'],
+														 min_SNR=min_SNR) #, CNN_filter=True)
+					else:
+						self.updateStatusBar('A non-tif file was provided - select a tif movie to initialise with a mask')
+						return
+				else:
+					self.updateStatusBar('No opsin mask created!')
+
+
+			elif mask_seeded:
+				if movie_ext == '.tif' or movie_ext == '.tiff':
+					expected_dim = int(512/ds_factor)
+					mask_dim = int(np.sqrt(self.A_loaded.shape[0]))
+					equal_size = mask_dim == expected_dim
+					if not equal_size:
+						self.updateStatusBar('Mask dimension mismatch. Change downsampling back to ' + str(512/mask_dim)[:4] +
+											 ' or select a different mask')
+						return
+
+					print('Starting seeded initialisation using the mask provided')
+					lframe, init_values = initialise(self.ref_movie_path, init_method='seeded', Ain=self.A_loaded,
+													 ds_factor=ds_factor, initbatch=500, rval_thr=0.85,
+													 thresh_overlap=0.1, save_init=True, mot_corr=p['initMotionCorr'],
+													 merge_thresh=0.85)
+
+				else:
+					self.updateStatusBar('A non-tif file was provided - select a tif movie to initialise with a mask')
+					return
+
+			print('initialising c')
+			self.c = deepcopy(init_values) # caiman object
+
+			self.c['cnn_removed_idx'] = []
+			if (not '_init_' in movie_name) and movie_ext == '.pkl':
+				FLAG_USING_RESULT_FILE = True
+
+			if FLAG_USING_RESULT_FILE:
+				self.c['coms_init'] = self.c['coms']
+				print(self.c['coms_init'].shape)
+				self.c['cnm_init'] = self.c['cnm2']
+				try:
+					self.c['coms_init_orig'] = self.c['coms_init_orig']
+					self.c['cnm_init_orig'] = self.c['cnm_init_orig']
+				except Exception as e:
+					print('init orig error')
+					print(e)
+				self.dims = self.c['cnm2'].dims
+				cnm = init_values['cnm2']
+				self.c['cnm2'].t = init_values['t_cnm']
+				# make sure everything called from c in worker is also in result
+			else:
+				self.c['coms_init_orig'] = self.c['coms_init']  # keep original com data
+				self.c['cnm_init_orig'] = self.c['cnm_init']
+				self.dims = self.c['cnm_init'].dims
+				cnm = init_values['cnm_init']
+
+
+
+			# set parameters in gui
+			print('setting parameters in gui...')
+			if movie_ext == '.pkl':
+				cell_radius = round(cnm.gSig[0]*ds_factor)
+				rval_thr = cnm.rval_thr
+				merge_thresh = cnm.merge_thresh
+				thresh_overlap = cnm.thresh_overlap
+				try:
+					min_SNR = init_values['min_SNR']
+				except:
+					min_SNR = 2.5 # default
+
+				self.cellRadius_spinBox_2.setValue(cell_radius)
+				self.rval_thresh_doubleSpinBox.setValue(rval_thr)
+				self.merge_thresh_doubleSpinBox.setValue(merge_thresh)
+				self.overlap_thresh_doubleSpinBox.setValue(thresh_overlap)
+				self.minSNR_doubleSpinBox.setValue(min_SNR)
+
+
+			self.cell_radius = cell_radius
+			self.min_SNR = min_SNR
+			self.rval_thr = rval_thr
+			self.merge_thresh = merge_thresh
+			self.thresh_overlap = thresh_overlap
+			self.ds_factor = ds_factor
+			self.rejectIdx = []
+			self.c['rejected_idx'] = [] # temp; remove
+			print('...done')
+
+			if opsin_seeded:
+				thresh_cnn = 0.1 # default thresh for c1v1 mask
+				self.CNNFilter_doubleSpinBox.setValue(thresh_cnn)
+				self.filterResults(init=True)
+			else:
+				self.prepareOnacid(save_init=False, using_result_file = FLAG_USING_RESULT_FILE)
+
+			self.updateStatusBar('Initialisation complete')
+			p['FLAG_USING_RESULT_FILE'] = FLAG_USING_RESULT_FILE
+		except Exception as e:
+			print('caiman initialisation error')
+			print(e)
+
+	def prepareOnacid(self, show_results=True, save_init=True, using_result_file = False,idx_components = None):
+		print('this is prepareOnacid function')
 		try:
 			# Reset previous settings
 			try:
-				self.c['cnm2']
+#				self.c['cnm2']
 				self.ROIcontour_item.clear()
 				self.deleteTextItems()
 				self.plotItem.clear()
@@ -3595,47 +3616,63 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			except: pass
 
 			# Prepare object for OnACID
-			idx_components = self.c['idx_components']
-
+#			idx_components = self.c['idx_components']
 			path_to_cnn_residual = os.path.join(caiman_datadir(), 'model', 'cnn_model_online.h5')
 
-			cnm2 = deepcopy(self.c['cnm_init'])
-			cnm2._prepare_object(np.asarray(self.c['Yr']), self.c['T1'],
+			# check if loaded pkl file is result file or init file
+			if using_result_file: # get cnm from result file
+				print('Prepare Onacid from result file')
+				cnm2 = deepcopy(self.c['cnm_init'])
+				coms = self.c['coms_init'].copy()
+
+			else: # get cnm from initialisation file
+				print('Prepare Onacid from init file')
+				cnm2 = deepcopy(self.c['cnm_init'])
+				cnm2._prepare_object(np.asarray(self.c['Yr']), self.c['T1'],
 								 self.c['expected_comps'], idx_components=idx_components,
 								 min_num_trial=2, N_samples_exceptionality=int(self.c['N_samples']),
 								 path_to_model=path_to_cnn_residual, sniper_mode=False)
 
 	#        cnm2.max_num_added = 5  # max number of cells added per onacid frame --> doesn't look like more cells are added per frame
+				cnm2.opsin = []
+#				coms = self.c['coms_init_orig'].copy()
+				# all rejected deleted already
+				accepted = list(range(0,cnm2.N))
+				# store info on rejected cells and mask
+				cnm2.accepted = accepted
+#				self.c['accepted'] = accepted
 
-			cnm2.opsin = []
+				if self.rejectMaskOn:
+					if not self.c['reject_mask'].size:
+						self.c['reject_mask'] = self.reject_mask # if no mask provided with the init file, assign the one created in the interface
+					else:
+						self.reject_mask = self.c['reject_mask'] # if mask provided, change currently stored reject_mask
 
-			coms = self.c['coms_init_orig'].copy()
-			if idx_components is not None:
-				self.c['coms_init'] = coms[idx_components]
+				cnm2.t = cnm2.initbatch
+				cnm2.max_num_added = p['MaxNumROIs']
 
-	#        print('reject idx', self.rejectIdx)
-	#        if self.rejectIdx:
-	#            accepted = sorted(list(set(range(cnm2.N)) - set(self.rejectIdx)))
-	#        else:
+#			if idx_components is not None:
+#				print('discarded components from coms_init')
+#				self.c['coms_init'] = coms[idx_components]
 
-			# all rejected deleted already
-			accepted = list(range(0,cnm2.N))
+			print(cnm2.Yr_buf)
+			print(cnm2.Yr_buf.shape)
 
-			# store info on rejected cells and mask
-			cnm2.accepted = accepted
-			self.c['accepted'] = accepted
+			# reset buffers
+			cnm2.Yr_buf.cur = 0
+			cnm2.Yr_buf.max_ = cnm2.minibatch_shape
 
-			if not self.c['reject_mask'].size:
-				self.c['reject_mask'] = self.reject_mask # if no mask provided with the init file, assign the one created in the interface
-			else:
-				self.reject_mask = self.c['reject_mask'] # if mask provided, change currently stored reject_mask
+			cnm2.Yres_buf.cur = 0
+			cnm2.Yres_buf.max_ = cnm2.minibatch_shape # this is inibatch shape
 
-			cnm2.t = cnm2.initbatch
-			cnm2.max_num_added = p['MaxNumROIs']
+			cnm2.rho_buf.cur = 0
+			cnm2.rho_buf.max_ = cnm2.minibatch_shape # this is inibatch shape
+
 
 			K = cnm2.N
 			self.c['cnm2'] = cnm2
 			self.c['K_init'] = K
+
 
 			try: # temp; remove soon
 				self.c['thresh_cnn']
@@ -3657,11 +3694,12 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 				self.opsinMaskOn = False
 				self.imageItem.setImage(cv2.resize(self.c['img_norm'],(512,512),interpolation=cv2.INTER_CUBIC)) # display FOV
 
-
 				self.initialiseROI()
-				for i in cnm2.accepted: #range(K):
+				print(self.c['coms_init'].shape)
+				for i in range(self.c['coms_init'].shape[0]): # cnm2.accepted: #range(K):
 					y, x = self.c['coms_init'][i]  # reversed
 					self.getROImask(thisROIx = x, thisROIy = y)
+				print('ROI list done')
 
 				self.CNNFilter_doubleSpinBox.setValue(self.c['thresh_cnn'])
 
@@ -3674,18 +3712,23 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 				if self.A_opsin.size:
 					print('Checking opsin overlap')
 					self.checkOpsin()
-
-				if self.c['reject_mask'].size:
-					print('Checking reject mask')
-					self.checkRejectedMask()
+				if self.rejectMaskOn:
+					if self.c['reject_mask'].size:
+						print('Checking reject mask')
+						self.checkRejectedMask()
 
 				self.showROIIdx()
-				self.plotOnacidTraces(t=self.c['cnm_init'].initbatch)
+
+				if using_result_file:
+					self.plotOnacidTraces(t=self.c['t_cnm'],online=True)
+				else:
+					self.plotOnacidTraces(t=self.c['cnm_init'].initbatch)
 
 			if save_init:
 				self.saveInitResults()
-
+			print('done preparing onAcid')
 		except Exception as e:
+			print('prepareOnacid error:')
 			print(e)
 
 
@@ -3704,7 +3747,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 
 	def resetFiltering(self, show_results=True):
-		del self.c['cnm2']
+#		del self.c['cnm2']  commented out 20190711
 		self.c['thresh_cnn'] = 0
 		self.c['cnn_removed_idx'] = []
 
@@ -3717,63 +3760,66 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 
 	def filterResults(self, init=False):
-		thresh_cnn = self.CNNFilter_doubleSpinBox.value()
-		self.c['CNN_filter'] = bool(thresh_cnn)
-		self.rejectIdx = []  # have to reset
+		try:
+			thresh_cnn = self.CNNFilter_doubleSpinBox.value()
+			self.c['CNN_filter'] = bool(thresh_cnn)
+			self.rejectIdx = []  # this is rejectIdx from rejection mask; have to reset
+			print('Using CNN filter? '+ str(self.c['CNN_filter']))
 
-		if self.c['thresh_cnn'] == thresh_cnn:
-			return
+			if self.c['thresh_cnn'] == thresh_cnn:
+				print('threshold did not change, return')
+				return
 
-		if self.c['CNN_filter']:
-			if len(self.c['cnn_removed_idx']):
-				self.resetFiltering(show_results=False)
+			if self.c['CNN_filter']:
+				if len(self.c['cnn_removed_idx']):
+					self.resetFiltering(show_results=False)
 
-			print('Filtering components')
-			print('CNN threshold: ', thresh_cnn)
+				print('Filtering components')
+				print('CNN threshold: ', thresh_cnn)
 
-			if init:
-				cnm_struct = self.c['cnm_init']
-				A = cnm_struct.A
+				if init:
+					cnm_struct = self.c['cnm_init']
+					A = cnm_struct.A
+				else:
+					cnm_struct = self.c['cnm2']
+					A = cnm_struct.Ab[:, cnm_struct.gnb:cnm_struct.M]
+
+				gSig = cnm_struct.gSig #  expected half size of neurons
+
+				print('using model in: ',os.path.join(caiman_datadir(), 'model', 'cnn_model'))
+				predictions, final_crops = evaluate_components_CNN(
+					A, self.dims, gSig, model_name=os.path.join(caiman_datadir(), 'model', 'cnn_model'))
+
+				predictions[np.isnan(predictions)] = 0  # exclude nan
+				idx_keep_CNN = np.where(predictions[:, 1] >= thresh_cnn)[0].tolist()
+				idx_rem_CNN = np.where(predictions[:,1] < thresh_cnn)[0].tolist()
+				print(str(len(idx_keep_CNN)) + ' rois left post filtering')
+
+				self.c['thresh_cnn'] = thresh_cnn
+	#            self.c['idx_components'] = idx_keep_CNN
+				print('idx(global) remove', idx_rem_CNN)
+
+				# debug select cells to remove
+				self.removeIdx = idx_rem_CNN # this is global index need to match roi idx
+	#			self.removeModeOn = True
+	#			for idx in self.removeIdx:
+	#				ROI_x = self.ROIlist[idx]["ROIx"]
+	#				ROI_y = self.ROIlist[idx]["ROIy"]
+	#				self.Targetcontour_item.addPoints(x = [ROI_x], y = [ROI_y], pen = self.RemovePen, size =  self.RoiRadius*2+5)
+
+#				self.startRemoveMode()
+				# end of debug
+
+	#			self.removeIdx = idx_rem_CNN
+				self.removeCells(CNN=True,reinitiate = init )
+
+			# reset previous CNN filter
 			else:
-				cnm_struct = self.c['cnm2']
-				A = cnm_struct.Ab[:, cnm_struct.gnb:cnm_struct.M]
-
-			print('A shape', A.shape)
-			gSig = cnm_struct.gSig #  expected half size of neurons
-
-			print('using model in: ',os.path.join(caiman_datadir(), 'model', 'cnn_model'))
-			predictions, final_crops = evaluate_components_CNN(
-				A, self.dims, gSig, model_name=os.path.join(caiman_datadir(), 'model', 'cnn_model'))
-
-			predictions[np.isnan(predictions)] = 0  # exclude nan
-			idx_keep_CNN = np.where(predictions[:, 1] >= thresh_cnn)[0].tolist()
-			idx_rem_CNN = np.where(predictions[:,1] < thresh_cnn)[0].tolist()
-			print(str(len(idx_keep_CNN)) + ' cells left post filtering')
-
-			self.c['thresh_cnn'] = thresh_cnn
-#            self.c['idx_components'] = idx_keep_CNN
-			print('idx remove', idx_rem_CNN)
-
-			# debug select cells to remove
-			self.removeIdx = idx_rem_CNN
-			self.removeModeOn = True
-			for idx in self.removeIdx:
-				ROI_x = self.ROIlist[idx]["ROIx"]
-				ROI_y = self.ROIlist[idx]["ROIy"]
-				self.Targetcontour_item.addPoints(x = [ROI_x], y = [ROI_y], pen = self.RemovePen, size =  self.RoiRadius*2+5)
-
-			self.startRemoveMode()
-			# end of debug
-
-#			self.removeIdx = idx_rem_CNN
-#			self.removeCells(CNN=True)
-
-		# reset previous CNN filter
-		else:
-			if len(self.c['cnn_removed_idx']):
-				print('Resetting filter results')
-				self.resetFiltering()
-
+				if len(self.c['cnn_removed_idx']):
+					print('Resetting filter results')
+					self.resetFiltering()
+		except Exception as e:
+			print(e)
 #%% Opsin mask
 	def loadOpsinImg(self):
 		opsin_img_path = str(QFileDialog.getOpenFileName(self, 'Load a C1V1 image', self.movie_folder, 'MPTIFF (*.tif)')[0])
@@ -4152,6 +4198,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			try:
 				accepted = cnm_struct.accepted
 				rejected = [item for item in all_ if item not in accepted]
+				print('accepted idx:')
+				print(accepted)
 			except:
 				accepted = all_
 				rejected = []
@@ -4178,9 +4226,9 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 					imgtmp = np.reshape(A[:, j].toarray(), (d1, d2), order='F')
 					self.ax1.imshow(imgtmp, interpolation='None', cmap=pl.cm.gray, vmax=np.max(imgtmp)*0.5)
 					if not rej:
-						self.ax1.set_title('Spatial component ' + str(i+1))
+						self.ax1.set_title('Spatial component ' + str(i+1) + '(glb idx ' + str(j) + ')')
 					else:
-						self.ax1.set_title('Rejected spatial component ' + str(i-len(accepted)+1))
+						self.ax1.set_title('Rejected spatial component ' + str(i-len(accepted)+1)+ 'glb idx' + str(j))
 					self.ax1.axis('off')
 
 
@@ -4351,16 +4399,17 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 										   size = self.RoiRadius*2)
 
 	def showROIIdx(self):
-		print('show num rois = '+str(self.thisROIIdx))
-		font = QFont("Arial", 12, QFont.Bold)
-
-#        i = 0
-		for idx in range(self.thisROIIdx): # self.c['cnm2'].accepted:
-			thisText = pg.TextItem(text=str(idx+1), color=self.ROIlist[idx]["ROIcolor"].getRgb()[:3],
-								   html=None, anchor=(0,0), border=None, fill=None, angle=0, rotateAxis=None)
-			thisText.setPos(self.ROIlist[idx]["ROIx"],self.ROIlist[idx]["ROIy"])
-			thisText.setFont(font)
-			self.graphicsView.addItem(thisText)
+		try:
+			print('show num rois = '+str(self.thisROIIdx))
+			font = QFont("Arial", 12, QFont.Bold)
+			for idx in range(self.thisROIIdx): # self.c['cnm2'].accepted:
+				thisText = pg.TextItem(text=str(idx+1), color=self.ROIlist[idx]["ROIcolor"].getRgb()[:3],
+									   html=None, anchor=(0,0), border=None, fill=None, angle=0, rotateAxis=None)
+				thisText.setPos(self.ROIlist[idx]["ROIx"],self.ROIlist[idx]["ROIy"])
+				thisText.setFont(font)
+				self.graphicsView.addItem(thisText)
+		except Exception as e:
+			print(e)
 #            i += 1
 
 	def updateROI(self,img):
@@ -4589,6 +4638,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			save_dict['coms'] = self.c['coms']
 			save_dict['accepted'] = self.accepted
 			save_dict['t_cnm'] = self.t_cnm
+			save_dict['params'] = p
 			save_object(save_dict, p['saveResultPath'])
 		except Exception as e:
 			self.updateStatusBar('Save results error: '+str(e))
@@ -4750,11 +4800,18 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 #%% photoexcitability check
 	def configSeqStim(self):
 		# setup configuration for stimulating current targets one by one in randomised sequence
-
 		self.photoProto_comboBox.setCurrentIndex(CONSTANTS.PHOTO_SEQUENCE)
+				# update trial parameters
+		self.interStimInterval_spinBox.setValue(30)
+		self.staPreFrame_spinBox.setValue(30)
+		self.staPostFrame_spinBox.setValue(60)
+		self.stimStartFrame_spinBox.setValue(150)
+		self.enableStimTrigger_checkBox.setCheckState(Qt.Unchecked)
+		self.numberRepeats_spinBox.setValue(10)
+		self.getValues()
+
 		p['photo_sequence_idx'] = []
-		p['fixedTargetX'] = p['currentTargetX'].copy()
-		p['fixedTargetY'] = p['currentTargetY'].copy()
+		self.updateFixTargets()
 		num_targets = len(p['fixedTargetX'])
 		print('seq stim num targets:')
 		print(num_targets)
@@ -4763,9 +4820,10 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		tot_num_trials = num_targets*num_repeats
 		p['photo_stim_frames'] =  p['stimStartFrame']+p['interStimInterval']*np.arange(0,tot_num_trials)
 		self.numberStims_spinBox.setValue(tot_num_trials)
-		sequence_idx = []
 		for r in range(num_repeats):
-			sequence_idx.extend(random.sample(target_idx,num_targets))
+			p['photo_sequence_idx'].extend(random.sample(target_idx,num_targets))
+		print(p['photo_sequence_idx'])
+
 
 
 #%% drag drop
@@ -4816,6 +4874,10 @@ if __name__ == '__main__':
 	# initialise parameters
 	global p
 	p = {}
+
+	# for debug use
+	global test_cnm
+	test_cnm = {}
 
    # global data buffer
 	global qbuffer

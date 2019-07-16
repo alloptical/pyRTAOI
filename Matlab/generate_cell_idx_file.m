@@ -7,7 +7,7 @@ file_save_name = [opt.exp_name '_OutputParams_' save_time ];
 target_img_save_name = [opt.exp_name '_OutputTargets_' save_time ];
 trigger_img_save_name = [opt.exp_name '_OutputTriggers_' save_time ];
 
-full_file_save_path = [opt.output_path, filesep file_save_name ];
+full_file_save_path = [opt.output_path, filesep file_save_name '.mat' ];
 
 target_idx_fd = opt.target_idx_fd;
 trigger_idx_fd = opt.trigger_idx_fd;
@@ -30,7 +30,7 @@ if ~isempty(pop_params)
 end
 
 output.exp_name = opt.exp_name;
-output.input_data_path = opt.input_data_path;
+% output.input_data_path = opt.input_data_path;
 output.output_data_path = full_file_save_path;
 
 target_centroids = cell2mat({cell_struct(output.target_idx).centroid}');
@@ -43,5 +43,8 @@ imwrite(target_img,[opt.output_path, filesep target_img_save_name '.tif']);
 imwrite(trigger_img,[opt.output_path, filesep trigger_img_save_name '.tif']);
 
 save(full_file_save_path, 'output');
+
+disp(['Output saved to:' full_file_save_path])
+
 end
 
