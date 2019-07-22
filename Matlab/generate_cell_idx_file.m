@@ -13,8 +13,15 @@ target_idx_fd = opt.target_idx_fd;
 trigger_idx_fd = opt.trigger_idx_fd;
 
 output = struct();
+
+% indices
 output.target_idx = cell_idx_struct.(target_idx_fd);
 output.trigger_idx = cell_idx_struct.(trigger_idx_fd);
+
+% sensory auc
+output.target_sensory_auc = extractfield(cell_struct(output.target_idx),'correct_stimAUC');
+output.target_sensory_auc_zscore = extractfield(cell_struct(output.target_idx),'correct_stimAUC_zscore');
+
 
 num_triggers = numel(output.trigger_idx);
 

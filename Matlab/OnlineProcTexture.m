@@ -236,8 +236,9 @@ plot_offset = 5;
 stim_cell_count = 1;
 non_stim_cell_count = 1;
 
-for i = 1:num_cells  
-    plot(cnm_struct(i).deconvC_full+i*plot_offset,'color','black','linewidth',1.5)
+for i = 1:num_cells
+    this_cell_trace = cnm_struct(cell_struct(i).cnm_idx).deconvC_full;
+    plot(this_cell_trace+i*plot_offset,'color','black','linewidth',1.5)
     stim_cell_count = stim_cell_count+1;
 end
 xlabel('Frames')
@@ -251,7 +252,8 @@ plot(backgroundC,'color',[.5 .5 .5],'linestyle',':')
 
 for i = 1:numel(glob_trialon_frames)
     this_color = trial_color.(['stim' num2str(trials.stim_type(i) )]);
-    plot([glob_trialon_frames(i) glob_trialon_frames(i)],ylim,'color',this_color)
+    plot([glob_trialon_frames(i) glob_trialon_frames(i)],ylim,'color',this_color) % trial-on 
+    plot([glob_trialon_frames(i) glob_trialon_frames(i)]+opt.withold_frames_adj(end),ylim,'color',this_color,'linestyle',':') % go-cue
 end
 
 %% stim triggered average 
@@ -336,10 +338,10 @@ end
 %% GET CELL IDENTITY
 % stimulus AUC calculated from correct trials
 num_shuf = 100;
-avg_frame_range = 1:30; % temp 
+avg_frame_range = opt.sta_avg_frames;
 for i = 1:num_cells
-all_stim1 = [mean(cell_struct(i).('st_correct_stim_1')(avg_frame_range,:),1)];
-all_stim2 = [mean(cell_struct(i).('st_correct_stim_2')(avg_frame_range,:),1)];
+all_stim1 = [mean(cell_struct(i).('st_correct_stim_1')(opt.sta_pre_frames+[1:avg_frame_range],:),1)];
+all_stim2 = [mean(cell_struct(i).('st_correct_stim_2')(opt.sta_pre_frames+[1+avg_frame_range],:),1)];
 labels = [ones(1,length(all_stim1)),2.*ones(1,length(all_stim2))]';
 scores = [ all_stim1  all_stim2]';
 [~,~,~, correct_stimulusAUC] = perfcurve(labels,scores,1);
@@ -375,15 +377,6 @@ for c = 1:num_cells
     end
 end
 
-%%
-figure('name','correct stim auc')
-subplot(1,2,1)
-histogram(extractfield(cell_struct,'correct_stimAUC'))
-
-subplot(1,2,2)
-histogram(extractfield(cell_struct,'correct_stimAUC_zscore'))
-
-
 
 %% MAKE OUTPUT FILE FOR PYRTAOI
 opt.target_idx_fd = 'tex';
@@ -391,23 +384,6 @@ opt.trigger_idx_fd = 'tex';
 opt.fov_size = double(cnm_dims);
 opt.ds_factor = caiman_data.ds_factor
 [output] = generate_cell_idx_file(cell_struct,cell_idx_struct,[],opt);
-
-
-%% =========================== PLOTS ======================================
-%% Show sensory cells on maps
-figure('name','pref. texture on fov');
-subplot(1,2,1)
-imagesc(com_fov)
-colormap(gray)
-colorbar('location','southoutside');
-axis square
-title('Detected ROIs')
-
-ax1 = subplot(1,2,2)
-value_field = 'pref_tex';
-plot_value_in_rois( cell_struct, value_field,[256 256],ax1,'colorlut',[[1,1,1];opt.type_color],'IF_NORM_PIX',0,'IF_CONTOUR',1,'IF_SHOW_OPSIN',1,'zlimit',[0 4]);
-set(gca,'Ydir','reverse')
-title('Sensory cells (colored by pref. texture)')
 
 %% Plot STAs for trigger cells
 figure('name','trigger sta traces')
@@ -429,12 +405,47 @@ for ii = 1:num_plot_rois
     set(gca,'xtick',[],'xcolor',[1 1 1])
     axis square
     
-    plot([opt.sta_pre_frames opt.sta_pre_frames ],ylim,'color',[.5 .5 .5])
+    plot([opt.sta_pre_frames opt.sta_pre_frames],ylim,'color',[.5 .5 .5]) % start of withold window
+    plot([opt.sta_pre_frames opt.sta_pre_frames] + length(opt.withold_frames_adj),ylim,'color',[0 0 0]) % go-cue
 
     plot_count = plot_count+1;
     
+    text(0.05,1,['ROI ' num2str(i)],'units','normalized', 'horizontalalignment','left', 'color','black')
+    text(0.05,.9,['sensory auc ' num2str(cell_struct(i).correct_stimAUC,'%10.2f')],'units','normalized', 'horizontalalignment','left', 'color','black')
+    text(0.05,.8,['zscore auc '  num2str(cell_struct(i).correct_stimAUC_zscore,'%10.2f') ],'units','normalized', 'horizontalalignment','left', 'color','black')
+    
 end
 suptitle('Trigger cells, stim-triggered response')
+
+
+
+%% =========================== PLOTS ======================================
+%% Show sensory cells on maps
+figure('name','pref. texture on fov');
+subplot(1,2,1)
+imagesc(com_fov)
+colormap(gray)
+colorbar('location','southoutside');
+axis square
+title('Detected ROIs')
+
+ax1 = subplot(1,2,2)
+value_field = 'pref_tex';
+plot_value_in_rois( cell_struct, value_field,[256 256],ax1,'colorlut',[[1,1,1];opt.type_color],'IF_NORM_PIX',0,'IF_CONTOUR',1,'IF_SHOW_OPSIN',1,'zlimit',[0 4]);
+set(gca,'Ydir','reverse')
+title('Sensory cells (colored by pref. texture)')
+
+
+
+%% Plot auc distributions
+figure('name','correct stim auc')
+subplot(1,2,1)
+histogram(extractfield(cell_struct,'correct_stimAUC'))
+
+subplot(1,2,2)
+histogram(extractfield(cell_struct,'correct_stimAUC_zscore'))
+
+
 %% Show STA on maps
 figure('name','sta on fov','position',[200 200 1200 800])
 plot_row = 2;

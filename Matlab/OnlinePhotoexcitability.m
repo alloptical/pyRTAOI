@@ -7,8 +7,8 @@ close all
 clc
 
 % ZZ PC
-addpath(genpath('C:\Users\User\Desktop\pyRTAOI-rig\Matlab'));
-cd('C:\Users\User\Desktop\pyRTAOI-rig\Matlab');
+% addpath(genpath('C:\Users\User\Desktop\pyRTAOI-rig\Matlab'));
+% cd('C:\Users\User\Desktop\pyRTAOI-rig\Matlab');
 
 % BRUKER1
 % matlab_set_paths_zz
@@ -26,7 +26,7 @@ opt.sta_thresh = 1;
 
 cnm_plot_options = CNMFSetParms;
 cnm_plot_options.roi_color = [colormap(lines);colormap(lines);colormap(lines)];
-
+close
 %% load CAIMAN data
 [file,path] = uigetfile('*.mat','Select caiman data');
 disp(['Loaded file :',fullfile(path,file)])
@@ -40,8 +40,10 @@ binary_fov = zeros(cnm_dims);
 for i = 1:num_comp
     com_fov = com_fov+cnm_struct(i).shape;
 end
+accepted_idx = caiman_data.accepted_idx+1;
+num_cells = numel(accepted_idx);
 
-%% load target cell idx file
+%% load _OutputParams_ mat file 
 % in case non target cells are not removed from recording
 try
     [file,path] = uigetfile('*.mat','Select cell identity data');
@@ -49,13 +51,11 @@ try
     cell_identity_data = load(fullfile(path,file));
     target_idx = cell_identity_data.output.target_idx;
 catch
-    target_idx = 1:num_comp;
+    target_idx = 1:num_cells;
+    warning('taking all accepted components as targets')
 end
 
 %% make sta based on photostim sequence
-accepted_idx = caiman_data.accepted_idx+1;
-num_cells = numel(accepted_idx);
-
 cell_struct = struct();
 photo_stim_frames =  caiman_data.online_photo_frames + caiman_data.t_init;
 temp_photo_sequence_idx = caiman_data.photo_sequence_idx+1;
@@ -65,8 +65,6 @@ for t = 1:numel(target_idx)
 end
 
 [cell_struct] = make_cell_photostim_sta_struct(cnm_struct,cell_struct,accepted_idx,photo_stim_frames,photo_sequence_idx,opt);
-
-%% find photoresponsive cells
 
 %% plot traces
 figure; hold on
@@ -97,13 +95,6 @@ end
 
 %% plot fov with sta amp
 figure('name','fov')
-subplot(1,2,1)
-imagesc(com_fov)
-colormap(gray)
-axis square
-title('Detected ROIs')
-
-subplot(1,2,2)
 [CC,jsf] = plot_contours(sparse(double(full(caiman_data.cnm_A))),cnm_image,cnm_plot_options,1,[],[],[1 1 1]);
 colormap(gray)
 axis square
@@ -126,11 +117,8 @@ for i = 1:num_cells
     cell_struct(i).shape = cnm_struct(this_idx).shape;
     cell_struct(i).opsin_positive = 0;
     cell_struct(i).cnm_idx = this_idx;
-    if(~isempty(find(opsin_positive_idx==i)))
-         cell_struct(i).opsin_positive = 1;
-    end
-end
 
+end
 
 %% plot spatial components
 target_com_fov = zeros(cnm_dims);
@@ -143,27 +131,63 @@ cnm_plot_options = CNMFSetParms;
 cnm_plot_options.roi_color = [colormap(lines);colormap(lines);colormap(lines)];
 
 figure('name','fov')
-subplot(1,3,1)
+subplot(2,2,1)
 imagesc(com_fov)
 colormap(gray)
 colorbar('location','southoutside');
 axis square
 title('Detected ROIs')
 
+subplot(2,2,2)
+[CC,jsf] = plot_contours(sparse(double(full(caiman_data.cnm_A))),cnm_image,cnm_plot_options,1,[],[],[1 1 1]);
+colormap(gray)
+colorbar('location','southoutside');
+axis square
+title('GCaMP')
 
-subplot(1,3,2)
+
+
+subplot(2,2,3)
 imagesc(target_com_fov)
 colormap(gray)
 colorbar('location','southoutside');
 axis square
 title('Targeted ROIs')
 
-subplot(1,3,3)
-ax1 = subplot(1,3,3);
+ax1 = subplot(2,2,4)
 plot_value_in_rois( cell_struct, 'sta_amp',[256 256],ax1,'IF_NORM_PIX',0,'IF_CONTOUR',0,'IF_SHOW_OPSIN',0,'jsf',jsf);
 set(gca,'Ydir','reverse')
 title('Target photo response')
 
-
-%%
+%% plot sta traces
+figure('name','target sta traces')
+num_plot_cols = 4;
+num_plot_rois = length(target_idx);
+num_plot_rows = ceil(num_plot_rois/num_plot_cols);
+plot_count = 1;
+for ii = 1:num_plot_rois
+    i = target_idx(plot_count);
+    subtightplot(num_plot_rows,num_plot_cols,plot_count)
+    % plot traces
+    hold on
+    for t = 1:size(cell_struct(i).sta_traces,1)
+        plot(cell_struct(i).sta_traces(t,:),'color',[.5 .5 .5] ,'linewidth',1)
+    end
+    plot(cell_struct(i).sta_trace,'color',[.5 .5 .5],'linewidth',1.5)
+    
+    xlim([0 opt.sta_pre_frames+opt.sta_post_frames+1])
+    set(gca,'xtick',[],'xcolor',[1 1 1])
+    axis square
+    
+    plot([opt.sta_pre_frames opt.sta_pre_frames ],ylim,'color',[1,0,0]) % photostim frame
+    plot([opt.sta_pre_frames opt.sta_pre_frames ]+opt.sta_avg_frames,ylim,'linestyle',':','color',[1,0,0]) % end of averaging window
+    
+    plot_count = plot_count+1;  
+    
+    text(0.05,1,['ROI ' num2str(i)],'units','normalized', 'horizontalalignment','left', 'color','black')
+    text(0.05,.9,['photostim auc ' num2str(cell_struct(i).photo_auc,'%10.2f')],'units','normalized', 'horizontalalignment','left', 'color','black')
+    text(0.05,.8,['zscore auc '  num2str(cell_struct(i).photo_auc_zscore,'%10.2f') ],'units','normalized', 'horizontalalignment','left', 'color','black')
+        
+end
+suptitle('target cells, photostim-triggered response')
 
