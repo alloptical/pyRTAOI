@@ -9,7 +9,7 @@ for v = 1:numel(varargin)
 end
 
 cnm_struct = struct();
-cnm_dims = caiman_data.cnm_dims;
+cnm_dims = double(caiman_data.cnm_dims);
 cnm_image = reshape(caiman_data.cnm_b,cnm_dims);
 cnm_A = full(caiman_data.cnm_A);
 num_frames = caiman_data.t_cnm;
@@ -20,7 +20,7 @@ cm = com(sparse(double(cnm_A)),cnm_dims(1),cnm_dims(2)); % center of mass
 
 % deal with skipped frames
 if ~isempty(caiman_data.frames_skipped)
-    skip_frames = caiman_data.frames_skipped + caiman_data.num_frames_init;
+    skip_frames = caiman_data.frames_skipped + caiman_data.t_init;
     tot_frames = num_frames + numel(skip_frames);
     caiman_frames = setdiff([1:tot_frames],skip_frames);
 else

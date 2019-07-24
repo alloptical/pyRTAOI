@@ -11,8 +11,8 @@ close all
 clc
 
 % ZZ PC
-addpath(genpath('C:\Users\User\Desktop\pyRTAOI-rig\Matlab'));
-cd('C:\Users\User\Desktop\pyRTAOI-rig\Matlab');
+% addpath(genpath('C:\Users\User\Desktop\pyRTAOI-rig\Matlab'));
+% cd('C:\Users\User\Desktop\pyRTAOI-rig\Matlab');
 
 % BRUKER1
 % matlab_set_paths_zz
@@ -21,7 +21,6 @@ cd('C:\Users\User\Desktop\pyRTAOI-rig\Matlab');
 sens_duration = 90; % frames
 photo_duration = 0; % frames
 
-% params for calculating sta 
 opt.N = 1; % threshold for significant auc
 opt.all_reset_frames = 30;
 opt.pre_exp_frames = 0;
@@ -33,16 +32,14 @@ opt.sta_avg_frames = 30;
 opt.withold_frames_adj = opt.sta_pre_frames:opt.sta_pre_frames+opt.sta_avg_frames;
 opt.bs_frame_range = opt.sta_pre_frames+[(-opt.sta_baseline_frames+1):0];
 opt.offcell_avg_frames = 30;
-opt.sta_thresh = 1;
+opt.sta_amp_thresh = 1;
 opt.correct_trial_only = false; % only use correct trials to get tunning
-sta_struct = struct();
 
 [trial_color] = online_tex_init_color();
 %% load CAIMAN data
-[file,path] = uigetfile('*.mat','Select caiman data');
-disp(['Loaded file :',fullfile(path,file)])
-caiman_data = load(fullfile(path,file)) 
-FLAG_PYBEHAV_LOADED = false;
+[caiman_file,caiman_path] = uigetfile('*.mat','Select texture caiman data');
+disp(['Loaded file :',fullfile(caiman_path,caiman_file)])
+caiman_data = load(fullfile(caiman_path,caiman_file)); 
 %% load Pybehavior data
 try
 [pb_file,pb_path] = uigetfile('*.mat','Select pybehavior data');
@@ -53,10 +50,14 @@ FLAG_PYBEHAV_LOADED = true;
 catch
     FLAG_PYBEHAV_LOADED = false;
 end
-
+%% config save path
+save_path = [caiman_path filesep 'analysis_files'];
+if ~exist(save_path, 'dir')
+    mkdir(save_path)
+end
 %% setup save path and name
-opt.output_path = path;
-opt.exp_name = strrep(file,'.mat','proc');
+opt.output_path = caiman_path;
+opt.exp_name = strrep(caiman_file,'.mat','proc');
 
 %% check if trial order matches in behavior and caiman file
 if FLAG_PYBEHAV_LOADED
@@ -65,6 +66,8 @@ if FLAG_PYBEHAV_LOADED
     else
         warning('trial order mismatch!')
     end
+else
+    warning('no pybehav data loaded')
 end
 %% organise data (generate plots for sanity check)
 tex_stim_frames = {};
@@ -96,16 +99,13 @@ end
 
 % roi indices
 opsin_positive = caiman_data.opsin_positive;
-try
-    accepted_idx = caiman_data.accepted+1;
-catch
-    accepted_idx = caiman_data.accepted_idx+1;
-end
+accepted_idx = caiman_data.accepted_idx+1;
 opsin_positive_idx = accepted_idx(opsin_positive>0);
 
 % color trial by stim type
 hsv_lut = colormap(hsv);
 hsv_lut = hsv_lut(2:end-3,:);
+close
 indices = round(linspace(1,size(hsv_lut,1),num_stim_type));
 opt.trial_color = zeros(numel(trialOrder),3);
 for t = 1:numel(trialOrder)
@@ -113,10 +113,8 @@ for t = 1:numel(trialOrder)
 end
 
 num_trials = numel(sens_stim_frames);
-opt.tint_factor = 0.6;
-opt.type_color = tint(hsv_lut(indices(1:num_stim_type),:),opt.tint_factor);
-
-%% make data structure
+opt.type_color = [trial_color.('stim1');trial_color.('stim2')];
+%% make cnm data structure
 cnm_struct = struct();
 cnm_dims = caiman_data.cnm_dims;
 cnm_image = reshape(caiman_data.cnm_b,cnm_dims);
@@ -130,7 +128,7 @@ cm = com(sparse(double(cnm_A)),cnm_dims(1),cnm_dims(2)); % center of mass
 
 
 if ~isempty(caiman_data.frames_skipped)
-    skip_frames = caiman_data.frames_skipped + caiman_data.num_frames_init;
+    skip_frames = caiman_data.frames_skipped + caiman_data.t_init;
     tot_frames = num_frames + numel(skip_frames);
     caiman_frames = setdiff([1:tot_frames],skip_frames);
 else
@@ -170,12 +168,10 @@ backgroundC = temp_trace;
 accepted_idx = caiman_data.accepted_idx+1;
 num_cells = numel(accepted_idx);
 
-
-%% only analyse frames from the cell locked movie
-% caiman_data.init_t = 15240+500;
+%% only analyse frames from the current recording
 glob_trialon_frames = caiman_data.sensory_stim_frames + caiman_data.t_init;
 
-%% plot spatial components
+%% plot spatial components and save to cell struct
 com_fov = zeros(cnm_dims);
 binary_fov = zeros(cnm_dims);
 for i = accepted_idx
@@ -199,15 +195,6 @@ colormap(gray)
 axis square
 title('GCaMP')
 
-% subplot(1,3,3)
-% hold on
-% [CC,jsf] = plot_contours(sparse(double(cnm_A)),caiman_data.opsin_mask,cnm_plot_options,1,[],[],[1 1 1]);
-% title('Opsin mask')
-% set(gca,'YDir','reverse')
-
-
-% save coords to cell struct
-% only take accepted components as cells 
 cell_struct = struct();
 for i = 1:num_cells
     this_idx = accepted_idx(i);
@@ -225,6 +212,7 @@ for i = 1:num_cells
     cell_struct(i).centroid = jsf(this_idx).centroid;
     cell_struct(i).opsin_positive = 0;
     cell_struct(i).cnm_idx = this_idx;
+    cell_struct(i).jsf = jsf(this_idx);
     if(~isempty(find(opsin_positive_idx==i)))
          cell_struct(i).opsin_positive = 1;
     end
@@ -279,35 +267,9 @@ for i = 1:num_cells
         [~,~,~,~,~,cell_struct(i).sta_traces,cell_struct(i).sta_trace] = make_sta_from_traces(this_cell_trace,this_sens_stim_frames,opt.sta_pre_frames,opt.sta_post_frames,1:opt.sta_baseline_frames);
         cell_struct(i).sta_amp = mean(cell_struct(i).sta_trace(opt.sta_pre_frames:opt.sta_pre_frames+opt.sta_avg_frames));
         
-        if  cell_struct(i).sta_amp > opt.sta_thresh
+        if  cell_struct(i).sta_amp > opt.sta_amp_thresh
             cell_struct(i).is_sensory = 1;
-        end
-        
-        % get sta for each stim type
-        tuning = nan(1,num_stim_type);
-        for s = 1:num_stim_type
-            [~,~,~,~,~,sta_struct.exp(i).(['type' num2str(s) '_traces']),sta_struct.exp(i).(['type' num2str(s) '_avg'])] =...
-                make_sta_from_traces(this_cell_trace,tex_stim_frames{s} ,opt.sta_pre_frames,opt.sta_post_frames,1:opt.sta_baseline_frames);
-
-            % trial average
-            tuning(s) = nanmean(sta_struct.exp(i).(['type' num2str(s) '_avg'])(opt.sta_pre_frames:opt.sta_pre_frames+opt.sta_avg_frames));
-            cell_struct(i).(['stim', num2str(s) 'amp']) = tuning(s);
-            
-        end
-        
-
-        if max(tuning)>1
-            cell_struct(i).is_sensory = 1;
-            cell_struct(i).pref_orient = find(tuning == max(tuning));           
-        end
-        
-        cell_struct(i).('tuning') = tuning;
-    else
-        for s = 1:num_stim_type
-             cell_struct(i).(['stim', num2str(s) 'amp']) = nan;
-             cell_struct(i).('tuning') = nan(1,num_stim_type);
-        end
-        
+        end        
     end
     
 end
@@ -317,6 +279,7 @@ end
     make_sta_from_traces(backgroundC,sens_stim_frames ,opt.sta_pre_frames,opt.sta_post_frames,1:opt.sta_baseline_frames);
 
 %% ROC analysis
+% sta for different trial types
 trial_indices = struct(); % % get trialtype-outcome indices
 for i = 1:num_stim_type
     trial_indices.(['correct_stim_' num2str(i)]) = find(trials.correct==1&trials.stim_type==i);
@@ -324,14 +287,20 @@ for i = 1:num_stim_type
     for c = 1:num_cells
         if ~isempty(trial_indices.(['correct_stim_' num2str(i)]))
             cell_struct(c).(['st_correct_stim_' num2str(i)]) = cell_struct(c).sta_traces( trial_indices.(['correct_stim_' num2str(i)]),:)';
+            cell_struct(c).(['sta_amp_correct_stim_' num2str(i)]) = mean (mean(cell_struct(c).(['st_correct_stim_' num2str(i)])(opt.sta_pre_frames+[1:opt.sta_avg_frames],:),1));
         else
             cell_struct(c).(['st_correct_stim_' num2str(i)])  = [];
+            cell_struct(c).(['sta_amp_correct_stim_' num2str(i)]) = [];
         end
         if ~isempty(trial_indices.(['incorrect_stim_' num2str(i)]))
             cell_struct(c).(['st_incorrect_stim_' num2str(i)]) = cell_struct(c).sta_traces( trial_indices.(['incorrect_stim_' num2str(i)]),:)';
+            cell_struct(c).(['sta_amp_incorrect_stim_' num2str(i)]) = mean (mean(cell_struct(c).(['st_incorrect_stim_' num2str(i)])(opt.sta_pre_frames+[1:opt.sta_avg_frames],:),1));
+
         else
              cell_struct(c).(['st_incorrect_stim_' num2str(i)]) = [];
+             cell_struct(c).(['sta_amp_incorrect_stim_' num2str(i)]) = 0;
         end
+        
     end
 end
 
@@ -365,27 +334,26 @@ cell_idx_struct.tex1 = find(correct_stimulusAUC_zscore<-opt.N& correct_texAUC<0.
 cell_idx_struct.tex = unique([cell_idx_struct.tex1,cell_idx_struct.tex2]);
 
 for c = 1:num_cells
-    cell_struct(i).is_tuned = 0;
-    cell_struct(i).pref_tex = 0;
+    cell_struct(c).is_tuned = 0;
+    cell_struct(c).pref_tex = 0;
     if ismember(c,cell_idx_struct.tex)
-        cell_struct(i).is_tuned = 1;
+        cell_struct(c).is_tuned = 1;
         if ismember(c,cell_idx_struct.tex1)
-            cell_struct(i).pref_tex = 1;
+            cell_struct(c).pref_tex = 1;
         else
-            cell_struct(i).pref_tex = 2;
+            cell_struct(c).pref_tex = 2;
         end
     end
 end
 
 
-%% MAKE OUTPUT FILE FOR PYRTAOI
+%% select cell identity for readout and stimulation
 opt.target_idx_fd = 'tex';
 opt.trigger_idx_fd = 'tex';
 opt.fov_size = double(cnm_dims);
-opt.ds_factor = caiman_data.ds_factor
-[output] = generate_cell_idx_file(cell_struct,cell_idx_struct,[],opt);
+opt.ds_factor = caiman_data.ds_factor;
 
-%% Plot STAs for trigger cells
+%% Plot STAs for trigger cells (cells to monitor)
 figure('name','trigger sta traces')
 num_plot_cols = 4;
 num_plot_rois = length(cell_idx_struct.(opt.trigger_idx_fd));
@@ -415,7 +383,34 @@ for ii = 1:num_plot_rois
     text(0.05,.8,['zscore auc '  num2str(cell_struct(i).correct_stimAUC_zscore,'%10.2f') ],'units','normalized', 'horizontalalignment','left', 'color','black')
     
 end
-suptitle('Trigger cells, stim-triggered response')
+suptitle([opt.trigger_idx_fd ' rois, stim-triggered response'])
+
+%% MAKE OUTPUT FILE FOR PYRTAOI
+[output] = generate_cell_idx_file(cell_struct,cell_idx_struct,[],opt);
+
+%% save cell structure 
+save_brief_fds = {'sta_amp_correct_stim_1','sta_amp_correct_stim_2','correct_stimAUC','correct_stimAUC_zscore','is_tuned','cnm_idx','pref_tex','jsf'};
+save_brief_fds_names = {'sta_amp_correct_stim_1','sta_amp_correct_stim_2','tex_auc','tex_auc_zscore','is_tuned','cnm_idx','pref_tex','jsf'};
+save_cell_struct_brief = struct();
+for c = 1:num_cells
+    for f = 1:numel(save_brief_fds)
+        try
+        save_cell_struct_brief(c).(save_brief_fds_names{f}) =  cell_struct(c).(save_brief_fds{f});
+        catch
+            disp([save_brief_fds{f} 'not saved'])
+        end
+    end
+end
+
+tex_output_struct = struct();
+tex_output_struct.cell_struct = save_cell_struct_brief;
+tex_output_struct.opt = opt;
+tex_output_struct.input_caiman_file = fullfile(caiman_path,caiman_file);
+
+output_save_name = [save_path filesep  'ProcTex_' caiman_file];
+save(output_save_name,'tex_output_struct')
+disp(['Output struct saved as:' output_save_name ])
+
 
 
 

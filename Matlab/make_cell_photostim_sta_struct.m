@@ -24,10 +24,6 @@ for i = 1:num_cells
         [~,~,~,~,~,cell_struct(i).sta_traces,cell_struct(i).sta_trace] = make_sta_from_traces(this_cell_trace,this_stim_frames,opt.sta_pre_frames,opt.sta_post_frames,1:opt.sta_baseline_frames);
         cell_struct(i).sta_amp = mean(cell_struct(i).sta_trace(opt.sta_pre_frames:opt.sta_pre_frames+opt.sta_avg_frames));
         
-        % using a fixed threshold
-        if  cell_struct(i).sta_amp > opt.sta_thresh
-            cell_struct(i).is_photo = 1;
-        end
         
         % using ROC comparing sta amp to baseline
         % to do: alternatively do what harvey did - compare when the cell is
@@ -49,7 +45,13 @@ for i = 1:num_cells
         
         cell_struct(i).photo_auc = this_auc;
         cell_struct(i).photo_auc_zscore = this_auc_zscore;
-
+        
+        % using a fixed auc threshold
+        if  cell_struct(i).photo_auc_zscore > opt.N &&  cell_struct(i).sta_amp > opt.sta_amp_thresh
+            cell_struct(i).is_photo = 1;
+        else
+             cell_struct(i).is_photo = 0;
+        end
         
     else
         % add dummies

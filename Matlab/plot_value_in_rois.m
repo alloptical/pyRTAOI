@@ -3,9 +3,11 @@ function [ img ] = plot_value_in_rois( cell_struct, value_field,dims,ax,varargin
 IF_NORM_PIX = 0;
 IF_CONTOUR = 1;
 IF_SHOW_OPSIN = 0;
+textcolor = [.3 .3 .3];
+
 colorlut = [];
-jsf = [];
 zlimit = []; % dummy dots to force colorlut matching preset max and min range
+show_cell_idx = [];
 for v = 1:numel(varargin)
     if strcmpi(varargin{v},'IF_NORM_PIX')
         IF_NORM_PIX = varargin{v+1};
@@ -17,8 +19,8 @@ for v = 1:numel(varargin)
         IF_SHOW_OPSIN = varargin{v+1};
     elseif  strcmpi(varargin(v),'zlimit') 
         zlimit = varargin{v+1};
-    elseif  strcmpi(varargin(v),'jsf') 
-        jsf = varargin{v+1};
+    elseif  strcmpi(varargin(v),'show_cell_idx') 
+        show_cell_idx = varargin{v+1};
     end        
 end
 
@@ -36,7 +38,9 @@ for i = 1:size(cell_struct,2)
     else
         img(xy_coords) =plot_value;
     end
-    
+        text(round(cell_struct(i).centroid(:,2)),...
+            round(cell_struct(i).centroid(:,1)),num2str(i),'color',textcolor,'fontweight','bold');
+
 end
 
 if isempty(zlimit)
@@ -54,7 +58,6 @@ else
     colormap(ax,colorlut)
 end
 
-textcolor = [.3 .3 .3];
  
  if IF_CONTOUR
      try
@@ -72,6 +75,15 @@ textcolor = [.3 .3 .3];
          10,textcolor)
  end
 
+ if ~isempty(show_cell_idx)
+     plot_tex_idx = show_cell_idx;
+ else
+     plot_tex_idx = 1:size(cell_struct,2);
+ end
+ for i = plot_tex_idx
+        text(round(cell_struct(i).centroid(:,2)),...
+            round(cell_struct(i).centroid(:,1)),num2str(cell_struct(i).cnm_idx),'color',textcolor,'fontweight','bold');
+end
 % for i = 1:size(cell_struct,2)
 % 
 %     if IF_CONTOUR

@@ -14,8 +14,10 @@ clc
 % matlab_set_paths_zz
 
 %% parameters - CHANGE THIS
-% params for calculating sta 
-opt.N = 1;
+
+opt.N = 1; % auc zscore threshold
+opt.sta_amp_thresh = 0.25; % sta amplitude threshold
+
 opt.pre_exp_frames = 0;
 opt.sta_pre_frames = 30;
 opt.sta_post_frames = 60;
@@ -27,11 +29,20 @@ opt.sta_thresh = 1;
 cnm_plot_options = CNMFSetParms;
 cnm_plot_options.roi_color = [colormap(lines);colormap(lines);colormap(lines)];
 close
+%% color lut
+hsv = colormap(hsv);
+hsv = hsv(2:end-3,:);
+close 
 %% load CAIMAN data
-[file,path] = uigetfile('*.mat','Select caiman data');
-disp(['Loaded file :',fullfile(path,file)])
-caiman_data = load(fullfile(path,file)) 
+[caiman_file,caiman_path] = uigetfile('*.mat','Select seq photostim caiman data');
+disp(['Loaded file :',fullfile(caiman_path,caiman_file)])
+caiman_data = load(fullfile(caiman_path,caiman_file)) 
 
+%% config save path
+save_path = [caiman_path filesep 'analysis_files'];
+if ~exist(save_path, 'dir')
+mkdir(save_path)
+end
 %% make data struct
 [cnm_struct,cnm_image,num_comp,cnm_dims,tot_frames] = make_cnm_struct(caiman_data);
 % spatial components
@@ -49,35 +60,55 @@ try
     [file,path] = uigetfile('*.mat','Select cell identity data');
     disp(['Loaded file :',fullfile(path,file)])
     cell_identity_data = load(fullfile(path,file));
-    target_idx = cell_identity_data.output.target_idx;
+    target_cell_idx = cell_identity_data.output.target_idx; % this is idx in cell_struct of OnlineProcTexture
 catch
-    target_idx = 1:num_cells;
+    target_cell_idx = 1:num_cells;
     warning('taking all accepted components as targets')
 end
 
 %% make sta based on photostim sequence
+
 cell_struct = struct();
 photo_stim_frames =  caiman_data.online_photo_frames + caiman_data.t_init;
-temp_photo_sequence_idx = caiman_data.photo_sequence_idx+1;
-photo_sequence_idx = nan(1,length(photo_stim_frames));
-for t = 1:numel(target_idx)
-    photo_sequence_idx(temp_photo_sequence_idx == t) = target_idx(t);
+temp_photo_sequence_idx = caiman_data.photo_sequence_idx+1; % this is idx in pyRTAOI fixedTargets
+photo_sequence_cell_idx = nan(1,length(photo_stim_frames));
+target_cnm_idx = nan(size(target_cell_idx));
+for t = 1:numel(target_cell_idx)
+    photo_sequence_cell_idx(temp_photo_sequence_idx == t) = target_cell_idx(t); %  this is idx in cell_struct
+    target_cnm_idx(t) = cell_struct(target_cell_idx(t)).cnm_idx; % this is idx in cnm_struct
 end
 
-[cell_struct] = make_cell_photostim_sta_struct(cnm_struct,cell_struct,accepted_idx,photo_stim_frames,photo_sequence_idx,opt);
+[cell_struct] = make_cell_photostim_sta_struct(cnm_struct,cell_struct,accepted_idx,photo_stim_frames,photo_sequence_cell_idx,opt);
+%% make a stim order file for STA movie maker
+% oris = photo_sequence_idx;
+% save([save_path filesep  'stimType_' caiman_file],'oris')
 
 %% plot traces
+% color trial by stim orientation
+unique_stim_type = unique(photo_sequence_cell_idx);
+num_stim_type = length(unique_stim_type);
+num_stim_trials = length(photo_sequence_cell_idx);
+opt.trial_color = zeros(num_stim_trials,3);
+opt.tint_factor = 0.6;
+
+indices = round(linspace(1,size(hsv,1),num_stim_type));
+opt.type_color = tint(hsv(indices(1:num_stim_type),:),opt.tint_factor);
+for s = 1:length(unique_stim_type)
+    this_stim_type = unique_stim_type(s);
+    opt.trial_color(photo_sequence_cell_idx == this_stim_type,:) = repmat(opt.type_color(s,:) ,numel(find(photo_sequence_cell_idx==this_stim_type)),1);
+end
+
 figure; hold on
 plot_offset = 5;
 stim_cell_count = 1;
 non_stim_cell_count = 1;
 
 for i = 1:num_comp
-    plot(cnm_struct(i).deconvC_full+i*plot_offset,'color',[.5 .5 .5],'linewidth',1.5)
+    plot(cnm_struct(i).deconvC_full+i*plot_offset,'color',[.7 .7 .7],'linewidth',1.5)
     stim_cell_count = stim_cell_count+1;
 end
 
-for i = target_idx
+for i = target_cell_idx
     plot(cnm_struct(i).deconvC_full+i*plot_offset,'color','black','linewidth',1.5)
     stim_cell_count = stim_cell_count+1;
 end
@@ -86,12 +117,17 @@ xlabel('Frames')
 ylabel('ROI index')
 yticks([ 1:num_comp].*plot_offset)
 yticklabels(1:num_comp)
-xlim([caiman_data.t_init tot_frames])
 
-for i = 1:numel(photo_stim_frames)
-    plot([photo_stim_frames(i) photo_stim_frames(i)],ylim,'color',[1 0 0],'linestyle',':')
+for i = 1:num_stim_trials
+    plot([photo_stim_frames(i) photo_stim_frames(i)],ylim,'color',opt.trial_color(i,:),'linewidth',1)
 end
 
+
+
+for s = 1:num_stim_type
+    plot([caiman_data.t_init tot_frames],target_cell_idx(s)*plot_offset.*[1 1],'color',opt.type_color(s,:),'linewidth',1)
+end
+xlim([caiman_data.t_init tot_frames])
 
 %% plot fov with sta amp
 figure('name','fov')
@@ -117,56 +153,55 @@ for i = 1:num_cells
     cell_struct(i).shape = cnm_struct(this_idx).shape;
     cell_struct(i).opsin_positive = 0;
     cell_struct(i).cnm_idx = this_idx;
-
+    cell_struct(i).jsf = jsf(this_idx);
 end
 
-%% plot spatial components
+%% plot spatial components and photostim sta
 target_com_fov = zeros(cnm_dims);
 binary_fov = zeros(cnm_dims);
-for i = 1: numel(target_idx)
-    target_com_fov = target_com_fov+cell_struct(target_idx(i)).shape;
+for i = 1: numel(target_cell_idx)
+    target_com_fov = target_com_fov+cell_struct(target_cell_idx(i)).shape;
 end
 
 cnm_plot_options = CNMFSetParms;
 cnm_plot_options.roi_color = [colormap(lines);colormap(lines);colormap(lines)];
 
 figure('name','fov')
-subplot(2,2,1)
+subplot(1,4,1)
 imagesc(com_fov)
 colormap(gray)
 colorbar('location','southoutside');
 axis square
 title('Detected ROIs')
 
-subplot(2,2,2)
-[CC,jsf] = plot_contours(sparse(double(full(caiman_data.cnm_A))),cnm_image,cnm_plot_options,1,[],[],[1 1 1]);
+subplot(1,4,2)
+plot_contours(sparse(double(full(caiman_data.cnm_A))),cnm_image,cnm_plot_options,1,[],[],[1 1 1]);
 colormap(gray)
 colorbar('location','southoutside');
 axis square
 title('GCaMP')
 
-
-
-subplot(2,2,3)
+subplot(1,4,3)
 imagesc(target_com_fov)
 colormap(gray)
 colorbar('location','southoutside');
 axis square
 title('Targeted ROIs')
 
-ax1 = subplot(2,2,4)
-plot_value_in_rois( cell_struct, 'sta_amp',[256 256],ax1,'IF_NORM_PIX',0,'IF_CONTOUR',0,'IF_SHOW_OPSIN',0,'jsf',jsf);
+
+ax1 = subplot(1,4,4)
+plot_value_in_rois( cell_struct, 'sta_amp',[256 256],ax1,'IF_NORM_PIX',0,'IF_CONTOUR',0,'IF_SHOW_OPSIN',0,'show_cell_idx',target_cell_idx);
 set(gca,'Ydir','reverse')
 title('Target photo response')
 
 %% plot sta traces
-figure('name','target sta traces')
-num_plot_cols = 4;
-num_plot_rois = length(target_idx);
+figure('name','target sta traces','position',[100 100 1200 800])
+num_plot_cols = 5;
+num_plot_rois = length(target_cell_idx);
 num_plot_rows = ceil(num_plot_rois/num_plot_cols);
 plot_count = 1;
 for ii = 1:num_plot_rois
-    i = target_idx(plot_count);
+    i = target_cell_idx(plot_count);
     subtightplot(num_plot_rows,num_plot_cols,plot_count)
     % plot traces
     hold on
@@ -179,15 +214,38 @@ for ii = 1:num_plot_rois
     set(gca,'xtick',[],'xcolor',[1 1 1])
     axis square
     
-    plot([opt.sta_pre_frames opt.sta_pre_frames ],ylim,'color',[1,0,0]) % photostim frame
+    plot([opt.sta_pre_frames opt.sta_pre_frames ],ylim,'color',[1,0,0],'linestyle',':','linewidth',2) % photostim start frame
     plot([opt.sta_pre_frames opt.sta_pre_frames ]+opt.sta_avg_frames,ylim,'linestyle',':','color',[1,0,0]) % end of averaging window
     
     plot_count = plot_count+1;  
-    
-    text(0.05,1,['ROI ' num2str(i)],'units','normalized', 'horizontalalignment','left', 'color','black')
-    text(0.05,.9,['photostim auc ' num2str(cell_struct(i).photo_auc,'%10.2f')],'units','normalized', 'horizontalalignment','left', 'color','black')
-    text(0.05,.8,['zscore auc '  num2str(cell_struct(i).photo_auc_zscore,'%10.2f') ],'units','normalized', 'horizontalalignment','left', 'color','black')
+    if cell_struct(i).is_photo
+        text_color = [1,0,0];
+    else
+        text_color = [0 0 0];
+    end
+    text(0.05,1,['Cell ' num2str(i) ' (ROI ' num2str(cell_struct(i).cnm_idx) ')'],'units','normalized', 'horizontalalignment','left', 'color',text_color)
+    text(0.05,.9,['photostim auc ' num2str(cell_struct(i).photo_auc,'%10.2f')],'units','normalized', 'horizontalalignment','left', 'color',text_color)
+    text(0.05,.8,['zscore auc '  num2str(cell_struct(i).photo_auc_zscore,'%10.2f') ],'units','normalized', 'horizontalalignment','left', 'color',text_color)
         
 end
 suptitle('target cells, photostim-triggered response')
 
+
+%% save structure
+% make a brief struct to combine with texture struct later
+save_brief_fds = {'sta_amp','photo_auc','photo_auc_zscore','is_photo','cnm_idx','jsf'};
+save_brief_fds_names = {'photo_sta_amp','photo_auc','photo_auc_zscore','is_photo','cnm_idx','jsf'};
+save_cell_struct_brief = struct();
+for c = 1:num_cells
+    for f = 1:numel(save_brief_fds)
+        save_cell_struct_brief(c).(save_brief_fds_names{f}) =  cell_struct(c).(save_brief_fds{f});
+    end
+end
+photo_output_struct = struct();
+photo_output_struct.cell_struct = save_cell_struct_brief;
+photo_output_struct.opt = opt;
+photo_output_struct.input_caiman_file = fullfile(caiman_path,caiman_file);
+
+output_save_name = [save_path filesep  'ProcPhotoExcit_' caiman_file];
+save(output_save_name,'photo_output_struct')
+disp(['Output struct saved as:' output_save_name ])
