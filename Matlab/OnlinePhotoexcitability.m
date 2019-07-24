@@ -75,10 +75,14 @@ photo_sequence_cell_idx = nan(1,length(photo_stim_frames));
 target_cnm_idx = nan(size(target_cell_idx));
 for t = 1:numel(target_cell_idx)
     photo_sequence_cell_idx(temp_photo_sequence_idx == t) = target_cell_idx(t); %  this is idx in cell_struct
-    target_cnm_idx(t) = cell_struct(target_cell_idx(t)).cnm_idx; % this is idx in cnm_struct
 end
 
 [cell_struct] = make_cell_photostim_sta_struct(cnm_struct,cell_struct,accepted_idx,photo_stim_frames,photo_sequence_cell_idx,opt);
+
+for t = 1:numel(target_cell_idx)
+    target_cnm_idx(t) = cell_struct(target_cell_idx(t)).cnm_idx; % this is idx in cnm_struct
+end
+
 %% make a stim order file for STA movie maker
 % oris = photo_sequence_idx;
 % save([save_path filesep  'stimType_' caiman_file],'oris')

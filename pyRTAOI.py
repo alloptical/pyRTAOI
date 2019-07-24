@@ -109,7 +109,7 @@ from nidaqmx import stream_writers
 from queue import Queue
 
 # power control voltage
-from loadMatFile import get_power_params, get_trigger_params
+from loadMatFile import get_power_params, get_triggertargets_params
 
 # sta
 from utils import STATraceMaker
@@ -1684,6 +1684,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		self.TriggerIdx = []
 		self.TriggerWeights = []
 		self.TriggerFrames = []
+
 
 		# photostim target list
 		self.numTargets = 0
@@ -4663,11 +4664,22 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		trigger_config_path = str(QFileDialog.getOpenFileName(self, 'Load trigger configeration', self.movie_folder, 'mat (*.mat);;All files (*.*)')[0])
 		if trigger_config_path:
 			self.triggerConfigPath_lineEdit.setText(trigger_config_path)
-			[self.TriggerIdx,self.TriggerWeights,self.TriggerFrames, self.TriggerThresh] = get_trigger_params(trigger_config_path)
+			[self.TriggerIdx,self.TriggerWeights,self.TriggerFrames, self.TriggerThresh,self.TargetIdx] = get_triggertargets_params(trigger_config_path)
 #			preview trigger cell positions
+			print('loaded trigger idx:')
 			print(self.TriggerIdx)
+			print('loaded target idx:')
+			print(self.TargetIdx)
+
+			# show trigger cells
 			self.Triggercontour_item.clear()
 			self.Triggercontour_item.addPoints(x = [self.ROIlist[i]["ROIx"] for i in self.TriggerIdx], y = [self.ROIlist[i]["ROIy"] for i in self.TriggerIdx], pen = self.TriggerPen, size = self.RoiRadius*2+3)
+
+			# config target cells
+#			self.clearTargets()
+#			p['currentTargetX'].extend([self.ROIlist[i]["ROIx"] for i in self.TargetIdx])
+#			p['currentTargetY'].extend([self.ROIlist[i]["ROIy"] for i in self.TargetIdx])
+			self.updateTargets()
 
 	def loadTargetCentroid(self):
 		self.target_img_path = str(QFileDialog.getOpenFileName(self, 'Load target centroids', self.movie_folder, 'MPTIFF (*.tif);;All files (*.*)')[0])
@@ -4811,7 +4823,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		self.getValues()
 
 		p['photo_sequence_idx'] = []
-		self.updateFixTargets()
+		self.updateFixTargets() # save current targets to fix target list
 		num_targets = len(p['fixedTargetX'])
 		print('seq stim num targets:')
 		print(num_targets)

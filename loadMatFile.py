@@ -8,14 +8,14 @@ import time
 
 def get_power_params():
 
-# load PowerFile (saved out by matlab SavePowerFile) 
+# load PowerFile (saved out by matlab SavePowerFile)
 # map power to voltage
-# control voltage = (outMax/displayMax)*PV value; 
+# control voltage = (outMax/displayMax)*PV value;
 # outMax and displayMax are defined in prairie view configuration.xml
 # add bruker1 dropbox path to system variable, as BRUKER1_DROPBOX_PATH
 
 
-	# parameters 
+	# parameters
 	outMax = 1
 	displayMax = 1000
 	powerfile_name = os.environ['BRUKER1_DROPBOX_PATH'] + '/PowerUtilities/Bruker1_PowerFile.mat'
@@ -27,7 +27,7 @@ def get_power_params():
 	return power_polyfit_p
 
 
-def get_trigger_params(file_full_name):
+def get_triggertargets_params(file_full_name):
 	'''
 	read file saved by generate_cell_idx_file for texture discrimination task
 	get cell idx, weight and threshold used for population trigger
@@ -36,11 +36,12 @@ def get_trigger_params(file_full_name):
 	mat_file = sio.loadmat(file_full_name)
 	trigger_file = mat_file['output']
 	trigger_idx = trigger_file['trigger_idx'][0][0].flatten()-1
+	target_idx = trigger_file['target_idx'][0][0].flatten()-1
 	trigger_weights = trigger_file['trigger_weights'][0][0].flatten()
 	trigger_frames = trigger_file['trigger_frames'][0][0].flatten()
 	trigger_thresh = trigger_file['trigger_thresh'][0][0].flatten()
 
-	return trigger_idx,trigger_weights,trigger_frames,trigger_thresh
+	return trigger_idx,trigger_weights,trigger_frames,trigger_thresh, target_idx
 
 
 
@@ -59,7 +60,7 @@ if __name__ == '__main__':
 	# test loadtriggerfile
 	file_name = r'D:\TextureData\pyrtaoi_proc_data\20190429_CB183\output_files\20190429-CB183_OutputParams_20190605_1405.mat'
 
-	[trigger_idx,trigger_weights,trigger_frames,trigger_thresh] = get_trigger_params(file_name)
+	[trigger_idx,trigger_weights,trigger_frames,trigger_thresh] = get_triggertargets_params(file_name)
 	print(trigger_idx)
 	print(trigger_weights)
 	print(trigger_frames)
