@@ -109,7 +109,7 @@ from nidaqmx import stream_writers
 from queue import Queue
 
 # power control voltage
-from loadMatFile import get_power_params, get_triggertargets_params
+from loadMatFile import get_power_params, get_triggertargets_params, get_stimOrder
 
 # sta
 from utils import STATraceMaker
@@ -141,7 +141,8 @@ class CONSTANTS():
 	PHOTO_REPLAY_TRAIN = 6 # stim in a sequence
 	PHOTO_CLAMP_DOWN = 7 # photostim after sensory stim until cell goes back to baseline (opto inhibition)
 	PHOTO_WEIGH_SUM = 8 # compare weighted average of ROI values with tresh
-	PHOTO_SEQUENCE = 9
+	PHOTO_SEQUENCE = 9 # stimulate loaded targets one by one for photoexcitability test
+	PHOTO_FIX_SEQUENCE = 10 # stimulate loaded sequence of targets
 
 class MyThread(QThread):
 	def run(self):
@@ -999,6 +1000,11 @@ class Worker(QObject):
 								num_stim_targets = len(p['fixedTargetX'])
 								FLAG_TRIG_PHOTOSTIM = True
 
+					elif p['photoProtoInx'] == CONSTANTS.PHOTO_FIX_SEQUENCE:
+						if num_photostim < tot_num_photostim:
+							if framesProc == photo_stim_frames[num_photostim]:
+								FLAG_TRIG_PHOTOSTIM = True
+
 					elif p['photoProtoInx'] == CONSTANTS.PHOTO_CLAMP_DOWN:
 						# for closed-loop trials
 						if sens_stim_idx < tot_num_senstim and framesProc == stim_frames[sens_stim_idx]-1:
@@ -1192,6 +1198,12 @@ class Worker(QObject):
 					if sens_stim_idx < tot_num_senstim:
 						if p['enableStimTrigger'] and framesProc == stim_frames[sens_stim_idx]: # send TTL
 							self.sendTTLTrigger_signal.emit()
+							if p['photoProtoInx'] == CONSTANTS.PHOTO_FIX_SEQUENCE: # change phasemask at sensory trial onsets
+								p['currentTargetX'] = p['fixedTargetSeqX'][sens_stim_idx].copy()
+								p['currentTargetY'] = p['fixedTargetSeqX'][sens_stim_idx].copy()
+								num_stim_targets = len(p['currentTargetX'])
+								FLAG_SEND_COORDS = True
+
 							sens_stim_idx += 1
 							stim_frames_caiman.append(framesCaiman)
 							# reset target indices and frames (for replay protocols)
@@ -1278,6 +1290,9 @@ class Worker(QObject):
 						num_photostim +=1
 						photo_stim_frames_caiman.append(framesCaiman)
 						print('Number photostim,',num_photostim)
+					elif FLAG_SEND_COORDS: # update phase mask without photostim
+						self.sendCoords_signal.emit()
+						FLAG_SEND_COORDS = False
 
 
 					# Update GUI display
@@ -1702,6 +1717,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		p['FLAG_SKIP_FRAMES'] = False
 		p['fixedTargetX'] = []
 		p['fixedTargetY'] = []
+		p['fixedTargetSeqX'] = []
+		p['fixedTargetSeqY'] = []
 
 		# reject list
 		p['rejectedX'] = []
@@ -1944,6 +1961,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		self.clearTargets_pushButton.clicked.connect(self.clearTargets)
 		self.updateTargets_pushButton.clicked.connect(self.updateTargets)
 		self.updateFixTargets_pushButton.clicked.connect(self.updateFixTargets)
+		self.loadStimOrder_pushButton.clicked.connect(self.loadStimOrder)
 
 		# mouse events
 		self.graphicsView.scene().sigMouseClicked.connect(self.getMousePosition)
@@ -2113,6 +2131,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 				# update trial types according to external file
 				p['tot_num_trials'] = len(p['trialOrder'])
 				tot_num_trials = p['tot_num_trials']
+				all_trial_frames = p['stimStartFrame']+p['interStimInterval']*np.arange(0,tot_num_trials)
 				trialOrder_types = np.unique(np.array(p['trialOrder']))
 
 				# enable conditioning for a fraction of trials, for specified stimType
@@ -2172,6 +2191,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			photo_stim_frames = np.concatenate( [item+relative_frames for item in sen_stim_frames])
 		if p['photoProtoInx'] == CONSTANTS.PHOTO_SEQUENCE:
 			photo_stim_frames = p['photo_stim_frames'].copy()
+		if p['photoProtoInx'] == CONSTANTS.PHOTO_FIX_SEQUENCE:
+			photo_stim_frames = sen_stim_frames+p['photoWaitFrames']
 		# save to global p
 		p['sen_stim_frames'] = sen_stim_frames
 		p['photo_stim_frames'] = photo_stim_frames
@@ -4650,15 +4671,27 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		self.saveResultPath_lineEdit.setText(p['saveResultPath'])
 
 	def loadTrialOrder(self):
-			filepath = str(QFileDialog.getOpenFileName(self, 'Load trial sequence', p['saveResultPath'], '*.txt')[0])
-			if filepath:
-				arr = np.genfromtxt(filepath, delimiter=',')
-				p['trialOrder'] = arr[0].astype(np.int)
+		filepath = str(QFileDialog.getOpenFileName(self, 'Load trial sequence', p['saveResultPath'], '*.txt')[0])
+		if filepath:
+			arr = np.genfromtxt(filepath, delimiter=',')
+			p['trialOrder'] = arr[0].astype(np.int)
 
-				self.updateStatusBar('Loaded trial type from trialOrder file')
-				p['useExternalTrialOrder'] = True
-				self.useExternalTrialOrder_checkBox.setCheckState(Qt.Checked)
-				self.updateTrialType()
+			self.updateStatusBar('Loaded trial type from trialOrder file')
+			p['useExternalTrialOrder'] = True
+			self.useExternalTrialOrder_checkBox.setCheckState(Qt.Checked)
+			self.updateTrialType()
+
+	def loadStimOrder(self):
+		# load target idx list from matlab
+		filepath = str(QFileDialog.getOpenFileName(self, 'Load stimOrder mat', p['saveResultPath'], '*.mat')[0])
+		if filepath:
+			[self.TargetIdxList,p['trialOrder'],p['fixedTargetSeqX'],p['fixedTargetSeqY']] = get_stimOrder(filepath)
+			self.updateStatusBar('Loaded trial type from stimOrder file')
+			p['useExternalTrialOrder'] = True
+			p['ConditionOnStimType'] = False
+			self.useExternalTrialOrder_checkBox.setCheckState(Qt.Checked)
+			self.ConditionOnStimType_checkBox.setCheckState(Qt.Unchecked)
+			self.updateTrialType()
 
 	def loadTriggerConfig(self):
 		trigger_config_path = str(QFileDialog.getOpenFileName(self, 'Load trigger configeration', self.movie_folder, 'mat (*.mat);;All files (*.*)')[0])

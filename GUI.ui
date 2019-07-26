@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1720</width>
+    <width>1731</width>
     <height>893</height>
    </rect>
   </property>
@@ -178,9 +178,9 @@
       <property name="geometry">
        <rect>
         <x>560</x>
-        <y>430</y>
+        <y>440</y>
         <width>331</width>
-        <height>111</height>
+        <height>101</height>
        </rect>
       </property>
       <property name="title">
@@ -255,7 +255,7 @@
       <property name="geometry">
        <rect>
         <x>560</x>
-        <y>250</y>
+        <y>260</y>
         <width>331</width>
         <height>171</height>
        </rect>
@@ -882,12 +882,19 @@
          <x>10</x>
          <y>250</y>
          <width>401</width>
-         <height>137</height>
+         <height>143</height>
         </rect>
        </property>
        <layout class="QGridLayout" name="gridLayout_22">
-        <item row="2" column="1">
-         <widget class="QSpinBox" name="numExtraPhoto_spinBox">
+        <item row="0" column="1">
+         <widget class="QLabel" name="label_46">
+          <property name="text">
+           <string>Num. trials</string>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="1">
+         <widget class="QSpinBox" name="numExtraSensoryPhoto_spinBox">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
             <horstretch>0</horstretch>
@@ -912,8 +919,8 @@
           </property>
          </widget>
         </item>
-        <item row="3" column="1">
-         <widget class="QSpinBox" name="numExtraSensoryPhoto_spinBox">
+        <item row="2" column="1">
+         <widget class="QSpinBox" name="numExtraPhoto_spinBox">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
             <horstretch>0</horstretch>
@@ -931,10 +938,10 @@
           </property>
          </widget>
         </item>
-        <item row="0" column="1">
-         <widget class="QLabel" name="label_46">
+        <item row="0" column="4">
+         <widget class="QPushButton" name="updateFixTargets_pushButton">
           <property name="text">
-           <string>Num. trials</string>
+           <string>Update fix targets</string>
           </property>
          </widget>
         </item>
@@ -957,10 +964,10 @@
           </property>
          </widget>
         </item>
-        <item row="0" column="5">
-         <widget class="QPushButton" name="updateFixTargets_pushButton">
+        <item row="3" column="0">
+         <widget class="QCheckBox" name="ifExtraSensoryPhoto_checkBox">
           <property name="text">
-           <string>Update fix targets</string>
+           <string>sens+ photo</string>
           </property>
          </widget>
         </item>
@@ -971,14 +978,28 @@
           </property>
          </widget>
         </item>
-        <item row="3" column="0">
-         <widget class="QCheckBox" name="ifExtraSensoryPhoto_checkBox">
+        <item row="0" column="0">
+         <widget class="QLabel" name="label_39">
           <property name="text">
-           <string>sensory+ photo</string>
+           <string>Control trial types </string>
           </property>
          </widget>
         </item>
-        <item row="1" column="5">
+        <item row="3" column="4">
+         <widget class="QPushButton" name="loadTrialOrder_pushButton">
+          <property name="text">
+           <string>Load trialOrder( pyBehavior)</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="4">
+         <widget class="QPushButton" name="plotTrialTypes_pushButton">
+          <property name="text">
+           <string>Plot trial type</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="4">
          <layout class="QHBoxLayout" name="horizontalLayout_3">
           <item>
            <widget class="QPushButton" name="updateTrialType_pushButton">
@@ -989,53 +1010,26 @@
           </item>
          </layout>
         </item>
-        <item row="2" column="5">
-         <widget class="QPushButton" name="plotTrialTypes_pushButton">
-          <property name="text">
-           <string>Plot trial type</string>
-          </property>
-         </widget>
-        </item>
-        <item row="0" column="0">
-         <widget class="QLabel" name="label_39">
-          <property name="text">
-           <string>Control trial types </string>
-          </property>
-         </widget>
-        </item>
-        <item row="3" column="5">
-         <widget class="QPushButton" name="loadTrialOrder_pushButton">
-          <property name="text">
-           <string>Load trialOrder( pyBehavior)</string>
-          </property>
-         </widget>
-        </item>
-        <item row="4" column="3">
-         <widget class="QCheckBox" name="shuffleTrials_checkBox">
-          <property name="text">
-           <string>Shuffle </string>
-          </property>
-         </widget>
-        </item>
-        <item row="4" column="5">
+        <item row="3" column="2">
          <widget class="QCheckBox" name="useExternalTrialOrder_checkBox">
           <property name="text">
            <string>Use external</string>
           </property>
          </widget>
         </item>
+        <item row="4" column="4">
+         <widget class="QPushButton" name="loadStimOrder_pushButton">
+          <property name="text">
+           <string>Load stimOrder( Matlab)</string>
+          </property>
+         </widget>
+        </item>
         <item row="0" column="2">
-         <spacer name="horizontalSpacer_2">
-          <property name="orientation">
-           <enum>Qt::Horizontal</enum>
+         <widget class="QCheckBox" name="shuffleTrials_checkBox">
+          <property name="text">
+           <string>Shuffle </string>
           </property>
-          <property name="sizeHint" stdset="0">
-           <size>
-            <width>40</width>
-            <height>20</height>
-           </size>
-          </property>
-         </spacer>
+         </widget>
         </item>
        </layout>
       </widget>
@@ -1466,9 +1460,9 @@
       <property name="geometry">
        <rect>
         <x>560</x>
-        <y>150</y>
+        <y>140</y>
         <width>331</width>
-        <height>91</height>
+        <height>111</height>
        </rect>
       </property>
       <property name="title">
@@ -1480,14 +1474,14 @@
          <x>10</x>
          <y>20</y>
          <width>311</width>
-         <height>61</height>
+         <height>83</height>
         </rect>
        </property>
        <layout class="QGridLayout" name="gridLayout_6">
-        <item row="0" column="0">
-         <widget class="QCheckBox" name="selectAll_checkBox">
+        <item row="0" column="3">
+         <widget class="QPushButton" name="connectBlink_pushButton">
           <property name="text">
-           <string>select all</string>
+           <string>Connect Blink</string>
           </property>
          </widget>
         </item>
@@ -1498,46 +1492,54 @@
           </property>
          </widget>
         </item>
-        <item row="0" column="2">
-         <widget class="QPushButton" name="connectBlink_pushButton">
-          <property name="text">
-           <string>Connect Blink</string>
-          </property>
-         </widget>
-        </item>
-        <item row="1" column="2">
+        <item row="1" column="3">
          <widget class="QPushButton" name="SendCoords_pushButton">
           <property name="text">
            <string>Send Coords</string>
           </property>
          </widget>
         </item>
-        <item row="0" column="1">
-         <widget class="QCheckBox" name="addNewROIsToTarget_checkBox">
+        <item row="0" column="0">
+         <widget class="QCheckBox" name="selectAll_checkBox">
           <property name="text">
-           <string>auto add</string>
+           <string>select all</string>
           </property>
          </widget>
         </item>
-        <item row="1" column="1">
+        <item row="1" column="2">
          <widget class="QPushButton" name="updateTargets_pushButton">
           <property name="text">
            <string>Update targets</string>
           </property>
          </widget>
         </item>
-        <item row="2" column="1">
-         <spacer name="verticalSpacer">
-          <property name="orientation">
-           <enum>Qt::Vertical</enum>
+        <item row="0" column="2">
+         <widget class="QCheckBox" name="addNewROIsToTarget_checkBox">
+          <property name="text">
+           <string>auto add</string>
           </property>
-          <property name="sizeHint" stdset="0">
-           <size>
-            <width>20</width>
-            <height>40</height>
-           </size>
+         </widget>
+        </item>
+        <item row="2" column="0">
+         <widget class="QPushButton" name="loadTargetCentroid_pushButton">
+          <property name="text">
+           <string>Load target image</string>
           </property>
-         </spacer>
+         </widget>
+        </item>
+        <item row="2" column="2">
+         <widget class="QLineEdit" name="targetCentroidsPath_lineEdit">
+          <property name="text">
+           <string>target image file</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="3">
+         <widget class="QPushButton" name="saveCurrentTargetCentroids_pushButton">
+          <property name="text">
+           <string>Save current targets</string>
+          </property>
+         </widget>
         </item>
        </layout>
       </widget>
@@ -2045,7 +2047,12 @@
           </item>
           <item>
            <property name="text">
-            <string>Sequence</string>
+            <string>Rand. Sequence</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Fix. Sequence</string>
            </property>
           </item>
           <item>
@@ -2444,31 +2451,10 @@
          <x>10</x>
          <y>280</y>
          <width>401</width>
-         <height>101</height>
+         <height>71</height>
         </rect>
        </property>
        <layout class="QGridLayout" name="gridLayout_23">
-        <item row="2" column="0">
-         <widget class="QPushButton" name="loadTriggerConfig_pushButton">
-          <property name="text">
-           <string>Load trigger targets Config</string>
-          </property>
-         </widget>
-        </item>
-        <item row="0" column="1">
-         <widget class="QLineEdit" name="targetCentroidsPath_lineEdit">
-          <property name="text">
-           <string>target image file</string>
-          </property>
-         </widget>
-        </item>
-        <item row="0" column="0">
-         <widget class="QPushButton" name="loadTargetCentroid_pushButton">
-          <property name="text">
-           <string>Load target image</string>
-          </property>
-         </widget>
-        </item>
         <item row="0" column="3">
          <widget class="QPushButton" name="configSeqStim_pushButton">
           <property name="font">
@@ -2485,13 +2471,6 @@
           </property>
          </widget>
         </item>
-        <item row="2" column="1">
-         <widget class="QLineEdit" name="triggerConfigPath_lineEdit">
-          <property name="text">
-           <string>config file</string>
-          </property>
-         </widget>
-        </item>
         <item row="2" column="3">
          <widget class="QPushButton" name="removeButTrigger_pushButton">
           <property name="text">
@@ -2499,10 +2478,17 @@
           </property>
          </widget>
         </item>
-        <item row="3" column="3">
-         <widget class="QPushButton" name="saveCurrentTargetCentroids_pushButton">
+        <item row="0" column="1">
+         <widget class="QPushButton" name="loadTriggerConfig_pushButton">
           <property name="text">
-           <string>Save current targets</string>
+           <string>Load trigger targets Config</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="2">
+         <widget class="QLineEdit" name="triggerConfigPath_lineEdit">
+          <property name="text">
+           <string>config file</string>
           </property>
          </widget>
         </item>
@@ -2768,7 +2754,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1720</width>
+     <width>1731</width>
      <height>21</height>
     </rect>
    </property>

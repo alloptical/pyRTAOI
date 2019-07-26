@@ -21,6 +21,7 @@ color.correct_trial = tint([0,1,0],.5);
 color.incorrect_trial = tint([1,0,0],.5);
 color.miss_trial = tint([0,0,0],.5);
 color.fa_trial = [0 0 0];
+color.photo = [255 60 10]./255;
 
 end
 

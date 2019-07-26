@@ -7,7 +7,7 @@ function [cell_struct] = make_cell_photostim_sta_struct(cnm_struct,cell_struct,a
 num_shuf = 100;
 num_comp = size(cnm_struct,2);
 num_cells = numel(accepted_idx);
-
+frames_to_avg = opt.sta_pre_frames+ opt.frames_with_photo+[1:opt.sta_avg_frames];
 for i = 1:num_cells
     this_cnm_idx = accepted_idx(i);
     this_cell_trace = cnm_struct(this_cnm_idx).deconvC_full;
@@ -22,7 +22,7 @@ for i = 1:num_cells
     if(this_num_trials>0)
         % average across trials
         [~,~,~,~,~,cell_struct(i).sta_traces,cell_struct(i).sta_trace] = make_sta_from_traces(this_cell_trace,this_stim_frames,opt.sta_pre_frames,opt.sta_post_frames,1:opt.sta_baseline_frames);
-        cell_struct(i).sta_amp = mean(cell_struct(i).sta_trace(opt.sta_pre_frames:opt.sta_pre_frames+opt.sta_avg_frames));
+        cell_struct(i).sta_amp = mean(cell_struct(i).sta_trace(frames_to_avg));
         
         
         % using ROC comparing sta amp to baseline
@@ -30,7 +30,7 @@ for i = 1:num_cells
         % stimulated to when the other cells are stimulated..
         
         this_bs = mean(cell_struct(i).('sta_traces')(:,opt.bs_frame_range,:),2);
-        this_active = mean(cell_struct(i).('sta_traces')(:,opt.sta_pre_frames+[1:opt.sta_avg_frames],:),2);
+        this_active = mean(cell_struct(i).('sta_traces')(:,frames_to_avg,:),2);
         labels = [ones(1,length(this_bs)),2.*ones(1,length(this_active))]';
         scores = [this_bs;this_active];
         [~,~,~,this_auc] = perfcurve(labels,scores,2);

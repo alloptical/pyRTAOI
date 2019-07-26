@@ -11,7 +11,6 @@ full_file_save_path = [opt.output_path, filesep file_save_name '.mat' ];
 
 target_idx_fd = opt.target_idx_fd;
 trigger_idx_fd = opt.trigger_idx_fd;
-
 output = struct();
 
 % indices
@@ -21,11 +20,9 @@ output.trigger_idx = cell_idx_struct.(trigger_idx_fd);
 % sensory auc
 output.target_sensory_auc = extractfield(cell_struct(output.target_idx),'correct_stimAUC');
 output.target_sensory_auc_zscore = extractfield(cell_struct(output.target_idx),'correct_stimAUC_zscore');
-
-
 num_triggers = numel(output.trigger_idx);
 
-% dummy values
+% dummy values (for use later)
 output.trigger_weights = ones(1,num_triggers)./num_triggers;
 output.trigger_thresh = 0.5;
 output.trigger_frames = 45:60;

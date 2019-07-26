@@ -25,6 +25,7 @@ opt.sta_baseline_frames = 30;
 opt.bs_frame_range = opt.sta_pre_frames+[(-opt.sta_baseline_frames+1):0];
 opt.sta_avg_frames = 15; % frames after stim to average for response amp
 opt.sta_thresh = 1;
+opt.frame_rate = 30; % Hz
 
 cnm_plot_options = CNMFSetParms;
 cnm_plot_options.roi_color = [colormap(lines);colormap(lines);colormap(lines)];
@@ -57,7 +58,7 @@ num_cells = numel(accepted_idx);
 %% load _OutputParams_ mat file 
 % in case non target cells are not removed from recording
 try
-    [file,path] = uigetfile('*.mat','Select cell identity data');
+    [file,path] = uigetfile('*.mat','Select cell identity data',caiman_path);
     disp(['Loaded file :',fullfile(path,file)])
     cell_identity_data = load(fullfile(path,file));
     target_cell_idx = cell_identity_data.output.target_idx; % this is idx in cell_struct of OnlineProcTexture
@@ -67,7 +68,7 @@ catch
 end
 
 %% make sta based on photostim sequence
-
+opt.frames_with_photo = double(caiman_data.photoDuration/opt.frame_rate+1); % discard skipped frames with photostim when calculating photo sta amplitude
 cell_struct = struct();
 photo_stim_frames =  caiman_data.online_photo_frames + caiman_data.t_init;
 temp_photo_sequence_idx = caiman_data.photo_sequence_idx+1; % this is idx in pyRTAOI fixedTargets
@@ -132,14 +133,14 @@ for s = 1:num_stim_type
     plot([caiman_data.t_init tot_frames],target_cell_idx(s)*plot_offset.*[1 1],'color',opt.type_color(s,:),'linewidth',1)
 end
 xlim([caiman_data.t_init tot_frames])
-
+ylim([0 num_comp].*plot_offset+3)
 %% plot fov with sta amp
 figure('name','fov')
 [CC,jsf] = plot_contours(sparse(double(full(caiman_data.cnm_A))),cnm_image,cnm_plot_options,1,[],[],[1 1 1]);
 colormap(gray)
 axis square
 title('GCaMP')
-
+close
 for i = 1:num_cells
     this_idx = accepted_idx(i);
     temp_coords = jsf(this_idx).coordinates;
@@ -169,8 +170,8 @@ end
 
 cnm_plot_options = CNMFSetParms;
 cnm_plot_options.roi_color = [colormap(lines);colormap(lines);colormap(lines)];
-
-figure('name','fov')
+close
+figure('name','fov','position',[100 100 1200 800])
 subplot(1,4,1)
 imagesc(com_fov)
 colormap(gray)
@@ -193,7 +194,7 @@ axis square
 title('Targeted ROIs')
 
 
-ax1 = subplot(1,4,4)
+ax1 = subplot(1,4,4);
 plot_value_in_rois( cell_struct, 'sta_amp',[256 256],ax1,'IF_NORM_PIX',0,'IF_CONTOUR',0,'IF_SHOW_OPSIN',0,'show_cell_idx',target_cell_idx);
 set(gca,'Ydir','reverse')
 title('Target photo response')
@@ -219,7 +220,10 @@ for ii = 1:num_plot_rois
     axis square
     
     plot([opt.sta_pre_frames opt.sta_pre_frames ],ylim,'color',[1,0,0],'linestyle',':','linewidth',2) % photostim start frame
-    plot([opt.sta_pre_frames opt.sta_pre_frames ]+opt.sta_avg_frames,ylim,'linestyle',':','color',[1,0,0]) % end of averaging window
+    plot([1,1].* opt.sta_pre_frames+opt.frames_with_photo,ylim,'linestyle',':','color',[1,0,0]) % end of photostim
+    plot(opt.frames_with_photo+opt.sta_pre_frames + [1,opt.sta_avg_frames],[0 0],'color',[0,0,0],'linewidth',2) % window used to calculate photostim amplitude
+
+    
     
     plot_count = plot_count+1;  
     if cell_struct(i).is_photo
@@ -232,7 +236,7 @@ for ii = 1:num_plot_rois
     text(0.05,.8,['zscore auc '  num2str(cell_struct(i).photo_auc_zscore,'%10.2f') ],'units','normalized', 'horizontalalignment','left', 'color',text_color)
         
 end
-suptitle('target cells, photostim-triggered response')
+suptitle('Target cells, photostim-triggered response')
 
 
 %% save structure

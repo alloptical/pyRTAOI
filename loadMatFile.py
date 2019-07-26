@@ -44,7 +44,31 @@ def get_triggertargets_params(file_full_name):
 	return trigger_idx,trigger_weights,trigger_frames,trigger_thresh, target_idx
 
 
+def get_stimOrder(file_full_name):
+		mat_file = sio.loadmat(file_full_name)
+		stimOrder = mat_file['pyrtaoi_stimOrder']
+		input_target_idx_list = stimOrder['target_idx_list'][0][0]
+		input_target_centroid_x = stimOrder['target_centroid_x'][0][0]
+		input_target_centroid_y = stimOrder['target_centroid_y'][0][0]
+		trialOrder = stimOrder['trialOrder'][0][0].flatten()
+		target_idx_list = []
+		target_centroid_x = []
+		target_centroid_y = []
 
+		for i in range(len(trialOrder)):
+			target_idx = input_target_idx_list[i]
+			if all(idx ==0 for idx in target_idx):
+				target_idx_list.append([]) # set lists of zeros to empty
+				target_centroid_x.append([])
+				target_centroid_y.append([])
+			else:
+				target_idx_list.append([idx-1 for idx in target_idx]) # -1 for python indexing
+				target_centroid_x.append(input_target_centroid_x[i].tolist)
+				target_centroid_y.append(input_target_centroid_y[i].tolist)
+
+		return target_idx_list,trialOrder,target_centroid_x,target_centroid_y,input_target_centroid_x
+
+	
 if __name__ == '__main__':
 
 	# test loadpowerfile:
@@ -58,10 +82,9 @@ if __name__ == '__main__':
 	# print(volt)
 
 	# test loadtriggerfile
-	file_name = r'D:\TextureData\pyrtaoi_proc_data\20190429_CB183\output_files\20190429-CB183_OutputParams_20190605_1405.mat'
+	file_name = r'D:\TextureData\data\cb214\20190724\pyrtaoi_results\analysis_files\\TexPhotoConfig_20190724_cb214_Tt_0005_Pt_0007_113757\pyrtaoi_stimOrder.mat'
+	[target_idx_list,trialOrder,target_centroid_x,target_centroid_y,input_target_centroid_x] = get_stimOrder(file_name)
 
-	[trigger_idx,trigger_weights,trigger_frames,trigger_thresh] = get_triggertargets_params(file_name)
-	print(trigger_idx)
-	print(trigger_weights)
-	print(trigger_frames)
+
+
 
