@@ -5,6 +5,11 @@
 % ZZ 2018
 
 % adapted from OnlineProcVisual
+
+% TO DO:
+% need to modify texture cell criteria - quiet cells tend to have large
+% stimulus AUC!
+%
 %% add path - change this for rig
 clear all
 close all
@@ -22,18 +27,22 @@ sens_duration = 90; % frames
 photo_duration = 0; % frames
 
 opt.N = 1; % threshold for significant auc
-opt.all_reset_frames = 30;
-opt.pre_exp_frames = 0;
-opt.sta_pre_frames = 90; 
+opt.sta_pre_frames = 150; 
 opt.sta_post_frames = 120;
-opt.sta_baseline_frames = 30;
-opt.sta_avg_frames = 30;
-opt.sta_peak_search_range = [60 120]; % relative to trial start
-opt.gocue_frame = 120;
+opt.sta_baseline_frames = 30; % relative to beginning of sta traces
+
+opt.gocue_frame = 120; % relative to trial start
 opt.end_rw_frame = 180; % end of response window
 
-opt.withold_frames_adj = [60 120];
-opt.bs_frame_range = opt.sta_pre_frames+[(-opt.sta_baseline_frames+1):0];
+% frame indices relative to sta trace
+opt.sta_gocue_frame = opt.sta_pre_frames;
+opt.sta_trialon_frame = opt.sta_pre_frames-opt.gocue_frame;
+opt.sta_avg_frames = [-30:1:0]+opt.sta_gocue_frame;
+opt.sta_peak_search_range =  [-60:1:0]+opt.sta_gocue_frame;
+
+
+opt.withold_frames_adj = [60 120]; 
+
 opt.offcell_avg_frames = 30;
 opt.sta_amp_thresh = 1;
 opt.frame_rate = 30;
@@ -79,7 +88,7 @@ end
 %% organise data (generate plots for sanity check)
 tex_stim_frames = {};
 if(~isempty(caiman_data.stim_frames_caiman))
-    sens_stim_frames = caiman_data.sensory_stim_frames+caiman_data.num_frames_init;
+    sens_stim_frames = caiman_data.sensory_stim_frames+caiman_data.t_init;
 else
     sens_stim_frames = [];
 end
@@ -123,7 +132,7 @@ num_trials = numel(sens_stim_frames);
 opt.type_color = [trial_color.('stim1');trial_color.('stim2')];
 %% make cnm data structure
 cnm_struct = struct();
-cnm_dims = caiman_data.cnm_dims;
+cnm_dims = double(caiman_data.cnm_dims);
 cnm_image = reshape(caiman_data.cnm_b,cnm_dims);
 cnm_A = full(caiman_data.cnm_A);
 num_frames = caiman_data.t_cnm;
@@ -161,8 +170,8 @@ for i = 1:num_comp
     temp_trace = fillmissing(temp_trace,'linear');
     cnm_struct(i).noisyC_full = temp_trace;
     
-    % putative touch frame (start sta)
-    cnm_struct(i).stim_frames = opt.sta_pre_frames+sens_stim_frames;
+    % use go-cue frame as 'stim frame' for sta traces
+    cnm_struct(i).stim_frames = sens_stim_frames+opt.sta_gocue_frame;
 
 end
 
@@ -208,7 +217,7 @@ axis square
 title('Accepted ROIs')
 
 
-subplot(1,3,2)
+subplot(1,3,3)
 [CC,jsf] = plot_contours(sparse(double(cnm_A)),cnm_image,cnm_plot_options,1,[],[],[1 1 1]);
 colormap(gray)
 axis square
@@ -261,7 +270,7 @@ plot(backgroundC,'color',[.5 .5 .5],'linestyle',':')
 for i = 1:numel(glob_trialon_frames)
     this_color = trial_color.(['stim' num2str(trials.stim_type(i) )]);
     plot([glob_trialon_frames(i) glob_trialon_frames(i)],ylim,'color',this_color) % trial-on 
-    plot([glob_trialon_frames(i) glob_trialon_frames(i)]+opt.withold_frames_adj(end),ylim,'color',this_color,'linestyle',':') % go-cue
+    plot([glob_trialon_frames(i) glob_trialon_frames(i)]+opt.gocue_frame,ylim,'color',this_color,'linestyle',':') % go-cue
 end
 
 %% stim triggered average 
@@ -285,8 +294,11 @@ for i = 1:num_cells
     if(this_num_trials>0)
         % average across all stim types
         % using df 
-        [~,~,~,~,~,cell_struct(i).sta_traces,cell_struct(i).sta_trace] = make_sta_from_traces(this_cell_trace,this_sens_stim_frames,opt.sta_pre_frames,opt.sta_post_frames,1:opt.sta_baseline_frames);
-        cell_struct(i).sta_amp = mean(cell_struct(i).sta_trace(opt.sta_pre_frames:opt.sta_pre_frames+opt.sta_avg_frames));
+%         [~,~,~,~,~,cell_struct(i).sta_traces,cell_struct(i).sta_trace] = make_sta_from_traces(this_cell_trace,this_sens_stim_frames,opt.sta_pre_frames,opt.sta_post_frames,1:opt.sta_baseline_frames);
+          % using raw f
+        [~,~,~,cell_struct(i).sta_traces,~,~,cell_struct(i).sta_trace] = make_sta_from_traces(this_cell_trace,this_sens_stim_frames,opt.sta_pre_frames,opt.sta_post_frames,1:opt.sta_baseline_frames);
+
+            cell_struct(i).sta_amp = mean(cell_struct(i).sta_trace(opt.sta_avg_frames));
         
         if  cell_struct(i).sta_amp > opt.sta_amp_thresh
             cell_struct(i).is_sensory = 1;
@@ -297,7 +309,7 @@ end
 
 % sta of backgound component (for alignment check)
 [~,~,~,~,~,bg_sta_traces,bg_sta_trace] =...
-    make_sta_from_traces(backgroundC,sens_stim_frames ,opt.sta_pre_frames,opt.sta_post_frames,1:opt.sta_baseline_frames);
+    make_sta_from_traces(backgroundC,sens_stim_frames+opt.sta_gocue_frame ,opt.sta_pre_frames,opt.sta_post_frames,1:opt.sta_baseline_frames);
 
 %% ROC analysis
 % sta for different trial types
@@ -308,7 +320,7 @@ for i = 1:num_stim_type
     for c = 1:num_cells
         if ~isempty(trial_indices.(['correct_stim_' num2str(i)]))
             cell_struct(c).(['st_correct_stim_' num2str(i)]) = cell_struct(c).sta_traces( trial_indices.(['correct_stim_' num2str(i)]),:)';
-            cell_struct(c).(['sta_amp_correct_stim_' num2str(i)]) = mean (mean(cell_struct(c).(['st_correct_stim_' num2str(i)])(opt.sta_pre_frames+[1:opt.sta_avg_frames],:),1));
+            cell_struct(c).(['sta_amp_correct_stim_' num2str(i)]) = mean (mean(cell_struct(c).(['st_correct_stim_' num2str(i)])(opt.sta_avg_frames,:),1));
 
         else
             cell_struct(c).(['st_correct_stim_' num2str(i)])  = [];
@@ -316,7 +328,7 @@ for i = 1:num_stim_type
         end
         if ~isempty(trial_indices.(['incorrect_stim_' num2str(i)]))
             cell_struct(c).(['st_incorrect_stim_' num2str(i)]) = cell_struct(c).sta_traces( trial_indices.(['incorrect_stim_' num2str(i)]),:)';
-            cell_struct(c).(['sta_amp_incorrect_stim_' num2str(i)]) = mean (mean(cell_struct(c).(['st_incorrect_stim_' num2str(i)])(opt.sta_pre_frames+[1:opt.sta_avg_frames],:),1));
+            cell_struct(c).(['sta_amp_incorrect_stim_' num2str(i)]) = mean (mean(cell_struct(c).(['st_incorrect_stim_' num2str(i)])(opt.sta_avg_frames,:),1));
 
         else
              cell_struct(c).(['st_incorrect_stim_' num2str(i)]) = [];
@@ -328,9 +340,9 @@ end
 
 %% GET CELL IDENTITY
 % stimulus AUC calculated from correct trials
-num_shuf = 100;
-avg_frame_range = opt.sta_pre_frames+[1:avg_frame_range];
-peak_frame_range = opt.sta_peak_search_range(1): opt.sta_peak_search_range(end);
+num_shuf = 300;
+peak_frame_range = opt.sta_peak_search_range;
+avg_frame_range = opt.sta_avg_frames;
 for i = 1:num_cells
     if ~ opt.flag_use_peak
         all_stim1 = mean(cell_struct(i).('st_correct_stim_1')(avg_frame_range,:),1);
@@ -342,6 +354,7 @@ for i = 1:num_cells
     end
 labels = [ones(1,length(all_stim1)),2.*ones(1,length(all_stim2))]';
 scores = [ all_stim1  all_stim2]';
+scores(scores<0.01)=0;
 [~,~,~, correct_stimulusAUC] = perfcurve(labels,scores,2);
 
 % shuffle to get zscore stim auc
@@ -353,7 +366,6 @@ end
 cell_struct(i).correct_stimAUC_zscore = (correct_stimulusAUC-mean(shuf_stim_auc))/std(shuf_stim_auc);
 cell_struct(i).correct_stimAUC = correct_stimulusAUC;
 end
-
 
 correct_stimulusAUC_zscore = extractfield(cell_struct,'correct_stimAUC_zscore');
 correct_texAUC = extractfield(cell_struct,'correct_stimAUC');
@@ -382,12 +394,11 @@ opt.fov_size = double(cnm_dims);
 opt.ds_factor = caiman_data.ds_factor;
 
 %% Plot STAs for all components
-figure('name','condition sta traces')
+figure('name','condition sta traces','position',[100 100 1200 800])
 num_plot_cols = 6;
 num_plot_rows = ceil(num_cells/num_plot_cols);
 for i = 1:num_cells
     subtightplot(num_plot_rows,num_plot_cols,i)
-    % plot traces
     hold on
     % correct trials
     for j = 1:num_stim_type
@@ -398,17 +409,12 @@ for i = 1:num_cells
     xlim([0 opt.sta_pre_frames+opt.sta_post_frames+1])
     axis square
     
-    text(1,1,['ROI ' num2str(i)],'units','normalized','color','black','Horizontalalignment','right','VerticalAlignment','top')
+    text(1,1,['Cell ' num2str(i) ' (ROI ' num2str(cell_struct(i).cnm_idx) ')'],'units','normalized','color','black','Horizontalalignment','right','VerticalAlignment','top')
 
     if(~isempty(find(opsin_positive_idx==i)))
         text(1,1,['Cell ' num2str(i)],'units','normalized','color','r','Horizontalalignment','right','VerticalAlignment','top')
     end
     box off
-    
-    % modify x ticks
-    xaxisvalues = 0:30:opt.sta_pre_frames+opt.sta_post_frames;
-    xticks(xaxisvalues)
-    xticklabels(arrayfun(@(x){num2str(x)},xaxisvalues./opt.frame_rate))
     
     % mark tuned cells
     if( cell_struct(i).is_tuned)
@@ -418,13 +424,22 @@ for i = 1:num_cells
     end
     
     % mark time
-    plot([1,1].*opt.gocue_frame, ylim,'color','black')
-    plot([1,1].*opt.end_rw_frame, ylim,'color','black')
-
+    plot([1,1].*opt.sta_gocue_frame, ylim,'color','black','linestyle',':')
+    if ~ opt.flag_use_peak
+        plot([avg_frame_range(1),avg_frame_range(end)],[0,0],'color',[.5 .5 .5],'linewidth',2)
+    else
+        plot([peak_frame_range(1),peak_frame_range(end)],[0,0],'color',[.5 .5 .5],'linewidth',2)
+    end
+    
     % show auc
-    text(0.05,.9,['correct auc ' num2str(cell_struct(i).correct_stimAUC,'%10.2f')],'units','normalized', 'horizontalalignment','left', 'color','black')
-    text(0.05,.8,['zscore auc '  num2str(cell_struct(i).correct_stimAUC_zscore,'%10.2f') ],'units','normalized', 'horizontalalignment','left', 'color','black')
-
+    text(0.05,.8,['trial auc ' num2str(cell_struct(i).correct_stimAUC,'%10.2f')],'units','normalized', 'horizontalalignment','left', 'color','black')
+    text(0.05,.7,['zscore auc '  num2str(cell_struct(i).correct_stimAUC_zscore,'%10.2f') ],'units','normalized', 'horizontalalignment','left', 'color','black')
+    
+    % modify x ticks
+    xaxisvalues = [0:30:opt.sta_pre_frames+opt.sta_post_frames];
+    xticks(xaxisvalues)
+    xticklabels(arrayfun(@(x){num2str(x)},(xaxisvalues-opt.sta_trialon_frame)./opt.frame_rate))
+    
 end
 
 %% MAKE OUTPUT FILE FOR PYRTAOI

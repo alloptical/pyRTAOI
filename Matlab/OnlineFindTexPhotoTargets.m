@@ -60,6 +60,7 @@ opt.photo_file_name = photo_file;
 % config experiment
 opt.exp_num_targets  = 5;    % expected number of targets per photostim group 
 opt.tot_num_trials   = 180;  % total number of trials (should be same as pybehav trialOrder)
+opt.max_num_consecutive = 3; % max number of consecutive trials with same type of sensory stimuli 
 
 % trigger generator inputs
 opt.trial_interval   = 10;   % interval between trialon triggers, i.e., trial length (sec)
@@ -73,6 +74,7 @@ trial_type_photo         = [1,2,0,1,2,0,1,2,0];
 relative_type_fraction   = [1 1 1 1 1 1 1 1 1]; % change this 
 opt.trial_type_fraction = relative_type_fraction./sum(relative_type_fraction);
 
+ 
 num_trial_types = 9;
 trial_type_names = cell(1,num_trial_types);
 for i = 1:num_trial_types
@@ -112,10 +114,10 @@ photo_trial_types_idx = cell2mat(arrayfun(@(x)ones(1,num_trials_per_type(x)).*tr
 tex_trial_types_idx = cell2mat(arrayfun(@(x)ones(1,num_trials_per_type(x)).*trial_type_tex(x),trial_type_idx,'UniformOutput',false));
 
 % shuffle
-shuff_order = randperm(opt.tot_num_trials);
-all_trial_types_idx = all_trial_types_idx(shuff_order);
-photo_trial_types_idx = photo_trial_types_idx(shuff_order);
-tex_trial_types_idx = tex_trial_types_idx(shuff_order);
+shuff_trial_order =  get_shuff_trial_idx(tex_trial_types_idx,opt.max_num_consecutive);
+shuff_all_trial_types_idx = all_trial_types_idx(shuff_trial_order);
+shuff_photo_trial_types_idx = photo_trial_types_idx(shuff_trial_order);
+shuff_tex_trial_types_idx = tex_trial_types_idx(shuff_trial_order);
 
 %% merge cell struct into one
 cell_struct = struct();
@@ -198,11 +200,8 @@ if num_cells_per_stim ==0
     warning('not enough targets!')
 end
 opt.num_cells_per_stim = num_cells_per_stim;
-
+opt.shuff_order = shuff_trial_order;
 %% =======================   MAKE OUTPUT FILES ============================
-% generate trial order (for pyBehavior)
-opt.shuff_order = shuff_order;
-
 %% generate target order
 % randomly select num_cells_per_stim targets in each trial
 % while keeping random targets in different tex trials as same as possible
@@ -210,7 +209,7 @@ opt.shuff_order = shuff_order;
 % generate two pools of target sets
 target_cell_pool = {};
 for i = 1:2
-max_num_comb = max(arrayfun(@(x)numel(find(all_trial_types_idx == x)), find(trial_type_photo==i)));
+max_num_comb = max(arrayfun(@(x)numel(find(shuff_all_trial_types_idx == x)), find(trial_type_photo==i)));
 target_cell_idx = nan(max_num_comb,opt.num_cells_per_stim);
 for t = 1:max_num_comb
     this_rand_idx = randperm(num_targets(i));
@@ -223,7 +222,7 @@ end
 all_target_cell_idx = zeros(opt.tot_num_trials,num_cells_per_stim);
 for photo_type = 1:2
     for tex_type = 1:2
-        this_trial_idx = find(photo_trial_types_idx == photo_type & tex_trial_types_idx == tex_type);
+        this_trial_idx = find(shuff_photo_trial_types_idx == photo_type & shuff_tex_trial_types_idx == tex_type);
         all_target_cell_idx(this_trial_idx,:) = target_cell_pool{photo_type}(randperm(numel(this_trial_idx)),:);
     end
 end
@@ -231,7 +230,6 @@ end
 %% generate target order (for pyRTAOI)
 pyrtaoi_stimOrder = struct();
 pyrtaoi_stimOrder.target_idx_list = all_target_cell_idx;
-pyrtaoi_stimOrder.trialOrder = tex_trial_types_idx;
 target_centroid_x = zeros(size(all_target_cell_idx));
 target_centroid_y = zeros(size(all_target_cell_idx));
 for i = 1:opt.tot_num_trials
@@ -251,7 +249,14 @@ rtaoi_save_path = [save_path filesep 'pyrtaoi_stimOrder.mat'];
 save(rtaoi_save_path,'pyrtaoi_stimOrder');
 disp(['pyRTOAI target list saved to: ' rtaoi_save_path])
 
+%% generate trial order (for pyBehavior)   
+pyrtaoi_stimOrder.trialOrder = shuff_tex_trial_types_idx;
+pyrtaoi_stimOrder.trialVariation = zeros(size(pyrtaoi_stimOrder.trialOrder));
 
+% make catch trial idx to 3 for pybehav
+pyrtaoi_stimOrder.trialOrder(pyrtaoi_stimOrder.trialOrder==0) = 3;
+pybehav_save_path = [save_path filesep 'pybehav_stimOrder.txt'];
+dlmwrite(pybehav_save_path, [pyrtaoi_stimOrder.trialOrder; pyrtaoi_stimOrder.trialVariation ] ,'delimiter',',') 
 %% generate target tiff and holograms (for Blink if not using pyRTAOI)
 % only save out unique tiffs and phase masks
 [unique_targets, ~,unique_idx] = unique(all_target_cell_idx,'rows' );

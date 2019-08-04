@@ -37,6 +37,7 @@ mean_sta_traces = squeeze(nanmean(raw_sta_traces, 2));
 mean_df_sta = squeeze(nanmean(df_sta, 2));
 dff_sta = squeeze(dff_sta);
 df_sta = squeeze(df_sta);
+raw_sta_traces = squeeze(raw_sta_traces); % added 20190803
 % median_dff_sta_traces = squeeze(nanmedian(dff_sta, 2));
 
 

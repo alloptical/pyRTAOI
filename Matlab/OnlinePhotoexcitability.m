@@ -85,9 +85,9 @@ for t = 1:numel(target_cell_idx)
 end
 
 %% make a stim order file for STA movie maker
-% oris = photo_sequence_idx;
+% oris = photo_sequence_cell_idx;
 % save([save_path filesep  'stimType_' caiman_file],'oris')
-
+% 
 %% plot traces
 % color trial by stim orientation
 unique_stim_type = unique(photo_sequence_cell_idx);
@@ -113,7 +113,7 @@ for i = 1:num_comp
     stim_cell_count = stim_cell_count+1;
 end
 
-for i = target_cell_idx
+for i = target_cnm_idx
     plot(cnm_struct(i).deconvC_full+i*plot_offset,'color','black','linewidth',1.5)
     stim_cell_count = stim_cell_count+1;
 end
@@ -127,10 +127,8 @@ for i = 1:num_stim_trials
     plot([photo_stim_frames(i) photo_stim_frames(i)],ylim,'color',opt.trial_color(i,:),'linewidth',1)
 end
 
-
-
 for s = 1:num_stim_type
-    plot([caiman_data.t_init tot_frames],target_cell_idx(s)*plot_offset.*[1 1],'color',opt.type_color(s,:),'linewidth',1)
+    plot([caiman_data.t_init tot_frames],target_cnm_idx(s)*plot_offset.*[1 1],'color',opt.type_color(s,:),'linewidth',.5)
 end
 xlim([caiman_data.t_init tot_frames])
 ylim([0 num_comp].*plot_offset+3)

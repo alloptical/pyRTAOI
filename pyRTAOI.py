@@ -16,8 +16,6 @@ TO DO    log this to Notes ToDo_log when it's done and tested
 -0. multiply selected cells by weight and compare with threshold - done, test on rig
 -1. test motion correction on gpu using caiman code - using onacid template matching, working well
 -2. disable adding components - done
-
-
 3. load and save out fixed targets centroid image - done
 4. temporally save a sequence of phase masks in holoblink, display on slm on command
 5. load threshold and weights file - done
@@ -4671,6 +4669,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		self.saveResultPath_lineEdit.setText(p['saveResultPath'])
 
 	def loadTrialOrder(self):
+		# load trial order from pybehav
 		filepath = str(QFileDialog.getOpenFileName(self, 'Load trial sequence', p['saveResultPath'], '*.txt')[0])
 		if filepath:
 			arr = np.genfromtxt(filepath, delimiter=',')
@@ -4682,7 +4681,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.updateTrialType()
 
 	def loadStimOrder(self):
-		# load target idx list from matlab
+		# load target idx list and trial order from matlab
 		filepath = str(QFileDialog.getOpenFileName(self, 'Load stimOrder mat', p['saveResultPath'], '*.mat')[0])
 		if filepath:
 			[self.TargetIdxList,p['trialOrder'],p['fixedTargetSeqX'],p['fixedTargetSeqY']] = get_stimOrder(filepath)
@@ -4852,7 +4851,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		self.staPostFrame_spinBox.setValue(60)
 		self.stimStartFrame_spinBox.setValue(150)
 		self.enableStimTrigger_checkBox.setCheckState(Qt.Unchecked)
-		self.numberRepeats_spinBox.setValue(10)
 		self.getValues()
 
 		p['photo_sequence_idx'] = []
@@ -4868,7 +4866,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		for r in range(num_repeats):
 			p['photo_sequence_idx'].extend(random.sample(target_idx,num_targets))
 		print(p['photo_sequence_idx'])
-
+		self.getValues()
 
 
 #%% drag drop
