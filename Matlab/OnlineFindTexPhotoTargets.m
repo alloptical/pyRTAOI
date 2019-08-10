@@ -4,7 +4,8 @@
 % ZZ 2019
 clear all
 %% setup bruker1 dropbox path (only necassary if not using pyRTAOI to control photostim)
-BrukerDropboxPath = 'C:\Users\Zihui\Dropbox\Bruker1';
+% BrukerDropboxPath = 'C:\Users\Zihui\Dropbox\Bruker1'; % zz pc
+BrukerDropboxPath = 'C:\Users\User\Dropbox\Bruker1'; %bruker1 (should already in path)
 addpath(genpath([BrukerDropboxPath '\SLM\']));
 addpath(BrukerDropboxPath)
 
@@ -53,11 +54,19 @@ end
 opt = tex_output_struct.opt;
 opt.opt_photo = photo_output_struct.opt;
 
+% config trial types
+trial_type_tex           = [1 1 1 2 2 2 0 0 0];
+trial_type_photo         = [1,2,0,1,2,0,1,2,0];
+relative_type_fraction   = [1 1 1 1 1 1 1 1 1]; %  CHANGE THIS
+opt.trial_type_fraction = relative_type_fraction./sum(relative_type_fraction);
+
+
 % keep notes of loaded file paths
 opt.tex_file_name = tex_file;
 opt.photo_file_name = photo_file;
 
 % config experiment
+opt.if_shuffle_targets = false; % if shuffle and balance number of targets for each photostim ensemble
 opt.exp_num_targets  = 5;    % expected number of targets per photostim group 
 opt.tot_num_trials   = 180;  % total number of trials (should be same as pybehav trialOrder)
 opt.max_num_consecutive = 3; % max number of consecutive trials with same type of sensory stimuli 
@@ -68,14 +77,10 @@ opt.stim_start_time  = 3;    % time delay between trialon trigger and photostim 
 opt.sample_rate_hz   = 1000; % packio output sample rate  
 opt.trig_dur_msecs   = 5;         %impulse duration in milliseconds
 
-% config trial types
-trial_type_tex           = [1 1 1 2 2 2 0 0 0];
-trial_type_photo         = [1,2,0,1,2,0,1,2,0];
-relative_type_fraction   = [1 1 1 1 1 1 1 1 1]; % change this 
-opt.trial_type_fraction = relative_type_fraction./sum(relative_type_fraction);
+% phase mask 
+opt.zero_block_pix   = 3;    % number of pixels in current zoom settings considered to be blocked (only used for dummy targets when NOT using pyRTAOI)
 
- 
-num_trial_types = 9;
+num_trial_types = numel(relative_type_fraction);
 trial_type_names = cell(1,num_trial_types);
 for i = 1:num_trial_types
     trial_type_names{i} = ['tex' num2str(trial_type_tex(i)) '_photo' num2str(trial_type_photo(i))];
@@ -136,37 +141,25 @@ for c = 1:num_cells
     cell_struct(c).coordinates = cell_struct(c).jsf.coordinates;
 end
 
-%% plot photo and texture auc
-figure('name','auc plots','position',[100 100 800 400])
-subplot(1,2,1)
-hold on
-histogram(extractfield(cell_struct,'photo_auc_zscore'),'facecolor',[.7 .7 .7],'edgecolor','none','BinWidth',.5)
-histogram(extractfield(cell_struct(extractfield(cell_struct,'is_photo')==1),'photo_auc_zscore'),'facecolor','none','edgecolor',[1,0,0],'BinWidth',.5)
-
-axis square
-xlabel('Photo response auc (zscore)')
-
-subplot(1,2,2)
-hold on
-histogram(extractfield(cell_struct,'tex_auc_zscore'),'facecolor',[.7 .7 .7],'edgecolor','none','BinWidth',.5)
-histogram(extractfield(cell_struct(extractfield(cell_struct,'is_tuned')==1),'tex_auc_zscore'),'facecolor','none','edgecolor',[0,0,1],'BinWidth',.5)
-xlabel('Tex response auc (zscore)')
-axis square
 
 %% show photostim response and texture response on FOV
-figure('name','response amp fov','position',[100 100 1200 800])
+figure('name','response amp fov','units','normalized','outerposition',[0 0 1 1])
 
-ax2 = subplot(1,3,1);
+ax2 = subplot(2,3,1);
 plot_value_in_rois( cell_struct, 'sta_amp_correct_stim_1',[256 256],ax2,'IF_NORM_PIX',0,'IF_CONTOUR',0);
 set(gca,'Ydir','reverse')
 title('Tex1 response (correct trials)')
+mark_idx = find(extractfield(cell_struct,'pref_tex')==1);
+mark_cells_on_fov(cell_struct,mark_idx,plot_color.stim1,'MarkerSize',300)
 
-ax2 = subplot(1,3,2);
+ax2 = subplot(2,3,2);
 plot_value_in_rois( cell_struct, 'sta_amp_correct_stim_2',[256 256],ax2,'IF_NORM_PIX',0,'IF_CONTOUR',0);
 set(gca,'Ydir','reverse')
 title('Tex2 response (correct trials)')
+mark_idx = find(extractfield(cell_struct,'pref_tex')==2);
+mark_cells_on_fov(cell_struct,mark_idx,plot_color.stim2,'MarkerSize',300)
 
-ax3 = subplot(1,3,3);
+ax3 = subplot(2,3,3);
 plot_value_in_rois( cell_struct, 'photo_sta_amp',[256 256],ax3,'IF_NORM_PIX',0,'IF_CONTOUR',0);
 set(gca,'Ydir','reverse')
 title('Photo response')
@@ -177,7 +170,27 @@ mark_cells_on_fov(cell_struct,mark_idx,plot_color.stim1)
 mark_idx = find(extractfield(cell_struct,'pref_tex')==2);
 mark_cells_on_fov(cell_struct,mark_idx,plot_color.stim2)
 mark_idx = find(extractfield(cell_struct,'is_photo')==1);
-mark_cells_on_fov(cell_struct,mark_idx,plot_color.photo,'MarkerSize',300,'Linewidth',1)
+mark_cells_on_fov(cell_struct,mark_idx,plot_color.photo,'MarkerSize',400,'Linewidth',1)
+
+% plot photo and texture auc
+
+subplot(2,3,4)
+hold on
+histogram(extractfield(cell_struct,'tex_auc_zscore'),'facecolor',[.7 .7 .7],'edgecolor','none','BinWidth',.5)
+histogram(extractfield(cell_struct(extractfield(cell_struct,'is_tuned')==1),'tex_auc_zscore'),'facecolor','none','edgecolor',[0,0,1],'BinWidth',.5)
+xlabel('Tex response auc (zscore)')
+ylabel('Num. cells')
+axis square
+
+subplot(2,3,5)
+hold on
+histogram(extractfield(cell_struct,'photo_auc_zscore'),'facecolor',[.7 .7 .7],'edgecolor','none','BinWidth',.5)
+histogram(extractfield(cell_struct(extractfield(cell_struct,'is_photo')==1),'photo_auc_zscore'),'facecolor','none','edgecolor',[1,0,0],'BinWidth',.5)
+
+axis square
+xlabel('Photo response auc (zscore)')
+
+export_fig([save_path filesep 'TexPhotoSum_' exp_folder_name, '.png'])
 
 %% get photoactivatable texture cells
 tex_photo_idx.all = find(extractfield(cell_struct,'is_photo').*extractfield(cell_struct,'is_tuned')>0);
@@ -193,87 +206,132 @@ disp(['Num tex 2 photo cells: ' num2str(num_targets(2))])
 % tex_photo_idx.targets1 = [1,2,3,4,5];
 % tex_photo_idx.targets2 = [6,7,9,10];
 
-%% define number of cells to stimulate 
-num_cells_per_stim = min([opt.exp_num_targets,numel(tex_photo_idx.targets1)-1,numel(tex_photo_idx.targets2)-1]);
-disp(['Number of cells per photostim:' num2str(num_cells_per_stim)])
-if num_cells_per_stim ==0
-    warning('not enough targets!')
-end
-opt.num_cells_per_stim = num_cells_per_stim;
+%% define cells to stimulate 
 opt.shuff_order = shuff_trial_order;
-%% =======================   MAKE OUTPUT FILES ============================
-%% generate target order
-% randomly select num_cells_per_stim targets in each trial
-% while keeping random targets in different tex trials as same as possible
-
-% generate two pools of target sets
-target_cell_pool = {};
-for i = 1:2
-max_num_comb = max(arrayfun(@(x)numel(find(shuff_all_trial_types_idx == x)), find(trial_type_photo==i)));
-target_cell_idx = nan(max_num_comb,opt.num_cells_per_stim);
-for t = 1:max_num_comb
-    this_rand_idx = randperm(num_targets(i));
-    target_cell_idx(t,:) = sort(tex_photo_idx.(['targets' num2str(i)])(this_rand_idx(1:opt.num_cells_per_stim)));
-end
-target_cell_pool{i} = target_cell_idx;
-end
-
-% generate full array of target indices
-all_target_cell_idx = zeros(opt.tot_num_trials,num_cells_per_stim);
-for photo_type = 1:2
-    for tex_type = 1:2
-        this_trial_idx = find(shuff_photo_trial_types_idx == photo_type & shuff_tex_trial_types_idx == tex_type);
-        all_target_cell_idx(this_trial_idx,:) = target_cell_pool{photo_type}(randperm(numel(this_trial_idx)),:);
+if opt.if_shuffle_targets % randomly stimulate same number of tex1-photo or tex2-photo cells
+    num_cells_per_stim = min([opt.exp_num_targets,numel(tex_photo_idx.targets1)-1,numel(tex_photo_idx.targets2)-1]);
+    disp(['Number of cells per photostim:' num2str(num_cells_per_stim)])
+    if num_cells_per_stim ==0
+        warning('not enough targets!')
     end
+    opt.num_cells_per_stim = num_cells_per_stim;
+    %% generate target order
+    % randomly select num_cells_per_stim targets in each trial
+    % while keeping random targets in different tex trials as same as possible
+    
+    % generate two pools of target sets
+    target_cell_pool = {};
+    for i = 1:2
+        max_num_comb = max(arrayfun(@(x)numel(find(shuff_all_trial_types_idx == x)), find(trial_type_photo==i)));
+        target_cell_idx = nan(max_num_comb,opt.num_cells_per_stim);
+        for t = 1:max_num_comb
+            this_rand_idx = randperm(num_targets(i));
+            target_cell_idx(t,:) = sort(tex_photo_idx.(['targets' num2str(i)])(this_rand_idx(1:opt.num_cells_per_stim)));
+        end
+        target_cell_pool{i} = target_cell_idx;
+    end
+    
+    % generate full array of random target indices
+    all_target_cell_idx = zeros(opt.tot_num_trials,num_cells_per_stim);
+    for photo_type = 1:2
+        for tex_type = 1:2
+            this_trial_idx = find(shuff_photo_trial_types_idx == photo_type & shuff_tex_trial_types_idx == tex_type);
+            all_target_cell_idx(this_trial_idx,:) = target_cell_pool{photo_type}(randperm(numel(this_trial_idx)),:);
+        end
+    end
+
+    
+else  % otherwise stimulate all tex1-photo or tex2-photo cells
+    % generate full array of tex-target indices
+    num_cells_per_stim = max([length(tex_photo_idx.targets1),length(tex_photo_idx.targets2)]);
+    all_target_cell_idx = zeros(opt.tot_num_trials,num_cells_per_stim);
+    for photo_type = 1:2
+        this_trial_idx = find(shuff_photo_trial_types_idx == photo_type);
+        this_targets_idx = tex_photo_idx.(['targets' num2str(photo_type)]);
+        all_target_cell_idx(this_trial_idx,1:numel(this_targets_idx)) = repmat(this_targets_idx,numel(this_trial_idx),1);
+    end
+
 end
 
+all_trials_num_target = arrayfun(@(x)numel(find(all_target_cell_idx(x,:)>0)),1:size(all_target_cell_idx,1));
+%% =======================   MAKE OUTPUT FILES ============================
 %% generate target order (for pyRTAOI)
 pyrtaoi_stimOrder = struct();
 pyrtaoi_stimOrder.target_idx_list = all_target_cell_idx;
-target_centroid_x = zeros(size(all_target_cell_idx));
-target_centroid_y = zeros(size(all_target_cell_idx));
+target_centroid_x = -ones(size(all_target_cell_idx)); % -1s are dummies
+target_centroid_y = -ones(size(all_target_cell_idx));
 for i = 1:opt.tot_num_trials
-    if ~any(all_target_cell_idx(i,:) == 0)
-    this_centroids = cell2mat({cell_struct(all_target_cell_idx(i,:)).centroid}');
-    target_centroid_x(i,:) = this_centroids(:,2)';
-    target_centroid_y(i,:) = this_centroids(:,1)';
+    if ~all(all_target_cell_idx(i,:) == 0) % otherwise this is a trial without photostim
+        this_target_idx = all_target_cell_idx(i,:);
+        this_target_idx = this_target_idx(this_target_idx>0);
+        this_num_targets = length(this_target_idx);
+        this_centroids = cell2mat({cell_struct(this_target_idx).centroid}');
+        target_centroid_x(i,1:this_num_targets) = this_centroids(:,2)';
+        target_centroid_y(i,1:this_num_targets) = this_centroids(:,1)';
     else
         continue
-    end 
+    end
 end
 
-pyrtaoi_stimOrder.target_centroid_x = target_centroid_x;
-pyrtaoi_stimOrder.target_centroid_y = target_centroid_y;
+pyrtaoi_stimOrder.target_centroid_x = target_centroid_x.*opt.ds_factor;
+pyrtaoi_stimOrder.target_centroid_y = target_centroid_y.*opt.ds_factor;
+pyrtaoi_stimOrder.trialOrder = shuff_tex_trial_types_idx;
 
-rtaoi_save_path = [save_path filesep 'pyrtaoi_stimOrder.mat'];
+rtaoi_save_path = [save_path filesep 'pyrtaoi_stimOrder_' exp_folder_name '.mat'];
 save(rtaoi_save_path,'pyrtaoi_stimOrder');
 disp(['pyRTOAI target list saved to: ' rtaoi_save_path])
 
 %% generate trial order (for pyBehavior)   
-pyrtaoi_stimOrder.trialOrder = shuff_tex_trial_types_idx;
 pyrtaoi_stimOrder.trialVariation = zeros(size(pyrtaoi_stimOrder.trialOrder));
 
-% make catch trial idx to 3 for pybehav
-pyrtaoi_stimOrder.trialOrder(pyrtaoi_stimOrder.trialOrder==0) = 3;
-pybehav_save_path = [save_path filesep 'pybehav_stimOrder.txt'];
-dlmwrite(pybehav_save_path, [pyrtaoi_stimOrder.trialOrder; pyrtaoi_stimOrder.trialVariation ] ,'delimiter',',') 
+% make catch trial idx to [3,4,5] for pybehav (to get random reward)
+% index 5 being catch trials without autoreward
+catch_trial_idx = find(shuff_tex_trial_types_idx==0);
+num_catch_trials = length(catch_trial_idx);
+temp_catch_idx = 5.*ones(1,num_catch_trials);
+temp_catch_idx(1:round(num_catch_trials*0.33)) = 3;
+temp_catch_idx(1+2*round(num_catch_trials*0.33):end) = 4;
+catch_trial_order = temp_catch_idx(randperm(num_catch_trials));
+pybehav_trial_order = shuff_tex_trial_types_idx;
+pybehav_trial_order(catch_trial_idx) = catch_trial_order;
+
+pyrtaoi_stimOrder.pybehav_trial_order = pybehav_trial_order;
+pybehav_save_path = [save_path filesep 'pybehav_stimOrder' ,exp_folder_name, '.txt'];
+dlmwrite(pybehav_save_path, [pyrtaoi_stimOrder.pybehav_trial_order; pyrtaoi_stimOrder.trialVariation ] ,'delimiter',',') 
+
+% plot trial types
+figure('name','trial order','units','normalized','position',[0 .5 1 .6])
+subplot(3,1,2)
+imagesc(shuff_tex_trial_types_idx)
+ylabel('tex order')
+subplot(3,1,1)
+imagesc(shuff_photo_trial_types_idx)
+ylabel('photo order')
+subplot(3,1,3)
+imagesc(pybehav_trial_order)
+ylabel('pybehav order')
+
 %% generate target tiff and holograms (for Blink if not using pyRTAOI)
 % only save out unique tiffs and phase masks
 [unique_targets, ~,unique_idx] = unique(all_target_cell_idx,'rows' );
 all_target_set_idx = unique_idx;
 dummy_img = zeros(512,512);
 dummy_img(256,256)=1;
+
 for i = 1:size(unique_targets,1)
     % make target tiff image and hologram
     this_target_idx = unique_targets(i,:);
 
     if(isequal(this_target_idx,zeros(size(this_target_idx))))
         % make a dummy target behind zero order blocker
+        dummy_target_set_idx = i;
         target_img = dummy_img;
     else
-        target_centroids = cell2mat({cell_struct(this_target_idx).centroid}');
+        this_actual_target_idx = this_target_idx(this_target_idx>0);
+%         this_dummies_centroids = opt.zero_block_pix.*rand(length(find(this_target_idx == 0)),2)+opt.fov_size(1)/2;
+%         target_centroids = [cell2mat({cell_struct(this_actual_target_idx).centroid}'); this_dummies_centroids];
+        target_centroids = cell2mat({cell_struct(this_actual_target_idx).centroid}');
         target_img = make_target_image(target_centroids,opt.fov_size,opt.ds_factor);
-
     end
     % save target image
     imwrite(target_img,[target_tiff_save_path, filesep ['targets_' num2str(i)] '.tif']);
@@ -291,15 +349,46 @@ allphasemask_save_path = [target_tiff_save_path filesep 'AllPhaseMasks'];
 if ~exist(allphasemask_save_path, 'dir')
     mkdir(allphasemask_save_path)
 end
+blank_image = zeros(512,512,'uint16');
+
 for i = 1:length(all_target_set_idx)
     this_target_set = all_target_set_idx(i);
-    imwrite(phasemasks{this_target_set},[allphasemask_save_path, filesep ,'trial' num2str(i) 'phasemask_targets' num2str(this_target_set)  '.tif']);
+    if this_target_set == dummy_target_set_idx % if this is a trial without photostim, save a blank hologram
+        imwrite(blank_image,[allphasemask_save_path, filesep ,'trial' num2str(i) 'phasemask_targets' num2str(this_target_set)  '.tif']);
+    else
+        imwrite(phasemasks{this_target_set},[allphasemask_save_path, filesep ,'trial' num2str(i) 'phasemask_targets' num2str(this_target_set)  '.tif']);
+    end
 end
 disp(['Listed phasemasks (for blink) saved to: ' allphasemask_save_path])
 
 %% generate triggers to spiral and blink (for packIO if not using pyRTAOI)
-output_triggers = generate_tex_photo_triggers(pack_trigger_save_path,opt);
-%% save to output
+opt.mw_per_cell = 8;
+
+% NOTE: THESE HAVE TO MATCH MARKPOINT SETTINGS (IF COMSTUM CONTROL AOM)!!
+opt.photostim_frequency = 5;%Hz
+opt.num_stim_per_trial = 5;
+opt.duration_per_stim = 90; %ms
+
+% get power from calibration curve
+opt.pv_power_for_markpoints = mw2pv(opt.mw_per_cell *size(unique_targets,2)); % dummies are hidden behind zero order
+opt.aom_power_volt = opt.pv_power_for_markpoints/1000;
+
+output_triggers = generate_tex_photo_triggers(pack_trigger_save_path,all_trials_num_target,opt);
+% disp(['Mark Point Laser Power (PV unit) = ' num2str(opt.pv_power_for_markpoints )])
+%% save results
+output_struct = struct();
+output_struct.opt = opt;
+output_struct.photo_file = photo_file;
+output_struct.tex_file = tex_file;
+output_struct.cell_struct = cell_struct;
+output_struct.tex_photo_idx = tex_photo_idx;
+output_struct.pyrtaoi_stimOrder = pyrtaoi_stimOrder;
+output_save_name = [save_path filesep 'Summary_' exp_folder_name '.mat'];
+save(output_save_name, 'output_struct' )
+disp(['Result file saved as: ' output_save_name])
+
+
+
 
 
 

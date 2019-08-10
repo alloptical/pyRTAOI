@@ -1198,9 +1198,12 @@ class Worker(QObject):
 							self.sendTTLTrigger_signal.emit()
 							if p['photoProtoInx'] == CONSTANTS.PHOTO_FIX_SEQUENCE: # change phasemask at sensory trial onsets
 								p['currentTargetX'] = p['fixedTargetSeqX'][sens_stim_idx].copy()
-								p['currentTargetY'] = p['fixedTargetSeqX'][sens_stim_idx].copy()
+								p['currentTargetY'] = p['fixedTargetSeqY'][sens_stim_idx].copy()
 								num_stim_targets = len(p['currentTargetX'])
-								FLAG_SEND_COORDS = True
+								if num_stim_targets>0:
+									FLAG_SEND_COORDS = True
+								else:
+									FLAG_SEND_COORDS = False
 
 							sens_stim_idx += 1
 							stim_frames_caiman.append(framesCaiman)
@@ -1254,6 +1257,9 @@ class Worker(QObject):
 						FLAG_SEND_COORDS = False
 
 #					FLAG_SEND_COORDS = False # delete this later!
+					if p['photoProtoInx'] == CONSTANTS.PHOTO_FIX_SEQUENCE and num_stim_targets==0:
+						FLAG_TRIG_PHOTOSTIM = False
+
 					if FLAG_TRIG_PHOTOSTIM:
 						frames_post_photostim = 1
 						if p['stimFromBlink']: # send trigger from photostimer
@@ -1488,8 +1494,8 @@ class Worker(QObject):
 				else:
 					movie_string = movie_name[:-4]
 
-				filename = movie_string + '_OnlineProc_DS_' + str(ds_factor) + '_' + timestr + '.pkl'
-				matname =  movie_string + '_OnlineProc_DS_' + str(ds_factor) +  '_' + timestr + '_TrialType' + '.mat'
+				filename = movie_string + '_OnlineProc_' + timestr + '.pkl'
+				matname =  movie_string + '_OnlineProc_' + timestr + '_TrialType' + '.mat'
 
 				movie_folder = os.path.dirname(self.movie_name)
 				save_folder = os.path.join(movie_folder, 'pyrtaoi_results')  # save init result in a separate folder
@@ -1960,6 +1966,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		self.updateTargets_pushButton.clicked.connect(self.updateTargets)
 		self.updateFixTargets_pushButton.clicked.connect(self.updateFixTargets)
 		self.loadStimOrder_pushButton.clicked.connect(self.loadStimOrder)
+		self.previewStimOrder_pushButton.clicked.connect(self.previewStimOrder)
 
 		# mouse events
 		self.graphicsView.scene().sigMouseClicked.connect(self.getMousePosition)
@@ -2184,13 +2191,12 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		if p['photoProtoInx'] == CONSTANTS.PHOTO_REPLAY_TRIAL or p['photoProtoInx'] == CONSTANTS.PHOTO_REPLAY_TRAIN:
 			photo_stim_frames = sen_stim_frames+p['photoWaitFrames']
 			sen_stim_frames = sen_stim_frames[::2]
-		if p['photoProtoInx'] == CONSTANTS.PHOTO_FIX_FRAMES:
+		if p['photoProtoInx'] == CONSTANTS.PHOTO_FIX_FRAMES or p['photoProtoInx'] == CONSTANTS.PHOTO_FIX_SEQUENCE:
 			relative_frames = math.ceil(frame_rate/p['photoFrequency'])*np.arange(0,p['photoNumStimsPerTrial'])+p['photoWaitFrames']
+			print(sen_stim_frames)
 			photo_stim_frames = np.concatenate( [item+relative_frames for item in sen_stim_frames])
-		if p['photoProtoInx'] == CONSTANTS.PHOTO_SEQUENCE:
-			photo_stim_frames = p['photo_stim_frames'].copy()
-		if p['photoProtoInx'] == CONSTANTS.PHOTO_FIX_SEQUENCE:
-			photo_stim_frames = sen_stim_frames+p['photoWaitFrames']
+			print(photo_stim_frames)
+
 		# save to global p
 		p['sen_stim_frames'] = sen_stim_frames
 		p['photo_stim_frames'] = photo_stim_frames
@@ -4683,15 +4689,37 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 	def loadStimOrder(self):
 		# load target idx list and trial order from matlab
 		filepath = str(QFileDialog.getOpenFileName(self, 'Load stimOrder mat', p['saveResultPath'], '*.mat')[0])
+		print(filepath)
 		if filepath:
-			[self.TargetIdxList,p['trialOrder'],p['fixedTargetSeqX'],p['fixedTargetSeqY']] = get_stimOrder(filepath)
-			self.updateStatusBar('Loaded trial type from stimOrder file')
-			p['useExternalTrialOrder'] = True
-			p['ConditionOnStimType'] = False
-			self.useExternalTrialOrder_checkBox.setCheckState(Qt.Checked)
-			self.ConditionOnStimType_checkBox.setCheckState(Qt.Unchecked)
-			self.updateTrialType()
+			try:
+				[self.TargetIdxList,p['trialOrder'],p['fixedTargetSeqX'],p['fixedTargetSeqY']] = get_stimOrder(filepath)
+				self.updateStatusBar('Loaded trial type from stimOrder file')
+				p['useExternalTrialOrder'] = True
+				p['ConditionOnStimType'] = False
+				self.useExternalTrialOrder_checkBox.setCheckState(Qt.Checked)
+				self.ConditionOnStimType_checkBox.setCheckState(Qt.Unchecked)
+				self.updateTrialType()
+				self.updateStatusBar('Loaded StimOrder file')
 
+			except Exception as e:
+				print(e)
+				return
+	def previewStimOrder(self):
+		try:
+#			for i in range(len(p['trialOrder'])):
+				i = random.randint(1,len(p['trialOrder']))
+				p['currentTargetX'] = p['fixedTargetSeqX'][i].copy()
+				p['currentTargetY'] = p['fixedTargetSeqY'][i].copy()
+				if len(p['currentTargetX'])>0:
+					self.CurrentFrameIdx_label.setText(str(p['sen_stim_frames'][i]))
+					self.updateTargetROIs()
+				else:
+					print('this trial as no photostim')
+
+
+		except Exception as e:
+			print(e)
+			return
 	def loadTriggerConfig(self):
 		trigger_config_path = str(QFileDialog.getOpenFileName(self, 'Load trigger configeration', self.movie_folder, 'mat (*.mat);;All files (*.*)')[0])
 		if trigger_config_path:

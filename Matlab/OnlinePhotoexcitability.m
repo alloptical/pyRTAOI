@@ -44,6 +44,11 @@ save_path = [caiman_path filesep 'analysis_files'];
 if ~exist(save_path, 'dir')
 mkdir(save_path)
 end
+
+fig_save_path = [caiman_path filesep 'figures'];
+if ~exist(fig_save_path, 'dir')
+mkdir(fig_save_path)
+end
 %% make data struct
 [cnm_struct,cnm_image,num_comp,cnm_dims,tot_frames] = make_cnm_struct(caiman_data);
 % spatial components
@@ -85,8 +90,9 @@ for t = 1:numel(target_cell_idx)
 end
 
 %% make a stim order file for STA movie maker
-% oris = photo_sequence_cell_idx;
-% save([save_path filesep  'stimType_' caiman_file],'oris')
+oris = photo_sequence_cell_idx;
+num_diff_stims = length(unique(oris));
+save([save_path filesep  'STAMovieMaker_stimType_' num2str(num_diff_stims) '_Stims_' caiman_file],'oris')
 % 
 %% plot traces
 % color trial by stim orientation
@@ -133,7 +139,7 @@ end
 xlim([caiman_data.t_init tot_frames])
 ylim([0 num_comp].*plot_offset+3)
 %% plot fov with sta amp
-figure('name','fov')
+figure('name','fov','units','normalized','outerposition',[0 0 1 1])
 [CC,jsf] = plot_contours(sparse(double(full(caiman_data.cnm_A))),cnm_image,cnm_plot_options,1,[],[],[1 1 1]);
 colormap(gray)
 axis square
@@ -158,7 +164,6 @@ for i = 1:num_cells
     cell_struct(i).cnm_idx = this_idx;
     cell_struct(i).jsf = jsf(this_idx);
 end
-
 %% plot spatial components and photostim sta
 target_com_fov = zeros(cnm_dims);
 binary_fov = zeros(cnm_dims);
@@ -168,7 +173,8 @@ end
 
 cnm_plot_options = CNMFSetParms;
 cnm_plot_options.roi_color = [colormap(lines);colormap(lines);colormap(lines)];
-figure('name','fov','position',[100 100 1200 800])
+
+figure('name','sta fov','units','normalized','outerposition',[0 0 1 1])
 subplot(1,4,1)
 imagesc(com_fov)
 colormap(gray)
@@ -196,8 +202,10 @@ plot_value_in_rois( cell_struct, 'sta_amp',[256 256],ax1,'IF_NORM_PIX',0,'IF_CON
 set(gca,'Ydir','reverse')
 title('Target photo response')
 
+export_fig([fig_save_path filesep 'PhotoSTAFOV_' strrep(caiman_file,'.mat','.png')])
+
 %% plot sta traces
-figure('name','target sta traces','position',[100 100 1200 800])
+figure('name','target sta traces','units','normalized','outerposition',[0 0 1 1])
 num_plot_cols = 5;
 num_plot_rois = length(target_cell_idx);
 num_plot_rows = ceil(num_plot_rois/num_plot_cols);
@@ -233,8 +241,8 @@ for ii = 1:num_plot_rois
     text(0.05,.8,['zscore auc '  num2str(cell_struct(i).photo_auc_zscore,'%10.2f') ],'units','normalized', 'horizontalalignment','left', 'color',text_color)
         
 end
-suptitle('Target cells, photostim-triggered response')
 
+export_fig([fig_save_path filesep 'PhotoSTATrace' strrep(caiman_file,'.mat','.png')])
 
 %% save structure
 % make a brief struct to combine with texture struct later

@@ -56,19 +56,20 @@ def get_stimOrder(file_full_name):
 		target_centroid_y = []
 
 		for i in range(len(trialOrder)):
-			target_idx = input_target_idx_list[i]
-			if all(idx ==0 for idx in target_idx):
+			temp_target_idx = input_target_idx_list[i]
+			target_idx = [i for i in temp_target_idx if i!=0] # exclude dummy targets
+			if all(idx ==0 for idx in target_idx): # exclude trials without photostim
 				target_idx_list.append([]) # set lists of zeros to empty
 				target_centroid_x.append([])
 				target_centroid_y.append([])
 			else:
 				target_idx_list.append([idx-1 for idx in target_idx]) # -1 for python indexing
-				target_centroid_x.append(input_target_centroid_x[i].tolist)
-				target_centroid_y.append(input_target_centroid_y[i].tolist)
+				target_centroid_x.append([x for x in input_target_centroid_x[i].tolist() if x>=0])
+				target_centroid_y.append([y for y in input_target_centroid_y[i].tolist() if y>=0])
 
-		return target_idx_list,trialOrder,target_centroid_x,target_centroid_y,input_target_centroid_x
+		return target_idx_list,trialOrder,target_centroid_x,target_centroid_y
 
-	
+
 if __name__ == '__main__':
 
 	# test loadpowerfile:
@@ -82,8 +83,8 @@ if __name__ == '__main__':
 	# print(volt)
 
 	# test loadtriggerfile
-	file_name = r'D:\TextureData\data\cb214\20190724\pyrtaoi_results\analysis_files\\TexPhotoConfig_20190724_cb214_Tt_0005_Pt_0007_113757\pyrtaoi_stimOrder.mat'
-	[target_idx_list,trialOrder,target_centroid_x,target_centroid_y,input_target_centroid_x] = get_stimOrder(file_name)
+	file_name = r'E:\Data\Zoe\20190805\pyrtaoi_results\analysis_files\TexPhotoConfig_20190805_cb217_Tt_0006_Pt_0007_200348\pyrtaoi_stimOrder.mat'
+	[target_idx_list,trialOrder,target_centroid_x,target_centroid_y] = get_stimOrder(file_name)
 
 
 

@@ -988,7 +988,7 @@
         <item row="3" column="4">
          <widget class="QPushButton" name="loadTrialOrder_pushButton">
           <property name="text">
-           <string>Load trialOrder( pyBehavior)</string>
+           <string>Load trialOrder( pyBehav)</string>
           </property>
          </widget>
         </item>
@@ -1028,6 +1028,13 @@
          <widget class="QCheckBox" name="shuffleTrials_checkBox">
           <property name="text">
            <string>Shuffle </string>
+          </property>
+         </widget>
+        </item>
+        <item row="4" column="2">
+         <widget class="QPushButton" name="previewStimOrder_pushButton">
+          <property name="text">
+           <string>Preview stimOrder</string>
           </property>
          </widget>
         </item>
@@ -1554,48 +1561,6 @@
        </rect>
       </property>
       <layout class="QGridLayout" name="gridLayout_9">
-       <item row="0" column="9">
-        <widget class="QLabel" name="xPos_label">
-         <property name="text">
-          <string/>
-         </property>
-        </widget>
-       </item>
-       <item row="0" column="3">
-        <widget class="QLabel" name="label_42">
-         <property name="text">
-          <string>Tot. photostim sent:</string>
-         </property>
-        </widget>
-       </item>
-       <item row="0" column="1">
-        <widget class="QLabel" name="CurrentFrameIdx_label">
-         <property name="text">
-          <string>0</string>
-         </property>
-        </widget>
-       </item>
-       <item row="0" column="10">
-        <widget class="QLabel" name="label_20">
-         <property name="text">
-          <string>y =</string>
-         </property>
-        </widget>
-       </item>
-       <item row="0" column="8">
-        <widget class="QLabel" name="label_18">
-         <property name="text">
-          <string> x =</string>
-         </property>
-        </widget>
-       </item>
-       <item row="0" column="0">
-        <widget class="QLabel" name="label_2">
-         <property name="text">
-          <string> Current Frame:</string>
-         </property>
-        </widget>
-       </item>
        <item row="0" column="4">
         <widget class="QLabel" name="totalNumPhotostim_label">
          <property name="text">
@@ -1603,17 +1568,23 @@
          </property>
         </widget>
        </item>
+       <item row="1" column="2">
+        <widget class="QPushButton" name="keepSelected_pushButton">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="text">
+          <string> Remove Unselected </string>
+         </property>
+        </widget>
+       </item>
        <item row="0" column="11">
         <widget class="QLabel" name="yPos_label">
          <property name="text">
           <string/>
-         </property>
-        </widget>
-       </item>
-       <item row="1" column="1">
-        <widget class="QPushButton" name="removeSelected_pushButton">
-         <property name="text">
-          <string> Remove selected </string>
          </property>
         </widget>
        </item>
@@ -1633,6 +1604,41 @@
          </property>
         </widget>
        </item>
+       <item row="0" column="9">
+        <widget class="QLabel" name="xPos_label">
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="8">
+        <widget class="QLabel" name="label_18">
+         <property name="text">
+          <string> x =</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="0">
+        <widget class="QLabel" name="label_2">
+         <property name="text">
+          <string> Current Frame:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="1">
+        <widget class="QLabel" name="CurrentFrameIdx_label">
+         <property name="text">
+          <string>0</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="1">
+        <widget class="QPushButton" name="removeSelected_pushButton">
+         <property name="text">
+          <string> Remove selected </string>
+         </property>
+        </widget>
+       </item>
        <item row="0" column="5">
         <spacer name="horizontalSpacer_6">
          <property name="orientation">
@@ -1646,16 +1652,17 @@
          </property>
         </spacer>
        </item>
-       <item row="1" column="2">
-        <widget class="QPushButton" name="keepSelected_pushButton">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
+       <item row="0" column="10">
+        <widget class="QLabel" name="label_20">
          <property name="text">
-          <string> Remove Unselected </string>
+          <string>y =</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="2">
+        <widget class="QLabel" name="label_42">
+         <property name="text">
+          <string>Tot. photostim sent:</string>
          </property>
         </widget>
        </item>

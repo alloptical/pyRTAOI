@@ -38,7 +38,7 @@ opt.end_rw_frame = 180; % end of response window
 opt.sta_gocue_frame = opt.sta_pre_frames;
 opt.sta_trialon_frame = opt.sta_pre_frames-opt.gocue_frame;
 opt.sta_avg_frames = [-30:1:0]+opt.sta_gocue_frame;
-opt.sta_peak_search_range =  [-60:1:0]+opt.sta_gocue_frame;
+opt.sta_peak_search_range =  [-30:1:0]+opt.sta_gocue_frame;
 
 
 opt.withold_frames_adj = [60 120]; 
@@ -49,7 +49,7 @@ opt.frame_rate = 30;
 
 opt.flag_use_peak = true; % if false then will use average to get roc
 
-opt.correct_trial_only = false; % only use correct trials to get tunning
+opt.correct_trial_only = true; % only use correct trials to get tunning
 
 [trial_color] = online_tex_init_color();
 %% load CAIMAN data
@@ -70,6 +70,11 @@ end
 save_path = [caiman_path filesep 'analysis_files'];
 if ~exist(save_path, 'dir')
     mkdir(save_path)
+end
+
+fig_save_path = [caiman_path filesep 'figures'];
+if ~exist(fig_save_path, 'dir')
+mkdir(fig_save_path)
 end
 %% setup save path and name
 opt.output_path = caiman_path;
@@ -100,8 +105,8 @@ num_stim_type = length(unique(trialOrder)); % orientations/texture
 
 % only get correct trials
 if opt.correct_trial_only &&  FLAG_PYBEHAV_LOADED
-    sens_stim_frames = sens_stim_frames(trials.correct==1);
-    trialOrder = trialOrder(trials.correct==1);
+%     sens_stim_frames = sens_stim_frames(trials.correct==1);
+%     trialOrder = trialOrder(trials.correct==1);
 else
     % make a dummy trial struct (setting all trials to correct)
     trials.correct = ones(size(sens_stim_frames));
@@ -394,7 +399,8 @@ opt.fov_size = double(cnm_dims);
 opt.ds_factor = caiman_data.ds_factor;
 
 %% Plot STAs for all components
-figure('name','condition sta traces','position',[100 100 1200 800])
+figure('name','condition sta traces','units','normalized','outerposition',[0 0 1 1])
+
 num_plot_cols = 6;
 num_plot_rows = ceil(num_cells/num_plot_cols);
 for i = 1:num_cells
@@ -441,6 +447,7 @@ for i = 1:num_cells
     xticklabels(arrayfun(@(x){num2str(x)},(xaxisvalues-opt.sta_trialon_frame)./opt.frame_rate))
     
 end
+export_fig([fig_save_path filesep 'TexSTATrace_' strrep(caiman_file,'.mat','.png')])
 
 %% MAKE OUTPUT FILE FOR PYRTAOI
 [output] = generate_cell_idx_file(cell_struct,cell_idx_struct,[],opt);
@@ -470,67 +477,69 @@ disp(['Output struct saved as:' output_save_name ])
 
 
 %% =========================== CHECK PLOTS ======================================
-%% Plot STAs for trigger cells (cells to monitor)
-figure('name','trigger sta traces')
-num_plot_cols = 4;
-num_plot_rois = length(cell_idx_struct.(opt.trigger_idx_fd));
-num_plot_rows = ceil(num_plot_rois/num_plot_cols);
-plot_count = 1;
-for ii = 1:num_plot_rois
-    i = cell_idx_struct.(opt.trigger_idx_fd)(ii);
-    subtightplot(num_plot_rows,num_plot_cols,plot_count)
-    % plot traces
-    hold on
-    for t = 1:size(cell_struct(i).sta_traces,1)
-        plot(cell_struct(i).sta_traces(t,:),'color',opt.trial_color(t,:) ,'linewidth',1)
-    end
-    plot(cell_struct(i).sta_trace,'color',[.5 .5 .5],'linewidth',1.5)
-    
-    xlim([0 opt.sta_pre_frames+opt.sta_post_frames+1])
-    set(gca,'xtick',[],'xcolor',[1 1 1])
-    axis square
-    
-    plot([opt.sta_pre_frames opt.sta_pre_frames],ylim,'color',[.5 .5 .5]) % start of withold window
-    plot([opt.sta_pre_frames opt.sta_pre_frames] + length(opt.withold_frames_adj),ylim,'color',[0 0 0]) % go-cue
-
-    plot_count = plot_count+1;
-    
-    text(0.05,1,['ROI ' num2str(i)],'units','normalized', 'horizontalalignment','left', 'color','black')
-    text(0.05,.9,['sensory auc ' num2str(cell_struct(i).correct_stimAUC,'%10.2f')],'units','normalized', 'horizontalalignment','left', 'color','black')
-    text(0.05,.8,['zscore auc '  num2str(cell_struct(i).correct_stimAUC_zscore,'%10.2f') ],'units','normalized', 'horizontalalignment','left', 'color','black')
-    
-end
-suptitle([opt.trigger_idx_fd ' rois, stim-triggered response'])
-%% Show sensory cells on maps
-figure('name','pref. texture on fov');
-subplot(1,2,1)
-imagesc(com_fov)
-colormap(gray)
-colorbar('location','southoutside');
-axis square
-title('Detected ROIs')
-
-ax1 = subplot(1,2,2)
-value_field = 'pref_tex';
-plot_value_in_rois( cell_struct, value_field,[256 256],ax1,'colorlut',[[1,1,1];opt.type_color],'IF_NORM_PIX',0,'IF_CONTOUR',1,'IF_SHOW_OPSIN',1,'zlimit',[0 4]);
-set(gca,'Ydir','reverse')
-title('Sensory cells (colored by pref. texture)')
-
-%% Plot auc distributions
-figure('name','correct stim auc')
-subplot(1,2,1)
-hold on
-histogram(extractfield(cell_struct,'correct_stimAUC'),'facecolor',[.7 .7 .7],'edgecolor','none','BinWidth',.05)
-histogram(extractfield(cell_struct(extractfield(cell_struct,'is_tuned')==1),'correct_stimAUC'),'facecolor','none','edgecolor',[0,0,1],'BinWidth',.05)
-xlabel('Tex response auc')
-axis square
-
-subplot(1,2,2)
-hold on
-histogram(extractfield(cell_struct,'correct_stimAUC_zscore'),'facecolor',[.7 .7 .7],'edgecolor','none','BinWidth',.5)
-histogram(extractfield(cell_struct(extractfield(cell_struct,'is_tuned')==1),'correct_stimAUC_zscore'),'facecolor','none','edgecolor',[0,0,1],'BinWidth',.5)
-xlabel('Tex response auc (zscore)')
-axis square
+% %% Plot STAs for trigger cells (cells to monitor)
+% figure('name','trigger sta traces')
+% num_plot_cols = 4;
+% num_plot_rois = length(cell_idx_struct.(opt.trigger_idx_fd));
+% num_plot_rows = ceil(num_plot_rois/num_plot_cols);
+% plot_count = 1;
+% for ii = 1:num_plot_rois
+%     i = cell_idx_struct.(opt.trigger_idx_fd)(ii);
+%     subtightplot(num_plot_rows,num_plot_cols,plot_count)
+%     % plot traces
+%     hold on
+%     for t = 1:size(cell_struct(i).sta_traces,1)
+%         plot(cell_struct(i).sta_traces(t,:),'color',opt.trial_color(t,:) ,'linewidth',1)
+%     end
+%     plot(cell_struct(i).sta_trace,'color',[.5 .5 .5],'linewidth',1.5)
+%     
+%     xlim([0 opt.sta_pre_frames+opt.sta_post_frames+1])
+%     set(gca,'xtick',[],'xcolor',[1 1 1])
+%     axis square
+%     
+%     plot([opt.sta_pre_frames opt.sta_pre_frames],ylim,'color',[.5 .5 .5]) % start of withold window
+%     plot([opt.sta_pre_frames opt.sta_pre_frames] + length(opt.withold_frames_adj),ylim,'color',[0 0 0]) % go-cue
+% 
+%     plot_count = plot_count+1;
+%     
+%     text(0.05,1,['ROI ' num2str(i)],'units','normalized', 'horizontalalignment','left', 'color','black')
+%     text(0.05,.9,['sensory auc ' num2str(cell_struct(i).correct_stimAUC,'%10.2f')],'units','normalized', 'horizontalalignment','left', 'color','black')
+%     text(0.05,.8,['zscore auc '  num2str(cell_struct(i).correct_stimAUC_zscore,'%10.2f') ],'units','normalized', 'horizontalalignment','left', 'color','black')
+%     
+% end
+% suptitle([opt.trigger_idx_fd ' rois, stim-triggered response'])
 
 
+% %% Show sensory cells on maps
+% figure('name','pref. texture on fov');
+% subplot(1,2,1)
+% imagesc(com_fov)
+% colormap(gray)
+% colorbar('location','southoutside');
+% axis square
+% title('Detected ROIs')
+% 
+% ax1 = subplot(1,2,2)
+% value_field = 'pref_tex';
+% plot_value_in_rois( cell_struct, value_field,[256 256],ax1,'colorlut',[[1,1,1];opt.type_color],'IF_NORM_PIX',0,'IF_CONTOUR',1,'IF_SHOW_OPSIN',1,'zlimit',[0 4]);
+% set(gca,'Ydir','reverse')
+% title('Sensory cells (colored by pref. texture)')
+% 
+% %% Plot auc distributions
+% figure('name','correct stim auc')
+% subplot(1,2,1)
+% hold on
+% histogram(extractfield(cell_struct,'correct_stimAUC'),'facecolor',[.7 .7 .7],'edgecolor','none','BinWidth',.05)
+% histogram(extractfield(cell_struct(extractfield(cell_struct,'is_tuned')==1),'correct_stimAUC'),'facecolor','none','edgecolor',[0,0,1],'BinWidth',.05)
+% xlabel('Tex response auc')
+% axis square
+% 
+% subplot(1,2,2)
+% hold on
+% histogram(extractfield(cell_struct,'correct_stimAUC_zscore'),'facecolor',[.7 .7 .7],'edgecolor','none','BinWidth',.5)
+% histogram(extractfield(cell_struct(extractfield(cell_struct,'is_tuned')==1),'correct_stimAUC_zscore'),'facecolor','none','edgecolor',[0,0,1],'BinWidth',.5)
+% xlabel('Tex response auc (zscore)')
+% axis square
+% 
+% 
 
