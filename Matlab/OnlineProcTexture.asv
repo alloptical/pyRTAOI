@@ -99,11 +99,10 @@ else
 end
 
 % discard sens stim frames beyond tottime (deal with senarios when movie is aborted early)
-sens_stim_frames(sens_stim_frames>caiman_data.t_cnm-opt.sta_post_frames-opt.sta_pre_frames) = [];
+sens_stim_frames(sens_stim_frames>caiman_data.t_cnm) = [];
 num_trials = length(sens_stim_frames);
-
 % trial type
-trialOrder = caiman_data.trialOrder(1:num_trials);
+trialOrder = caiman_data.trialOrder(num_trials);
 trialTypes = unique(trialOrder);
 num_stim_type = length(unique(trialOrder)); % orientations/texture
 
@@ -195,7 +194,7 @@ num_cells = numel(accepted_idx);
 
 %% only analyse frames from the current recording
 glob_trialon_frames = caiman_data.sensory_stim_frames + caiman_data.t_init;
-glob_trialon_frames(glob_trialon_frames>caiman_data.t_cnm-opt.sta_post_frames-opt.sta_pre_frames) = [];
+
 %% plot spatial components and save to cell struct
 com_fov = zeros(cnm_dims);
 accepted_com_fov = zeros(cnm_dims);
