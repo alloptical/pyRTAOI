@@ -7,8 +7,7 @@
 % adapted from OnlineProcVisual
 
 % TO DO:
-% need to modify texture cell criteria - quiet cells tend to have large
-% stimulus AUC!
+% concatinate multiple sessions
 %
 %% add path - change this for rig
 clear all
@@ -241,7 +240,6 @@ for i = 1:num_cells
     for t = 1:size(temp_coords,1)
         lin_idx(t) = sub2ind(cnm_dims,temp_coords(t,1),temp_coords(t,2));
     end
-    
     cell_struct(i).contour = CC{this_idx};
     cell_struct(i).lin_coords = lin_idx;
     cell_struct(i).coordinates = jsf(this_idx).coordinates;
@@ -395,10 +393,39 @@ for c = 1:num_cells
         end
     end
 end
+%% stimulus AUC calculated from incorrect trials
+for i = 1:num_cells
+    if ~ opt.flag_use_peak
+        all_stim1 = mean(cell_struct(i).('st_incorrect_stim_1')(avg_frame_range,:),1);
+        all_stim2 = mean(cell_struct(i).('st_incorrect_stim_2')(avg_frame_range,:),1);
+    else
+        all_stim1 = max(cell_struct(i).('st_incorrect_stim_1')(peak_frame_range,:),[],1);
+        all_stim2 = max(cell_struct(i).('st_incorrect_stim_2')(peak_frame_range,:),[],1);
+
+    end
+labels = [ones(1,length(all_stim1)),2.*ones(1,length(all_stim2))]';
+scores = [ all_stim1  all_stim2]';
+scores(scores<0.01)=0;
+[~,~,~, incorrect_stimulusAUC] = perfcurve(labels,scores,2);
+
+% shuffle to get zscore stim auc
+shuf_stim_auc = nan(1,num_shuf);
+for s = 1:num_shuf
+    shuf_labels = labels(randperm(length(labels))');
+    [~,~,~, shuf_stim_auc(s)] = perfcurve(shuf_labels,scores,1);
+end
+cell_struct(i).incorrect_stimAUC_zscore = (incorrect_stimulusAUC-mean(shuf_stim_auc))/std(shuf_stim_auc);
+cell_struct(i).incorrect_stimAUC = incorrect_stimulusAUC;
+end
+incorrect_stimulusAUC_zscore = extractfield(cell_struct,'incorrect_stimAUC_zscore');
+incorrect_texAUC = extractfield(cell_struct,'incorrect_stimAUC');
+cell_idx_struct.port2 = find(correct_stimulusAUC_zscore>opt.N & incorrect_stimulusAUC_zscore<-opt.N); % cells prefering texture1 in correct trials
+cell_idx_struct.port1 = find(correct_stimulusAUC_zscore<-opt.N& incorrect_stimulusAUC_zscore>opt.N); % cells prefering texture2 in correct trials
+cell_idx_struct.port = unique([cell_idx_struct.port1,cell_idx_struct.port2]);
 
 %% select cell identity for readout and stimulation
 opt.target_idx_fd = 'tex';
-opt.trigger_idx_fd = 'tex';
+opt.trigger_idx_fd = 'port';
 opt.fov_size = double(cnm_dims);
 opt.ds_factor = caiman_data.ds_factor;
 
@@ -457,8 +484,8 @@ export_fig([fig_save_path filesep 'TexSTATrace_' strrep(caiman_file,'.mat','.png
 [output] = generate_cell_idx_file(cell_struct,cell_idx_struct,[],opt);
 
 %% save cell structure 
-save_brief_fds = {'sta_amp_correct_stim_1','sta_amp_correct_stim_2','correct_stimAUC','correct_stimAUC_zscore','is_tuned','cnm_idx','pref_tex','jsf'};
-save_brief_fds_names = {'sta_amp_correct_stim_1','sta_amp_correct_stim_2','tex_auc','tex_auc_zscore','is_tuned','cnm_idx','pref_tex','jsf'};
+save_brief_fds = {'st_correct_stim_1','st_correct_stim_2','st_incorrect_stim_1','st_incorrect_stim_2','sta_amp_correct_stim_1','sta_amp_correct_stim_2','correct_stimAUC','correct_stimAUC_zscore','is_tuned','cnm_idx','pref_tex','jsf'};
+save_brief_fds_names = {'st_correct_stim_1','st_correct_stim_2','st_incorrect_stim_1','st_incorrect_stim_2','sta_amp_correct_stim_1','sta_amp_correct_stim_2','tex_auc','tex_auc_zscore','is_tuned','cnm_idx','pref_tex','jsf'};
 save_cell_struct_brief = struct();
 for c = 1:num_cells
     for f = 1:numel(save_brief_fds)
@@ -472,6 +499,7 @@ end
 
 tex_output_struct = struct();
 tex_output_struct.cell_struct = save_cell_struct_brief;
+tex_output_struct.cell_idx_struct = cell_idx_struct;
 tex_output_struct.opt = opt;
 tex_output_struct.input_caiman_file = fullfile(caiman_path,caiman_file);
 

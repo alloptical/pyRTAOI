@@ -1,13 +1,17 @@
 function [color] = online_tex_init_color()
 % {'st_correct_stim1','st_incorrect_stim1','st_correct_stim2','st_incorrect_stim2'}
 linecolor = [255,153,187;237,23,94;153,186,255;20,81,204]./255;
-init_fds = {'correct_stim1','incorrect_stim1','correct_stim2','incorrect_stim2'};
+trace_fds = {'correct_stim1','incorrect_stim1','correct_stim2','incorrect_stim2'};
+init_fds = {'st_correct_stim_1','st_incorrect_stim_1','st_correct_stim_2','st_incorrect_stim_2'};
 
 
 
 for f = 1:numel(init_fds)
     color.(init_fds{f}) = linecolor(f,:);
+end
 
+for f = 1:numel(trace_fds)
+    color.(trace_fds{f}) = linecolor(f,:);
 end
 
 color.correct = [0 0 0];

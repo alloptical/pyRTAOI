@@ -83,8 +83,8 @@ if __name__ == '__main__':
 	# print(volt)
 
 	# test loadtriggerfile
-	file_name = r'E:\Data\Zoe\20190805\pyrtaoi_results\analysis_files\TexPhotoConfig_20190805_cb217_Tt_0006_Pt_0007_200348\pyrtaoi_stimOrder.mat'
-	[target_idx_list,trialOrder,target_centroid_x,target_centroid_y] = get_stimOrder(file_name)
+	file_name = r'D:\TextureData\data\cb217\20190805\pyrtaoi_results\\20190805_cb217_t_0006_rtaoi_DS_2.0_OnlineProc_153400proc_OutputParams_20191010_1138.mat'
+	[trigger_idx,trigger_weights,trigger_frames,trigger_thresh, target_idx] = get_triggertargets_params(file_name)
 
 
 

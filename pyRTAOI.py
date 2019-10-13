@@ -604,6 +604,7 @@ class Worker(QObject):
 			frames_post_stim = 0
 			photo_duration = self.photo_duration
 			monitor_frames = p['staPostFrame']+p['offsetFrames'] # offsetFramaes are frame to start monitoring wrt stim start trigger frame (use it when TTL are trialOn triggers for pybehavior rather than direct sensory stim triggers )
+			offset_frames = p['offsetFrames'] # frame start monitoring
 			stim_duration = p['staPostFrame']
 			wait_frames = p['photoWaitFrames']
 			baseline_frames = p['staPreFrame']
@@ -989,7 +990,7 @@ class Worker(QObject):
 							# get baseline level
 							current_bs_level= np.nanmean(cnm2.C_on[accepted, t_cnm - baseline_frames:t_cnm], axis=1)
 
-						if sens_stim_idx>0 and framesProc < stim_frames[sens_stim_idx-1]+ monitor_frames and framesProc > stim_frames[sens_stim_idx-1]+ wait_frames:
+						if sens_stim_idx>0 and framesProc < stim_frames[sens_stim_idx-1]+ monitor_frames and framesProc > stim_frames[sens_stim_idx-1]+ offset_frames:
 							if p['ROIsumAbove']:
 								photostim_flag = np.sum(np.multiply(self.RoiBuffer[:com_count, BufferPointer],ROIw))-current_bs_level- ROIsumThresh
 							elif p['ROIsumBelow']:
@@ -4725,6 +4726,17 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		if trigger_config_path:
 			self.triggerConfigPath_lineEdit.setText(trigger_config_path)
 			[self.TriggerIdx,self.TriggerWeights,self.TriggerFrames, self.TriggerThresh,self.TargetIdx] = get_triggertargets_params(trigger_config_path)
+			
+			# setup protocol
+			self.ROIsumThresh_doubleSpinBox.setValue(self.TriggerThresh)
+			self.offsetFrames_spinBox.setValue(self.TriggerFrames[0])
+			self.staPostFrame_spinBox.setValue(self.TriggerFrames[-1])
+			for idx in range(self.thisROIIdx):
+				self.ROIlist[idx]["weight"] = 0 # set other cells zero
+			for idx in range(self.TriggerIdx):
+				self.ROIlist[idx]["weight"] = self.TriggerWeights[idx]
+			self.updateTable()
+			self.getValues()
 #			preview trigger cell positions
 			print('loaded trigger idx:')
 			print(self.TriggerIdx)
