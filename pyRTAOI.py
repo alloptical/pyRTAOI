@@ -5,6 +5,8 @@
  opencv  (pip install .whl) : https://www.lfd.uci.edu/~gohlke/pythonlibs/#opencv (caiman installs it)
  nidaqwx (pip install)
  pyqtgraph (pip install)
+ 
+ skimage 0.14.0 requires numpy before 1.17.0 -use numpy 1.16.0 
 
 SPYDER HAS NO AUTOSAVE FUNCTION!  (only autosaves when script is run)
 CAREFUL WHEN USING 'REPLACE ALL' - IT WILL QUIT, WITHOUT SAVING!!
@@ -13,17 +15,16 @@ UPDATE REV40 PV SETTINGS MAX VOLTAGE FOR PHOTOSTIM CONTROL!!!
 
 TO DO    log this to Notes ToDo_log when it's done and tested
 
--0. multiply selected cells by weight and compare with threshold - done, test on rig
+-0. multiply selected cells by weight and compare with threshold
+	show population trajectory in gui
+
 -1. test motion correction on gpu using caiman code - using onacid template matching, working well
--2. disable adding components - done
-3. load and save out fixed targets centroid image - done
+
 4. temporally save a sequence of phase masks in holoblink, display on slm on command
-5. load threshold and weights file - done
-5.5 check trialon trigger - current stim trigger is for sensory stim directly - added 'offsetFrames', done
-6. configure stim types from pybehavior output file - done
+
 7. seed cell detection by cell masks from previous recordings
-8. set different targets for stim types
-9. photoexcitability check (stim one by one after detection) - done, test on rig
+
+
 test timing on rig
 log data for offline anaysis - keep checking if everything is saved out
 
@@ -363,6 +364,7 @@ class Photostimer(QObject):
 	status_signal            = pyqtSignal(str,name ='statusSignal')
 	finished_signal          = pyqtSignal()
 	totalNumPhotostim_signal = pyqtSignal(int,name = 'totalNumPhotostimSignal')
+	photostimOn_signal       = pyqtSignal()
 
 	def __init__(self, **kwargs ):
 		super(Photostimer,self).__init__()
@@ -391,6 +393,7 @@ class Photostimer(QObject):
 				print('coords and stim sent')
 				self.NumStimSent +=1
 				self.totalNumPhotostim_signal.emit(self.NumStimSent)
+				self.photostimOn_signal.emit()
 				qtarget.task_done()
 		except Exception as e:
 			print('photostim error')
@@ -401,6 +404,9 @@ class Photostimer(QObject):
 		p['FLAG_SKIP_FRAMES'] = True
 		this_volt = np.polyval(self.power_polyfit_p,self.photoPowerPerCell*num_stim_targets)
 		if not self.bl.send_trigger_power(this_volt):
+			self.NumStimSent +=1
+			self.totalNumPhotostim_signal.emit(self.NumStimSent)
+			self.photostimOn_signal.emit()
 			print('Photostimer msg: photostim sent from blink')
 		else:
 			print('photostimCurrentTargets: msg to blink ERROR!')
@@ -461,6 +467,7 @@ class Worker(QObject):
 	status_signal            = pyqtSignal(str,name ='statusSignal')
 	roi_signal               = pyqtSignal(object,name = 'roiSignal')
 	refreshPlot_signal       = pyqtSignal(object,name = 'refreshPlot')
+	refreshTrajPlot_signal   = pyqtSignal(object,name = 'refreshTrajPlot')
 	thresh_signal            = pyqtSignal(object,name = 'threshSignal')
 	sta_amp_signal           = pyqtSignal(object,name = 'staAmpSignal')
 	frame_signal             = pyqtSignal(object,name = 'frameSignal')
@@ -476,6 +483,7 @@ class Worker(QObject):
 	photostimNewTargets_signal = pyqtSignal()
 	updateNewTargets_signal  = pyqtSignal()
 	photostimCurrentTargets_signal = pyqtSignal(int)
+	photostimOff_signal      = pyqtSignal()
 	finished_signal          = pyqtSignal()
 
 
@@ -534,6 +542,7 @@ class Worker(QObject):
 			# get current parameters
 			self.BufferLength = p['BufferLength']
 			self.RoiBuffer = p['RoiBuffer']
+			self.TrajBuffer =  np.zeros([1,self.BufferLength])
 			self.BufferPointer = p['BufferPointer']
 			self.ROIlist_threshold = np.zeros(p['MaxNumROIs'])
 	#
@@ -706,6 +715,7 @@ class Worker(QObject):
 			ROIx = np.asarray([item.get("ROIx") for item in self.ROIlist[:com_count]])   # could also predefine ROIx/y as arrays of bigger size (e.g. 100) and fill them in instad of append
 			ROIy = np.asarray([item.get("ROIy") for item in self.ROIlist[:com_count]])
 			ROIw = np.asarray([item.get("weight") for item in self.ROIlist[:com_count]])
+			current_bs_level = 0 # will update this at each trial starts
 			# Keep or discard previous online cells if rerunning OnACID
 			keep_full_traces = True  # keep full trace history of the previous session (may be necessary for deconv of last minibatch, otherwise errors possible)
 			if keep_prev:
@@ -804,6 +814,7 @@ class Worker(QObject):
 					continue
 				elif frames_post_photostim == photo_duration:
 					frames_post_photostim = 0
+					self.photostimOff_signal.emit()
 			elif frames_post_photostim == -1: # let one more frame in
 				frames_post_photostim = 2
 
@@ -967,6 +978,7 @@ class Worker(QObject):
 					# add data to buffer
 					try:
 						self.RoiBuffer[:com_count, BufferPointer] = cnm2.C_on[accepted, t_cnm]
+						self.TrajBuffer[BufferPointer] = np.sum(np.multiply(self.RoiBuffer[:com_count, BufferPointer]-current_bs_level,ROIw))-ROIsumThresh
 #						self.ROIlist_threshold[:com_count] = np.nanmean(self.RoiBuffer[:com_count,:], axis=1) + 2*np.nanstd(self.RoiBuffer[:com_count,:], axis=1)  # changed 3 to 2
 						# use noisy C to estimate noise:
 						if not (p['photoProtoInx'] == CONSTANTS.PHOTO_CLAMP_DOWN):
@@ -987,14 +999,14 @@ class Worker(QObject):
 					if p['photoProtoInx'] == CONSTANTS.PHOTO_WEIGH_SUM:
 						# for closed-loop trials
 						if sens_stim_idx < tot_num_senstim and framesProc == stim_frames[sens_stim_idx]-1:
-							# get baseline level
+							# update baseline level
 							current_bs_level= np.nanmean(cnm2.C_on[accepted, t_cnm - baseline_frames:t_cnm], axis=1)
 
 						if sens_stim_idx>0 and framesProc < stim_frames[sens_stim_idx-1]+ monitor_frames and framesProc > stim_frames[sens_stim_idx-1]+ offset_frames:
 							if p['ROIsumAbove']:
-								photostim_flag = np.sum(np.multiply(self.RoiBuffer[:com_count, BufferPointer],ROIw))-current_bs_level- ROIsumThresh
+								photostim_flag = self.TrajBuffer[BufferPointer]
 							elif p['ROIsumBelow']:
-								photostim_flag = ROIsumThresh - (np.sum(np.multiply(self.RoiBuffer[:com_count, BufferPointer],ROIw))-current_bs_level)
+								photostim_flag =  - self.TrajBuffer[BufferPointer]
 							if photostim_flag>0:
 								num_stim_targets = len(p['fixedTargetX'])
 								FLAG_TRIG_PHOTOSTIM = True
@@ -1303,6 +1315,8 @@ class Worker(QObject):
 					# Update GUI display
 					if framesProc > refreshFrame-1: #frame_count>self.BufferLength-1:
 						if LastPlot == refreshFrame:
+							if p['photoProtoInx'] == CONSTANTS.PHOTO_WEIGH_SUM:
+								self.refreshTrajPlot_signal.emit(self.TrajBuffer)
 							if p['plotOn']:
 								plot_time = time.time()
 								self.refreshPlot_signal.emit(self.RoiBuffer[:com_count,:])
@@ -1561,6 +1575,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 	def __init__(self):
 		QMainWindow.__init__(self)
 		self.setupUi(self)
+		self.updatePhotostimOffLabel()
 
 		# set up install paths
 		self.install_dir = os.getcwd()
@@ -1683,7 +1698,9 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		self.plotArea_graphicsLayoutWidget.setAntialiasing(True)
 		self.plotItem.disableAutoRange()
 		self.plotItem.setXRange(0,self.BufferLength-1)
-
+		self.plotTraj = self.plotArea_graphicsLayoutWidget.addPlot(antialias=True) # weighted sum 
+		self.plotTraj.setXRange(0,self.BufferLength-1)
+		
 		# plot tab
 		self.fig = Figure()
 		self.figCanvas = FigureCanvas(self.fig)
@@ -2324,7 +2341,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 					self.ROIlist[ROIIdx]["ROIcolor"] = self.random_color()
 					self.ROIlist[ROIIdx]["threshold"] = list()
 					self.ROIlist[ROIIdx]["STA"] = list()
-					self.ROIlist[ROIIdx]["weight"] = 1
+					self.ROIlist[ROIIdx]["weight"] = 0
 
 				self.MaxNumROIs = self.MaxNumROIs_spinBox.value()
 
@@ -2361,6 +2378,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.workerObject.showROIIdx_signal.connect(self.showROIIdx)
 			self.workerObject.getROImask_signal.connect(self.getROImask)
 			self.workerObject.updateTargetROIs_signal.connect(self.updateTargetROIs)
+			self.workerObject.photostimOff_signal.connect(self.updatePhotostimOffLabel)
 
 			# signaling to photostim thread
 			if (not self.IsOffline) and self.photostimObject!=None:
@@ -2434,6 +2452,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 				self.photostimObject.status_signal.connect(self.updateStatusBar)
 				self.photostimObject.totalNumPhotostim_signal.connect(self.updateNumPhotostimLabel)
+				self.photostimObject.photostimOn_signal.connect(self.updatePhotostimOnLabel)
 				self.photostimObject.finished_signal.connect(self.photostimObject.deleteLater)  # delete qt (C++) instance later
 				self.photostimObject.finished_signal.connect(resetPhotostimObject) # remove python reference to photostimObject
 				self.photostimObject.finished_signal.connect(self.photostimThread.exit)
@@ -2823,7 +2842,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.ROIlist[ROIIdx]["ROIcolor"] = self.random_color()
 			self.ROIlist[ROIIdx]["threshold"] = list()
 			self.ROIlist[ROIIdx]["STA"] = list()
-			self.ROIlist[ROIIdx]["weight"] = 1 # default weight is 1
+			self.ROIlist[ROIIdx]["weight"] = 0 # default weight is 0
 		# print(self.ROIlist[ROIIdx]["ROIcolor"])
 
 	def resetAll(self):
@@ -3320,7 +3339,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 				self.ROIlist[ROIIdx]["ROIcolor"] = self.random_color()
 				self.ROIlist[ROIIdx]["threshold"] = list()
 				self.ROIlist[ROIIdx]["STA"] = list()
-				self.ROIlist[ROIIdx]["weight"] = 1 # default weight is 1
+				self.ROIlist[ROIIdx]["weight"] = 0 # default weight is 1
 
 			self.updateTable()
 			accepted_idx = cnm2.accepted
@@ -4453,6 +4472,12 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		except:
 			self.plotItem.setYRange(0,30)
 
+	def refreshTrajPlot(self,arr): # show weighted sum of ROI traces, i.e. 'poopulaiton trajectory'
+		self.plotTraj.clear()
+		self.plotTraj.plot(arr, antialias=True, pen=pg.mkPen(QColor(255,255,0), width=2))
+		self.plotTraj.setYRange(np.round(arr.min())-1,np.round(arr.max())+1)
+
+
 	def updateImage(self,img):
 		self.imageItem.setImage(img)
 
@@ -4477,6 +4502,13 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 	def updateNumPhotostimLabel(self, totalNumFrames):
 		self.totalNumPhotostim_label.setText(str(totalNumFrames))
+
+	def updatePhotostimOnLabel(self):
+		self.photostimOn_label.setStyleSheet("QLabel#photostimOn_label {background-color: red; color: white}}")
+
+	def updatePhotostimOffLabel(self):
+		self.photostimOn_label.setStyleSheet("QLabel#photostimOn_label {background-color: rgb(202, 202, 202); color: white}")
+
 
 	def switch_plotOn(self):
 		p['plotOn'] = self.plotOn_checkBox.isChecked()

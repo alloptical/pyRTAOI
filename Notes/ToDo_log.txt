@@ -38,3 +38,11 @@
 	- currently frames during photostim were not fed to caiman; sometimes a photostim frame breaks through, probably because of delay somewhere; caiman cell detection is not affected by the one-frame artifect and the abrupt jump in signal is filtered out in the denoised trace.
 
 0. detect events within sensory window; stim on next trial - added, check on rig
+
+-2. disable adding components - done
+3. load and save out fixed targets centroid image - done
+5. load threshold and weights file - done
+5.5 check trialon trigger - current stim trigger is for sensory stim directly - added 'offsetFrames', done
+6. configure stim types from pybehavior output file - done
+8. set different targets for stim types - done for photo_sequence
+9. photoexcitability check (stim one by one after detection) - done
