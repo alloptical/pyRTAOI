@@ -45,6 +45,7 @@ def get_triggertargets_params(file_full_name):
 
 
 def get_stimOrder(file_full_name):
+		# this is for loading PHOTO_FIX_SEQUENCE
 		mat_file = sio.loadmat(file_full_name)
 		stimOrder = mat_file['pyrtaoi_stimOrder']
 		input_target_idx_list = stimOrder['target_idx_list'][0][0]

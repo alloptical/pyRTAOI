@@ -37,7 +37,7 @@ from caiman.components_evaluation import evaluate_components_CNN
 def initialise(ref_movie, init_method='cnmf', Ain=None, K=3, ds_factor=1,
                initbatch=500, gSig = (10,10), rval_thr=0.85, thresh_overlap=0.1,
                merge_thresh=0.85, min_SNR=2.5, decay_time=0.2, NumROIs=None,
-               expected_comps=500, minibatch_shape=100, T1=100000, mot_corr=True,
+               expected_comps=500, minibatch_shape=100, T1=250000, mot_corr=True,
 #               CNN_filter=False,
                 thresh_cnn=0.1, save_init=False):
                #del_duplicates=False):

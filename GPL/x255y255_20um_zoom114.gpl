@@ -1,0 +1,4 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<PVGalvoPointList>
+  <PVGalvoPoint X="0.0293540000000013" Y="0.0194424087923116" Name="Point 1" Index="0" ActivityType="MarkPoints" UncagingLaser="Photostim" UncagingLaserPower="0" Duration="10" IsSpiral="True" SpiralSize="0.379937881946688" SpiralRevolutions="3" Z="-426.7" />
+</PVGalvoPointList>

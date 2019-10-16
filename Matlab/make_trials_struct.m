@@ -1,6 +1,6 @@
 function [output_trials] = make_trials_struct(behavior_data)
 % make trials.m struct from pybehavior output
-fd_names = {'stim_type','correct','incorrect','fa','miss','firstresponse','cheated','auto_reward'};
+fd_names = {'stim_type','correct','incorrect','fa','miss','firstresponse','cheated','auto_reward','stim_var'};
 num_fd = numel(fd_names);
 
 output_trials = struct();

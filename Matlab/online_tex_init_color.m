@@ -21,6 +21,9 @@ color.stim2 = mean([color.correct_stim2;color.incorrect_stim2],1);
 color.port1 = mean([color.correct_stim1;color.incorrect_stim2],1);
 color.port2 = mean([color.correct_stim2;color.incorrect_stim1],1);
 
+color.stim6 = [0 0 0];
+color.stim3 = [0.5 0.5 0.5];
+
 color.correct_trial = tint([0,1,0],.5);
 color.incorrect_trial = tint([1,0,0],.5);
 color.miss_trial = tint([0,0,0],.5);
