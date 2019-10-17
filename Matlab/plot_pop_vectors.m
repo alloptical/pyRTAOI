@@ -2,12 +2,16 @@ function plot_pop_vectors(pop_struct,plot_fields,num_states,opt,varargin)
 % plot traces saved in get_pop_vectors
 ylimit = [];
 plot_ylabel = 'State probability';
+IF_MEDIAN = 0;
 for v = 1:numel(varargin)
     if strcmpi(varargin{v},'ylimit')
         ylimit = varargin{v+1};
     end
     if strcmpi(varargin{v},'plot_ylabel')
         plot_ylabel = varargin{v+1};
+    end
+    if strcmpi(varargin{v},'IF_MEDIAN')
+        IF_MEDIAN = varargin{v+1};
     end
 end
 
@@ -55,13 +59,16 @@ for s = 1:num_states
         this_traces = this_F(:,:,s);
         x_ticks =[0:1:size(this_traces,2)-1]./opt.Fs;
         hold on
+        if ~IF_MEDIAN
         % mean and sd
         shadedErrorBar(x_ticks,mean(this_traces,1),...
             std(this_traces,[],1),{'color',condi_colors(f,:),'linewidth',2},0.1);
-        
+        else
         %         % median and quantile
-        %         shadedErrorBar(x_ticks,nanmedian(this_traces,1),[quantile(this_traces,0.75)-nanmedian(this_traces,1);...
-        %             nanmedian(this_traces,1)-quantile(this_traces,0.25)],{'color',condi_colors(f,:),'linewidth',2},0.5)
+        shadedErrorBar(x_ticks,nanmedian(this_traces,1),[quantile(this_traces,0.75)-nanmedian(this_traces,1);...
+            nanmedian(this_traces,1)-quantile(this_traces,0.25)],{'color',condi_colors(f,:),'linewidth',2},0.5)
+   
+        end
     end
     if ~isempty(ylimit)
         ylim(ylimit)

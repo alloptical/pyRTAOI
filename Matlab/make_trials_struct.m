@@ -1,14 +1,37 @@
-function [output_trials] = make_trials_struct(behavior_data)
+function [output_trials,odd_trial_idx] = make_trials_struct(behavior_data)
 % make trials.m struct from pybehavior output
-fd_names = {'stim_type','correct','incorrect','fa','miss','firstresponse','cheated','auto_reward','stim_var'};
+fd_names = {'stim_type','correct','incorrect','miss','firstresponse','cheated','auto_reward','stim_var','fa'};
 num_fd = numel(fd_names);
-
+odd_trial_idx = [];
 output_trials = struct();
 for i = 1:num_fd
     this_fd = fd_names{i};
-    output_trials.(this_fd) = cellfun(@(x)extractfield(x,this_fd),behavior_data.results);
+    if isfield(behavior_data.results{1},this_fd)
+        this_data = cellfun(@(x)extractfield(x,this_fd),behavior_data.results,'UniformOutput',false);
+        if iscell(this_data)
+            checktype = cellfun(@(x)class(x),this_data,'UniformOutput',false);
+            [types,~,whichcell]=unique(checktype);
+            if contains(types,'cell')
+                this_data= cellfun(@(x)cell2mat(x),this_data,'UniformOutput',false);
+            end
+            [this_type_idx]= mode(whichcell);
+            this_data = cell2mat(this_data(whichcell== this_type_idx));
+            this_odd_trial = find(whichcell~= this_type_idx);
+            odd_trial_idx = [odd_trial_idx,this_odd_trial];
+            if numel(types)>1
+                warning(['some trial is odd! trial ' num2str(this_odd_trial) ' was excluded in' this_fd])
+            end
+            
+        end
+        output_trials.(this_fd) = this_data;
+    else
+        warning(['field not found in behavior: ' this_fd ', skipped'])
+    end
 end
-
+odd_trial_idx = unique(odd_trial_idx);
+if ~isempty(odd_trial_idx)
+    disp(['odd trials indices: ' num2str(odd_trial_idx)]) % will get such trials if pybehav was forced to abort
+end
 output_trials.('firstlick') = behavior_data.reaction_time';
 %%
 % figure

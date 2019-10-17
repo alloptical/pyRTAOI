@@ -32,6 +32,7 @@ def pkl2mat(file_full_name = '',save_full_name = ''):
 	A, b = cnm.Ab[:, cnm.gnb:], cnm.Ab[:, :cnm.gnb].toarray()
 	C, f = cnm.C_on[cnm.gnb:cnm.M], cnm.C_on[:cnm.gnb]
 	S = cnm.S
+	t = cnm.t
 
 	# parse coms
 
@@ -44,6 +45,7 @@ def pkl2mat(file_full_name = '',save_full_name = ''):
 	save_dict['cnm_b'] = b
 	save_dict['cnm_C'] = C #cnm.C
 	save_dict['cnm_f'] = f #cnm.f
+	save_dict['cnm_t'] = f #cnm.t
 	save_dict['opsin_positive'] = cnm.opsin
 
 #    save_dict['frame_added'] = [x[1] for x in cnm.time_neuron_added]
@@ -67,7 +69,7 @@ def pkl2mat(file_full_name = '',save_full_name = ''):
 				   'rval_thr','thresh_overlap','merge_thresh','expected_comps',
 				   'frame_added','online_photo_frames','online_photo_targets','repeated_idx','accepted_idx','rejected_idx',
 				   't_cnm','coms','opsin_mask','overlap','stim_frames_caiman','online_C','online_thresh','tottime','t_init',
-				   'frames_skipped','sensory_stim_frames','frame_detected','init_com_count','trialOrder','photo_sequence_idx','photoDuration']   # added record of new cells in pyrtaoi
+				   'frames_skipped','sensory_stim_frames','frame_detected','init_com_count','trialOrder','photo_sequence_idx','photoDuration','keep_prev']   # added record of new cells in pyrtaoi
 
 	for param in param_names:
 		try:

@@ -711,7 +711,6 @@ class Worker(QObject):
 			if p['addNewROIs']==False or com_count == p['MaxNumROIs']:
 				expect_components = False
 				cnm2.update_num_comps = False
-			init_t = cnm2.initbatch
 			K_init = self.c['K_init']
 
 
@@ -1531,8 +1530,8 @@ class Worker(QObject):
 				save_object(save_dict, save_path)
 				print('pkl file saved')
 
-				sio.savemat(mat_save_path,mat_dict)
-				print('tiral type fle saved')
+#				sio.savemat(mat_save_path,mat_dict)
+#				print('tiral type fle saved')
 
 				pkl2mat(file_full_name = save_path)
 				print('mat file saved')
@@ -3600,6 +3599,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 				self.dims = self.c['cnm2'].dims
 				cnm = init_values['cnm2']
 				self.c['cnm2'].t = init_values['t_cnm']
+				print('init frames:'+str(self.c['cnm2'].t))
 				# make sure everything called from c in worker is also in result
 			else:
 				self.c['coms_init_orig'] = self.c['coms_init']  # keep original com data

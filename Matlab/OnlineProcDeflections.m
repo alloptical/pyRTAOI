@@ -1,4 +1,4 @@
-% generate sta from pyRTAOI result file after a sensory stim movie
+% analyse baseline imaging session in delection task
 % note: rois idx doesn't match with what's shown in pyRTAOI image window
 % run this to quickly find sensory-opsin-positve cells  
 
@@ -8,7 +8,8 @@
 
 % TO DO:
 % concatinate multiple sessions
-%
+% check t_init
+
 %% add path - change this for rig
 clear all
 close all
@@ -32,6 +33,7 @@ opt.sta_baseline_frames = 30; % relative to beginning of sta traces
 
 opt.gocue_frame = 135; % relative to trial start
 opt.end_rw_frame = 195; % end of response window
+opt.stimon_frame = 105;
 
 % frame indices relative to sta trace
 opt.sta_gocue_frame = opt.sta_pre_frames;
@@ -48,9 +50,9 @@ opt.frame_rate = 30;
 
 opt.flag_use_peak = true; % if false then will use average to get roc
 
-opt.correct_trial_only = true; % only use correct trials to get tunning
+opt.correct_trial_only = false; % only use correct trials to get tunning
 
-[trial_color] = online_tex_init_color();
+[trial_color] = deflect_init_color();
 %% load CAIMAN data
 [caiman_file,caiman_path] = uigetfile('*.mat','Select texture caiman data');
 disp(['Loaded file :',fullfile(caiman_path,caiman_file)])
@@ -60,7 +62,7 @@ try
 [pb_file,pb_path] = uigetfile('*.mat','Select pybehavior data');
 disp(['Loaded file :',fullfile(pb_path,pb_file)])
 behavior_data =  load(fullfile(pb_path,pb_file)) ;
-trials = make_trials_struct(behavior_data);
+[trials,odd_trial_idx] = make_trials_struct(behavior_data);
 FLAG_PYBEHAV_LOADED = true;
 catch
     FLAG_PYBEHAV_LOADED = false;
@@ -195,6 +197,7 @@ num_cells = numel(accepted_idx);
 %% only analyse frames from the current recording
 glob_trialon_frames = caiman_data.sensory_stim_frames + caiman_data.t_init;
 glob_trialon_frames(glob_trialon_frames>caiman_data.t_cnm-opt.sta_post_frames-opt.sta_pre_frames) = [];
+
 %% plot spatial components and save to cell struct
 com_fov = zeros(cnm_dims);
 accepted_com_fov = zeros(cnm_dims);
@@ -266,20 +269,26 @@ for i = 1:num_cells
 end
 xlabel('Frames')
 ylabel('ROI index')
-yticks([ 1:num_comp].*plot_offset)
-yticklabels(1:num_comp)
+yticks([ 1:num_cells].*plot_offset)
+yticklabels(1:num_cells)
 xlim([caiman_data.t_init tot_frames])
-ylim([0 num_comp].*plot_offset+5)
+ylim([0 num_cells].*plot_offset+5)
 
 % background
 plot(backgroundC,'color',[.5 .5 .5],'linestyle',':')
 
 for i = 1:numel(glob_trialon_frames)
     this_color = trial_color.(['stim' num2str(trials.stim_type(i) )]);
-    plot([glob_trialon_frames(i) glob_trialon_frames(i)],ylim,'color',this_color) % trial-on 
+    plot([glob_trialon_frames(i) glob_trialon_frames(i)]+opt.stimon_frame,ylim,'color',this_color) % trial-on 
     plot([glob_trialon_frames(i) glob_trialon_frames(i)]+opt.gocue_frame,ylim,'color',this_color,'linestyle',':') % go-cue
 end
 
+%% debugging below this point ---
+if FLAG_PYBEHAV_LOADED
+plot_stim_types = [3 1 1 2 2]; % these need to be identical to experiment_trial_seq
+plot_var_types  = [2 3 4 5 6];
+plot_psycho_curve(trials,plot_stim_types,plot_var_types)
+end
 %% stim triggered average 
 for i = 1:num_cells
     this_cell_trace = cnm_struct(cell_struct(i).cnm_idx).deconvC_full;
