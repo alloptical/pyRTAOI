@@ -16,6 +16,7 @@ for i = 1:num_fd
             end
             [this_type_idx]= mode(whichcell);
             this_data = cell2mat(this_data(whichcell== this_type_idx));
+
             this_odd_trial = find(whichcell~= this_type_idx);
             odd_trial_idx = [odd_trial_idx,this_odd_trial];
             if numel(types)>1

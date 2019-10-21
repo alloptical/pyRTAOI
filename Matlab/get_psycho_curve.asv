@@ -1,4 +1,4 @@
-function [output] = plot_psycho_curve(trials,plot_stim_types,plot_var_types)
+function [output] = get_psycho_curve(trials,plot_stim_types,plot_var_types)
 %% set up stim matrix
 % this should be identical to og_CrossStim_matrix_sinusoid
 % need to enter these value manually from piezo calibration
@@ -37,8 +37,8 @@ idx_match.stim3 = [1,7,13,19,25];
 num_vars = length(plot_var_types);
 rightchoices = nan(1,num_vars);
 leftchoices = nan(1,num_vars);
-leftvolts =  nan(1,num_vars);
-rightvolts =  nan(1,num_vars);
+leftvolts =  zeros(1,num_vars);
+rightvolts =  zeros(1,num_vars);
 pc_rightchoices = nan(1,num_vars);
 pc_leftchoices = nan(1,num_vars);
 pc_misses = nan(1,num_vars);
@@ -46,10 +46,21 @@ for v = 1:num_vars
     this_var = plot_var_types(v);
     this_stim = plot_stim_types(v);    
     this_num_trials = numel(find(trials.stim_var == this_var & trials.stim_type == this_stim));
-    this_idx = idx_match.(['stim' num2str(plot_stim_types(v))])(plot_var_types(v)+1);
     
-    leftvolts(v) = LeftWhisker(this_idx);
-    rightvolts(v) = RightWhisker(this_idx);
+    
+    if this_stim<=3 
+        this_idx = idx_match.(['stim' num2str(this_stim)])(this_var+1);
+        
+        leftvolts(v) = LeftWhisker(this_idx);
+        rightvolts(v) = RightWhisker(this_idx);
+    end
+    if this_var ==9 % easy trials with long deflection durations
+        if this_stim==1
+            leftvolts(v)= L_5; rightvolts(v) =0;
+        elseif  this_stim==2
+            leftvolts(v)= 0; rightvolts(v) =R5;
+        end
+    end
     
     rightchoices(v) = numel( find(trials.stim_var == this_var & trials.stim_type == this_stim & trials.firstresponse == 2));
     leftchoices(v) = numel( find(trials.stim_var == this_var & trials.stim_type == this_stim & trials.firstresponse == 1));   

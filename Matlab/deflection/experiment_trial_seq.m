@@ -10,7 +10,7 @@ num_loops = 30;
 % stim 2 - right discrimination trials (10 conditions)
 % stim 3 - threshold trials (+ nogo catch)
 % stim 4 - sensory + photostim (10 conditions)
-% stim 5 - motor only (no cue)
+% stim 5 - motor only (no cue) - THESE TRIALS HAD NO MOTOR AND NO CUE, ZZ 20191019
 % stim 6 - cue only (no motor)
 
 stims = cell(1,num_loops);

@@ -1590,6 +1590,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 		# trial type
 		p['trialOrder'] = []
+		p['trialVar'] = []
 		p['all_trial_types'] = []
 		p['photo_sequence_idx'] = []
 
@@ -4712,11 +4713,15 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		self.saveResultPath_lineEdit.setText(p['saveResultPath'])
 
 	def loadTrialOrder(self):
-		# load trial order from pybehav
+		# load trial order from pybehav external file (.txt)
 		filepath = str(QFileDialog.getOpenFileName(self, 'Load trial sequence', p['saveResultPath'], '*.txt')[0])
 		if filepath:
 			arr = np.genfromtxt(filepath, delimiter=',')
 			p['trialOrder'] = arr[0].astype(np.int)
+			try:
+				p['trialVar'] = arr[1].astype(np.int)
+			except Exception as e:
+				print(e)
 
 			self.updateStatusBar('Loaded trial type from trialOrder file')
 			p['useExternalTrialOrder'] = True
