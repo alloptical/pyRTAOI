@@ -44,8 +44,8 @@ opt.frame_rate = 30;
 opt.flag_use_peak = false; % if false then will use average to get roc
 opt.correct_trial_only = false; % only use correct trials to get tunning
 
-opt.plot_stim_types = [1 1 1 3 2 2 2]; % these pairs should be matched as in experiment_trial_seq
-opt.plot_var_types  = [3 5 8 2 2 4 6];
+opt.plot_stim_types = [1 1 1 1 3 2 2 2 2]; % these pairs should be matched as in experiment_trial_seq
+opt.plot_var_types  = [3 5 4 7 2 2 5 4 6];
 
 [trial_color] = deflect_init_color();
 %% load CAIMAN data
@@ -96,7 +96,7 @@ opt.exp_name = strrep(caiman_file,'.mat','proc');
 if FLAG_TRIALTRIGGER_IDX_LOADED % discard caiman trial triggers that didn't evoke a trial
     caiman_data.stim_frames_caiman = caiman_data.stim_frames_caiman(trial_idx);
     caiman_data.sensory_stim_frames = caiman_data.sensory_stim_frames(trial_idx);
-    caiman_data.trialOrder = trials.stim_type; %
+    caiman_data.trialOrder = trials.stim_type(1:tot_num_trials); %
     disp('discarded null trial triggers')
 end
 
@@ -413,6 +413,7 @@ trial_types = fields(trial_indices);
 for i = 1:numel(trial_types)
     this_fd = trial_types{i};
     this_idx = trial_indices.(this_fd);
+    this_idx = this_idx(this_idx<tot_num_trials);
     if ~isempty(this_idx)
             for c = 1:num_cells
                     cell_struct(c).(this_fd) = cell_struct(c).sta_traces( this_idx,:)';
@@ -427,11 +428,11 @@ peak_frame_range = opt.sta_peak_search_range;
 avg_frame_range = opt.sta_avg_frames;
 for i = 1:num_cells
     if ~ opt.flag_use_peak
-        all_stim1 = mean(cell_struct(i).('correct_stim_1_var_3')(avg_frame_range,:),1);
-        all_stim2 = mean(cell_struct(i).('correct_stim_2_var_6')(avg_frame_range,:),1);
+        all_stim1 = mean(cell_struct(i).('correct_stim_1_var_9')(avg_frame_range,:),1);
+        all_stim2 = mean(cell_struct(i).('correct_stim_2_var_9')(avg_frame_range,:),1);
     else
-        all_stim1 = max(cell_struct(i).('correct_stim_1_var_3')(peak_frame_range,:),[],1);
-        all_stim2 = max(cell_struct(i).('correct_stim_2_var_6')(peak_frame_range,:),[],1);
+        all_stim1 = max(cell_struct(i).('correct_stim_1_var_9')(peak_frame_range,:),[],1);
+        all_stim2 = max(cell_struct(i).('correct_stim_2_var_9')(peak_frame_range,:),[],1);
 
     end
 labels = [ones(1,length(all_stim1)),2.*ones(1,length(all_stim2))]';

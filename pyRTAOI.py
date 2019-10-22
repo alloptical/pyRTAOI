@@ -18,6 +18,8 @@ TO DO    log this to Notes ToDo_log when it's done and tested
 -0. multiply selected cells by weight and compare with threshold
 	show population trajectory in gui - done, test on rig
 
+ .5 Load different targets for each stim type
+
 -1. test motion correction on gpu using caiman code - using onacid template matching, working well
 
 4. temporally save a sequence of phase masks in holoblink, display on slm on command
@@ -365,7 +367,7 @@ class Photostimer(QObject):
 	finished_signal          = pyqtSignal()
 	totalNumPhotostim_signal = pyqtSignal(int,name = 'totalNumPhotostimSignal')
 	photostimOn_signal       = pyqtSignal()
-	photostimOff_signal      = pyqtSignal()
+
 
 	def __init__(self, **kwargs ):
 		super(Photostimer,self).__init__()
@@ -489,6 +491,9 @@ class Worker(QObject):
 	updateNewTargets_signal  = pyqtSignal()
 	photostimCurrentTargets_signal = pyqtSignal(int)
 	photostimOff_signal      = pyqtSignal()
+	MonitorOff_signal        = pyqtSignal()
+	MonitorOn_signal         = pyqtSignal()
+	NumStim_signal           = pyqtSignal()
 	finished_signal          = pyqtSignal()
 
 
@@ -629,6 +634,7 @@ class Worker(QObject):
 			print('duration per photostim = ' + str(photo_duration)+' frames')
 			print('tot num photostim = ' + str(tot_num_photostim))
 			buflength = self.BufferLength
+			num_stim_sent = 0
 
 			FLAG_USE_ONACID = self.UseONACID
 			FLAG_SAVE_TIFF = p['saveAsTiff']
@@ -679,6 +685,8 @@ class Worker(QObject):
 		except:
 			print('power setting error')
 			pass
+		self.MonitorOff_signal.emit()
+		self.PhotostimOff_signal.emit()
 
 		if FLAG_USE_ONACID:
 			# Use locally scoped variables to speed up
@@ -718,7 +726,7 @@ class Worker(QObject):
 			print('number of initial rois '+str(len(accepted)))
 			ROIx = np.asarray([item.get("ROIx") for item in self.ROIlist[:com_count]])   # could also predefine ROIx/y as arrays of bigger size (e.g. 100) and fill them in instad of append
 			ROIy = np.asarray([item.get("ROIy") for item in self.ROIlist[:com_count]])
-			ROIw = np.asarray([item.get("weight") for item in self.ROIlist[:com_count]])
+			ROIw = np.asarray([item.get("weight") for item in self.ROIlist[:com_count]],dtype='float64')
 			current_bs_level = 0 # will update this at each trial starts
 			# Keep or discard previous online cells if rerunning OnACID
 			keep_full_traces = True  # keep full trace history of the previous session (may be necessary for deconv of last minibatch, otherwise errors possible)
@@ -878,7 +886,7 @@ class Worker(QObject):
 					frame_cor = frame_cor / img_norm                            # normalize data-frame
 					cnm2.fit_next(t_cnm, frame_cor.reshape(-1, order='F'))      # run OnACID on this frame
 
-#%% detect new compunents
+#%% detect new components
 					if expect_components:
 						update_comp_time = time.time()
 						if cnm2.N - (com_count+rejected_count) == 1:
@@ -1004,6 +1012,7 @@ class Worker(QObject):
 					if p['photoProtoInx'] == CONSTANTS.PHOTO_WEIGH_SUM:
 						# for closed-loop trials
 						if sens_stim_idx < tot_num_senstim and framesProc == stim_frames[sens_stim_idx]-1:
+							self.MonitorOn_signal.emit()
 							# update baseline level
 							current_bs_level= np.nanmean(cnm2.C_on[accepted, t_cnm - baseline_frames:t_cnm], axis=1)
 
@@ -1015,6 +1024,8 @@ class Worker(QObject):
 							if photostim_flag>0:
 								num_stim_targets = len(p['fixedTargetX'])
 								FLAG_TRIG_PHOTOSTIM = True
+						elif framesProc == stim_frames[sens_stim_idx-1]+ offset_frames:
+							self.MonitorOff_signal.emit()
 
 					elif p['photoProtoInx'] == CONSTANTS.PHOTO_FIX_SEQUENCE:
 						if num_photostim < tot_num_photostim:
@@ -1266,7 +1277,9 @@ class Worker(QObject):
 					# Send out trial start trigger
 					if FLAG_TRIAL_START:
 						self.sendTrialStartTrigger_signal.emit()
+						self.NumStim_signal.emit(num_stim_sent)
 						print('trial start trigger sent')
+						num_stim_sent +=1
 						FLAG_TRIAL_START = False
 
 					# Trigger photostimulation
@@ -1320,8 +1333,8 @@ class Worker(QObject):
 					# Update GUI display
 					if framesProc > refreshFrame-1: #frame_count>self.BufferLength-1:
 						if LastPlot == refreshFrame:
-							if p['photoProtoInx'] == CONSTANTS.PHOTO_WEIGH_SUM:
-								self.refreshTrajPlot_signal.emit(self.TrajBuffer)
+#							if p['photoProtoInx'] == CONSTANTS.PHOTO_WEIGH_SUM:
+							self.refreshTrajPlot_signal.emit(self.TrajBuffer)
 							if p['plotOn']:
 								plot_time = time.time()
 								self.refreshPlot_signal.emit(self.RoiBuffer[:com_count,:])
@@ -1464,6 +1477,10 @@ class Worker(QObject):
 
 				save_dict['keep_prev'] = keep_prev
 				save_dict['reject_mask'] = reject_mask
+
+				# weighted sum
+				p['ROIw'] = ROIw
+
 			# keep notes of initialisation file used
 			except Exception as e:
 				print('this is making save dict error')
@@ -1581,6 +1598,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		QMainWindow.__init__(self)
 		self.setupUi(self)
 		self.updatePhotostimOffLabel()
+		self.updateMonitorOffLabel()
 
 		# set up install paths
 		self.install_dir = os.getcwd()
@@ -2371,7 +2389,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.updateStatusBar('Worker created')
 			self.workerObject.moveToThread(self.workerThread)
 
-			# update display signals
+			# connect worker signals to gui
 			self.workerObject.status_signal.connect(self.updateStatusBar)
 			self.workerObject.roi_signal.connect(self.updateROI)
 			self.workerObject.refreshPlot_signal.connect(self.refreshPlot)
@@ -2383,6 +2401,10 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.workerObject.getROImask_signal.connect(self.getROImask)
 			self.workerObject.updateTargetROIs_signal.connect(self.updateTargetROIs)
 			self.workerObject.photostimOff_signal.connect(self.updatePhotostimOffLabel)
+			self.workerObject.MonitorOff_signal.connect(self.updateMonitorOffLabel)
+			self.workerObject.MonitorOn_signal.connect(self.updateMonitorOnLabel)
+			self.workerObject.NumStim_signal.connect(self.updateNumStimLabel)
+
 
 			# signaling to photostim thread
 			if (not self.IsOffline) and self.photostimObject!=None:
@@ -2390,6 +2412,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 					self.workerObject.photostimNewTargets_signal.connect(self.photostimObject.photostimNewTargets) # update phase mask and send photostim from blink
 					self.workerObject.updateNewTargets_signal.connect(self.photostimObject.updateNewTargets) # update phase mask
 					self.workerObject.photostimCurrentTargets_signal.connect(self.photostimObject.photostimCurrentTargets)  # photostim only
+					self.photostimObject.NumStimSent = 0 # restart photostim count
 				except Exception as e:
 					print(e)
 					return
@@ -2457,7 +2480,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 				self.photostimObject.status_signal.connect(self.updateStatusBar)
 				self.photostimObject.totalNumPhotostim_signal.connect(self.updateNumPhotostimLabel)
 				self.photostimObject.photostimOn_signal.connect(self.updatePhotostimOnLabel)
-				self.photostimObject.photostimOff_signal.connect(self.updatePhotostimOffLabel)
 				self.photostimObject.finished_signal.connect(self.photostimObject.deleteLater)  # delete qt (C++) instance later
 				self.photostimObject.finished_signal.connect(resetPhotostimObject) # remove python reference to photostimObject
 				self.photostimObject.finished_signal.connect(self.photostimThread.exit)
@@ -3707,9 +3729,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 #				print('discarded components from coms_init')
 #				self.c['coms_init'] = coms[idx_components]
 
-			print(cnm2.Yr_buf)
-			print(cnm2.Yr_buf.shape)
-
 			# reset buffers
 			cnm2.Yr_buf.cur = 0
 			cnm2.Yr_buf.max_ = cnm2.minibatch_shape
@@ -4480,7 +4499,10 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 	def refreshTrajPlot(self,arr): # show weighted sum of ROI traces, i.e. 'poopulaiton trajectory'
 		self.plotItem.plot(arr, antialias=True, pen=pg.mkPen(QColor(255,255,0), width=2))
-
+		try:
+			self.plotItem.setYRange(np.round(arr.min())-1,np.round(arr.max())+1)
+		except:
+			self.plotItem.setYRange(-1,1)
 
 
 	def updateImage(self,img):
@@ -4508,11 +4530,21 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 	def updateNumPhotostimLabel(self, totalNumFrames):
 		self.totalNumPhotostim_label.setText(str(totalNumFrames))
 
+	def updateNumStimLabel(self, totalNumFrames):
+		# sensory or trial-on stim count
+		self.totalNumStim_label.setText(str(totalNumFrames))
+
 	def updatePhotostimOnLabel(self):
-		self.photostimOn_label.setStyleSheet("QLabel#photostimOn_label {background-color: red; color: white}}")
+		self.photostimOn_label.setStyleSheet("QLabel {background-color: red; color: white}")
 
 	def updatePhotostimOffLabel(self):
-		self.photostimOn_label.setStyleSheet("QLabel#photostimOn_label {background-color: rgb(202, 202, 202); color: white}")
+		self.photostimOn_label.setStyleSheet("QLabel {background-color: rgb(202, 202, 202); color: white}")
+
+	def updateMonitorOnLabel(self):
+		self.MonitorOn_label.setStyleSheet("QLabel {background-color: blue; color: white}")
+
+	def updateMonitorOffLabel(self):
+		self.MonitorOn_label.setStyleSheet("QLabel {background-color: rgb(202, 202, 202); color: white}")
 
 
 	def switch_plotOn(self):
@@ -4765,34 +4797,43 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 	def loadTriggerConfig(self):
 		trigger_config_path = str(QFileDialog.getOpenFileName(self, 'Load trigger configeration', self.movie_folder, 'mat (*.mat);;All files (*.*)')[0])
 		if trigger_config_path:
-			self.triggerConfigPath_lineEdit.setText(trigger_config_path)
-			[self.TriggerIdx,self.TriggerWeights,self.TriggerFrames, self.TriggerThresh,self.TargetIdx] = get_triggertargets_params(trigger_config_path)
+			print('loading trigger config')
+			try:
+				self.triggerConfigPath_lineEdit.setText(trigger_config_path)
+				[self.TriggerIdx,self.TriggerWeights,self.TriggerFrames, self.TriggerThresh,self.TargetIdx] = get_triggertargets_params(trigger_config_path)
 
-			# setup protocol
-			self.ROIsumThresh_doubleSpinBox.setValue(self.TriggerThresh)
-			self.offsetFrames_spinBox.setValue(self.TriggerFrames[0])
-			self.staPostFrame_spinBox.setValue(self.TriggerFrames[-1])
-			for idx in range(self.thisROIIdx):
-				self.ROIlist[idx]["weight"] = 0 # set other cells zero
-			for idx in range(self.TriggerIdx):
-				self.ROIlist[idx]["weight"] = self.TriggerWeights[idx]
-			self.updateTable()
-			self.getValues()
-#			preview trigger cell positions
-			print('loaded trigger idx:')
-			print(self.TriggerIdx)
-			print('loaded target idx:')
-			print(self.TargetIdx)
+				# setup protocol
+				self.ROIsumThresh_doubleSpinBox.setValue(self.TriggerThresh)
+				self.offsetFrames_spinBox.setValue(self.TriggerFrames[0])
+				self.staPostFrame_spinBox.setValue(self.TriggerFrames[-1])
+				print('Trigger Weights:')
+				print(self.TriggerWeights)
+				for idx in range(self.thisROIIdx):
+					self.ROIlist[idx]["weight"] = 0 # set other cells zero
+				print(self.thisROIIdx)
+				for idx in range(len(self.TriggerIdx)):
+					print(self.TriggerIdx[idx])
+					self.ROIlist[self.TriggerIdx[idx]]["weight"] = self.TriggerWeights[idx]
 
-			# show trigger cells
-			self.Triggercontour_item.clear()
-			self.Triggercontour_item.addPoints(x = [self.ROIlist[i]["ROIx"] for i in self.TriggerIdx], y = [self.ROIlist[i]["ROIy"] for i in self.TriggerIdx], pen = self.TriggerPen, size = self.RoiRadius*2+3)
+				self.updateTable()
+				self.getValues()
+	#			preview trigger cell positions
+				print('loaded trigger idx:')
+				print(self.TriggerIdx)
+				print('loaded target idx:')
+				print(self.TargetIdx)
 
-			# config target cells
-#			self.clearTargets()
-#			p['currentTargetX'].extend([self.ROIlist[i]["ROIx"] for i in self.TargetIdx])
-#			p['currentTargetY'].extend([self.ROIlist[i]["ROIy"] for i in self.TargetIdx])
-			self.updateTargets()
+				# show trigger cells
+				self.Triggercontour_item.clear()
+				self.Triggercontour_item.addPoints(x = [self.ROIlist[i]["ROIx"] for i in self.TriggerIdx], y = [self.ROIlist[i]["ROIy"] for i in self.TriggerIdx], pen = self.TriggerPen, size = self.RoiRadius*2+3)
+
+				# config target cells
+	#			self.clearTargets()
+	#			p['currentTargetX'].extend([self.ROIlist[i]["ROIx"] for i in self.TargetIdx])
+	#			p['currentTargetY'].extend([self.ROIlist[i]["ROIy"] for i in self.TargetIdx])
+				self.updateTargets()
+			except Exception as e:
+				print(e)
 
 	def loadTargetCentroid(self):
 		self.target_img_path = str(QFileDialog.getOpenFileName(self, 'Load target centroids', self.movie_folder, 'MPTIFF (*.tif);;All files (*.*)')[0])

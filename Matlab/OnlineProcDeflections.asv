@@ -44,8 +44,8 @@ opt.frame_rate = 30;
 opt.flag_use_peak = false; % if false then will use average to get roc
 opt.correct_trial_only = false; % only use correct trials to get tunning
 
-opt.plot_stim_types = [1 1 1 3 2 2 2]; % these pairs should be matched as in experiment_trial_seq
-opt.plot_var_types  = [3 5 8 2 2 4 6];
+opt.plot_stim_types = [1 1 1 1 3 2 2 2 2]; % these pairs should be matched as in experiment_trial_seq
+opt.plot_var_types  = [3 5 4 7 2 2 5 4 6];
 
 [trial_color] = deflect_init_color();
 %% load CAIMAN data
@@ -96,7 +96,7 @@ opt.exp_name = strrep(caiman_file,'.mat','proc');
 if FLAG_TRIALTRIGGER_IDX_LOADED % discard caiman trial triggers that didn't evoke a trial
     caiman_data.stim_frames_caiman = caiman_data.stim_frames_caiman(trial_idx);
     caiman_data.sensory_stim_frames = caiman_data.sensory_stim_frames(trial_idx);
-    caiman_data.trialOrder = trials.stim_type; %
+    caiman_data.trialOrder = trials.stim_type(1:tot_num_trials); %
     disp('discarded null trial triggers')
 end
 
@@ -413,6 +413,7 @@ trial_types = fields(trial_indices);
 for i = 1:numel(trial_types)
     this_fd = trial_types{i};
     this_idx = trial_indices.(this_fd);
+    this_idx = this_idx(this_idx<tot_num_tria)
     if ~isempty(this_idx)
             for c = 1:num_cells
                     cell_struct(c).(this_fd) = cell_struct(c).sta_traces( this_idx,:)';
@@ -529,17 +530,17 @@ export_fig([fig_save_path filesep 'TexSTATrace_' strrep(caiman_file,'.mat','.png
 % add some fields to trialcolor
 for i = 1:numel(trial_types)
        this_fd = trial_types{i};
-       if contains(this_fd,'correct_stim1')
+       if contains(this_fd,'correct_stim_1')
            trial_color.(this_fd) = trial_color.L1;
        end
-       if contains(this_fd,'incorrect_stim1')
+       if contains(this_fd,'incorrect_stim_1')
            trial_color.(this_fd) = trial_color.ipsi_L1;
        end
        
-       if contains(this_fd,'correct_stim2')
+       if contains(this_fd,'correct_stim_2')
            trial_color.(this_fd) = trial_color.L2;
        end
-       if contains(this_fd,'incorrect_stim2')
+       if contains(this_fd,'incorrect_stim_2')
            trial_color.(this_fd) = trial_color.contra_L2;
        end
 end
@@ -557,8 +558,8 @@ fa_opt.trial_color = trial_color;
 fa_opt.idx_fields = {'stim'};
 fa_opt.fd_names = {'correct_stim_1_var_3','incorrect_stim_1_var_3','correct_stim_2_var_6','incorrect_stim_2_var_6'};
 fa_opt.plot_fds = fa_opt.fd_names;
-fa_opt.m = 5;
-fa_opt.IF_MEDFILT = 1;
+fa_opt.m = 4;
+fa_opt.IF_MEDFILT = 0;
 disp('Rnning factor analysis...')
 tic
 [traces_in,fa_trial_idx,num_trials] = get_input_seq(cell_struct,cell_idx_struct.(fa_opt.idx_fields{1}),...
@@ -574,7 +575,6 @@ fa_struct.transmat = invsqrtPsi/(fa_struct.lambda'*invsqrtPsi);
 toc
 disp('...Done')
 
-%%
 plot_pop_vectors(fa_traj_struct,fa_opt.plot_fds,fa_opt.m,fa_opt,'plot_ylabel','Factor level');
 
 
