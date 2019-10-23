@@ -7,6 +7,8 @@ this_accuracy = stim_struct.classif_accuracy;
 this_shuf_mean = stim_struct.shuf_classif_mean;
 this_shuf_sd = stim_struct.shuf_classif_sd;
 this_raw_trace = this_accuracy-this_shuf_mean;
+
+subplot(1,2,1); hold on
 shadedErrorBar(x_ticks,zeros(1,length(x_ticks)),...
     Nstd.*this_shuf_sd,{'color',[.5 .5 .5],'linewidth',2},0.5);
 plot(x_ticks,this_raw_trace,'color','black')
@@ -27,7 +29,17 @@ axis square
 ylabel('Decoder accuracy (norm)')
 xlabel('Time from trial start (sec)')
 
-
-
+subplot(1,2,2); hold on
+plot(x_ticks,stim_struct.framewise_hr,'color','black')
+plot(x_ticks,stim_struct.framewise_fa,'color',[.5 .5 .5])
+axis square
+ylim([0 1])
+xlim([x_ticks(1),x_ticks(end)])
+plot([1,1].*stim_opt.gocue_bin/stim_opt.Fs,ylim,':','color',[.5 .5 .5],'linewidth',2)
+plot([1,1].*stim_opt.stim_bin/stim_opt.Fs,ylim,':','color','r','linewidth',2)
+try
+plot([1,1].*stim_struct.disc_frame/stim_opt.Fs,ylim,'color','g','linewidth',1)
+end
+legend('Hit','FA')
 end
 

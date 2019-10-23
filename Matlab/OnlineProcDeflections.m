@@ -6,7 +6,10 @@
 
 % adapted from OnlineProcVisual
 % TO DO
-%  get resuls from PhotoExcitability test
+% 1. show hit and fa rate for test trials
+% 2. too many manual changes - group them to one
+% 3. balance two photostim ensembles 
+
 
 %% add path - change this for rig
 clear all
@@ -46,19 +49,18 @@ opt.correct_trial_only = false; % only use correct trials to get tunning
 % select cell identity for readout and stimulation
 opt.target_idx_fd = {'stim1','stim2'};
 opt.trigger_idx_fd = 'all';
-opt.fov_size = double(cnm_dims);
-opt.ds_factor = caiman_data.ds_factor;
 
 
-opt.plot_stim_types = [1 1 1 3 2 2 2]; % these pairs should be matched as in experiment_trial_seq
-opt.plot_var_types  = [3 5 8 2 2 4 6];
+
+opt.plot_stim_types = [1 1 1 1 3 2 2 2 2]; % these pairs should be matched as in experiment_trial_seq
+opt.plot_var_types  = [3 5 4 7 2 2 4 5 6];
 
 [trial_color] = deflect_init_color();
 %% load CAIMAN data
 [caiman_file,caiman_path] = uigetfile('*.mat','Select texture caiman data');
 caiman_data = load(fullfile(caiman_path,caiman_file)); 
 disp(['Loaded file :',fullfile(caiman_path,caiman_file)])
-
+opt.ds_factor = caiman_data.ds_factor;
 %% load Pybehavior data
 try
 [pb_file,pb_path] = uigetfile('*.mat','Select pybehavior data',caiman_path);
@@ -330,6 +332,13 @@ ylim([0 1])
 ylabel('Fraction of choices')
 set(gca,'YColor',[0 0 0]);
 
+subplot(3,1,2); hold on
+plot(opt.plot_stim_types,'-o','color','black')
+plot(opt.plot_var_types,'-o','color',[.5 .5 .5])
+legend('Stim type', 'Var type')
+ylim([0 9])
+
+
 subplot(3,1,3); hold on
 plot(plot_psycho_struct.leftvolts,'-o','color',trial_color.L1)
 plot(plot_psycho_struct.rightvolts,'-o','color',trial_color.L2)
@@ -339,9 +348,7 @@ ylabel('Deflection strength (V)')
 xlabel('Trial types')
 end
 
-%% manaully select threshold conditions - make it automatic later
-TS_L1_fds = {'stim_2_var_2_incorrect'};
-TS_L2_fds = {'stim_2_var_2_correct'};
+
 
 
 %% get trial indices
@@ -572,12 +579,14 @@ for i = 1:numel(trial_types)
          trial_color.(this_fd) = [.3 .3 .3];
      end
 end
+%% manaully select threshold conditions - make it automatic later
+TS_L1_fds = {'stim_2_var_2_incorrect','stim_1_var_4_correct'};
+TS_L2_fds = {'stim_2_var_2_correct','stim_1_var_4_incorrect'};
 %% factor analysis
 % using trials with highest contrast
 fa_opt.bin_size = 1;
 fa_opt.gocue_bin = floor(opt.sta_gocue_frame/fa_opt.bin_size);
 fa_opt.stim_bin = ceil(opt.sta_stimon_frame/fa_opt.bin_size);
-% fa_opt.frames_to_train = round([15:120]./fa_opt.bin_size);
 fa_opt.frame_rate = 30/fa_opt.bin_size;
 fa_opt.Fs = opt.frame_rate;
 fa_opt.trial_length = opt.trial_length/fa_opt.bin_size;
@@ -585,8 +594,10 @@ fa_opt.trial_color = trial_color;
 
 fa_opt.idx_fields = {opt.trigger_idx_fd};
 fa_opt.fd_names = {'stim_1_var_9_correct','stim_1_var_9_incorrect','stim_2_var_9_correct','stim_2_var_9_incorrect',...
-                   'stim_3_var_2_correct','stim_3_var_2_incorrect','stim_2_var_2_correct','stim_2_var_2_incorrect',...
-                   'stim_1_var_5_correct','stim_1_var_5_incorrect'};
+                   'stim_2_var_6_correct','stim_2_var_6_incorrect',...
+                   'stim_1_var_3_correct','stim_1_var_3_incorrect',...
+                   'stim_2_var_2_incorrect','stim_1_var_4_correct',...
+                   'stim_2_var_2_correct','stim_1_var_4_incorrect'};
 fa_opt.plot_fds = fa_opt.fd_names;
 fa_opt.m = 3;
 fa_opt.IF_MEDFILT = 0;
@@ -630,9 +641,11 @@ plot_pop_vectors(stim_proj_struct,stim_opt.fd_names,1,stim_opt,...
 toc
 disp('Done')
 
-figure; hold on
+figure; 
 plot_binary_decoder(stim_struct,stim_opt)
-title('Stimulus decoder')
+suptitle('Stimulus decoder')
+export_fig([fig_save_path filesep 'StimDecoderPerform_' strrep(caiman_file,'.mat','.png')])
+
 %% get choice decoder (using threshold trials)
 choice_opt = stim_opt;
 choice_opt.fd_names = {'TS_L1','TS_L2'}; % Choice 1 will be positive
@@ -651,9 +664,11 @@ plot_pop_vectors(choice_proj_struct,choice_opt.fd_names,1,choice_opt,...
 toc
 disp('Done')
 
-figure; hold on
+figure; 
+hold on
 plot_binary_decoder(choice_struct,choice_opt)
-title('Choice decoder')
+suptitle('Choice decoder')
+export_fig([fig_save_path filesep 'ChoiceDecoderPerform_' strrep(caiman_file,'.mat','.png')])
 
 %% test decoder performance
 decod_struct = choice_struct;
@@ -665,10 +680,13 @@ thresh = decod_struct.thresh_fix;
 test_opt = stim_opt;
 test_opt.trial_color = trial_color;
 test_opt.fd_names = {'stim_1_var_3_correct','stim_1_var_3_incorrect','stim_1_var_3_miss',...
+                     'stim_1_var_4_correct','stim_1_var_4_incorrect','stim_1_var_4_miss',...
                      'stim_1_var_5_correct','stim_1_var_5_incorrect','stim_1_var_5_miss',...
+                     'stim_1_var_7_correct','stim_1_var_7_incorrect','stim_1_var_7_miss',...
                      'stim_3_var_2_correct','stim_3_var_2_incorrect','stim_3_var_2_miss'...
                      'stim_2_var_2_correct','stim_2_var_2_incorrect','stim_2_var_2_miss'...
                      'stim_2_var_4_correct','stim_2_var_4_incorrect','stim_2_var_4_miss'...
+                     'stim_2_var_5_correct','stim_2_var_5_incorrect','stim_2_var_5_miss'...
                      'stim_2_var_6_correct','stim_2_var_6_incorrect','stim_2_var_6_miss'};
 proj_struct = struct();
  [proj_struct] = get_projections(cell_struct(cell_idx_struct.(fa_opt.idx_fields{1})),norm_weights,test_opt.fd_names,'proj_struct',proj_struct,'bias',-norm_thresh,'IS_CELL_STRUCT',1);
@@ -710,10 +728,10 @@ end
 pop_params = struct();
 pop_params.weights = norm_weights;
 pop_params.thresh = norm_thresh;
-pop_params.frames_enable_trigger = max(opt.stimon_frame,fa_opt.bin_size*(decod_struct.shuf_disc_frame-opt.sta_baseline_frames));
-pop_params.condition_stim_type = [1,3,2,2];
-pop_params.condition_stim_var  = [5,2,2,4]; % type and var need to match
-pop_params.condition_type = {[105 302], [202 204]}; % match target ensembles 100*stim_type + stim_var
+pop_params.frames_enable_trigger = max(opt.sta_stimon_frame,fa_opt.bin_size*(decod_struct.shuf_disc_frame-opt.sta_baseline_frames));
+pop_params.condition_stim_type = [1,1,3,2,2,2];
+pop_params.condition_stim_var  = [5,4,2,2,5,7]; % type and var need to match
+pop_params.condition_type = {[105 104], [202 207 205]}; % match target ensembles 100*stim_type + stim_var
 
 %% =================== MAKE OUTPUT FILE FOR PYRTAOI =======================
 [output2,save_time2] = generate_cell_idx_file(cell_struct,cell_idx_struct,pop_params,opt);

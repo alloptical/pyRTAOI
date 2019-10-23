@@ -17,7 +17,6 @@ output.target_ensembles = [];
 if iscell(target_idx_fd)&&numel(target_idx_fd)>1 % match stim types with target ensembles if more than one target-idx field is provided
      output.target_ensembles = cellfun(@(x)cell_idx_struct.(x),target_idx_fd,'UniformOutput',false);
      output.target_idx = cell2mat(output.target_ensembles);
-     output.condition_type = pop_params.condition_type;
 else
     output.target_idx = cell_idx_struct.(target_idx_fd);
 end
@@ -41,6 +40,7 @@ if ~isempty(pop_params)
     output.trigger_weights = pop_params.weights;
     output.trigger_thresh = pop_params.thresh;
     output.trigger_frames = pop_params.frames_enable_trigger;
+    output.condition_type = pop_params.condition_type;
     output.pop_opt = opt.pop_opt;
 end
 

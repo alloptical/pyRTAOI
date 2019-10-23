@@ -493,7 +493,7 @@ class Worker(QObject):
 	photostimOff_signal      = pyqtSignal()
 	MonitorOff_signal        = pyqtSignal()
 	MonitorOn_signal         = pyqtSignal()
-	NumStim_signal           = pyqtSignal()
+	NumStim_signal           = pyqtSignal(int)
 	finished_signal          = pyqtSignal()
 
 
@@ -665,7 +665,7 @@ class Worker(QObject):
 			FLAG_TRIAL_START = False
 			trialOrder = p['trialOrder']
 			trialEnsembleIdx = p['trialEnsembleIdx']
-			
+
 
 			# Local buffer for recording online protocol
 			online_photo_frames = []
@@ -674,6 +674,10 @@ class Worker(QObject):
 			online_photo_y = []
 			online_thresh = []
 			online_clamp_level = []
+			online_traj = np.zeros((1,200000))
+			this_traj_val = 0
+
+			PHOTO_PROTO_INX = p['photoProtoInx']
 			print('local params in work set')
 
 		except Exception as e:
@@ -689,7 +693,7 @@ class Worker(QObject):
 			print('power setting error')
 			pass
 		self.MonitorOff_signal.emit()
-		self.PhotostimOff_signal.emit()
+		self.photostimOff_signal.emit()
 
 		if FLAG_USE_ONACID:
 			# Use locally scoped variables to speed up
@@ -817,7 +821,7 @@ class Worker(QObject):
 			app.processEvents(QEventLoop.ExcludeUserInputEvents)
 			# skip frames contaminated by photostim but save them to tiff
 			if frames_post_photostim >0:
-				if p['FLAG_SKIP_FRAMES'] or (frames_post_photostim>0 and frames_post_photostim<photo_duration):
+				if p['FLAG_SKIP_FRAMES'] or frames_post_photostim<photo_duration:
 					frames_post_photostim+=1
 					frame_in = qbuffer.get(timeout = max_wait)
 					qbuffer.task_done()
@@ -827,7 +831,8 @@ class Worker(QObject):
 						MyTiffwriter.save(frame_in)
 					print('framesProc'+str(framesProc)+'skipped')
 					continue
-				elif frames_post_photostim == photo_duration:
+				if frames_post_photostim == photo_duration: # looks like this is never reached before
+					print('End of Photo duration')
 					frames_post_photostim = 0
 					self.photostimOff_signal.emit()
 			elif frames_post_photostim == -1: # let one more frame in
@@ -994,15 +999,17 @@ class Worker(QObject):
 					# add data to buffer
 					try:
 						self.RoiBuffer[:com_count, BufferPointer] = cnm2.C_on[accepted, t_cnm]
-						self.TrajBuffer[0,BufferPointer] = np.sum(np.multiply(self.RoiBuffer[:com_count, BufferPointer],ROIw))-ROIsumThresh
+						this_traj_val = np.sum(np.multiply(self.RoiBuffer[:com_count, BufferPointer],ROIw))-ROIsumThresh
+						self.TrajBuffer[0,BufferPointer] = this_traj_val
 #						self.ROIlist_threshold[:com_count] = np.nanmean(self.RoiBuffer[:com_count,:], axis=1) + 2*np.nanstd(self.RoiBuffer[:com_count,:], axis=1)  # changed 3 to 2
 						# use noisy C to estimate noise:
-						if not (p['photoProtoInx'] == CONSTANTS.PHOTO_CLAMP_DOWN):
+						if not (PHOTO_PROTO_INX == CONSTANTS.PHOTO_CLAMP_DOWN):
 							self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
 							online_thresh.append([items for items in self.ROIlist_threshold[0:com_count]])
 
 						 # record the buffer values for offline analysis
 						if store_all_online:
+							online_traj[0][t_cnm] = this_traj_val
 							self.online_C[:cnm2.M, t_cnm] = cnm2.C_on[:cnm2.M, t_cnm]  # storing also background signal (gnb)
 						else:
 							self.online_C[:com_count, t_cnm] = cnm2.C_on[accepted, t_cnm]
@@ -1012,34 +1019,43 @@ class Worker(QObject):
 						logger.exception(e)
 
 #%% photostim protocols:
-					if p['photoProtoInx'] == CONSTANTS.PHOTO_WEIGH_SUM:
+					if PHOTO_PROTO_INX == CONSTANTS.PHOTO_WEIGH_SUM:
 						# for closed-loop trials
 						if sens_stim_idx < tot_num_senstim and framesProc == stim_frames[sens_stim_idx]-1:
-							self.MonitorOn_signal.emit()
+
 							this_trialOrder = trialOrder[sens_stim_idx]
 							this_ensembleIdx = trialEnsembleIdx[sens_stim_idx]
-							# update baseline level
-							current_bs_level= np.nanmean(cnm2.C_on[accepted, t_cnm - baseline_frames:t_cnm], axis=1)
-							print('trialOrder:'+str(this_trialOrder))
-						if sens_stim_idx>0 and framesProc < stim_frames[sens_stim_idx-1]+ monitor_frames and framesProc > stim_frames[sens_stim_idx-1]+ offset_frames:
-							if this_trialOrder==1:# p['ROIsumAbove']
-								photostim_flag = self.TrajBuffer[BufferPointer]
-							elif this_trialOrder==2: # p['ROIsumBelow']:
-								photostim_flag =  - self.TrajBuffer[BufferPointer]
-							if photostim_flag>0 and this_ensembleIdx>-1:
+							print('current ensemble'+str(this_ensembleIdx))
+							print('current trialOrder'+str(this_trialOrder))
+							print('current senstim idx:'+str(sens_stim_idx))
+							if this_ensembleIdx>-1:
 								p['currentTargetX'] = p['TargetEnsembleX'][this_ensembleIdx]
 								p['currentTargetY'] = p['TargetEnsembleY'][this_ensembleIdx]
-								num_stim_targets = len(p['currentTargetX'])
-								FLAG_TRIG_PHOTOSTIM = True
-						elif framesProc == stim_frames[sens_stim_idx-1]+ offset_frames:
-							self.MonitorOff_signal.emit()
+								FLAG_SEND_COORDS = True
+							# update baseline level
+							# current_bs_level= np.nanmean(cnm2.C_on[accepted, t_cnm - baseline_frames:t_cnm], axis=1)
+							print('trialOrder:'+str(this_trialOrder))
 
-					elif p['photoProtoInx'] == CONSTANTS.PHOTO_FIX_SEQUENCE:
+						if sens_stim_idx>0:
+							if framesProc == stim_frames[sens_stim_idx-1]+ offset_frames:
+								self.MonitorOn_signal.emit()
+							elif framesProc < stim_frames[sens_stim_idx-1]+ monitor_frames and framesProc > stim_frames[sens_stim_idx-1]+ offset_frames:
+								if this_trialOrder==1:# p['ROIsumAbove']
+									photostim_flag = this_traj_val
+								elif this_trialOrder==2: # p['ROIsumBelow']:
+									photostim_flag =  - this_traj_val
+								if photostim_flag>0 and this_ensembleIdx>-1:
+									num_stim_targets = len(p['currentTargetX'])
+									FLAG_TRIG_PHOTOSTIM = True
+							elif framesProc == stim_frames[sens_stim_idx-1]+ monitor_frames:
+								self.MonitorOff_signal.emit()
+
+					elif PHOTO_PROTO_INX == CONSTANTS.PHOTO_FIX_SEQUENCE:
 						if num_photostim < tot_num_photostim:
 							if framesProc == photo_stim_frames[num_photostim]:
 								FLAG_TRIG_PHOTOSTIM = True
 
-					elif p['photoProtoInx'] == CONSTANTS.PHOTO_CLAMP_DOWN:
+					elif PHOTO_PROTO_INX == CONSTANTS.PHOTO_CLAMP_DOWN:
 						# for closed-loop trials
 						if sens_stim_idx < tot_num_senstim and framesProc == stim_frames[sens_stim_idx]-1:
 							# get baseline level
@@ -1077,7 +1093,7 @@ class Worker(QObject):
 						elif countExtraPhoto>0 and framesProc < extraPhotoFrames[countExtraPhoto-1]+ monitor_frames and framesProc > extraPhotoFrames[countExtraPhoto-1]+ wait_frames:
 							num_stim_targets = len(p['fixedTargetX'])
 							FLAG_TRIG_PHOTOSTIM = True
-					elif p['photoProtoInx'] == CONSTANTS.PHOTO_SEQUENCE:
+					elif PHOTO_PROTO_INX == CONSTANTS.PHOTO_SEQUENCE:
 						if num_photostim < tot_num_photostim:
 							if framesProc == photo_stim_frames[num_photostim]:
 								current_target_idx = self.sequence_idx[num_photostim]
@@ -1088,7 +1104,7 @@ class Worker(QObject):
 								current_target_idx = [current_target_idx] # make it a list
 								print('photostim triggered')
 
-					elif p['photoProtoInx'] == CONSTANTS.PHOTO_REPLAY_TRIAL and num_photostim < tot_num_photostim:
+					elif PHOTO_PROTO_INX == CONSTANTS.PHOTO_REPLAY_TRIAL and num_photostim < tot_num_photostim:
 						if (sens_stim_idx>0 and framesProc < stim_frames[sens_stim_idx-1]+ monitor_frames and framesProc > stim_frames[sens_stim_idx-1]):
 							# add responsive cells to target group
 							photostim_flag = self.RoiBuffer[:com_count, BufferPointer]-self.ROIlist_threshold[:com_count]
@@ -1115,7 +1131,7 @@ class Worker(QObject):
 						if framesProc == photo_stim_frames[num_photostim]:
 							FLAG_TRIG_PHOTOSTIM = True
 
-					elif  p['photoProtoInx'] == CONSTANTS.PHOTO_REPLAY_TRAIN:
+					elif  PHOTO_PROTO_INX == CONSTANTS.PHOTO_REPLAY_TRAIN:
 						if (sens_stim_idx>0 and framesProc < stim_frames[sens_stim_idx-1]+ monitor_frames and framesProc > stim_frames[sens_stim_idx-1]):
 							# take notes of targets and frames
 							photostim_flag = self.RoiBuffer[:com_count, BufferPointer]-self.ROIlist_threshold[:com_count]
@@ -1143,7 +1159,7 @@ class Worker(QObject):
 									FLAG_SEND_COORDS = True
 									print('photostim triggered')
 
-					elif p['photoProtoInx'] == CONSTANTS.PHOTO_FIX_FRAMES:
+					elif PHOTO_PROTO_INX == CONSTANTS.PHOTO_FIX_FRAMES:
 						if num_photostim < tot_num_photostim:
 							if framesProc == photo_stim_frames[num_photostim]:
 								FLAG_TRIG_PHOTOSTIM = True
@@ -1162,7 +1178,7 @@ class Worker(QObject):
 								FLAG_SEND_COORDS = True
 								FLAG_TRIG_PHOTOSTIM = True
 
-					elif p['photoProtoInx'] == CONSTANTS.PHOTO_ABOVE_THRESH: # TODO: test the check for opsin
+					elif PHOTO_PROTO_INX == CONSTANTS.PHOTO_ABOVE_THRESH: # TODO: test the check for opsin
 						photostim_flag = self.RoiBuffer[:com_count, BufferPointer]-self.ROIlist_threshold[:com_count]
 						above_thresh = np.array(photostim_flag>0)
 						opsin_ok = np.array(opsin)
@@ -1197,7 +1213,7 @@ class Worker(QObject):
 								FLAG_SEND_COORDS = True
 								FLAG_TRIG_PHOTOSTIM = True
 
-					elif p['photoProtoInx'] == CONSTANTS.PHOTO_BELOW_THRESH:
+					elif PHOTO_PROTO_INX == CONSTANTS.PHOTO_BELOW_THRESH:
 						photostim_flag = self.ROIlist_threshold[:com_count] - self.RoiBuffer[:com_count, BufferPointer]
 						above_thresh = np.array(photostim_flag>0)
 						opsin_ok = np.array(opsin)
@@ -1232,7 +1248,7 @@ class Worker(QObject):
 					if sens_stim_idx < tot_num_senstim:
 						if p['enableStimTrigger'] and framesProc == stim_frames[sens_stim_idx]: # send TTL
 							self.sendTTLTrigger_signal.emit()
-							if p['photoProtoInx'] == CONSTANTS.PHOTO_FIX_SEQUENCE: # change phasemask at sensory trial onsets
+							if PHOTO_PROTO_INX == CONSTANTS.PHOTO_FIX_SEQUENCE: # change phasemask at sensory trial onsets
 								p['currentTargetX'] = p['fixedTargetSeqX'][sens_stim_idx].copy()
 								p['currentTargetY'] = p['fixedTargetSeqY'][sens_stim_idx].copy()
 								num_stim_targets = len(p['currentTargetX'])
@@ -1295,7 +1311,7 @@ class Worker(QObject):
 						FLAG_SEND_COORDS = False
 
 #					FLAG_SEND_COORDS = False # delete this later!
-					if p['photoProtoInx'] == CONSTANTS.PHOTO_FIX_SEQUENCE and num_stim_targets==0:
+					if PHOTO_PROTO_INX == CONSTANTS.PHOTO_FIX_SEQUENCE and num_stim_targets==0:
 						FLAG_TRIG_PHOTOSTIM = False
 
 					if FLAG_TRIG_PHOTOSTIM:
@@ -1305,7 +1321,6 @@ class Worker(QObject):
 								qtarget.put([p['currentTargetX'].copy(),p['currentTargetY'].copy()])
 								self.photostimNewTargets_signal.emit()
 								frames_post_photostim = -1 # accept next frame during phasemask update
-
 							else:
 								self.photostimCurrentTargets_signal.emit(num_stim_targets)
 
@@ -1334,13 +1349,14 @@ class Worker(QObject):
 						print('Number photostim,',num_photostim)
 					elif FLAG_SEND_COORDS: # update phase mask without photostim
 						self.sendCoords_signal.emit()
+						self.updateTargetROIs_signal.emit() # update display
 						FLAG_SEND_COORDS = False
 
 #%% Update GUI display
+					print('updating gui')
 					if framesProc > refreshFrame-1: #frame_count>self.BufferLength-1:
 						if LastPlot == refreshFrame:
-#							if p['photoProtoInx'] == CONSTANTS.PHOTO_WEIGH_SUM:
-							self.refreshTrajPlot_signal.emit(self.TrajBuffer)
+							self.refreshTrajPlot_signal.emit(self.TrajBuffer[0,:])
 							if p['plotOn']:
 								plot_time = time.time()
 								self.refreshPlot_signal.emit(self.RoiBuffer[:com_count,:])
@@ -1449,6 +1465,7 @@ class Worker(QObject):
 				save_dict['online_photo_y'] = online_photo_y
 				save_dict['online_thresh'] = online_thresh
 				save_dict['online_clamp_level'] = online_clamp_level
+				save_dict['online_traj'] = online_traj
 
 				save_dict['accepted_idx'] = accepted  # accepted currently stored inside cnm2 as well
 				save_dict['repeated_idx'] = repeated_idx
@@ -1619,6 +1636,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		p['all_trial_types'] = []
 		p['photo_sequence_idx'] = []
 		p['NumTargetEnsembles'] = 0
+		p['trialEnsembleIdx'] =[]
 
 		# camain init
 		p['FLAG_USING_RESULT_FILE'] = False
@@ -2366,7 +2384,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.overlap_thresh_doubleSpinBox.setValue(self.thresh_overlap)
 
 			print('updating ROI list')
-			if self.MaxNumROIs_spinBox.value() > self.MaxNumROIs:
+			if self.MaxNumROIs_spinBox.value() > self.MaxNumROIs and p['addNewROIs']==True:
 				for extraROI in range(self.MaxNumROIs_spinBox.value() - self.MaxNumROIs):  # add extra fields to ROIlist
 					self.ROIlist.append(dict())
 					ROIIdx = self.MaxNumROIs + extraROI
@@ -2405,6 +2423,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.workerObject.status_signal.connect(self.updateStatusBar)
 			self.workerObject.roi_signal.connect(self.updateROI)
 			self.workerObject.refreshPlot_signal.connect(self.refreshPlot)
+			self.workerObject.refreshTrajPlot_signal.connect(self.refreshTrajPlot)
 			self.workerObject.frame_signal.connect(self.updateFrameInfo)
 			self.workerObject.thresh_signal.connect(self.updateThresh)
 			self.workerObject.sta_amp_signal.connect(self.updateSTA)
@@ -4510,6 +4529,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			self.plotItem.setYRange(0,30)
 
 	def refreshTrajPlot(self,arr): # show weighted sum of ROI traces, i.e. 'poopulaiton trajectory'
+		self.plotItem.clear()
 		self.plotItem.plot(arr, antialias=True, pen=pg.mkPen(QColor(255,255,0), width=2))
 		try:
 			self.plotItem.setYRange(np.round(arr.min())-1,np.round(arr.max())+1)
@@ -4835,7 +4855,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 				# setup protocol
 				self.ROIsumThresh_doubleSpinBox.setValue(self.TriggerThresh)
 				self.offsetFrames_spinBox.setValue(self.TriggerFrames[0])
-				self.staPostFrame_spinBox.setValue(self.TriggerFrames[-1])
+				self.staPostFrame_spinBox.setValue(self.TriggerFrames[-1]-self.TriggerFrames[0])
 				print('Trigger Weights:')
 				print(self.TriggerWeights)
 				for idx in range(self.thisROIIdx):
@@ -4845,7 +4865,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 					self.ROIlist[self.TriggerIdx[idx]]["weight"] = self.TriggerWeights[idx]
 				self.updateTable()
 				self.getValues()
-				
+
 				# config trigger cells
 				print('loaded trigger idx:')
 				print(self.TriggerIdx)
@@ -4860,7 +4880,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 					p['TargetIdxList'] = self.TargetIdx.copy()
 					self.updateTargets()
 					p['NumTargetEnsembles'] = 1
-				else: # if targets ensembles are defined, save there coordinates 
+				else: # if targets ensembles are defined, save there coordinates
 					p['NumTargetEnsembles'] = len(p['TargetIdxList'])
 				print('Loaded target ensembles: '+str(p['NumTargetEnsembles']))
 

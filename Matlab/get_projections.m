@@ -18,6 +18,7 @@ end
 
 for fd = 1:numel(proj_fds)
     this_fd = proj_fds{fd};
+    try
     if ~IS_CELL_STRUCT
         this_data = this_struct.(this_fd);
     else
@@ -41,6 +42,9 @@ for fd = 1:numel(proj_fds)
         for f = 1:this_num_bins
             this_proj(t,f) = squeeze(this_data(t,f,:))'* this_weights(:,f)+this_bias(f);
         end
+    end
+    catch
+        this_proj =[];
     end
     proj_struct.(this_fd) = this_proj;
 end

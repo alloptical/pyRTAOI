@@ -16,7 +16,7 @@ clc
 %% parameters - CHANGE THIS
 
 opt.N = 1; % auc zscore threshold
-opt.sta_amp_thresh = 0.25; % sta amplitude threshold
+opt.sta_amp_thresh = 0.1; % sta amplitude threshold
 
 opt.pre_exp_frames = 0;
 opt.sta_pre_frames = 30;
@@ -76,7 +76,9 @@ end
 opt.frames_with_photo = double(caiman_data.photoDuration/opt.frame_rate+1); % discard skipped frames with photostim when calculating photo sta amplitude
 cell_struct = struct();
 photo_stim_frames =  caiman_data.online_photo_frames + caiman_data.t_init;
+photo_stim_frames(photo_stim_frames>caiman_data.t_cnm)=[];
 temp_photo_sequence_idx = caiman_data.photo_sequence_idx+1; % this is idx in pyRTAOI fixedTargets
+temp_photo_sequence_idx = temp_photo_sequence_idx(1:length(photo_stim_frames));
 photo_sequence_cell_idx = nan(1,length(photo_stim_frames));
 target_cnm_idx = nan(size(target_cell_idx));
 for t = 1:numel(target_cell_idx)

@@ -108,7 +108,7 @@ for f = 1:numel(fds)
     end
     xlabel('Time')
     ylabel(plot_ylabel)
-    xlim([0, size(this_F,2)])
+    xlim([0, 210])
     title([strrep(fds{f},'_',' ') ':  ' num2str(size(this_F,1)) ' trials'])
     if num_states == 1
         plot(mean(this_F(:,:,s),1),'color','black','linewidth',2); 
