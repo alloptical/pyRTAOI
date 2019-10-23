@@ -663,6 +663,9 @@ class Worker(QObject):
 			extraSensory_caiman = []
 			extraPhoto_caiman = []
 			FLAG_TRIAL_START = False
+			trialOrder = p['trialOrder']
+			trialEnsembleIdx = p['trialEnsembleIdx']
+			
 
 			# Local buffer for recording online protocol
 			online_photo_frames = []
@@ -1013,16 +1016,20 @@ class Worker(QObject):
 						# for closed-loop trials
 						if sens_stim_idx < tot_num_senstim and framesProc == stim_frames[sens_stim_idx]-1:
 							self.MonitorOn_signal.emit()
+							this_trialOrder = trialOrder[sens_stim_idx]
+							this_ensembleIdx = trialEnsembleIdx[sens_stim_idx]
 							# update baseline level
 							current_bs_level= np.nanmean(cnm2.C_on[accepted, t_cnm - baseline_frames:t_cnm], axis=1)
-
+							print('trialOrder:'+str(this_trialOrder))
 						if sens_stim_idx>0 and framesProc < stim_frames[sens_stim_idx-1]+ monitor_frames and framesProc > stim_frames[sens_stim_idx-1]+ offset_frames:
-							if p['ROIsumAbove']:
+							if this_trialOrder==1:# p['ROIsumAbove']
 								photostim_flag = self.TrajBuffer[BufferPointer]
-							elif p['ROIsumBelow']:
+							elif this_trialOrder==2: # p['ROIsumBelow']:
 								photostim_flag =  - self.TrajBuffer[BufferPointer]
-							if photostim_flag>0:
-								num_stim_targets = len(p['fixedTargetX'])
+							if photostim_flag>0 and this_ensembleIdx>-1:
+								p['currentTargetX'] = p['TargetEnsembleX'][this_ensembleIdx]
+								p['currentTargetY'] = p['TargetEnsembleY'][this_ensembleIdx]
+								num_stim_targets = len(p['currentTargetX'])
 								FLAG_TRIG_PHOTOSTIM = True
 						elif framesProc == stim_frames[sens_stim_idx-1]+ offset_frames:
 							self.MonitorOff_signal.emit()
@@ -1221,7 +1228,7 @@ class Worker(QObject):
 								FLAG_SEND_COORDS = True
 								FLAG_TRIG_PHOTOSTIM = True
 
-					# Trigger sensory stimulation
+#%% Trigger sensory/photo stimulation
 					if sens_stim_idx < tot_num_senstim:
 						if p['enableStimTrigger'] and framesProc == stim_frames[sens_stim_idx]: # send TTL
 							self.sendTTLTrigger_signal.emit()
@@ -1329,8 +1336,7 @@ class Worker(QObject):
 						self.sendCoords_signal.emit()
 						FLAG_SEND_COORDS = False
 
-
-					# Update GUI display
+#%% Update GUI display
 					if framesProc > refreshFrame-1: #frame_count>self.BufferLength-1:
 						if LastPlot == refreshFrame:
 #							if p['photoProtoInx'] == CONSTANTS.PHOTO_WEIGH_SUM:
@@ -1609,8 +1615,10 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		# trial type
 		p['trialOrder'] = []
 		p['trialVar'] = []
+		p['trialType'] = []
 		p['all_trial_types'] = []
 		p['photo_sequence_idx'] = []
+		p['NumTargetEnsembles'] = 0
 
 		# camain init
 		p['FLAG_USING_RESULT_FILE'] = False
@@ -1749,6 +1757,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		self.numTargets = 0
 		self.bl = []
 		self.TargetIdx = [] # indices in ROIlist
+		self.TargetIdxList = [] # target ensembles
 		self.TargetX = [] # all target coords
 		self.TargetY = []
 		p['ExtraTargetX'] = [] # selected targets (not in the ROIlist)
@@ -1763,7 +1772,10 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		p['fixedTargetY'] = []
 		p['fixedTargetSeqX'] = []
 		p['fixedTargetSeqY'] = []
-
+		p['TargetEnsembleX'] = []
+		p['TargetEnsembleY'] = []
+		p['conditionTypes'] =[] # corresponding condition types given target ensemble
+		p['TargetIdxlist'] =[]
 		# reject list
 		p['rejectedX'] = []
 		p['rejectedY'] = []
@@ -4752,7 +4764,24 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			p['trialOrder'] = arr[0].astype(np.int)
 			try:
 				p['trialVar'] = arr[1].astype(np.int)
+				p['trialType'] = p['trialOrder']*100 + p['trialVar']
+				p['trialEnsembleIdx'] = []
+				num_trials = len(p['trialType'])
+				if p['NumTargetEnsembles']>1: # match trial types with target ensembles
+					for i in range(num_trials):
+						for j in range(p['NumTargetEnsembles']):
+							if p['trialType'][i] in p['conditionTypes'][j][0].flatten():
+								p['trialEnsembleIdx'].extend([j])
+							else:
+								p['trialEnsembleIdx'].extend([-1])
+					print(p['trialEnsembleIdx'] )
+				elif p['NumTargetEnsembles']==1:
+					p['trialEnsembleIdx'] = [0]*num_trials
+				else:
+					print('NO TARGET ENSEMBLE LOADED!')
+
 			except Exception as e:
+				print('no trialVar found')
 				print(e)
 
 			self.updateStatusBar('Loaded trial type from trialOrder file')
@@ -4794,13 +4823,14 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		except Exception as e:
 			print(e)
 			return
+
 	def loadTriggerConfig(self):
 		trigger_config_path = str(QFileDialog.getOpenFileName(self, 'Load trigger configeration', self.movie_folder, 'mat (*.mat);;All files (*.*)')[0])
 		if trigger_config_path:
 			print('loading trigger config')
 			try:
 				self.triggerConfigPath_lineEdit.setText(trigger_config_path)
-				[self.TriggerIdx,self.TriggerWeights,self.TriggerFrames, self.TriggerThresh,self.TargetIdx] = get_triggertargets_params(trigger_config_path)
+				[self.TriggerIdx,self.TriggerWeights,self.TriggerFrames, self.TriggerThresh,self.TargetIdx,p['TargetIdxList'],p['conditionTypes']] = get_triggertargets_params(trigger_config_path)
 
 				# setup protocol
 				self.ROIsumThresh_doubleSpinBox.setValue(self.TriggerThresh)
@@ -4812,27 +4842,42 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 					self.ROIlist[idx]["weight"] = 0 # set other cells zero
 				print(self.thisROIIdx)
 				for idx in range(len(self.TriggerIdx)):
-					print(self.TriggerIdx[idx])
 					self.ROIlist[self.TriggerIdx[idx]]["weight"] = self.TriggerWeights[idx]
-
 				self.updateTable()
 				self.getValues()
-	#			preview trigger cell positions
+				
+				# config trigger cells
 				print('loaded trigger idx:')
 				print(self.TriggerIdx)
-				print('loaded target idx:')
-				print(self.TargetIdx)
-
 				# show trigger cells
 				self.Triggercontour_item.clear()
 				self.Triggercontour_item.addPoints(x = [self.ROIlist[i]["ROIx"] for i in self.TriggerIdx], y = [self.ROIlist[i]["ROIy"] for i in self.TriggerIdx], pen = self.TriggerPen, size = self.RoiRadius*2+3)
 
-				# config target cells
-	#			self.clearTargets()
-	#			p['currentTargetX'].extend([self.ROIlist[i]["ROIx"] for i in self.TargetIdx])
-	#			p['currentTargetY'].extend([self.ROIlist[i]["ROIy"] for i in self.TargetIdx])
-				self.updateTargets()
+				# config target ensembles
+				if len(p['conditionTypes'])<1: # if targets are not grouped into ensembles, set current targets
+					print('loaded target idx:')
+					print(self.TargetIdx)
+					p['TargetIdxList'] = self.TargetIdx.copy()
+					self.updateTargets()
+					p['NumTargetEnsembles'] = 1
+				else: # if targets ensembles are defined, save there coordinates 
+					p['NumTargetEnsembles'] = len(p['TargetIdxList'])
+				print('Loaded target ensembles: '+str(p['NumTargetEnsembles']))
+
+				p['TargetEnsembleX'] = []
+				p['TargetEnsembleY'] = []
+
+				for j in range(p['NumTargetEnsembles']):
+					# save current targets to p
+					print('Target ensemble'+str(j))
+					print(p['TargetIdxList'])
+					p['TargetEnsembleX'].append([self.ROIlist[i]["ROIx"] for i in p['TargetIdxList'][j].flatten()])
+					p['TargetEnsembleY'].append([self.ROIlist[i]["ROIy"] for i in p['TargetIdxList'][j].flatten()])
+
+
+
 			except Exception as e:
+				p['ROIlist'] = self.ROIlist
 				print(e)
 
 	def loadTargetCentroid(self):

@@ -5,10 +5,8 @@
 % ZZ 2018
 
 % adapted from OnlineProcVisual
-
-% TO DO:
-% concatinate multiple sessions
-% check t_init
+% TO DO
+%  get resuls from PhotoExcitability test
 
 %% add path - change this for rig
 clear all
@@ -26,7 +24,7 @@ clc
 opt.N = 1.5; % threshold for significant auc
 opt.sta_pre_frames = 90; % sta will be taken relative to stim-on
 opt.sta_post_frames = 120;
-opt.sta_baseline_frames = 30; % relative to beginning of sta traces
+opt.sta_baseline_frames = 30; % relative to beginning of sta traces, trial-trigger frame in sta traces
 opt.gocue_frame = 105; % relative to trial start, 3.5s
 opt.stimon_frame = 60; % relative to trial start
 opt.trial_length = 1+opt.sta_pre_frames+opt.sta_post_frames;
@@ -36,6 +34,7 @@ opt.sta_stimon_frame = opt.sta_pre_frames;
 opt.sta_trialon_frame = opt.sta_pre_frames-opt.gocue_frame;
 opt.sta_avg_frames = [15:1:45]+opt.stimon_frame+opt.sta_baseline_frames;
 opt.sta_peak_search_range =  opt.sta_avg_frames;
+opt.sta_gocue_frame = opt.gocue_frame+opt.sta_baseline_frames;
 
 
 opt.sta_amp_thresh = 1;
@@ -44,8 +43,15 @@ opt.frame_rate = 30;
 opt.flag_use_peak = false; % if false then will use average to get roc
 opt.correct_trial_only = false; % only use correct trials to get tunning
 
-opt.plot_stim_types = [1 1 1 1 3 2 2 2 2]; % these pairs should be matched as in experiment_trial_seq
-opt.plot_var_types  = [3 5 4 7 2 2 5 4 6];
+% select cell identity for readout and stimulation
+opt.target_idx_fd = {'stim1','stim2'};
+opt.trigger_idx_fd = 'all';
+opt.fov_size = double(cnm_dims);
+opt.ds_factor = caiman_data.ds_factor;
+
+
+opt.plot_stim_types = [1 1 1 3 2 2 2]; % these pairs should be matched as in experiment_trial_seq
+opt.plot_var_types  = [3 5 8 2 2 4 6];
 
 [trial_color] = deflect_init_color();
 %% load CAIMAN data
@@ -162,7 +168,6 @@ for t = 1:numel(trialOrder)
     opt.trial_color(t,:) = trial_color.(['stim' num2str(trialOrder(t))]);
 end
 
-num_trials = numel(sens_stim_frames);
 opt.type_color = [trial_color.('stim1');trial_color.('stim2')];
 %% make cnm data structure
 cnm_struct = struct();
@@ -334,6 +339,11 @@ ylabel('Deflection strength (V)')
 xlabel('Trial types')
 end
 
+%% manaully select threshold conditions - make it automatic later
+TS_L1_fds = {'stim_2_var_2_incorrect'};
+TS_L2_fds = {'stim_2_var_2_correct'};
+
+
 %% get trial indices
 % a trial type is defined by stim_type (which lickport is rewarded) and
 % stim_var (deflection amplitude)
@@ -347,15 +357,16 @@ all_trial_var(v) = rem(all_trial_types(v),100);
 all_trial_stim(v) = floor((all_trial_types(v)-all_trial_var(v))/100);
 end
 all_psycho_struct = get_psycho_curve(trials,all_trial_stim,all_trial_var);
-
+% [stim var outcome]
 for v = 1:num_trial_types
     this_var = all_trial_var(v);
     this_stim = all_trial_stim(v);
-    trial_indices.(['correct_stim_' num2str(this_stim) '_var_' num2str(this_var)  ]) = find(trials.correct==1&trials.stim_type==this_stim&trials.stim_var == this_var);
-    trial_indices.(['incorrect_stim_' num2str(this_stim) '_var_' num2str(this_var)  ]) = find(trials.incorrect==1&trials.stim_type==this_stim&trials.stim_var == this_var);
-    trial_indices.(['miss_stim_' num2str(this_stim) '_var_' num2str(this_var)  ]) = find(trials.miss==1&trials.stim_type==this_stim&trials.stim_var == this_var);
+    trial_indices.(['stim_' num2str(this_stim) '_var_' num2str(this_var) '_correct'  ]) = find(trials.correct==1&trials.stim_type==this_stim&trials.stim_var == this_var);
+    trial_indices.(['stim_' num2str(this_stim) '_var_' num2str(this_var) '_incorrect' ]) = find(trials.incorrect==1&trials.stim_type==this_stim&trials.stim_var == this_var);
+    trial_indices.(['stim_' num2str(this_stim) '_var_' num2str(this_var) '_miss' ]) = find(trials.miss==1&trials.stim_type==this_stim&trials.stim_var == this_var);
 
 end
+%% plot all trial types and deflection volts
 figure('name','all trial types and voltages');
 subplot(2,1,1)
 hold on
@@ -413,7 +424,7 @@ trial_types = fields(trial_indices);
 for i = 1:numel(trial_types)
     this_fd = trial_types{i};
     this_idx = trial_indices.(this_fd);
-    this_idx = this_idx(this_idx<tot_num_tria)
+    this_idx = this_idx(this_idx<tot_num_trials);
     if ~isempty(this_idx)
             for c = 1:num_cells
                     cell_struct(c).(this_fd) = cell_struct(c).sta_traces( this_idx,:)';
@@ -422,17 +433,18 @@ for i = 1:numel(trial_types)
 end
 
 %% GET CELL IDENTITY
-% stimulus AUC calculated from correct trials, highest contrast and amp
+% stimulus AUC calculated from correct trials with highest contrast and amp
+stim_fds = {'stim_1_var_9_correct','stim_2_var_9_correct'}; 
 num_shuf = 300;
 peak_frame_range = opt.sta_peak_search_range;
 avg_frame_range = opt.sta_avg_frames;
 for i = 1:num_cells
     if ~ opt.flag_use_peak
-        all_stim1 = mean(cell_struct(i).('correct_stim_1_var_3')(avg_frame_range,:),1);
-        all_stim2 = mean(cell_struct(i).('correct_stim_2_var_6')(avg_frame_range,:),1);
+        all_stim1 = mean(cell_struct(i).(stim_fds{1})(avg_frame_range,:),1);
+        all_stim2 = mean(cell_struct(i).(stim_fds{2})(avg_frame_range,:),1);
     else
-        all_stim1 = max(cell_struct(i).('correct_stim_1_var_3')(peak_frame_range,:),[],1);
-        all_stim2 = max(cell_struct(i).('correct_stim_2_var_6')(peak_frame_range,:),[],1);
+        all_stim1 = max(cell_struct(i).(stim_fds{1})(peak_frame_range,:),[],1);
+        all_stim2 = max(cell_struct(i).(stim_fds{2})(peak_frame_range,:),[],1);
 
     end
 labels = [ones(1,length(all_stim1)),2.*ones(1,length(all_stim2))]';
@@ -453,6 +465,7 @@ end
 correct_stimulusAUC_zscore = extractfield(cell_struct,'correct_stimAUC_zscore');
 correct_texAUC = extractfield(cell_struct,'correct_stimAUC');
 cell_idx_struct = struct();
+cell_idx_struct.all = 1:num_cells;
 cell_idx_struct.stim2 = find(correct_stimulusAUC_zscore>opt.N& correct_texAUC>0.55); % cells prefering texture1 in correct trials
 cell_idx_struct.stim1 = find(correct_stimulusAUC_zscore<-opt.N& correct_texAUC<0.45); % cells prefering texture2 in correct trials
 cell_idx_struct.stim = unique([cell_idx_struct.stim1,cell_idx_struct.stim2]);
@@ -469,12 +482,8 @@ for c = 1:num_cells
         end
     end
 end
-
-%% select cell identity for readout and stimulation
-opt.target_idx_fd = 'stim';
-opt.trigger_idx_fd = 'stim';
-opt.fov_size = double(cnm_dims);
-opt.ds_factor = caiman_data.ds_factor;
+%% MAKE OUTPUT FILE FOR PYRTAOI PHOTOEXCITABILITY TEST
+[output1,save_time1] = generate_cell_idx_file(cell_struct,cell_idx_struct,[],opt);
 
 %% Plot STAs for all components
 figure('name','condition sta traces','units','normalized','outerposition',[0 0 1 1])
@@ -486,8 +495,8 @@ for i = 1:plot_num_cells
     hold on
     % correct trials
 
-    plot(cell_struct(i).('correct_stim_1_var_3'),'color',trial_color.L1,'linewidth',1)
-    plot(cell_struct(i).('correct_stim_2_var_6'),'color',trial_color.L2,'linewidth',1)
+    plot(cell_struct(i).(stim_fds{1}),'color',trial_color.L1,'linewidth',1)
+    plot(cell_struct(i).(stim_fds{2}),'color',trial_color.L2,'linewidth',1)
 
     xlim([0 opt.sta_pre_frames+opt.sta_post_frames+1])
     axis square
@@ -524,41 +533,62 @@ for i = 1:plot_num_cells
     xticklabels(arrayfun(@(x){num2str(x)},(xaxisvalues-opt.sta_trialon_frame)./opt.frame_rate))
     
 end
-export_fig([fig_save_path filesep 'TexSTATrace_' strrep(caiman_file,'.mat','.png')])
+export_fig([fig_save_path filesep 'STATrace_' strrep(caiman_file,'.mat','.png')])
 
-%% decoder - to debug below this point..
+%% Train decoders
 % add some fields to trialcolor
 for i = 1:numel(trial_types)
-       this_fd = trial_types{i};
-       if contains(this_fd,'correct_stim_1')
-           trial_color.(this_fd) = trial_color.L1;
-       end
-       if contains(this_fd,'incorrect_stim_1')
-           trial_color.(this_fd) = trial_color.ipsi_L1;
-       end
-       
-       if contains(this_fd,'correct_stim_2')
-           trial_color.(this_fd) = trial_color.L2;
-       end
-       if contains(this_fd,'incorrect_stim_2')
-           trial_color.(this_fd) = trial_color.contra_L2;
-       end
+    this_fd = trial_types{i};
+    if contains(this_fd,'stim_1') && contains(this_fd,'_correct')
+        trial_color.(this_fd) = trial_color.L1;
+    end
+    if contains(this_fd,'stim_1')&& contains(this_fd,'_incorrect')
+        trial_color.(this_fd) = trial_color.ipsi_L1;
+    end
+    
+    if contains(this_fd,'stim_2') && contains(this_fd,'_correct')
+        trial_color.(this_fd) = trial_color.L2;
+    end
+    if contains(this_fd,'stim_2')&& contains(this_fd,'_incorrect')
+        trial_color.(this_fd) = trial_color.contra_L2;
+    end
+    
+    if contains(this_fd,'stim_3') && contains(this_fd,'_correct')
+        trial_color.(this_fd) = trial_color.correct;
+    end
+    if contains(this_fd,'stim_3')&& contains(this_fd,'_incorrect')
+        trial_color.(this_fd) = trial_color.incorrect;
+    end
+    
+     if contains(this_fd,'stim_1') && contains(this_fd,'_miss')
+         trial_color.(this_fd) = [94, 34, 92]./255;
+     end
+     
+     if contains(this_fd,'stim_2') && contains(this_fd,'_miss')
+         trial_color.(this_fd) = [34, 64, 94]./255;
+     end
+     
+     if contains(this_fd,'stim_3') && contains(this_fd,'_miss')
+         trial_color.(this_fd) = [.3 .3 .3];
+     end
 end
 %% factor analysis
 % using trials with highest contrast
 fa_opt.bin_size = 1;
-fa_opt.gocue_bin = floor(opt.gocue_frame/fa_opt.bin_size);
-fa_opt.stim_bin = ceil(opt.stimon_frame/fa_opt.bin_size);
+fa_opt.gocue_bin = floor(opt.sta_gocue_frame/fa_opt.bin_size);
+fa_opt.stim_bin = ceil(opt.sta_stimon_frame/fa_opt.bin_size);
 % fa_opt.frames_to_train = round([15:120]./fa_opt.bin_size);
 fa_opt.frame_rate = 30/fa_opt.bin_size;
 fa_opt.Fs = opt.frame_rate;
 fa_opt.trial_length = opt.trial_length/fa_opt.bin_size;
 fa_opt.trial_color = trial_color;
 
-fa_opt.idx_fields = {'stim'};
-fa_opt.fd_names = {'correct_stim_1_var_3','incorrect_stim_1_var_3','correct_stim_2_var_6','incorrect_stim_2_var_6'};
+fa_opt.idx_fields = {opt.trigger_idx_fd};
+fa_opt.fd_names = {'stim_1_var_9_correct','stim_1_var_9_incorrect','stim_2_var_9_correct','stim_2_var_9_incorrect',...
+                   'stim_3_var_2_correct','stim_3_var_2_incorrect','stim_2_var_2_correct','stim_2_var_2_incorrect',...
+                   'stim_1_var_5_correct','stim_1_var_5_incorrect'};
 fa_opt.plot_fds = fa_opt.fd_names;
-fa_opt.m = 4;
+fa_opt.m = 3;
 fa_opt.IF_MEDFILT = 0;
 disp('Rnning factor analysis...')
 tic
@@ -568,18 +598,184 @@ fa_struct = struct();
 fa_struct.mean = mean(traces_in);
 fa_struct.std = std(traces_in);
 [fa_struct.lambda,fa_struct.psi,fa_struct.T,fa_struct.stats,fa_struct.F] = factoran(traces_in,fa_opt.m,'Xtype','data','Maxit',1000);
-sqrtPsi = sqrt(fa_struct.psi); % get transition matrix (multiply to zscored data)
-invsqrtPsi = diag(1 ./ sqrtPsi);
+invsqrtPsi = diag(1 ./  sqrt(fa_struct.psi)); % get transition matrix (multiply to zscored data)
 fa_struct.transmat = invsqrtPsi/(fa_struct.lambda'*invsqrtPsi);
+
+
+fa_trial_idx.TS_L1 = cell2mat(cellfun(@(x)fa_trial_idx.(x),TS_L1_fds,'UniformOutput' , false));
+fa_trial_idx.TS_L2 = cell2mat(cellfun(@(x)fa_trial_idx.(x),TS_L2_fds,'UniformOutput' , false));
+
 [fa_traj_struct,num_fs] = get_pop_vectors(fa_struct.F,fa_opt.trial_length,fa_trial_idx);
 toc
 disp('...Done')
-
 plot_pop_vectors(fa_traj_struct,fa_opt.plot_fds,fa_opt.m,fa_opt,'plot_ylabel','Factor level');
+%% get stim decoder (using easy trials)
+stim_opt = fa_opt;
+stim_opt.fd_names = stim_fds;
+stim_opt.frames_to_avg = stim_opt.stim_bin:1:stim_opt.gocue_bin;
+stim_opt.frames_to_train = round([90:1:120]/stim_opt.bin_size);
+stim_opt.Nstd = 2;
+stim_opt.min_frames = 30;
+stim_opt.IF_FRAMEWISE =0;
+stim_struct = {};
+stim_proj_struct = {};
+disp('Rnning stim decoder...')
+tic
+stim_struct =  get_binary_classifier( stim_struct,fa_traj_struct, stim_opt,'IF_FRAMEWISE',stim_opt.IF_FRAMEWISE,'fd_names',stim_opt.fd_names);
+ [stim_proj_struct] = get_projections(fa_traj_struct,stim_struct.B(:,2:end)',stim_opt.fd_names,'proj_struct',stim_proj_struct,'bias',stim_struct.B(:,1));
+plot_pop_vectors(stim_proj_struct,stim_opt.fd_names,1,stim_opt,...
+        'plot_ylabel','Stim projection')
+[ stim_struct ] =  get_binary_decoder_disc_time( stim_proj_struct, stim_struct,...
+    stim_opt.fd_names,stim_opt,'IF_FRAMEWISE',stim_opt.IF_FRAMEWISE,'threshold',0);
+toc
+disp('Done')
 
+figure; hold on
+plot_binary_decoder(stim_struct,stim_opt)
+title('Stimulus decoder')
+%% get choice decoder (using threshold trials)
+choice_opt = stim_opt;
+choice_opt.fd_names = {'TS_L1','TS_L2'}; % Choice 1 will be positive
+choice_opt.frames_to_avg = [100:120];
+
+choice_struct = {};
+choice_proj_struct = {};
+disp('Rnning choice decoder...')
+tic
+choice_struct =  get_binary_classifier( choice_struct,fa_traj_struct, choice_opt,'IF_FRAMEWISE',choice_opt.IF_FRAMEWISE,'fd_names',choice_opt.fd_names);
+ [choice_proj_struct] = get_projections(fa_traj_struct,choice_struct.B(:,2:end)',choice_opt.fd_names,'proj_struct',choice_proj_struct,'bias',choice_struct.B(:,1));
+plot_pop_vectors(choice_proj_struct,choice_opt.fd_names,1,choice_opt,...
+        'plot_ylabel','Stim projection')
+[ choice_struct ] =  get_binary_decoder_disc_time( choice_proj_struct, choice_struct,...
+    choice_opt.fd_names,choice_opt,'IF_FRAMEWISE',choice_opt.IF_FRAMEWISE,'threshold',0);
+toc
+disp('Done')
+
+figure; hold on
+plot_binary_decoder(choice_struct,choice_opt)
+title('Choice decoder')
+
+%% test decoder performance
+decod_struct = choice_struct;
+opt.pop_opt = choice_opt;
+
+weights = fa_struct.transmat* decod_struct.B(2:end)';
+thresh = decod_struct.thresh_fix;
+[norm_weights,norm_thresh] = get_norm_weights(weights,thresh,fa_struct.mean,fa_struct.std);
+test_opt = stim_opt;
+test_opt.trial_color = trial_color;
+test_opt.fd_names = {'stim_1_var_3_correct','stim_1_var_3_incorrect','stim_1_var_3_miss',...
+                     'stim_1_var_5_correct','stim_1_var_5_incorrect','stim_1_var_5_miss',...
+                     'stim_3_var_2_correct','stim_3_var_2_incorrect','stim_3_var_2_miss'...
+                     'stim_2_var_2_correct','stim_2_var_2_incorrect','stim_2_var_2_miss'...
+                     'stim_2_var_4_correct','stim_2_var_4_incorrect','stim_2_var_4_miss'...
+                     'stim_2_var_6_correct','stim_2_var_6_incorrect','stim_2_var_6_miss'};
+proj_struct = struct();
+ [proj_struct] = get_projections(cell_struct(cell_idx_struct.(fa_opt.idx_fields{1})),norm_weights,test_opt.fd_names,'proj_struct',proj_struct,'bias',-norm_thresh,'IS_CELL_STRUCT',1);
+
+plot_pop_vectors(proj_struct,test_opt.fd_names,1,test_opt,...
+        'plot_ylabel','Projection','plot_num_cols',3,'IF_PLOT_RAW_ONLY',1)
+suptitle('Choice decoder projections')
+export_fig([fig_save_path filesep 'DecodProject_' strrep(caiman_file,'.mat','.png')])
+
+
+%% GET PHOTOEXCITABLE TARGETS
+% load result file from OnlinePhotoexcitability.m
+IF_PHOTOTEST_LOADED = false;
+try
+    [photo_file,photo_path] = uigetfile('*.mat','Select ProcPhotoExci data',caiman_path);
+    disp(['Loaded file :',fullfile(photo_path,photo_file)])
+    load(fullfile(photo_path,photo_file));
+    IF_PHOTOTEST_LOADED = true;
+catch
+    warning('photo file not loaded')
+end
+
+if IF_PHOTOTEST_LOADED
+    %% merge cell struct into one
+    photo_fds = fields(photo_output_struct.cell_struct);
+    for c = 1:num_cells
+        for f = 1:numel(photo_fds)
+            cell_struct(c).(photo_fds{f}) = photo_output_struct.cell_struct(c).(photo_fds{f});
+        end  
+    end
+    %% get photoexcitable target indices
+    photo_idx.all = find(extractfield(cell_struct,'is_photo')>0);
+    cell_idx_struct.photo_stim1 = intersect(photo_idx.all, cell_idx_struct.stim1);
+    cell_idx_struct.photo_stim2 = intersect(photo_idx.all, cell_idx_struct.stim2);
+    opt.target_idx_fd = {'photo_stim1','photo_stim2'}; % overide target indices with the excitable ones
+end
+
+
+%% generate parameters for pyRTAOI population analysis
+pop_params = struct();
+pop_params.weights = norm_weights;
+pop_params.thresh = norm_thresh;
+pop_params.frames_enable_trigger = max(opt.stimon_frame,fa_opt.bin_size*(decod_struct.shuf_disc_frame-opt.sta_baseline_frames));
+pop_params.condition_stim_type = [1,3,2,2];
+pop_params.condition_stim_var  = [5,2,2,4]; % type and var need to match
+pop_params.condition_type = {[105 302 202 204]}; % 100*stim_type + stim_var
 
 %% MAKE OUTPUT FILE FOR PYRTAOI
-[output] = generate_cell_idx_file(cell_struct,cell_idx_struct,[],opt);
+[output2,save_time2] = generate_cell_idx_file(cell_struct,cell_idx_struct,pop_params,opt);
+
+%% MAKE PYBEHAV EXTERNAL FILE
+loop_stim_types = [pop_params.condition_stim_type 1 2]; % condition trial types plus two extreme stim types
+loop_stim_vars  = [pop_params.condition_stim_var  3 6];
+num_loops = 30;
+file_save_name = [opt.exp_name '_PyBehavior_' save_time2];
+[trial_seq] = generate_deflection_trial_seq(loop_stim_types,loop_stim_vars,num_loops,opt.output_path,file_save_name);
+
+
+%% ============================     END    ================================
+
+
+
+
+
+%% project threshold trials on factor-stim decoder --- didn't help
+decod_fds = { 'stim_2_var_2_correct','stim_2_var_2_incorrect'};
+test_struct = struct();
+choice_after_stim_struct =  get_binary_classifier( test_struct,proj_struct, choice_opt,'IF_CROSSVAL',1,'IF_FRAMEWISE',choice_opt.IF_FRAMEWISE,'fd_names',decod_fds);
+[choice_proj_struct] = get_projections(proj_struct,choice_after_stim_struct.B(:,2:end)',decod_fds,'bias',choice_after_stim_struct.B(:,1));
+[ choice_after_stim_struct ] =  get_binary_decoder_disc_time(choice_proj_struct, choice_after_stim_struct, ...
+    decod_fds,choice_opt,'IF_FRAMEWISE',choice_opt.IF_FRAMEWISE,'threshold',0);
+
+plot_pop_vectors(proj_struct,decod_fds,1,test_opt,...
+        'plot_ylabel','proj to choice-stim','plot_num_cols',2)
+
+figure; hold on
+plot_binary_decoder(choice_after_stim_struct,choice_opt)
+title('Choice-stim decoder')
+
+ %% combine threshold trials 
+proj_struct.TS_L1 = [];
+proj_struct.TS_L2 = [];
+ for f = 1:numel(TS_L1_fds)
+      proj_struct.TS_L1 = [ proj_struct.TS_L1;proj_struct.(TS_L1_fds{f})];
+ end
+ for f = 1:numel(TS_L2_fds)
+      proj_struct.TS_L2= [ proj_struct.TS_L1;proj_struct.(TS_L2_fds{f})];
+ end
+ 
+choice_after_stim_struct =  get_binary_classifier( test_struct,proj_struct, choice_opt,'IF_CROSSVAL',1,'IF_FRAMEWISE',choice_opt.IF_FRAMEWISE,'fd_names',choice_opt.fd_names);
+[choice_proj_struct] = get_projections(proj_struct,choice_after_stim_struct.B(:,2:end)',test_opt.fd_names,'bias',choice_after_stim_struct.B(:,1));
+
+plot_pop_vectors(choice_proj_struct,test_opt.fd_names,1,test_opt,...
+        'plot_ylabel','proj to choice-stim','plot_num_cols',3)
+   
+[ test_struct ] =  get_binary_decoder_disc_time( proj_struct, choice_after_stim_struct,...
+    test_opt.fd_names,test_opt,'IF_FRAMEWISE',test_opt.IF_FRAMEWISE,'threshold',0);
+figure;
+subplot(1,2,1)
+plot_proj_traces(proj_struct,test_opt.fd_names,test_opt,...
+    'plot_ylabel','Projection')
+title('Stim-choice decoder (TS.L1 vs TS.L2)')
+
+hold on
+subplot(1,2,2)
+hold on
+plot_binary_decoder(test_struct,test_opt)
 
 %% save cell structure 
 output_save_name = [save_path filesep  'ProcTex_' caiman_file];

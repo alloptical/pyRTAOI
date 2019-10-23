@@ -3,6 +3,8 @@ function plot_pop_vectors(pop_struct,plot_fields,num_states,opt,varargin)
 ylimit = [];
 plot_ylabel = 'State probability';
 IF_MEDIAN = 0;
+plot_num_cols = 1;
+IF_PLOT_RAW_ONLY = 0;
 for v = 1:numel(varargin)
     if strcmpi(varargin{v},'ylimit')
         ylimit = varargin{v+1};
@@ -13,9 +15,18 @@ for v = 1:numel(varargin)
     if strcmpi(varargin{v},'IF_MEDIAN')
         IF_MEDIAN = varargin{v+1};
     end
+    
+    if strcmpi(varargin{v},'plot_num_cols')
+        plot_num_cols = varargin{v+1};
+    end
+    
+    if strcmpi(varargin{v},'IF_PLOT_RAW_ONLY')
+        IF_PLOT_RAW_ONLY = varargin{v+1};
+    end
 end
 
 fds = plot_fields;
+plot_num_rows = ceil(numel(fds)/plot_num_cols);
 try
 go_cue_frame = opt.go_cue_bin;
 catch
@@ -30,61 +41,63 @@ end
 if num_states == 1
     state_colors = [.5 .5 .5];
 end
-try
-    if num_states>1
-        figure('name','trial average')
-        % imagesc
+if ~IF_PLOT_RAW_ONLY
+    try
+        if num_states>1
+            figure('name','trial average')
+            % imagesc
+            for f = 1:numel(fds)
+                this_F_avg = pop_struct.([fds{f} '_avg']);
+                subplot(numel(fds),1,f)
+                hold on
+                imagesc(this_F_avg)
+                plot([1 1].*go_cue_frame,ylim,'color','w','linewidth',2)
+                ylim([0.5 0.5+num_states])
+                xlabel('Time')
+                ylabel('States')
+                title(strrep(fds{f},'_',' '))
+                
+            end
+        end
+    end
+    
+    % shaded error bar
+    figure('name','trial averge')
+    for s = 1:num_states
+        subplot(num_states,1,s)
         for f = 1:numel(fds)
-            this_F_avg = pop_struct.([fds{f} '_avg']);
-            subplot(numel(fds),1,f)
-            hold on
-            imagesc(this_F_avg)
-            plot([1 1].*go_cue_frame,ylim,'color','w','linewidth',2)
-            ylim([0.5 0.5+num_states])
-            xlabel('Time')
-            ylabel('States')
-            title(strrep(fds{f},'_',' '))
+            this_F = pop_struct.([fds{f}]);
             
+            this_traces = this_F(:,:,s);
+            x_ticks =[0:1:size(this_traces,2)-1]./opt.Fs;
+            hold on
+            if ~IF_MEDIAN
+                % mean and sd
+                shadedErrorBar(x_ticks,mean(this_traces,1),...
+                    std(this_traces,[],1),{'color',condi_colors(f,:),'linewidth',2},0.1);
+            else
+                %         % median and quantile
+                shadedErrorBar(x_ticks,nanmedian(this_traces,1),[quantile(this_traces,0.75)-nanmedian(this_traces,1);...
+                    nanmedian(this_traces,1)-quantile(this_traces,0.25)],{'color',condi_colors(f,:),'linewidth',2},0.5)
+                
+            end
         end
-    end
-end
-
-% shaded error bar
-figure('name','trial averge')
-for s = 1:num_states
-    subplot(num_states,1,s)
-    for f = 1:numel(fds)
-        this_F = pop_struct.([fds{f}]);
+        if ~isempty(ylimit)
+            ylim(ylimit)
+        end
+        plot([1 1].*go_cue_frame./opt.Fs,ylim,':','color','black','linewidth',2)
+        xlabel('Time')
+        ylabel(plot_ylabel)
+        title(['Component ' num2str(s) ' '])
         
-        this_traces = this_F(:,:,s);
-        x_ticks =[0:1:size(this_traces,2)-1]./opt.Fs;
-        hold on
-        if ~IF_MEDIAN
-        % mean and sd
-        shadedErrorBar(x_ticks,mean(this_traces,1),...
-            std(this_traces,[],1),{'color',condi_colors(f,:),'linewidth',2},0.1);
-        else
-        %         % median and quantile
-        shadedErrorBar(x_ticks,nanmedian(this_traces,1),[quantile(this_traces,0.75)-nanmedian(this_traces,1);...
-            nanmedian(this_traces,1)-quantile(this_traces,0.25)],{'color',condi_colors(f,:),'linewidth',2},0.5)
-   
-        end
     end
-    if ~isempty(ylimit)
-        ylim(ylimit)
-    end
-    plot([1 1].*go_cue_frame./opt.Fs,ylim,':','color','black','linewidth',2)
-    xlabel('Time')
-    ylabel(plot_ylabel)
-    title(['Component ' num2str(s) ' '])
     
 end
-
-
-figure('name','trial raw')
+figure('name','raw projections','units','normalized','outerposition',[0 0 .6 1]); hold on
 for f = 1:numel(fds)
     this_F = pop_struct.([fds{f}]);
-    subplot(numel(fds),1,f)
+    
+    subplot(plot_num_rows,plot_num_cols,f)
     hold on
     for s = 1:num_states
         plot(this_F(:,:,s)','color',state_colors(s,:));
@@ -100,6 +113,8 @@ for f = 1:numel(fds)
     if num_states == 1
         plot(mean(this_F(:,:,s),1),'color','black','linewidth',2); 
     end
+    axis square  
+    plot(xlim,[0 0],'--','color','r')
 end
 end
 

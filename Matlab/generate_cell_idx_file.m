@@ -1,4 +1,4 @@
-function [output] = generate_cell_idx_file(cell_struct,cell_idx_struct,pop_params,opt)
+function [output,save_time] = generate_cell_idx_file(cell_struct,cell_idx_struct,pop_params,opt)
 % generate file for pyRTAOI photostim configuration
 % generate centroid image for targets
 % save output to new folder
@@ -12,9 +12,15 @@ full_file_save_path = [opt.output_path, filesep file_save_name '.mat' ];
 target_idx_fd = opt.target_idx_fd;
 trigger_idx_fd = opt.trigger_idx_fd;
 output = struct();
-
+output.target_ensembles = [];
 % indices (note that ROIlist in pyRTAOI only contains accepted ROIs)
-output.target_idx = cell_idx_struct.(target_idx_fd);
+if iscell(target_idx_fd)&&numel(target_idx_fd)>1 % match stim types with target ensembles if more than one target-idx field is provided
+     output.target_ensembles = cellfun(@(x)cell_idx_struct.(x),target_idx_fd,'UniformOutput',false);
+     output.target_idx = cell2mat(output.target_ensembles);
+     output.condition_type = pop_params.condition_type;
+else
+    output.target_idx = cell_idx_struct.(target_idx_fd);
+end
 output.trigger_idx = cell_idx_struct.(trigger_idx_fd);
 
 % sensory auc

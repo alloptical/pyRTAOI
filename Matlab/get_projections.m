@@ -1,6 +1,7 @@
 function [proj_struct] = get_projections(this_struct,weights,proj_fds,varargin)
 proj_struct = struct();
 bias = 0;
+IS_CELL_STRUCT = 0; % if this_struct is cell_struct,i.e. each row is a cell, then organise traces to [trial,time,cell]
 for v = 1:numel(varargin)
     if strcmpi(varargin{v},'proj_struct')
         proj_struct = varargin{v+1};
@@ -8,16 +9,27 @@ for v = 1:numel(varargin)
     if strcmpi(varargin{v},'bias')
         bias = varargin{v+1};
     end
+    if strcmpi(varargin{v},'IS_CELL_STRUCT')
+        IS_CELL_STRUCT = varargin{v+1};
+    end
 end
 
 
 
 for fd = 1:numel(proj_fds)
     this_fd = proj_fds{fd};
-    this_data = this_struct.(this_fd);
+    if ~IS_CELL_STRUCT
+        this_data = this_struct.(this_fd);
+    else
+        num_cells = size(this_struct,2);
+        temp_data = {this_struct.(this_fd)};
+        this_data = organise_data(temp_data,num_cells);
+    end
+    
     this_proj = nan(size(this_data,1),size(this_data,2));
     this_num_trials = size(this_data,1);this_num_bins = size(this_data,2);
     this_weights = weights;
+    
     if size(weights,2)==1
         this_weights = repmat(weights,[1,this_num_bins]);
     end
@@ -35,3 +47,13 @@ end
 
 end
 
+function this_data = organise_data(temp_data,num_cells)
+        this_num_trials = size(temp_data{1},2);
+        this_trial_length = size(temp_data{1},1);
+        
+        this_data = nan(this_num_trials,this_trial_length,num_cells);
+        for c = 1:num_cells
+            this_data(:,:,c) = temp_data{c}';
+        end
+
+end

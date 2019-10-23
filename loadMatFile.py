@@ -33,6 +33,8 @@ def get_triggertargets_params(file_full_name):
 	get cell idx, weight and threshold used for population trigger
 
 	'''
+	target_ensembles = [];
+	condition_type = []
 	mat_file = sio.loadmat(file_full_name)
 	trigger_file = mat_file['output']
 	trigger_idx = trigger_file['trigger_idx'][0][0].flatten()-1
@@ -40,8 +42,12 @@ def get_triggertargets_params(file_full_name):
 	trigger_weights = trigger_file['trigger_weights'][0][0].flatten()
 	trigger_frames = trigger_file['trigger_frames'][0][0].flatten()
 	trigger_thresh = trigger_file['trigger_thresh'][0][0].flatten()
-
-	return trigger_idx,trigger_weights,trigger_frames,trigger_thresh, target_idx
+	try:
+		target_ensembles = trigger_file['target_ensembles'][0][0].flatten()-1
+		condition_type = trigger_file['condition_type'][0][0].flatten()
+	except:
+		pass
+	return trigger_idx,trigger_weights,trigger_frames,trigger_thresh, target_idx,target_ensembles,condition_type
 
 
 def get_stimOrder(file_full_name):
@@ -71,6 +77,7 @@ def get_stimOrder(file_full_name):
 		return target_idx_list,trialOrder,target_centroid_x,target_centroid_y
 
 
+
 if __name__ == '__main__':
 
 	# test loadpowerfile:
@@ -84,9 +91,11 @@ if __name__ == '__main__':
 	# print(volt)
 
 	# test loadtriggerfile
-	file_name = r'D:\TextureData\data\cb217\20190805\pyrtaoi_results\\20190805_cb217_t_0006_rtaoi_DS_2.0_OnlineProc_153400proc_OutputParams_20191010_1138.mat'
-	[trigger_idx,trigger_weights,trigger_frames,trigger_thresh, target_idx] = get_triggertargets_params(file_name)
+	file_name = r'D:\DeflectionData\20191018\20191018_OG418_t_0006_rtaoi_DS_2.0_OnlineProc_124416proc_OutputParams_20191022_1558.mat'
+	[trigger_idx,trigger_weights,trigger_frames,trigger_thresh, target_idx,target_ensembles,condition_type] = get_triggertargets_params(file_name)
 
+	for i in target_ensembles[0]:
+		print(int(i))
 
 
 

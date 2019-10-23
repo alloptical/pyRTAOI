@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1731</width>
+    <width>1745</width>
     <height>893</height>
    </rect>
   </property>
@@ -2439,6 +2439,9 @@
         </item>
         <item>
          <widget class="QCheckBox" name="ROIsumBelow_checkBox">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
           <property name="text">
            <string>below</string>
           </property>
@@ -2446,6 +2449,9 @@
         </item>
         <item>
          <widget class="QCheckBox" name="ROIsumAbove_checkBox">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
           <property name="text">
            <string>above</string>
           </property>
@@ -2813,7 +2819,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1731</width>
+     <width>1745</width>
      <height>21</height>
     </rect>
    </property>
