@@ -194,8 +194,11 @@ else % train one classifier using frames of interests
                 if ~IF_MULTI_COMPO
                     if shuf_fd_idx ==1 % making sure the correct field comes first
                         this_cmp_data = [this_shuf_sample(:);this_small_data(:)];
+                        this_cmp_type = [shuf_fd_idx.*ones(size(this_shuf_sample(:)));min_fd_idx.*ones(size(this_small_data(:)))];
                     else
                         this_cmp_data = [this_small_data(:);this_shuf_sample(:)];
+                        this_cmp_type = [min_fd_idx.*ones(size(this_small_data(:)));shuf_fd_idx.*ones(size(this_shuf_sample(:)))];
+
                     end
                 else
                     if shuf_fd_idx ==1 % making sure the correct field comes first
@@ -205,10 +208,19 @@ else % train one classifier using frames of interests
                     end
                 end
                 if (IF_CROSSVAL)
-                    indices = crossvalind('Kfold',this_cmp_type,num_folds);
+                    if num_folds>2
+                        indices = crossvalind('Kfold',this_cmp_type,num_folds);
+                        IF_LEAVEONEOUT = 0;
+                    else
+                        IF_LEAVEONEOUT = 1;
+                        num_folds = length(this_cmp_type);
+                    end
                     this_b = nan(num_comp+1,num_folds);
                     this_pc_correct = nan(1,num_folds);
                     for n = 1:num_folds % loop through cross-validation folds
+                        if IF_LEAVEONEOUT
+                             indices = crossvalind('LeaveMOut',this_cmp_type,1);
+                        end
                         test = (indices == n); train = ~test;
                         [b,dev,stats] = mnrfit(this_cmp_data(train,:),this_cmp_type(train)); % Logistic regression
                         this_test_data = this_cmp_data(test,:);

@@ -21,7 +21,7 @@ class bLink(socket):
 			while True:
 				try:
 					data = self._readline()
-					if 'Hello' in data: 
+					if 'Hello' in data:
 						print(data[0:-2])
 						self.CONNECTED = True
 						break
@@ -45,7 +45,7 @@ class bLink(socket):
 		while self.CONNECTED:
 			try:
 				data = self._readline()
-				if 'Done' in data: 
+				if 'Done' in data:
 					return False
 					break
 			except Exception as e:
@@ -62,7 +62,7 @@ class bLink(socket):
 		while self.CONNECTED:
 			try:
 				data = self._readline()
-				if 'Done' in data: 
+				if 'Done' in data:
 					return False
 					break
 			except Exception as e:
@@ -71,7 +71,7 @@ class bLink(socket):
 				return True
 				break
 
-		return False		
+		return False
 
 
 	def send_coords_power(self,xx,yy,volt):
@@ -80,7 +80,7 @@ class bLink(socket):
 		while self.CONNECTED:
 			try:
 				data = self._readline()
-				if 'Done' in data: 
+				if 'Done' in data:
 					return False
 					break
 			except Exception as e:
@@ -93,11 +93,17 @@ class bLink(socket):
 
 	def send_trigger_power(self,volt):
 		print('sending trigger')
-		self.sendall(self.add_prefix("T", [volt]))
+		try:
+			self.sendall(self.add_prefix("T", [volt]))
+		except Exception as e:
+				print('sending trigger error: '+str(e))
+				self.CONNECTED = False
+				return True
+
 		while self.CONNECTED:
 			try:
 				data = self._readline()
-				if 'Done' in data: 
+				if 'Done' in data:
 					return False
 					break
 			except Exception as e:
@@ -118,7 +124,7 @@ class bLink(socket):
 		while self.CONNECTED:
 			try:
 				data = self._readline()
-				if 'Done' in data: 
+				if 'Done' in data:
 					print("reply recvd")
 					return False
 					break
@@ -140,8 +146,8 @@ class bLink(socket):
 			except Exception as e:
 				print('error reading line:' + str(e))
 				self.CONNECTED = False
-				break		
-		return data		
+				break
+		return data
 
 	def abort(self):
 		self.close()

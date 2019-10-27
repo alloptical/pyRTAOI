@@ -18,7 +18,7 @@ TO DO    log this to Notes ToDo_log when it's done and tested
 -0. multiply selected cells by weight and compare with threshold
 	show population trajectory in gui - done, test on rig
 
- .5 Load different targets for each stim type
+ .5 Load different targets for each stim type - done
 
 -1. test motion correction on gpu using caiman code - using onacid template matching, working well
 
@@ -628,6 +628,7 @@ class Worker(QObject):
 			wait_frames = p['photoWaitFrames']
 			baseline_frames = p['staPreFrame']
 			ROIsumThresh = p['ROIsumThresh']
+			ROIsumThreshSD = p['TriggerThreshSD']
 			photostim_flag = 0
 			tot_num_photostim = self.tot_num_photostim
 			tot_num_senstim = self.tot_num_senstim
@@ -665,6 +666,8 @@ class Worker(QObject):
 			FLAG_TRIAL_START = False
 			trialOrder = p['trialOrder']
 			trialEnsembleIdx = p['trialEnsembleIdx']
+			num_bs_trials = int(p['numBaselineTrials'])
+
 
 
 			# Local buffer for recording online protocol
@@ -734,7 +737,10 @@ class Worker(QObject):
 			ROIx = np.asarray([item.get("ROIx") for item in self.ROIlist[:com_count]])   # could also predefine ROIx/y as arrays of bigger size (e.g. 100) and fill them in instad of append
 			ROIy = np.asarray([item.get("ROIy") for item in self.ROIlist[:com_count]])
 			ROIw = np.asarray([item.get("weight") for item in self.ROIlist[:com_count]],dtype='float64')
-			current_bs_level = 0 # will update this at each trial starts
+			current_bs_level = np.full(com_count,0) # will update this at each trial starts
+			current_sd_level = np.full(com_count,1) # will update this at each trial starts
+			all_bs_level = np.full((com_count,num_bs_trials),np.nan)
+			print(all_bs_level)
 			# Keep or discard previous online cells if rerunning OnACID
 			keep_full_traces = True  # keep full trace history of the previous session (may be necessary for deconv of last minibatch, otherwise errors possible)
 			if keep_prev:
@@ -831,10 +837,10 @@ class Worker(QObject):
 						MyTiffwriter.save(frame_in)
 					print('framesProc'+str(framesProc)+'skipped')
 					continue
-				if frames_post_photostim == photo_duration: # looks like this is never reached before
+				else: self.photostimOff_signal.emit()
+				if frames_post_photostim == photo_duration: # looks like this is never reached
 					print('End of Photo duration')
 					frames_post_photostim = 0
-					self.photostimOff_signal.emit()
 			elif frames_post_photostim == -1: # let one more frame in
 				frames_post_photostim = 2
 
@@ -918,6 +924,9 @@ class Worker(QObject):
 								ROIx = np.append(ROIx,x*ds_factor)  # ~0.11 ms // filling in empty array: ~0.07 ms
 								ROIy = np.append(ROIy,y*ds_factor)
 								ROIw = np.append(ROIw,0) # set newly detected roi weights to zero
+								current_bs_level = np.append(current_bs_level,0)
+								current_sd_level = np.append(current_sd_level,1)
+								all_bs_level= np.append(all_bs_level,np.full((1,num_bs_trials),np.nan),0)
 
 								com_count += 1
 								accepted.append(cnm2.N)
@@ -999,7 +1008,7 @@ class Worker(QObject):
 					# add data to buffer
 					try:
 						self.RoiBuffer[:com_count, BufferPointer] = cnm2.C_on[accepted, t_cnm]
-						this_traj_val = np.sum(np.multiply(self.RoiBuffer[:com_count, BufferPointer],ROIw))-ROIsumThresh
+						this_traj_val = np.sum(np.multiply(self.RoiBuffer[:com_count, BufferPointer]-current_bs_level,ROIw))-ROIsumThresh
 						self.TrajBuffer[0,BufferPointer] = this_traj_val
 #						self.ROIlist_threshold[:com_count] = np.nanmean(self.RoiBuffer[:com_count,:], axis=1) + 2*np.nanstd(self.RoiBuffer[:com_count,:], axis=1)  # changed 3 to 2
 						# use noisy C to estimate noise:
@@ -1022,7 +1031,6 @@ class Worker(QObject):
 					if PHOTO_PROTO_INX == CONSTANTS.PHOTO_WEIGH_SUM:
 						# for closed-loop trials
 						if sens_stim_idx < tot_num_senstim and framesProc == stim_frames[sens_stim_idx]-1:
-
 							this_trialOrder = trialOrder[sens_stim_idx]
 							this_ensembleIdx = trialEnsembleIdx[sens_stim_idx]
 							print('current ensemble'+str(this_ensembleIdx))
@@ -1035,8 +1043,13 @@ class Worker(QObject):
 							# update baseline level
 							# current_bs_level= np.nanmean(cnm2.C_on[accepted, t_cnm - baseline_frames:t_cnm], axis=1)
 							print('trialOrder:'+str(this_trialOrder))
+													# use the easy trials at the beginning for normalisation
+							if sens_stim_idx < num_bs_trials:
+								print('adding baseline')
+								all_bs_level[:com_count,sens_stim_idx]= np.nanmean(cnm2.C_on[accepted, t_cnm - baseline_frames:t_cnm], axis=1)
+								print(all_bs_level)
 
-						if sens_stim_idx>0:
+						if sens_stim_idx>=num_bs_trials:
 							if framesProc == stim_frames[sens_stim_idx-1]+ offset_frames:
 								self.MonitorOn_signal.emit()
 							elif framesProc < stim_frames[sens_stim_idx-1]+ monitor_frames and framesProc > stim_frames[sens_stim_idx-1]+ offset_frames:
@@ -1044,11 +1057,23 @@ class Worker(QObject):
 									photostim_flag = this_traj_val
 								elif this_trialOrder==2: # p['ROIsumBelow']:
 									photostim_flag =  - this_traj_val
-								if photostim_flag>0 and this_ensembleIdx>-1:
+								if photostim_flag-ROIsumThreshSD>0 and this_ensembleIdx>-1:
 									num_stim_targets = len(p['currentTargetX'])
 									FLAG_TRIG_PHOTOSTIM = True
 							elif framesProc == stim_frames[sens_stim_idx-1]+ monitor_frames:
 								self.MonitorOff_signal.emit()
+#						# use the easy trials at the beginning for normalisation
+#						if sens_stim_idx < num_bs_trials and int(framesProc) == int(stim_frames[sens_stim_idx]+baseline_frames-1):
+#							print('adding baseline')
+#							all_bs_level[:com_count,sens_stim_idx]= np.nanmean(cnm2.C_on[accepted, t_cnm - baseline_frames:t_cnm], axis=1)
+#							print(all_bs_level)
+
+						if sens_stim_idx == num_bs_trials and framesProc == stim_frames[sens_stim_idx]:
+							current_bs_level = np.nanmean(all_bs_level,axis=1)
+							current_sd_level = np.nanstd(cnm2.C_on[accepted, t_cnm - framesProc:t_cnm], axis=1)
+							ROIw = np.divide(ROIw,current_sd_level)
+							print('baseline:')
+							print(current_bs_level)
 
 					elif PHOTO_PROTO_INX == CONSTANTS.PHOTO_FIX_SEQUENCE:
 						if num_photostim < tot_num_photostim:
@@ -1297,11 +1322,10 @@ class Worker(QObject):
 							frames_post_stim = 1
 							FLAG_TRIAL_START = True
 
-					# Send out trial start trigger
+					# Send out trial start trigger - AO0
 					if FLAG_TRIAL_START:
 						self.sendTrialStartTrigger_signal.emit()
 						self.NumStim_signal.emit(num_stim_sent)
-						print('trial start trigger sent')
 						num_stim_sent +=1
 						FLAG_TRIAL_START = False
 
@@ -1335,6 +1359,7 @@ class Worker(QObject):
 
 						last_target_idx = np.copy(current_target_idx)
 						FLAG_TRIG_PHOTOSTIM = False
+
 						if FLAG_SEND_COORDS:
 							self.updateTargetROIs_signal.emit() # update display
 							FLAG_SEND_COORDS = False
@@ -1346,9 +1371,14 @@ class Worker(QObject):
 						online_photo_y.append(p['currentTargetY'][:])
 						num_photostim +=1
 						photo_stim_frames_caiman.append(framesCaiman)
-						print('Number photostim,',num_photostim)
-					elif FLAG_SEND_COORDS: # update phase mask without photostim
-						self.sendCoords_signal.emit()
+						print('Number photostim,'+str(num_photostim))
+
+					if FLAG_SEND_COORDS: # update phase mask without photostim
+						if p['stimFromBlink']:
+								qtarget.put([p['currentTargetX'].copy(),p['currentTargetY'].copy()])
+								self.updateNewTargets_signal.emit()
+						else:
+							self.sendCoords_signal.emit()
 						self.updateTargetROIs_signal.emit() # update display
 						FLAG_SEND_COORDS = False
 
@@ -1503,6 +1533,9 @@ class Worker(QObject):
 
 				# weighted sum
 				p['ROIw'] = ROIw
+				p['bs_level'] = current_bs_level
+				p['sd_level'] = current_sd_level
+				p['all_bs_level'] = all_bs_level
 
 			# keep notes of initialisation file used
 			except Exception as e:
@@ -1637,6 +1670,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		p['photo_sequence_idx'] = []
 		p['NumTargetEnsembles'] = 0
 		p['trialEnsembleIdx'] =[]
+		p['TriggerThreshSD'] = 0
 
 		# camain init
 		p['FLAG_USING_RESULT_FILE'] = False
@@ -1847,7 +1881,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 		# daq config
 		NI_SAMPLE_RATE = 10000
-		NI_TTL_NUM_SAMPLES = int(0.01*NI_SAMPLE_RATE) #10 ms
+		# note the sample rate  here is not calibrated!
+		NI_TTL_NUM_SAMPLES = int(0.01*NI_SAMPLE_RATE) #10 ms - way shorter than 10ms
 		NI_STIM_NUM_SAMPLES = int(p['photoDuration']*0.001*NI_SAMPLE_RATE)
 		p['NI_SAMPLE_RATE'] = NI_SAMPLE_RATE
 		p['NI_TTL_NUM_SAMPLES'] = NI_TTL_NUM_SAMPLES
@@ -1857,7 +1892,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		try:
 			self.daq_array = np.ones((NI_TTL_NUM_SAMPLES-1), dtype = np.float)*5 # to write to single output channel
 			self.daq_array = np.append(self.daq_array,0)
-			self.daq_1s_array = np.ones((int(NI_SAMPLE_RATE)-1), dtype = np.float)*5
+			self.daq_1s_array = np.ones((int(NI_SAMPLE_RATE)-1), dtype = np.float)*5 # actually ~12 pulses (Dev5 ao1)
 			self.daq_1s_array = np.append(self.daq_1s_array,0)
 			self.niStimTask = daqtask.Task()
 			self.niPhotoStimTask = daqtask.Task() #  TTL trigger only
@@ -2317,7 +2352,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			print('check pv connection')
 			self.updateStatusBar('Check PV connection')
 
-
 	def clickRun(self):
 		global STOP_JOB_FLAG
 		STOP_JOB_FLAG = False
@@ -2438,6 +2472,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 
 			# signaling to photostim thread
+			self.NumStimSent = 0
 			if (not self.IsOffline) and self.photostimObject!=None:
 				try:
 					self.workerObject.photostimNewTargets_signal.connect(self.photostimObject.photostimNewTargets) # update phase mask and send photostim from blink
@@ -3313,7 +3348,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			currentTargetY = [int((item-255.0)*p['targetScaleFactor']+255.0) for item in p['currentTargetY']]
 			if(self.bl.CONNECTED):
 				# send a trigger - for measure timing only;
-				self.niStimWriter.write_many_sample(p['NI_1D_ARRAY'],10.0)
+				# self.niStimWriter.write_many_sample(p['NI_1D_ARRAY'],10.0)
 				if not self.bl.send_coords(currentTargetX, currentTargetY):
 					print('Phase mask updated')
 				else:
@@ -4782,27 +4817,30 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		if filepath:
 			arr = np.genfromtxt(filepath, delimiter=',')
 			p['trialOrder'] = arr[0].astype(np.int)
+			num_trials = len(p['trialOrder'])
+			p['trialEnsembleIdx'] = [0]*num_trials
+
 			try:
 				p['trialVar'] = arr[1].astype(np.int)
+			except Exception as e:
+				print('parse trialVar error')
+				print(e)
+			if p['trialVar']!=[]: # overide ensemble type according to trial var
 				p['trialType'] = p['trialOrder']*100 + p['trialVar']
-				p['trialEnsembleIdx'] = []
-				num_trials = len(p['trialType'])
+				ensemble_idx = [-1]*num_trials
 				if p['NumTargetEnsembles']>1: # match trial types with target ensembles
 					for i in range(num_trials):
 						for j in range(p['NumTargetEnsembles']):
 							if p['trialType'][i] in p['conditionTypes'][j][0].flatten():
-								p['trialEnsembleIdx'].extend([j])
-							else:
-								p['trialEnsembleIdx'].extend([-1])
+								ensemble_idx[i]=j
+					p['trialEnsembleIdx'] = ensemble_idx
 					print(p['trialEnsembleIdx'] )
 				elif p['NumTargetEnsembles']==1:
 					p['trialEnsembleIdx'] = [0]*num_trials
 				else:
 					print('NO TARGET ENSEMBLE LOADED!')
 
-			except Exception as e:
-				print('no trialVar found')
-				print(e)
+
 
 			self.updateStatusBar('Loaded trial type from trialOrder file')
 			p['useExternalTrialOrder'] = True
@@ -4850,7 +4888,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			print('loading trigger config')
 			try:
 				self.triggerConfigPath_lineEdit.setText(trigger_config_path)
-				[self.TriggerIdx,self.TriggerWeights,self.TriggerFrames, self.TriggerThresh,self.TargetIdx,p['TargetIdxList'],p['conditionTypes']] = get_triggertargets_params(trigger_config_path)
+				[self.TriggerIdx,self.TriggerWeights,self.TriggerFrames,
+				 self.TriggerThresh,self.TargetIdx,p['TargetIdxList'],p['conditionTypes'],p['TriggerThreshSD']] = get_triggertargets_params(trigger_config_path)
 
 				# setup protocol
 				self.ROIsumThresh_doubleSpinBox.setValue(self.TriggerThresh)

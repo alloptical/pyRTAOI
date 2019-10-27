@@ -1,4 +1,4 @@
-function [output,save_time] = generate_cell_idx_file(cell_struct,cell_idx_struct,pop_params,opt)
+function [output,save_time,full_file_save_path] = generate_cell_idx_file(cell_struct,cell_idx_struct,pop_params,opt)
 % generate file for pyRTAOI photostim configuration
 % generate centroid image for targets
 % save output to new folder
@@ -35,13 +35,14 @@ num_triggers = numel(output.trigger_idx);
 output.trigger_weights = ones(1,num_triggers)./num_triggers;
 output.trigger_thresh = 0.5;
 output.trigger_frames = 45:60;
-
+output.thresh_sd =[];
 if ~isempty(pop_params)
     output.trigger_weights = pop_params.weights;
     output.trigger_thresh = pop_params.thresh;
     output.trigger_frames = pop_params.frames_enable_trigger;
     output.condition_type = pop_params.condition_type;
     output.pop_opt = opt.pop_opt;
+    output.thresh_sd = pop_params.thresh_sd;
 end
 
 output.exp_name = opt.exp_name;

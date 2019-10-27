@@ -46,7 +46,7 @@ this_struct = proj_struct;
 this_correct_fd =fds{1};
 this_incorrect_fd = fds{2};
 
-
+% get threshold
 if isempty(threshold)
     if ~IF_USE_DB
         if IF_FRAMEWISE
@@ -122,8 +122,8 @@ else
 end
 
 
-shuf_disc_frames = find(classif_accuracy>shuf_classif_mean+Nstd.*shuf_classif_sd);
-shuf_disc_frame = pt_continuousabove(classif_accuracy-shuf_classif_mean-Nstd.*shuf_classif_sd,0.0001,0,min_frames,1000,0);
+shuf_disc_frames = find(abs(classif_accuracy)>shuf_classif_mean+Nstd.*shuf_classif_sd);
+shuf_disc_frame = pt_continuousabove(abs(classif_accuracy)-shuf_classif_mean-Nstd.*shuf_classif_sd,0.0001,0,min_frames,1000,0);
 if ~isempty(shuf_disc_frame)
     shuf_disc_frame = shuf_disc_frame(1);
 else

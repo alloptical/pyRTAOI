@@ -318,8 +318,7 @@ end
 [~,~,~,~,~,bg_sta_traces,bg_sta_trace] =...
     make_sta_from_traces(backgroundC,sens_stim_frames+opt.sta_gocue_frame ,opt.sta_pre_frames,opt.sta_post_frames,1:opt.sta_baseline_frames);
 
-%% ROC analysis
-% sta for different trial types
+%% STAs for different trial types
 trial_indices = struct(); % % get trialtype-outcome indices
 for i = 1:num_stim_type
     trial_indices.(['correct_stim_' num2str(i)]) = find(trials.correct==1&trials.stim_type==i);

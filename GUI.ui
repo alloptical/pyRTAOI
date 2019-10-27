@@ -2393,7 +2393,7 @@
         <rect>
          <x>10</x>
          <y>240</y>
-         <width>401</width>
+         <width>429</width>
          <height>31</height>
         </rect>
        </property>
@@ -2425,17 +2425,30 @@
          </widget>
         </item>
         <item>
-         <spacer name="horizontalSpacer_12">
-          <property name="orientation">
-           <enum>Qt::Horizontal</enum>
+         <widget class="QLabel" name="label_53">
+          <property name="text">
+           <string>Num. baseline trials</string>
           </property>
-          <property name="sizeHint" stdset="0">
-           <size>
-            <width>40</width>
-            <height>20</height>
-           </size>
+         </widget>
+        </item>
+        <item>
+         <widget class="QDoubleSpinBox" name="numBaselineTrials_doubleSpinBox">
+          <property name="decimals">
+           <number>2</number>
           </property>
-         </spacer>
+          <property name="minimum">
+           <double>0.000000000000000</double>
+          </property>
+          <property name="maximum">
+           <double>500.000000000000000</double>
+          </property>
+          <property name="singleStep">
+           <double>1.000000000000000</double>
+          </property>
+          <property name="value">
+           <double>10.000000000000000</double>
+          </property>
+         </widget>
         </item>
         <item>
          <widget class="QCheckBox" name="ROIsumBelow_checkBox">

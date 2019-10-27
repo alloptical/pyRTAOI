@@ -33,7 +33,8 @@ def get_triggertargets_params(file_full_name):
 	get cell idx, weight and threshold used for population trigger
 
 	'''
-	target_ensembles = [];
+	target_ensembles = []
+	trigger_thresh_sd = []
 	condition_type = []
 	mat_file = sio.loadmat(file_full_name)
 	trigger_file = mat_file['output']
@@ -42,12 +43,14 @@ def get_triggertargets_params(file_full_name):
 	trigger_weights = trigger_file['trigger_weights'][0][0].flatten()
 	trigger_frames = trigger_file['trigger_frames'][0][0].flatten()
 	trigger_thresh = trigger_file['trigger_thresh'][0][0].flatten()
+
 	try:
+		trigger_thresh_sd = trigger_file['thresh_sd'][0][0].flatten()
 		target_ensembles = trigger_file['target_ensembles'][0][0].flatten()-1
 		condition_type = trigger_file['condition_type'][0][0].flatten()
 	except:
 		pass
-	return trigger_idx,trigger_weights,trigger_frames,trigger_thresh, target_idx,target_ensembles,condition_type
+	return trigger_idx,trigger_weights,trigger_frames,trigger_thresh, target_idx,target_ensembles,condition_type,trigger_thresh_sd
 
 
 def get_stimOrder(file_full_name):

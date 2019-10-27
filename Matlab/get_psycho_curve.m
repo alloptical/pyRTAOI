@@ -1,4 +1,4 @@
-function [output] = get_psycho_curve(trials,stim_types,stim_vars)
+function [output,num_vars] = get_psycho_curve(trials,stim_types,stim_vars)
 %% set up stim matrix
 % this should be identical to og_CrossStim_matrix_sinusoid
 % need to enter these value manually from piezo calibration

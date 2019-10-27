@@ -5,6 +5,7 @@ plot_ylabel = 'State probability';
 IF_MEDIAN = 0;
 plot_num_cols = 1;
 IF_PLOT_RAW_ONLY = 0;
+noise_thresh = [];
 for v = 1:numel(varargin)
     if strcmpi(varargin{v},'ylimit')
         ylimit = varargin{v+1};
@@ -23,6 +24,10 @@ for v = 1:numel(varargin)
     if strcmpi(varargin{v},'IF_PLOT_RAW_ONLY')
         IF_PLOT_RAW_ONLY = varargin{v+1};
     end
+    
+    if strcmpi(varargin{v},'noise_thresh')
+        noise_thresh = varargin{v+1};
+    end
 end
 
 fds = plot_fields;
@@ -30,7 +35,16 @@ plot_num_rows = ceil(numel(fds)/plot_num_cols);
 try
 go_cue_frame = opt.go_cue_bin;
 catch
+    try
     go_cue_frame = opt.gocue_bin;
+    catch
+        go_cue_frame = opt.sta_gocue_frame;
+    end
+end
+try
+    stim_on_frame = opt.sta_stimon_frame;
+catch
+    stim_on_frame = [];
 end
 state_colors = getOr(opt,'state_colors',brewermap(num_states,'Set1'));
 trial_colors = getOr(opt,'trial_color',online_tex_init_color());
@@ -99,22 +113,38 @@ for f = 1:numel(fds)
     
     subplot(plot_num_rows,plot_num_cols,f)
     hold on
+    % trace
     for s = 1:num_states
         plot(this_F(:,:,s)','color',state_colors(s,:));
     end
-    plot([1 1].*go_cue_frame,ylim,':','color','black','linewidth',2)
-    if ~isempty(ylimit)
-        ylim(ylimit)
-    end
-    xlabel('Time')
-    ylabel(plot_ylabel)
-    xlim([0, 210])
-    title([strrep(fds{f},'_',' ') ':  ' num2str(size(this_F,1)) ' trials'])
     if num_states == 1
         plot(mean(this_F(:,:,s),1),'color','black','linewidth',2); 
     end
+    
+    % limits
+    if ~isempty(ylimit)
+        ylim(ylimit)
+    end
+    xlim([0, 210])
+    
+    plot(xlim,[0 0],'color','r')
     axis square  
-    plot(xlim,[0 0],'--','color','r')
+    plot([1 1].*go_cue_frame,ylim,':','color','black','linewidth',2)
+    try
+        plot([1 1].*stim_on_frame,ylim,':','color','r','linewidth',2)
+    end
+    
+    if~isempty(noise_thresh)
+            plot(xlim,[1 1].*noise_thresh,'--','color','r')
+            plot(xlim,-[1 1].*noise_thresh,'--','color','r')
+
+    end
+
+    xlabel('Time')
+    ylabel(plot_ylabel)
+    title([strrep(fds{f},'_',' ') ':  ' num2str(size(this_F,1)) ' trials'])
+
+
 end
 end
 
