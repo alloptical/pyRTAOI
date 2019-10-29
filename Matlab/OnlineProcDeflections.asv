@@ -585,8 +585,8 @@ for i = 1:numel(trial_types)
 end
 opt.trial_color = trial_color;
 %% manaully select threshold conditions - make it automatic later
-TS_L1_fds = {'stim_2_var_2_incorrect'};
-TS_L2_fds = {'stim_2_var_2_correct'};
+TS_L1_fds = {'stim_2_var_2_correct'};
+TS_L2_fds = {'stim_2_var_2_incorrect'};
 %% factor analysis
 % using trials with highest contrast plus the selected threshld fds
 high_contrast_fds = {'stim_1_var_9_correct','stim_1_var_9_incorrect','stim_2_var_9_correct','stim_2_var_9_incorrect',...
@@ -627,7 +627,7 @@ plot_pop_vectors(fa_traj_struct,fa_opt.plot_fds,fa_opt.m,fa_opt,...
     'plot_ylabel','Factor level','plot_num_cols',2);
 %% get stim decoder (using easy trials)
 stim_opt = fa_opt;
-stim_opt.fd_names = {'stim_1_var_9_correct','stim_2_var_9_correct'}; % stim 1 will be positive
+stim_opt.fd_names = {'stim_1_var_9_correct','stim_2_var_9_correct'};
 stim_opt.frames_to_avg = stim_opt.stim_bin+15:1:stim_opt.gocue_bin;
 stim_opt.frames_to_train = round([90:1:120]/stim_opt.bin_size);
 stim_opt.Nstd = 2;
@@ -638,7 +638,7 @@ stim_proj_struct = {};
 disp('Rnning stim decoder...')
 tic
 stim_struct =  get_binary_classifier( stim_struct,fa_traj_struct, stim_opt,'IF_FRAMEWISE',stim_opt.IF_FRAMEWISE,'fd_names',stim_opt.fd_names);
- [stim_proj_struct] = get_projections(fa_traj_struct,stim_struct.B(:,2:end)',stim_opt.fd_names,'proj_struct',stim_proj_struct,'bias',-stim_struct.thresh_fix);
+ [stim_proj_struct] = get_projections(fa_traj_struct,stim_struct.B(:,2:end)',stim_opt.fd_names,'proj_struct',stim_proj_struct,'bias',-stim_struct.B(:,1));
 plot_pop_vectors(stim_proj_struct,stim_opt.fd_names,1,stim_opt,...
         'plot_ylabel','Stim projection')
 [ stim_struct ] =  get_binary_decoder_disc_time( stim_proj_struct, stim_struct,...
@@ -661,7 +661,7 @@ choice_proj_struct = {};
 disp('Rnning choice decoder...')
 tic
 choice_struct =  get_binary_classifier( choice_struct,fa_traj_struct, choice_opt,'IF_FRAMEWISE',choice_opt.IF_FRAMEWISE,'fd_names',choice_opt.fd_names);
- [choice_proj_struct] = get_projections(fa_traj_struct,choice_struct.B(:,2:end)',choice_opt.fd_names,'proj_struct',choice_proj_struct,'bias',choice_struct.B(:,1)+0.5);
+ [choice_proj_struct] = get_projections(fa_traj_struct,choice_struct.B(:,2:end)',choice_opt.fd_names,'proj_struct',choice_proj_struct,'bias',choice_struct.B(:,1));
 plot_pop_vectors(choice_proj_struct,choice_opt.fd_names,1,choice_opt,...
         'plot_ylabel','Choice projection')
 [ choice_struct ] =  get_binary_decoder_disc_time( choice_proj_struct, choice_struct,...
@@ -676,9 +676,11 @@ suptitle('Choice decoder')
 export_fig([fig_save_path filesep 'ChoiceDecoderPerform_' strrep(caiman_file,'.mat','.png')])
 %% get projections on stim decoder
 opt.pop_opt = stim_opt;
-stim_weights = fa_struct.transmat* stim_struct.B(2:end)';
-stim_thresh = stim_struct.thresh_fix;
-[stim_norm_weights,stim_norm_thresh] = get_norm_weights(stim_weights,stim_thresh,fa_struct.mean,fa_struct.std); % called in CompareDecoderWithAnimal
+weights = fa_struct.transmat* stim_struct.B(2:end)';
+thresh = stim_struct.thresh_fix;
+norm_weights = weights;
+norm_thresh = thresh;
+% [norm_weights,norm_thresh] = get_norm_weights(weights,thresh,fa_struct.mean,fa_struct.std);
 
 test_fd_names = {'stim_1_var_3_correct','stim_1_var_3_incorrect','stim_1_var_3_miss',...
                      'stim_1_var_4_correct','stim_1_var_4_incorrect','stim_1_var_4_miss',...
@@ -691,34 +693,28 @@ test_fd_names = {'stim_1_var_3_correct','stim_1_var_3_incorrect','stim_1_var_3_m
                      'stim_2_var_6_correct','stim_2_var_6_incorrect','stim_2_var_6_miss'};
 
 stim_proj_struct = struct();
-[stim_proj_struct] = get_projections(cell_struct(cell_idx_struct.(opt.trigger_idx_fd)),stim_norm_weights,test_fd_names,'proj_struct',stim_proj_struct,'bias',-stim_norm_thresh,'IS_CELL_STRUCT',1);
+[stim_proj_struct] = get_projections(cell_struct(cell_idx_struct.(opt.trigger_idx_fd)),norm_weights,test_fd_names,'proj_struct',stim_proj_struct,'bias',-norm_thresh,'IS_CELL_STRUCT',1);
 
 plot_pop_vectors(stim_proj_struct,test_fd_names,1,opt,...
-        'ylimit',[-5 5],'plot_ylabel','Projection','plot_num_cols',3,'IF_PLOT_RAW_ONLY',1)
+        'ylimit',[-50 50],'plot_ylabel','Projection','plot_num_cols',3,'IF_PLOT_RAW_ONLY',1)
 suptitle('Stim decoder projections')
 export_fig([fig_save_path filesep 'StimDecodProject_' strrep(caiman_file,'.mat','.png')])
 
 %% get choice decoder after projecting to the stim axis
-% L2 comes first
-decod_fds = { 'stim_2_var_2_correct','stim_2_var_2_incorrect'}; % first fd will be positive; pyRTAOI takes positive stim1 value as incorrect trial
+% lick port 1 comes first
+decod_fds = { 'stim_2_var_2_incorrect','stim_2_var_2_correct'};
 choice_after_stim_struct = struct();
 choice_after_stim_struct =  get_binary_classifier( choice_after_stim_struct,stim_proj_struct, choice_opt,...
     'IF_CROSSVAL',0,'IF_FRAMEWISE',choice_opt.IF_FRAMEWISE,'fd_names',decod_fds);
 %% get weights and thresh after the two decoders
-norm_weights = stim_norm_weights*choice_after_stim_struct.B(2);
-norm_thresh = -((-stim_norm_thresh*choice_after_stim_struct.B(2))+choice_after_stim_struct.B(1));
-weights = stim_weights*choice_after_stim_struct.B(2);
-thresh = -((-stim_thresh*choice_after_stim_struct.B(2))+choice_after_stim_struct.B(1));
-% weights = fa_struct.transmat* stim_struct.B(2:end)'*choice_after_stim_struct.B(2);
-% thresh = -((-stim_struct.thresh_fix*choice_after_stim_struct.B(2))+choice_after_stim_struct.B(1));
-
-[choice_proj_struct] = get_projections(cell_struct(cell_idx_struct.(opt.trigger_idx_fd)),norm_weights,test_fd_names,'bias',-norm_thresh,'IS_CELL_STRUCT',1);
+weights = fa_struct.transmat* stim_struct.B(2:end)'*choice_after_stim_struct.B(2);
+thresh = -((-stim_struct.thresh_fix*choice_after_stim_struct.B(2))+choice_after_stim_struct.B(1));
+norm_weights = weights;
+norm_thresh = thresh;
+[choice_proj_struct] = get_projections(cell_struct(cell_idx_struct.(opt.trigger_idx_fd)),weights,test_fd_names,'bias',-thresh,'IS_CELL_STRUCT',1);
 
 [ choice_after_stim_struct ] =  get_binary_decoder_disc_time(choice_proj_struct, choice_after_stim_struct, ...
     decod_fds,choice_opt,'IF_FRAMEWISE',choice_opt.IF_FRAMEWISE,'threshold',0,'IF_USE_CROSSVAL_RESULT',false);
-plot_pop_vectors(choice_proj_struct,decod_fds,1,opt,...
-        'ylimit',[-5 5],'plot_ylabel','Projection','IF_PLOT_RAW_ONLY',0)
-
 figure; 
 hold on
 plot_binary_decoder(choice_after_stim_struct,choice_opt)
@@ -736,7 +732,7 @@ export_fig([fig_save_path filesep 'ChoiceStimDecodProject_' strrep(caiman_file,'
 test_decod_struct = [];
 num_compares = round(numel(test_fd_names)/3);
 for i = 1:num_compares
-    IF_REVERSE = 1;
+    IF_REVERSE = 0;
     this_correct_fd = test_fd_names{3*(i-1)+1};
     this_incorrect_fd = test_fd_names{3*(i-1)+2};
     this_cmp_fds = {this_correct_fd,this_incorrect_fd};
@@ -744,7 +740,7 @@ for i = 1:num_compares
     this_stim_type = this_stim_type{2};
     % reverse for stim type2
     if strcmp(this_stim_type,'2')||strcmp(this_stim_type,'3')
-        IF_REVERSE = 0;
+        IF_REVERSE = 1;
     end
     try
         [  test_decod_struct{i} ] =  get_binary_decoder_disc_time( choice_proj_struct, choice_after_stim_struct,...
@@ -764,14 +760,14 @@ end
 %% SELECT CONDITION STIM TYPES
 disp('ENTER HERE!')
 decod_struct = choice_after_stim_struct;
-condition_stim_type = [ 1 2];
-condition_stim_var  = [ 5 5];
-condition_type = {[104 105], [202 204]};
+condition_stim_type = [1 2 2];
+condition_stim_var  = [4 5 4];
+condition_type = {[104], [205,204]};
 
 % generate parameters for pyRTAOI population analysis
 pop_params = struct();
-pop_params.weights = weights;
-pop_params.thresh = thresh;
+pop_params.weights = norm_weights;
+pop_params.thresh = norm_thresh;
 pop_params.frames_enable_trigger = max(opt.sta_stimon_frame-opt.sta_baseline_frames+15,fa_opt.bin_size*(decod_struct.shuf_disc_frame-opt.sta_baseline_frames))+[0 15];
 pop_params.condition_stim_type = condition_stim_type; % CHANGE THIS
 pop_params.condition_stim_var  = condition_stim_var; % type and var need to match
@@ -781,8 +777,6 @@ frames_of_interest = [pop_params.frames_enable_trigger(1):pop_params.frames_enab
 plot_pop_vectors(choice_proj_struct,fds_of_interest,1,opt,...
        'noise_thresh',proj_sd,'ylimit',[-5 5],'plot_ylabel','proj to choice-stim','plot_num_cols',2,'IF_PLOT_RAW_ONLY',1)
 pop_params.thresh_sd = proj_sd;
-pop_params.fds_of_interest = fds_of_interest;
-
 %% GET PHOTOEXCITABLE TARGETS - optional
 % load result file from OnlinePhotoexcitability.m
 % run the script in another matlab!

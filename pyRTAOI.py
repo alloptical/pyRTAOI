@@ -1007,7 +1007,7 @@ class Worker(QObject):
 
 					# add data to buffer
 					try:
-						self.RoiBuffer[:com_count, BufferPointer] = cnm2.C_on[accepted, t_cnm]
+						self.RoiBuffer[:com_count, BufferPointer] = cnm2.C_on[accepted, t_cnm] # RoiBuffer only includes accepted components
 						this_traj_val = np.sum(np.multiply(self.RoiBuffer[:com_count, BufferPointer]-current_bs_level,ROIw))-ROIsumThresh
 						self.TrajBuffer[0,BufferPointer] = this_traj_val
 #						self.ROIlist_threshold[:com_count] = np.nanmean(self.RoiBuffer[:com_count,:], axis=1) + 2*np.nanstd(self.RoiBuffer[:com_count,:], axis=1)  # changed 3 to 2
@@ -4565,7 +4565,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 	def refreshTrajPlot(self,arr): # show weighted sum of ROI traces, i.e. 'poopulaiton trajectory'
 		self.plotItem.clear()
-		self.plotItem.plot(arr, antialias=True, pen=pg.mkPen(QColor(255,255,0), width=2))
+		self.plotItem.plot(arr, antialias=True, pen=pg.mkPen(QColor(137,182,255), width=2))
 		try:
 			self.plotItem.setYRange(np.round(arr.min())-1,np.round(arr.max())+1)
 		except:

@@ -46,8 +46,11 @@ if ~isempty(pop_params)
 end
 
 output.exp_name = opt.exp_name;
-% output.input_data_path = opt.input_data_path;
 output.output_data_path = full_file_save_path;
+
+try 
+    output.fds_of_interest = pop_params.fds_of_interest;   
+end
 
 try
 target_centroids = cell2mat({cell_struct(output.target_idx).centroid}');

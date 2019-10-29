@@ -83,23 +83,26 @@ if ~IF_PLOT_RAW_ONLY
             this_F = pop_struct.([fds{f}]);
             
             this_traces = this_F(:,:,s);
-            x_ticks =[0:1:size(this_traces,2)-1]./opt.Fs;
-            hold on
-            if ~IF_MEDIAN
-                % mean and sd
-                shadedErrorBar(x_ticks,mean(this_traces,1),...
-                    std(this_traces,[],1),{'color',condi_colors(f,:),'linewidth',2},0.1);
-            else
-                %         % median and quantile
-                shadedErrorBar(x_ticks,nanmedian(this_traces,1),[quantile(this_traces,0.75)-nanmedian(this_traces,1);...
-                    nanmedian(this_traces,1)-quantile(this_traces,0.25)],{'color',condi_colors(f,:),'linewidth',2},0.5)
-                
+            if~isempty(this_traces)
+                x_ticks =[0:1:size(this_traces,2)-1]./opt.Fs;
+                hold on
+                if ~IF_MEDIAN
+                    % mean and sd
+                    shadedErrorBar(x_ticks,mean(this_traces,1),...
+                        std(this_traces,[],1),{'color',condi_colors(f,:),'linewidth',2},0.1);
+                else
+                    %         % median and quantile
+                    shadedErrorBar(x_ticks,nanmedian(this_traces,1),[quantile(this_traces,0.75)-nanmedian(this_traces,1);...
+                        nanmedian(this_traces,1)-quantile(this_traces,0.25)],{'color',condi_colors(f,:),'linewidth',2},0.5)
+                    
+                end
             end
         end
         if ~isempty(ylimit)
             ylim(ylimit)
         end
         plot([1 1].*go_cue_frame./opt.Fs,ylim,':','color','black','linewidth',2)
+        plot(xlim,[0 0],'color','black')
         xlabel('Time')
         ylabel(plot_ylabel)
         title(['Component ' num2str(s) ' '])
