@@ -202,7 +202,7 @@ else % train one classifier using frames of interests
                 else
                     if shuf_fd_idx ==1 % making sure the correct field comes first
                         this_cmp_data = [this_shuf_sample;this_small_data];
-                        this_cmp_type = [shuf_fd_idx.*ones(size(this_shuf_sample(:)));min_fd_idx.*ones(size(this_small_data(:)))];
+                        this_cmp_type = [shuf_fd_idx.*ones(size(this_shuf_sample,1),1);min_fd_idx.*ones(size(this_small_data,1),1)];
 
                     else
                         this_cmp_data = [this_small_data;this_shuf_sample];

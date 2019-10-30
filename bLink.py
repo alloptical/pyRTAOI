@@ -13,10 +13,11 @@ class bLink(socket):
 	def __init__(self,TCP_IP,TCP_PORT):
 		super().__init__(AF_INET, SOCK_STREAM)
 #		self.setsockopt(socket.TCP_NODELAY,1) # ADDED 20180421
-		self.settimeout(60)
+		self.settimeout(10)
 		self.CONNECTED = False
 		try:
 			self.connect((TCP_IP, TCP_PORT))
+
 
 			while True:
 				try:

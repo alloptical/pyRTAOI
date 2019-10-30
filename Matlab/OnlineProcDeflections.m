@@ -24,7 +24,7 @@ clc
 % cd('C:\Users\User\Desktop\pyRTAOI-rig\Matlab');
 
 % BRUKER1
-%  matlab_set_paths_zz
+ matlab_set_paths_zz
 
 %% stim parameter - CHANGE THIS
 opt.N = 1.5; % threshold for significant auc
@@ -482,9 +482,6 @@ for c = 1:num_cells
         end
     end
 end
-%% MAKE OUTPUT FILE FOR PYRTAOI PHOTOEXCITABILITY TEST
-[output1,save_time1] = generate_cell_idx_file(cell_struct,cell_idx_struct,[],opt);
-
 %% get choice auc
 choice_fds = {'stim_2_var_2_incorrect','stim_2_var_2_correct'}; 
 [cell_struct] = get_cell_auc(cell_struct,choice_fds,'choiceAUC',opt);
@@ -494,10 +491,15 @@ cell_idx_struct.port2 = find(choiceAUC_zscore>opt.N& choiceAUC>0.55); % cells pr
 cell_idx_struct.port1 = find(choiceAUC_zscore<-opt.N& choiceAUC<0.45); % cells prefering port1
 cell_idx_struct.port = unique([cell_idx_struct.port1,cell_idx_struct.port2])
 
+%% MAKE OUTPUT FILE FOR PYRTAOI PHOTOEXCITABILITY TEST
+[output1,save_time1] = generate_cell_idx_file(cell_struct,cell_idx_struct,[],opt);
+
+
 %% Plot STAs for all components
 figure('name','baseline session sta traces','units','normalized','outerposition',[0 0 1 1])
 plot_num_cells = num_cells;
 num_plot_cols = 8;
+avg_frame_range = opt.sta_avg_frames;
 num_plot_rows = ceil(plot_num_cells/num_plot_cols);
 for i = 1:plot_num_cells
     subtightplot(num_plot_rows,num_plot_cols,i)
@@ -585,8 +587,8 @@ for i = 1:numel(trial_types)
 end
 opt.trial_color = trial_color;
 %% manaully select threshold conditions - make it automatic later
-TS_L1_fds = {'stim_2_var_2_incorrect'};
-TS_L2_fds = {'stim_2_var_2_correct'};
+TS_L1_fds = {'stim_1_var_5_correct'};
+TS_L2_fds = {'stim_1_var_5_incorrect'};
 %% factor analysis
 % using trials with highest contrast plus the selected threshld fds
 high_contrast_fds = {'stim_1_var_9_correct','stim_1_var_9_incorrect','stim_2_var_9_correct','stim_2_var_9_incorrect',...
@@ -694,13 +696,13 @@ stim_proj_struct = struct();
 [stim_proj_struct] = get_projections(cell_struct(cell_idx_struct.(opt.trigger_idx_fd)),stim_norm_weights,test_fd_names,'proj_struct',stim_proj_struct,'bias',-stim_norm_thresh,'IS_CELL_STRUCT',1);
 
 plot_pop_vectors(stim_proj_struct,test_fd_names,1,opt,...
-        'ylimit',[-5 5],'plot_ylabel','Projection','plot_num_cols',3,'IF_PLOT_RAW_ONLY',1)
+        'ylimit',[-40 40],'plot_ylabel','Projection','plot_num_cols',3,'IF_PLOT_RAW_ONLY',1)
 suptitle('Stim decoder projections')
 export_fig([fig_save_path filesep 'StimDecodProject_' strrep(caiman_file,'.mat','.png')])
 
 %% get choice decoder after projecting to the stim axis
 % L2 comes first
-decod_fds = { 'stim_2_var_2_correct','stim_2_var_2_incorrect'}; % first fd will be positive; pyRTAOI takes positive stim1 value as incorrect trial
+decod_fds = { 'stim_1_var_5_incorrect','stim_1_var_5_correct'}; % first fd will be positive; pyRTAOI takes positive stim1 value as incorrect trial
 choice_after_stim_struct = struct();
 choice_after_stim_struct =  get_binary_classifier( choice_after_stim_struct,stim_proj_struct, choice_opt,...
     'IF_CROSSVAL',0,'IF_FRAMEWISE',choice_opt.IF_FRAMEWISE,'fd_names',decod_fds);
@@ -764,9 +766,9 @@ end
 %% SELECT CONDITION STIM TYPES
 disp('ENTER HERE!')
 decod_struct = choice_after_stim_struct;
-condition_stim_type = [ 1 2];
-condition_stim_var  = [ 5 5];
-condition_type = {[104 105], [202 204]};
+condition_stim_type = [ 1  2];
+condition_stim_var  = [ 5  5];
+condition_type = {[105],[205]};
 
 % generate parameters for pyRTAOI population analysis
 pop_params = struct();
@@ -810,7 +812,7 @@ if IF_PHOTOTEST_LOADED
     cell_idx_struct.photo_stim2 = intersect(photo_idx.all, cell_idx_struct.stim2);
     opt.target_idx_fd = {'photo_stim1','photo_stim2'}; % overide target indices with the excitable ones
 end
-
+% opt.target_idx_fd = {'stim1','stim2'};
 
 %% =================== MAKE OUTPUT FILE FOR PYRTAOI =======================
 [output2,save_time2] = generate_cell_idx_file(cell_struct,cell_idx_struct,pop_params,opt);

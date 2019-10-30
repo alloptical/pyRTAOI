@@ -431,14 +431,15 @@ class Photostimer(QObject):
 	def sendCoordsAndTriggerStim(self,thisX,thisY,IF_PHOTOSTIM = False):
 		ERROR = False
 		t0 = time.time()
-		p['FLAG_SKIP_FRAMES'] = True
-		this_volt = np.polyval(self.power_polyfit_p,self.photoPowerPerCell*len(thisX))
+
 		print('sending coords')
 			# scale targets coordinates (to refZoom with which the SLM transform matrix was computed);
 		currentTargetX = [int((item-255.0)*p['targetScaleFactor']+255.0) for item in thisX]
 		currentTargetY = [int((item-255.0)*p['targetScaleFactor']+255.0) for item in thisY]
 
 		if IF_PHOTOSTIM:
+			p['FLAG_SKIP_FRAMES'] = True
+			this_volt = np.polyval(self.power_polyfit_p,self.photoPowerPerCell*len(thisX))
 			self.photostimOn_signal.emit()
 			if not self.bl.send_coords_power(currentTargetX, currentTargetY,this_volt):
 				self.NumStimSent +=1
@@ -446,6 +447,7 @@ class Photostimer(QObject):
 			else:
 				print('sendCoordsAndTriggerStim: msg to blink ERROR!')
 				ERROR = True
+			p['FLAG_SKIP_FRAMES'] = False
 		else:
 			if self.bl.send_coords(currentTargetX, currentTargetY):
 				print('sendCoordsAndTriggerStim: msg to blink ERROR!')
@@ -454,7 +456,6 @@ class Photostimer(QObject):
 #		self.niTimingWriter.write_many_sample( p['NI_1D_ARRAY'],10.0) # timing test - this trigger didnt work,, dont know why
 		print('echo received')
 		print(time.time() - t0) # almost same delay as TimerWoeker to BlinkSpiral when no photostim sent - tcp is not the major delay?
-		p['FLAG_SKIP_FRAMES'] = False
 		return ERROR
 
 
@@ -1062,11 +1063,6 @@ class Worker(QObject):
 									FLAG_TRIG_PHOTOSTIM = True
 							elif framesProc == stim_frames[sens_stim_idx-1]+ monitor_frames:
 								self.MonitorOff_signal.emit()
-#						# use the easy trials at the beginning for normalisation
-#						if sens_stim_idx < num_bs_trials and int(framesProc) == int(stim_frames[sens_stim_idx]+baseline_frames-1):
-#							print('adding baseline')
-#							all_bs_level[:com_count,sens_stim_idx]= np.nanmean(cnm2.C_on[accepted, t_cnm - baseline_frames:t_cnm], axis=1)
-#							print(all_bs_level)
 
 						if sens_stim_idx == num_bs_trials and framesProc == stim_frames[sens_stim_idx]:
 							current_bs_level = np.nanmean(all_bs_level,axis=1)

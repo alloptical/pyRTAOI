@@ -23,7 +23,7 @@ opt.sta_pre_frames = 30;
 opt.sta_post_frames = 60;
 opt.sta_baseline_frames = 30;
 opt.bs_frame_range = opt.sta_pre_frames+[(-opt.sta_baseline_frames+1):0];
-opt.sta_avg_frames = 15; % frames after stim to average for response amp
+opt.sta_avg_frames = 30; % frames after stim to average for response amp
 opt.sta_thresh = 1;
 opt.frame_rate = 30; % Hz
 
