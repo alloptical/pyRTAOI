@@ -3,9 +3,13 @@
 % caiman_data = load('D:\pyRTAOI data\stim_at_fixed_frames\20180822_OG299_t_0002_rtaoi_DS_2.0.tirtaoi_OnlineProc_DS_2.0_170940.mat')
 % caiman_data = load('D:\pyRTAOI data\stim_at_fixed_frames\20180830_OG323_t_0004_rtaoi_DS_2.0_OnlineProc_DS_2.0_163232.mat')
 % caiman_data = load('D:\pyRTAOI data\stim_at_fixed_frames\20180907_OG328_t_0007_rtaoi_DS_2.0_OnlineProc_DS_2.0_160113.mat')
-caiman_data = load('D:\pyRTAOI_data\stim_at_fixed_frames\GCaMP6f\20180909_OG347_t_0003_rtaoi_DS_2.0_OnlineProc_DS_2.0_140615.mat') % - example_
+% caiman_data = load('D:\pyRTAOI_data\stim_at_fixed_frames\GCaMP6f\20180909_OG347_t_0003_rtaoi_DS_2.0_OnlineProc_DS_2.0_140615.mat') % - example_
 % caiman_data = load('D:\pyRTAOI data\stim_at_fixed_frames\GCaMP6f\20180910_OG349_t_0004_rtaoi_DS_2.0_OnlineProc_DS_2.0_163941.mat') 
 % caiman_data = load('D:\pyRTAOI data\stim_at_fixed_frames\20180910_OG349_t_0005_rtaoi_DS_2.0_OnlineProc_DS_2.0_164300.mat') 
+%% load CAIMAN data
+[caiman_file,caiman_path] = uigetfile('*.mat','Select caiman data');
+caiman_data = load(fullfile(caiman_path,caiman_file)); 
+disp(['Loaded file :',fullfile(caiman_path,caiman_file)])
 
 %% color lut
 hsv = colormap(hsv);
@@ -62,26 +66,26 @@ cnm_plot_options = CNMFSetParms;
 cnm_plot_options.roi_color = [colormap(lines);colormap(lines)];
 
 figure('name','fov')
-subplot(1,3,1)
+subplot(1,2,1)
 imagesc(com_fov)
 colormap(gray)
 axis square
 title('Detected ROIs')
 
-subplot(1,3,2)
-hold on
-[CC,jsf] = plot_contours(sparse(double(cnm_A)),caiman_data.opsin_mask,cnm_plot_options,1,[],[],[1 1 1]);
-title('Opsin mask')
-set(gca,'YDir','reverse')
+% subplot(1,3,2)
+% hold on
+% [CC,jsf] = plot_contours(sparse(double(cnm_A)),caiman_data.opsin_mask,cnm_plot_options,1,[],[],[1 1 1]);
+% title('Opsin mask')
+% set(gca,'YDir','reverse')
 
-subplot(1,3,3)
+subplot(1,2,2)
 plot_contours(sparse(double(cnm_A)),cnm_image,cnm_plot_options,1,[],[],[1 1 1]);
 
-figure
-colormap(gray)
-plot_contours(sparse(double(cnm_A)),com_fov,cnm_plot_options,1,[],[],[1 1 1]);
-axis square
-
+% figure
+% colormap(gray)
+% plot_contours(sparse(double(cnm_A)),com_fov,cnm_plot_options,1,[],[],[1 1 1]);
+% axis square
+% 
 %% save coords to cell struct
 cell_struct = struct();
 for i = 1:size(jsf,1)
@@ -135,7 +139,12 @@ end
 %% plot traces by imagesc
 
 opsin_positive = find(extractfield(cell_struct,'opsin_positive')==1);
+if ~isempty(opsin_positive)
 opsin_cell_traces = cell2mat({cnm_struct(opsin_positive).deconvC}');
+else
+    opsin_cell_traces = cell2mat({cnm_struct(accepted_idx).deconvC}');
+
+end
 ds_factor = 10;
 ds_opsin_cell_traces = nan(size(opsin_cell_traces,1),ceil(size(opsin_cell_traces,2)/ds_factor));
 % downsample for print
