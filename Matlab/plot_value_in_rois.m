@@ -1,13 +1,14 @@
-function [ img ] = plot_value_in_rois( cell_struct, value_field,dims,ax,varargin)
+function [ img,zlimit ] = plot_value_in_rois( cell_struct, value_field,dims,ax,varargin)
 % pyrtaoi post analysis
 IF_NORM_PIX = 0;
 IF_CONTOUR = 1;
-IF_SHOW_OPSIN = 0;
 textcolor = [.3 .3 .3];
 
 colorlut = [];
 zlimit = []; % dummy dots to force colorlut matching preset max and min range
 show_cell_idx = [];
+target_cell_idx = [];
+trigger_cell_idx = [];
 for v = 1:numel(varargin)
     if strcmpi(varargin{v},'IF_NORM_PIX')
         IF_NORM_PIX = varargin{v+1};
@@ -15,12 +16,14 @@ for v = 1:numel(varargin)
         colorlut = varargin{v+1};
     elseif  strcmpi(varargin(v),'IF_CONTOUR') % THIS IS SLOW
         IF_CONTOUR = varargin{v+1};
-    elseif  strcmpi(varargin(v),'IF_SHOW_OPSIN')
-        IF_SHOW_OPSIN = varargin{v+1};
     elseif  strcmpi(varargin(v),'zlimit')
         zlimit = varargin{v+1};
     elseif  strcmpi(varargin(v),'show_cell_idx')
         show_cell_idx = varargin{v+1};
+    elseif  strcmpi(varargin(v),'target_cell_idx')
+        target_cell_idx = varargin{v+1};
+    elseif  strcmpi(varargin(v),'trigger_cell_idx')
+        trigger_cell_idx = varargin{v+1};
     end
 end
 
@@ -75,6 +78,7 @@ else
         10,textcolor)
 end
 
+% mark cell indices
 if ~isempty(show_cell_idx)
     plot_tex_idx = show_cell_idx;
 else
@@ -84,24 +88,22 @@ for i = plot_tex_idx
     text(round(cell_struct(i).centroid(:,2)),...
         round(cell_struct(i).centroid(:,1)),num2str(cell_struct(i).cnm_idx),'color',textcolor,'fontweight','bold');
 end
-% for i = 1:size(cell_struct,2)
-%
-%     if IF_CONTOUR
-%         temp_img = zeros((size(img)));
-%
-%             for j = 1:numel(cell_struct(i).coordinates(:,1))
-%                 temp_img(cell_struct(i).coordinates(j,1),cell_struct(i).coordinates(j,2)) = 1;
-%             end
-%             contour(temp_img,'LineColor',[.5 .5 .5], 'linewidth', 1);
-%             if cell_struct(i).num_trials>0
-%                 contour(temp_img,'LineColor',[1 0 0], 'linewidth', 1);
-%             end
-%     end
-%
-%
-%     text(round(cell_struct(i).centroid(:,2)),...
-%         round(cell_struct(i).centroid(:,1)),num2str(i),'color',textcolor,'fontweight','bold');
-% end
+
+% mark target cells
+if ~isempty(target_cell_idx)
+    for i = target_cell_idx
+     text(round(cell_struct(i).centroid(:,2)),...
+        round(cell_struct(i).centroid(:,1)),num2str(cell_struct(i).cnm_idx),'color','r','fontweight','bold');
+    end
+end
+
+% mark trigger cells
+if ~isempty(trigger_cell_idx)
+    for i = trigger_cell_idx
+     text(round(cell_struct(i).centroid(:,2)),...
+        round(cell_struct(i).centroid(:,1)),num2str(cell_struct(i).cnm_idx),'color','blue','fontweight','bold');
+    end
+end
 
 xlim([1,size(img,1)])
 ylim([1,size(img,2)])
@@ -112,7 +114,7 @@ cb = colorbar('location','southoutside');
 box off
 axis off
 axis square
-set(gca,'YDir','normal')
+set(gca,'YDir','reverse')
 
 
 end

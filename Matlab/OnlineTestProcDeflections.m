@@ -11,9 +11,10 @@ clc
 
 
 % BRUKER1
-matlab_set_paths_zz
+% matlab_set_paths_zz
 
 %% stim parameter - CHANGE THIS
+crop_num_trials = 146;
 opt.N = 1.5; % threshold for significant auc
 opt.sta_pre_frames = 90; % sta will be taken relative to stim-on
 opt.sta_post_frames = 120;
@@ -44,8 +45,6 @@ opt.correct_trial_only = false; % only use correct trials to get tunning
 opt.target_idx_fd = {'stim1','stim2'};
 opt.trigger_idx_fd = 'port';
 
-
-
 opt.plot_stim_types = [1 1 1 1 3 2 2 2 2]; % these pairs should be matched as in experiment_trial_seq
 opt.plot_var_types  = [3 5 4 7 2 2 4 5 6];
 
@@ -72,14 +71,15 @@ disp(['Loaded file :',fullfile(pb_path,pb_file)])
 trialtriggers_idx=  load(fullfile(pb_path,pb_file));
 trial_idx = trialtriggers_idx.trialtrigger_idx;
 FLAG_TRIALTRIGGER_IDX_LOADED =  true;
-tot_num_trials = min([length(caiman_data.trialOrder),length(trial_idx),length(trials.stim_type)]); % in case some trial triggers were sent after the session by manual clicking when bebehav is still recording
+tot_num_trials = min([crop_num_trials,length(caiman_data.trialOrder),length(trial_idx),length(trials.stim_type)]); % in case some trial triggers were sent after the session by manual clicking when bebehav is still recording
+trial_idx = trial_idx(1:tot_num_trials);
 catch
     trial_idx = [];
-    tot_num_trials = min(length(caiman_data.trialOrder),length(trials.stim_type));
+    tot_num_trials = min([crop_num_trials,length(caiman_data.trialOrder),length(trials.stim_type)]);
     disp('Trusting trial triggers')
     FLAG_TRIALTRIGGER_IDX_LOADED =  false;
 end
-%% load baseline decoder (file named as 'OutputParams')
+%% load baseline output struct (file named as 'OutputParams')
 [baseline_file,baseline_path] = uigetfile('*.mat','Select baseline OutputParams',caiman_path);
 baseline_output = load(fullfile(baseline_path,baseline_file)); 
 disp(['Loaded file :',fullfile(baseline_path,baseline_file)])
@@ -89,6 +89,11 @@ norm_thresh = decod_struct.trigger_thresh;
 trigger_idx = decod_struct.trigger_idx;
 fds_of_interest = decod_struct.fds_of_interest;
 thresh_sd = decod_struct.thresh_sd;
+online_weights = caiman_data.ROIw;
+online_thresh = caiman_data.ROIsumThresh;
+online_sd = caiman_data.sd_level;
+online_bs = caiman_data.bs_level;
+
 %% config save path
 save_path = [caiman_path filesep 'analysis_files'];
 if ~exist(save_path, 'dir')
@@ -99,7 +104,7 @@ fig_save_path = [caiman_path filesep 'figures'];
 if ~exist(fig_save_path, 'dir')
 mkdir(fig_save_path)
 end
-%% setup save path and name
+% setup save path and name
 opt.output_path = caiman_path;
 opt.exp_name = strrep(caiman_file,'.mat','proc');
 
@@ -127,7 +132,6 @@ else
     warning('no pybehav data loaded')
 end
 %% organise data (generate plots for sanity check)
-tex_stim_frames = {};
 if(~isempty(caiman_data.stim_frames_caiman))
     sens_stim_frames = caiman_data.sensory_stim_frames+caiman_data.t_init;
 else
@@ -135,8 +139,12 @@ else
 end
 
 % discard sens stim frames beyond tottime (deal with senarios when movie is aborted early)
+% note that here sen_stim_frames are trial-trigger frames to pybehav
 sens_stim_frames(sens_stim_frames>caiman_data.t_cnm-opt.sta_post_frames-opt.sta_pre_frames) = [];
 num_trials = length(sens_stim_frames);
+
+% discard trials after num_trials
+trials = structfun(@(x)x(1:num_trials),trials,'UniformOutput',false);
 
 % trial type
 trialOrder = caiman_data.trialOrder(1:num_trials); % this is stim_types, need stim_var to specify deflection amplitudes
@@ -152,10 +160,6 @@ elseif ~ FLAG_PYBEHAV_LOADED
     trials.correct = ones(size(sens_stim_frames));
     trials.incorrect = zeros(size(sens_stim_frames));
     trials.stim_type = trialOrder;
-end
-
-for i = 1:numel(trialTypes)
-    tex_stim_frames{i} = sens_stim_frames(trialOrder == trialTypes(i));
 end
 
 % roi indices
@@ -196,12 +200,15 @@ end
 
 for i = 1:num_comp
     cnm_struct(i).shape = reshape(cnm_A(:,i),cnm_dims);
-    cnm_struct(i).noisyC = caiman_data.noisyC(i+1,1:num_frames);
-    cnm_struct(i).deconvC = caiman_data.cnm_C(i,1:num_frames);
     cnm_struct(i).centroid = cm(i,:);
-    cnm_struct(i).frame_added = find(cnm_struct(i).noisyC >0,1);
+%     cnm_struct(i).frame_added = find(cnm_struct(i).noisyC >0,1);
     
     % set skipped frames to nan
+    temp_trace = nan(1,tot_frames);
+    temp_trace(caiman_frames) =  caiman_data.online_C(i+1,1:num_frames); % use cnm_C(i,1:num_frames) for offline analysis!
+    temp_trace = fillmissing(temp_trace,'linear');
+    cnm_struct(i).onlineC_full = temp_trace;
+    
     temp_trace = nan(1,tot_frames);
     temp_trace(caiman_frames) =  caiman_data.cnm_C(i,1:num_frames);
     temp_trace = fillmissing(temp_trace,'linear');
@@ -210,8 +217,7 @@ for i = 1:num_comp
     temp_trace = nan(1,tot_frames);
     temp_trace(caiman_frames) =  caiman_data.noisyC(i+1,1:num_frames);
     temp_trace = fillmissing(temp_trace,'linear');
-    cnm_struct(i).noisyC_full = temp_trace;
-    
+    cnm_struct(i).noisy_full = temp_trace;
     % use stimon (start of deflection) frame as 'stim frame' for sta traces
     cnm_struct(i).stim_frames = sens_stim_frames+opt.stimon_frame;
 
@@ -221,7 +227,7 @@ temp_trace = nan(1,tot_frames);
 temp_trace(caiman_frames) =  caiman_data.noisyC(1,1:num_frames);
 temp_trace = fillmissing(temp_trace,'linear');
 backgroundC = temp_trace;
-
+disp('made cnm_struct')
 %% only get accepted cells
 accepted_idx = caiman_data.accepted_idx+1;
 num_cells = numel(accepted_idx);
@@ -295,7 +301,7 @@ stim_cell_count = 1;
 non_stim_cell_count = 1;
 
 for i = 1:num_cells
-    this_cell_trace = cnm_struct(cell_struct(i).cnm_idx).deconvC_full;
+    this_cell_trace = cnm_struct(cell_struct(i).cnm_idx).onlineC_full;
     plot(this_cell_trace+i*plot_offset,'color','black','linewidth',1.5)
     stim_cell_count = stim_cell_count+1;
 end
@@ -318,6 +324,14 @@ end
 %% get trial indices
 % a trial type is defined by stim_type (which lickport is rewarded) and
 % stim_var (deflection amplitude)
+
+% get trials with photostims
+photo_stim_frames =  caiman_data.online_photo_frames + caiman_data.t_init;
+photo_stim_frames(photo_stim_frames>caiman_data.t_cnm)=[];
+[photostim_trial_idx,num_photo_per_trial] = get_trials_with_photostim(sens_stim_frames,photo_stim_frames);
+trials.photostim = zeros(1,num_trials);
+trials.photostim(photostim_trial_idx)=1;
+
 trial_indices = struct(); % % get trialtype-outcome indices
 all_trial_types = unique(trials.stim_type.*100+trials.stim_var);
 num_trial_types = length(all_trial_types);
@@ -327,7 +341,7 @@ for v = 1:num_trial_types
 all_trial_var(v) = rem(all_trial_types(v),100);
 all_trial_stim(v) = floor((all_trial_types(v)-all_trial_var(v))/100);
 end
-all_psycho_struct = get_psycho_curve(trials,all_trial_stim,all_trial_var);
+[all_psycho_struct,num_all_types] = get_psycho_curve(trials,all_trial_stim,all_trial_var);
 % [stim var outcome]
 for v = 1:num_trial_types
     this_var = all_trial_var(v);
@@ -335,75 +349,71 @@ for v = 1:num_trial_types
     trial_indices.(['stim_' num2str(this_stim) '_var_' num2str(this_var) '_correct'  ]) = find(trials.correct==1&trials.stim_type==this_stim&trials.stim_var == this_var);
     trial_indices.(['stim_' num2str(this_stim) '_var_' num2str(this_var) '_incorrect' ]) = find(trials.incorrect==1&trials.stim_type==this_stim&trials.stim_var == this_var);
     trial_indices.(['stim_' num2str(this_stim) '_var_' num2str(this_var) '_miss' ]) = find(trials.miss==1&trials.stim_type==this_stim&trials.stim_var == this_var);
-
+    trial_indices.(['stim_' num2str(this_stim) '_var_' num2str(this_var) '_photostim'  ]) = intersect(find(trials.stim_type==this_stim&trials.stim_var == this_var),photostim_trial_idx);
 end
-%% plot all trial types and deflection volts
-figure('name','all trial types and voltages');
-subplot(2,1,1)
-hold on
-plot(all_psycho_struct.leftvolts,'-o','color',trial_color.L1)
-plot(all_psycho_struct.rightvolts,'-o','color',trial_color.L2)
-plot(mean([all_psycho_struct.rightvolts;all_psycho_struct.leftvolts],1),'--','color',[.5 .5 .5])
-ylabel('Amplitude (V)')
-legend('Left','Right','avg.')
-xlim([0 num_trial_types+1])
 
-subplot(2,1,2)
-hold on
-b=bar([all_psycho_struct.stim_types;all_psycho_struct.stim_vars]');
-b(1).FaceColor=[0 0 0];b(2).FaceColor=[.5 .5 .5];
-box off
-grid on
-ylabel('Indices')
-legend('Stim Type','Stim Var')
-xlabel('Trial types')
-xlim([0 num_trial_types+1])
+% photostim trial indices
+photo_trials = struct();
+fds = fields(trials);
+for f = 1:numel(fds)
+    fd = fds{f};
+    photo_trials.(fd) = double(trials.(fd)).*trials.photostim;
+end
+[photo_psycho_struct,num_photo_types] = get_psycho_curve(photo_trials,all_trial_stim,all_trial_var);
+
 
 %% plot psychometric curve
 if FLAG_PYBEHAV_LOADED
-[plot_psycho_struct, num_types ]= get_psycho_curve(trials,all_psycho_struct.stim_types,all_psycho_struct.stim_vars);
-figure('name','psychometric curve')
-
-f = subplot(3,1,1); hold on
-yyaxis right
-plot(plot_psycho_struct.pc_misses,'-o','color',[.5 .5 .5])
-ylabel('Fraction of miss trials')
-ylim([0 1])
-xlim([0 num_types+1])
-set(gca,'YColor',[0.5 0.5 0.5]);
-
-yyaxis left
-plot(plot_psycho_struct.pc_leftchoices,'-o','color',trial_color.L1)
-plot(plot_psycho_struct.pc_rightchoices,'-o','color',trial_color.L2)
-xlim([0 num_types+1])
-ylim([0 1])
-ylabel('Fraction of choices')
-set(gca,'YColor',[0 0 0]);
-
-subplot(3,1,3); hold on
-b=bar([plot_psycho_struct.stim_types;plot_psycho_struct.stim_vars]');
-b(1).FaceColor=[0 0 0];b(2).FaceColor=[.5 .5 .5];
-legend('Stim type', 'Var type')
-grid on
-ylim([0 9])
-xlim([0 num_types+1])
-xlabel('Trial types')
-
-
-subplot(3,1,2); hold on
-plot(plot_psycho_struct.leftvolts,'-o','color',trial_color.L1)
-plot(plot_psycho_struct.rightvolts,'-o','color',trial_color.L2)
-plot(mean([plot_psycho_struct.rightvolts;plot_psycho_struct.leftvolts],1),'-o','color',[.5 .5 .5])
-xlim([0 num_types+1])
-
-legend('Left','Right')
-ylabel('Deflection strength (V)')
+    
+    % [plot_psycho_struct, num_types ]= get_psycho_curve(trials,all_psycho_struct.stim_types,all_psycho_struct.stim_vars);
+    plot_psycho_struct = all_psycho_struct;
+    num_types = num_all_types;
+    
+    figure('name','psychometric curve')
+    
+    f = subplot(3,1,1); hold on
+    yyaxis right
+    plot(plot_psycho_struct.pc_misses,'-o','color',[.5 .5 .5])
+    ylabel('Fraction of miss trials')
+    ylim([0 1])
+    xlim([0 num_types+1])
+    set(gca,'YColor',[0.5 0.5 0.5]);
+    
+    yyaxis left
+    plot(plot_psycho_struct.pc_leftchoices,'-o','color',trial_color.L1)
+    plot(plot_psycho_struct.pc_rightchoices,'-o','color',trial_color.L2)
+    plot(photo_psycho_struct.pc_leftchoices,'-*','color',trial_color.L1)
+    plot(photo_psycho_struct.pc_rightchoices,'-*','color',trial_color.L2)
+    
+    xlim([0 num_types+1])
+    ylim([0 1])
+    ylabel('Fraction of choices')
+    set(gca,'YColor',[0 0 0]);
+    
+    subplot(3,1,3); hold on
+    b=bar([plot_psycho_struct.stim_types;plot_psycho_struct.stim_vars]');
+    b(1).FaceColor=[0 0 0];b(2).FaceColor=[.5 .5 .5];
+    legend('Stim type', 'Var type')
+    grid on
+    ylim([0 9])
+    xlim([0 num_types+1])
+    xlabel('Trial types')
+    
+    
+    subplot(3,1,2); hold on
+    plot(plot_psycho_struct.leftvolts,'-o','color',trial_color.L1)
+    plot(plot_psycho_struct.rightvolts,'-o','color',trial_color.L2)
+    plot(mean([plot_psycho_struct.rightvolts;plot_psycho_struct.leftvolts],1),'-o','color',[.5 .5 .5])
+    xlim([0 num_types+1])
+    
+    legend('Left','Right')
+    ylabel('Deflection strength (V)')
 end
 
 
 %% get stim triggered average 
 for i = 1:num_cells
-    this_cell_trace = cnm_struct(cell_struct(i).cnm_idx).deconvC_full;
+    this_cell_trace = cnm_struct(cell_struct(i).cnm_idx).onlineC_full;
     this_num_trials = numel(cnm_struct(cell_struct(i).cnm_idx).stim_frames );
     this_sens_stim_frames =  cnm_struct(cell_struct(i).cnm_idx).stim_frames;
     cell_struct(i).num_trials = this_num_trials*cell_struct(i).opsin_positive;
@@ -414,7 +424,6 @@ for i = 1:num_cells
     cell_struct(i).sta_traces = []; 
     cell_struct(i).sta_trace = [];
     cell_struct(i).accepted = 0;
-    cell_struct(i).pref_orient = nan;
 
     if(this_num_trials>0)
         % average across all stim types
@@ -430,25 +439,27 @@ for i = 1:num_cells
         end        
     end
     
-end
 
-% sta of backgound component (for alignment check)
-[~,~,~,~,~,bg_sta_traces,bg_sta_trace] =...
-    make_sta_from_traces(backgroundC,sens_stim_frames+opt.sta_stimon_frame ,opt.sta_pre_frames,opt.sta_post_frames,1:opt.sta_baseline_frames);
+end
+disp('got cell_struct sta')
+
 %% Normlalise traces to baseline and std
 % get baseline and std from the first sets of easy trials
 % - looks more consistent with traninig session to normalise this way
-easy_trial_idx = [trial_indices.('stim_1_var_9_correct') trial_indices.('stim_2_var_9_correct')];
-cell_bs = cell2mat(arrayfun(@(x)mean(cell_struct(x).sta_trace([-15:1:0]+opt.sta_stimon_frame)),1:num_cells,'UniformOutput', false));
+easy_trial_idx = 1:10;
+cell_bs = cell2mat(arrayfun(@(x)mean(reshape(cell_struct(x).sta_traces(easy_trial_idx,1:opt.sta_baseline_frames),[1,numel(easy_trial_idx)*opt.sta_baseline_frames]),2),1:num_cells,'UniformOutput', false));
 cell_sd = cell2mat(arrayfun(@(x)std(reshape(cell_struct(x).sta_traces(easy_trial_idx,:),[1,numel(easy_trial_idx)*opt.trial_length])),1:num_cells,'UniformOutput', false));
 cell_mean = cell2mat(arrayfun(@(x)mean(cell_struct(x).sta_trace(:)),1:num_cells,'UniformOutput', false));
 
+% using mean and sd calculated online - then got the same value
+% cell_sd = online_sd;
+% cell_bs = online_bs;
 for i = 1:num_cells
     cell_struct(i).sta_traces_zscore = (cell_struct(i).sta_traces - cell_mean(i))./cell_sd(i);
     cell_struct(i).sta_traces = (cell_struct(i).sta_traces - cell_bs(i))./cell_sd(i);
     cell_struct(i).sta_trace = (cell_struct(i).sta_trace - cell_bs(i))./cell_sd(i);
 end
-
+disp('normalised cell_struct sta_traces')
 
 %% Sort STAs by different trial types
 trial_types = fields(trial_indices);
@@ -459,10 +470,26 @@ for i = 1:numel(trial_types)
     this_idx = this_idx(this_idx<min([tot_num_trials,num_sta_traces]));
     if ~isempty(this_idx)
             for c = 1:num_cells
-                 cell_struct(c).(this_fd) = cell_struct(c).sta_traces_zscore( this_idx,:)';
+                 cell_struct(c).(this_fd) = cell_struct(c).sta_traces( this_idx,:)';
+                 traj_struct.(this_fd) = traj_struct.sta_traces(this_idx,:);
             end
     end
 end
+disp('sorted cell_struct sta_traces')
+
+%% sta of online trajectory
+traj_struct = struct();
+online_traj = caiman_data.online_traj;
+temp_trace = nan(1,tot_frames);
+temp_trace(caiman_frames) = online_traj(1,1:num_frames);
+online_traj = fillmissing(temp_trace,'linear');
+
+[~,~,~,~,~,traj_struct.sta_traces,traj_struct.sta_trace] =...
+    make_sta_from_traces(online_traj,this_sens_stim_frames,opt.sta_pre_frames,opt.sta_post_frames,1:opt.sta_baseline_frames);
+
+% sta of backgound component (for alignment check)
+[~,~,~,~,~,bg_sta_traces,bg_sta_trace] =...
+    make_sta_from_traces(backgroundC,this_sens_stim_frames ,opt.sta_pre_frames,opt.sta_post_frames,1:opt.sta_baseline_frames);
 
 %% Plot STAs for all components 
 figure('name','condition sta traces','units','normalized','outerposition',[0 0 1 1])
@@ -518,10 +545,169 @@ for i = 1:plot_num_cells
 end
 suptitle(strrep(strrep(caiman_file,'.mat',''),'_',' '))
 export_fig([fig_save_path filesep 'STATrace_' strrep(caiman_file,'.mat','.png')])
+%% get photostim sta amp
+photo_ensembles = decod_struct.target_ensembles;
+photo_vars = rem(cell2mat(decod_struct.condition_type),100);
+photo_types = floor(cell2mat(decod_struct.condition_type)./100);
 
-%% Project to decoders
-% add some fields to trialcolor
-for i = 1:numel(test_opt.fd_names )
+num_photo_ensembles = numel(photo_ensembles);
+for i = 1:num_cells
+    for e = 1:num_photo_ensembles
+        cell_struct(i).(['sta_amp_photo_' num2str(photo_types(e))]) = mean(mean(cell_struct(i).sta_traces(trials.photostim==1&trials.stim_type==photo_types(e),opt.sta_avg_frames)));
+        cell_struct(i).(['sta_amp_nonphoto_' num2str(photo_types(e))]) = mean(mean(cell_struct(i).sta_traces(trials.photostim==0&trials.stim_type==photo_types(e),opt.sta_avg_frames)));
+        cell_struct(i).(['sta_amp_diffphoto_' num2str(photo_types(e))]) = cell_struct(i).(['sta_amp_photo_' num2str(photo_types(e))]) -cell_struct(i).(['sta_amp_nonphoto_' num2str(photo_types(e))]);
+    end
+
+end
+%% Plot photostim STA amp on FOV
+figure('name','photstim response on fov','units','normalized','outerposition',[0 0 1 1]);
+plot_count = 1;
+for e = 1:num_photo_ensembles
+    ax = subplot(num_photo_ensembles,3,plot_count);
+    if e==1
+        [~,zlimit] = plot_value_in_rois( cell_struct, ['sta_amp_photo_' num2str(photo_types(e))],[256 256],ax,'IF_NORM_PIX',0,...
+        'IF_CONTOUR',0,'IF_SHOW_OPSIN',0,'target_cell_idx',photo_ensembles{e});
+        plot_zlimit = zlimit;
+    else
+        plot_value_in_rois( cell_struct, ['sta_amp_photo_' num2str(photo_types(e))],[256 256],ax,'IF_NORM_PIX',0,...
+        'IF_CONTOUR',0,'IF_SHOW_OPSIN',0,'target_cell_idx',photo_ensembles{e},'zlimit',plot_zlimit);
+    end
+    title(['Stim type:' num2str(photo_types(e)) ', photo+'])
+    plot_count= plot_count+1;
+    
+    ax = subplot(num_photo_ensembles,3,plot_count);
+    plot_value_in_rois( cell_struct, ['sta_amp_nonphoto_' num2str(photo_types(e))],[256 256],ax,'IF_NORM_PIX',0,...
+        'IF_CONTOUR',0,'IF_SHOW_OPSIN',0,'zlimit',plot_zlimit);
+    plot_count= plot_count+1;
+    title(['Stim type:' num2str(photo_types(e)) ', photo-'])
+
+    ax = subplot(num_photo_ensembles,3,plot_count);
+    plot_value_in_rois( cell_struct, ['sta_amp_diffphoto_' num2str(photo_types(e))],[256 256],ax,'IF_NORM_PIX',0,...
+        'IF_CONTOUR',0,'IF_SHOW_OPSIN',0,'target_cell_idx',photo_ensembles{e});
+    plot_count= plot_count+1;
+    title(['Stim type:' num2str(photo_types(e)) ', diff'])
+
+end
+export_fig([fig_save_path filesep 'PhotoSTA_FOV_' strrep(caiman_file,'.mat','.png')])
+
+%% Plot photostim STA traces
+figure('name','condition sta traces','units','normalized','outerposition',[0 0 1 1])
+peak_frame_range = opt.sta_peak_search_range;
+avg_frame_range = opt.sta_avg_frames;
+plot_num_cells = num_cells;
+num_plot_cols = 8;
+num_plot_rows = ceil(plot_num_cells/num_plot_cols);
+photo_idx = 1;
+for i = 1:plot_num_cells
+    subtightplot(num_plot_rows,num_plot_cols,i)
+    hold on
+    plot(cell_struct(i).sta_traces(trials.photostim==1&trials.stim_type==photo_idx,:)','color',[0 0 0],'linewidth',1)
+    plot(cell_struct(i).sta_traces(trials.photostim==0&trials.stim_type==photo_idx,:)','--','color',[.5 .5 .5],'linewidth',1)
+
+    xlim([0 opt.sta_pre_frames+opt.sta_post_frames+1])
+    ylim([-2 10])
+    axis square
+    
+    text(1,1,['Cell ' num2str(i) ' (ROI ' num2str(cell_struct(i).cnm_idx) ')'],'units','normalized','color','black','Horizontalalignment','right','VerticalAlignment','top')
+
+    if(~isempty(find(opsin_positive_idx==i)))
+        text(1,1,['Cell ' num2str(i)],'units','normalized','color','r','Horizontalalignment','right','VerticalAlignment','top')
+    end
+    box off
+    
+    
+    % mark time
+    plot([1,1].*opt.sta_stimon_frame, ylim,'color','black','linestyle',':')
+    if ~ opt.flag_use_peak
+        plot([avg_frame_range(1),avg_frame_range(end)],[0,0],'color','black','linewidth',2)
+    else
+        plot([peak_frame_range(1),peak_frame_range(end)],[0,0],'color','black','linewidth',2)
+    end
+    
+    % mark trigger cell
+    if( any(trigger_idx==i))
+        box on
+        set(gca,'linewidth',3)
+        text(0.05,.8,['weight'  num2str(norm_weights(trigger_idx==i),'%10.2f') ],'units','normalized', 'horizontalalignment','left', 'color','black')
+    end
+    
+    % mark target cell
+    if( any(photo_ensembles{photo_idx}==i))
+        box on
+        set(gca,'XColor','r','YColor','r','linewidth',2)
+        
+    end
+
+    % modify x ticks
+    xaxisvalues = [0:45:opt.sta_pre_frames+opt.sta_post_frames];
+    xticks(xaxisvalues)
+    xticklabels(arrayfun(@(x){num2str(x)},(xaxisvalues-opt.sta_trialon_frame)./opt.frame_rate))
+    
+end
+suptitle([strrep(strrep(caiman_file,'.mat',''),'_',' ') ' StimType: ' num2str(photo_idx)])
+export_fig([fig_save_path filesep 'Stim' num2str(photo_idx) '_STATrace_' strrep(caiman_file,'.mat','.png')])
+photo_idx = 2;
+for i = 1:plot_num_cells
+    subtightplot(num_plot_rows,num_plot_cols,i)
+    hold on
+    plot(cell_struct(i).sta_traces(trials.photostim==1&trials.stim_type==photo_idx,:)','color',[0 0 0],'linewidth',1)
+    plot(cell_struct(i).sta_traces(trials.photostim==0&trials.stim_type==photo_idx,:)','--','color',[.5 .5 .5],'linewidth',1)
+
+    xlim([0 opt.sta_pre_frames+opt.sta_post_frames+1])
+    ylim([-2 10])
+    axis square
+    
+    text(1,1,['Cell ' num2str(i) ' (ROI ' num2str(cell_struct(i).cnm_idx) ')'],'units','normalized','color','black','Horizontalalignment','right','VerticalAlignment','top')
+
+    if(~isempty(find(opsin_positive_idx==i)))
+        text(1,1,['Cell ' num2str(i)],'units','normalized','color','r','Horizontalalignment','right','VerticalAlignment','top')
+    end
+    box off
+    
+    
+    % mark time
+    plot([1,1].*opt.sta_stimon_frame, ylim,'color','black','linestyle',':')
+    if ~ opt.flag_use_peak
+        plot([avg_frame_range(1),avg_frame_range(end)],[0,0],'color','black','linewidth',2)
+    else
+        plot([peak_frame_range(1),peak_frame_range(end)],[0,0],'color','black','linewidth',2)
+    end
+    
+    % mark trigger cell
+    if( any(trigger_idx==i))
+        box on
+        set(gca,'linewidth',3)
+        text(0.05,.8,['weight'  num2str(norm_weights(trigger_idx==i),'%10.2f') ],'units','normalized', 'horizontalalignment','left', 'color','black')
+    end
+    
+    % mark target cell
+    if( any(photo_ensembles{photo_idx}==i))
+        box on
+        set(gca,'XColor','r','YColor','r','linewidth',2)
+        
+    end
+
+    % modify x ticks
+    xaxisvalues = [0:45:opt.sta_pre_frames+opt.sta_post_frames];
+    xticks(xaxisvalues)
+    xticklabels(arrayfun(@(x){num2str(x)},(xaxisvalues-opt.sta_trialon_frame)./opt.frame_rate))
+    
+end
+suptitle([strrep(strrep(caiman_file,'.mat',''),'_',' ') ' StimType: ' num2str(photo_idx)])
+export_fig([fig_save_path filesep 'Stim' num2str(photo_idx) '_STATrace_' strrep(caiman_file,'.mat','.png')])
+
+%% set field names and colors
+test_opt = opt;
+test_opt.fd_names = {'stim_1_var_3_correct','stim_1_var_3_incorrect','stim_1_var_3_miss',...
+                     'stim_1_var_4_correct','stim_1_var_4_incorrect','stim_1_var_4_miss',...
+                     'stim_1_var_5_correct','stim_1_var_5_incorrect','stim_1_var_5_miss',...
+                     'stim_1_var_7_correct','stim_1_var_7_incorrect','stim_1_var_7_miss',...
+                     'stim_3_var_2_correct','stim_3_var_2_incorrect','stim_3_var_2_miss'...
+                     'stim_2_var_2_correct','stim_2_var_2_incorrect','stim_2_var_2_miss'...
+                     'stim_2_var_4_correct','stim_2_var_4_incorrect','stim_2_var_4_miss'...
+                     'stim_2_var_5_correct','stim_2_var_5_incorrect','stim_2_var_5_miss'...
+                     'stim_2_var_6_correct','stim_2_var_6_incorrect','stim_2_var_6_miss'};
+ for i = 1:numel(test_opt.fd_names )
     this_fd = test_opt.fd_names {i};
     if contains(this_fd,'stim_1') && contains(this_fd,'_correct')
         trial_color.(this_fd) = trial_color.L1;
@@ -556,22 +742,15 @@ for i = 1:numel(test_opt.fd_names )
          trial_color.(this_fd) = [.3 .3 .3];
      end
 end
-%% test decoder performance
-%% project to trainer decoder
-test_opt = opt;
 test_opt.trial_color = trial_color;
-test_opt.fd_names = {'stim_1_var_3_correct','stim_1_var_3_incorrect','stim_1_var_3_miss',...
-                     'stim_1_var_4_correct','stim_1_var_4_incorrect','stim_1_var_4_miss',...
-                     'stim_1_var_5_correct','stim_1_var_5_incorrect','stim_1_var_5_miss',...
-                     'stim_1_var_7_correct','stim_1_var_7_incorrect','stim_1_var_7_miss',...
-                     'stim_3_var_2_correct','stim_3_var_2_incorrect','stim_3_var_2_miss'...
-                     'stim_2_var_2_correct','stim_2_var_2_incorrect','stim_2_var_2_miss'...
-                     'stim_2_var_4_correct','stim_2_var_4_incorrect','stim_2_var_4_miss'...
-                     'stim_2_var_5_correct','stim_2_var_5_incorrect','stim_2_var_5_miss'...
-                     'stim_2_var_6_correct','stim_2_var_6_incorrect','stim_2_var_6_miss'};
+
+%% online recorded trajectory
+plot_pop_vectors(traj_struct,fds_of_interest,1,test_opt,...
+         'noise_thresh',thresh_sd,'ylimit',[-10 10],'plot_ylabel','Projection','plot_num_cols',2,'IF_PLOT_RAW_ONLY',1)
+
+%%  project to trainer decoder
 proj_struct = struct();
  [proj_struct] = get_projections(cell_struct(trigger_idx),norm_weights,test_opt.fd_names,'proj_struct',proj_struct,'bias',-norm_thresh,'IS_CELL_STRUCT',1);
-
 plot_pop_vectors(proj_struct,fds_of_interest,1,test_opt,...
          'noise_thresh',thresh_sd,'ylimit',[-5 5],'plot_ylabel','Projection','plot_num_cols',2,'IF_PLOT_RAW_ONLY',1)
 suptitle(['Choice decoder projections:' strrep(strrep(caiman_file,'.mat',''),'_',' ')])

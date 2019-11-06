@@ -284,7 +284,7 @@ end
 decod_struct.thresh_framewise  = thresh_framewise; % this is actually framewise cd threshold, not necassarily by logistic regression
 decod_struct.thresh_fix  = thresh_fix;
 decod_struct.stats  = stats;
-decod_struct.B  = squeeze(mean(b_shuf,3));
+decod_struct.B  = squeeze(nanmean(b_shuf,3));
 decod_struct.b_shuf = b_shuf;
 decod_struct.accur_shuf = accur_shuf;
 decod_struct.all_accur_shuf = all_accur_shuf;

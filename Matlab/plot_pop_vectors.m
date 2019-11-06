@@ -33,13 +33,18 @@ end
 fds = plot_fields;
 plot_num_rows = ceil(numel(fds)/plot_num_cols);
 try
-go_cue_frame = opt.go_cue_bin;
-catch
     try
-    go_cue_frame = opt.gocue_bin;
+        go_cue_frame = opt.go_cue_bin;
     catch
-        go_cue_frame = opt.sta_gocue_frame;
+        try
+            go_cue_frame = opt.gocue_bin;
+        catch
+            go_cue_frame = opt.sta_gocue_frame;
+        end
+        
     end
+catch
+    go_cue_frame = [];
 end
 try
     stim_on_frame = opt.sta_stimon_frame;
@@ -48,14 +53,15 @@ catch
 end
 state_colors = getOr(opt,'state_colors',brewermap(num_states,'Set1'));
 trial_colors = getOr(opt,'trial_color',online_tex_init_color());
-condi_colors = cell2mat(cellfun(@(f)trial_colors.(f),fds,'UniformOutput',false));
-if size(condi_colors,2)~=2
-    condi_colors = cell2mat(cellfun(@(f)trial_colors.(f),fds,'UniformOutput',false)');
-end
 if num_states == 1
     state_colors = [.5 .5 .5];
 end
 if ~IF_PLOT_RAW_ONLY
+    condi_colors = cell2mat(cellfun(@(f)trial_colors.(f),fds,'UniformOutput',false));
+    if size(condi_colors,2)~=2
+        condi_colors = cell2mat(cellfun(@(f)trial_colors.(f),fds,'UniformOutput',false)');
+    end
+    
     try
         if num_states>1
             figure('name','trial average')
@@ -121,33 +127,33 @@ for f = 1:numel(fds)
         plot(this_F(:,:,s)','color',state_colors(s,:));
     end
     if num_states == 1
-        plot(mean(this_F(:,:,s),1),'color','black','linewidth',2); 
+        plot(mean(this_F(:,:,s),1),'color','black','linewidth',2);
     end
     
     % limits
     if ~isempty(ylimit)
         ylim(ylimit)
     end
-    xlim([0, 210])
+    xlim([0, opt.trial_length-1])
     
     plot(xlim,[0 0],'color','r')
-    axis square  
-    plot([1 1].*go_cue_frame,ylim,':','color','black','linewidth',2)
+    axis square
     try
+        plot([1 1].*go_cue_frame,ylim,':','color','black','linewidth',2)
         plot([1 1].*stim_on_frame,ylim,':','color','r','linewidth',2)
     end
     
     if~isempty(noise_thresh)
-            plot(xlim,[1 1].*noise_thresh,'--','color','r')
-            plot(xlim,-[1 1].*noise_thresh,'--','color','r')
-
+        plot(xlim,[1 1].*noise_thresh,'--','color','r')
+        plot(xlim,-[1 1].*noise_thresh,'--','color','r')
+        
     end
-
+    
     xlabel('Time')
     ylabel(plot_ylabel)
     title([strrep(fds{f},'_',' ') ':  ' num2str(size(this_F,1)) ' trials'])
-
-
+    
+    
 end
 end
 

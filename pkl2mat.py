@@ -69,7 +69,8 @@ def pkl2mat(file_full_name = '',save_full_name = ''):
 				   'rval_thr','thresh_overlap','merge_thresh','expected_comps',
 				   'frame_added','online_photo_frames','online_photo_targets','repeated_idx','accepted_idx','rejected_idx',
 				   't_cnm','coms','opsin_mask','overlap','stim_frames_caiman','online_C','online_thresh','tottime','t_init',
-				   'frames_skipped','sensory_stim_frames','frame_detected','init_com_count','trialOrder','photo_sequence_idx','photoDuration','keep_prev']   # added record of new cells in pyrtaoi
+				   'frames_skipped','sensory_stim_frames','frame_detected','init_com_count','trialOrder','photo_sequence_idx','photoDuration','keep_prev',
+				   'online_traj','bs_level','sd_level','ROIsumThresh','ROIw']   # added record of new cells in pyrtaoi
 
 	for param in param_names:
 		try:

@@ -38,6 +38,7 @@ addParameter(par,'x_interval',1);
 addParameter(par,'barwidth',.5);
 addParameter(par,'barEdgecolor',[0 0 0]);
 addParameter(par,'add_jitter',0);
+addParameter(par,'add_yjitter',0);
 addParameter(par,'animal_colors',[]);
 addParameter(par,'IfColorAnimals',0);
 addParameter(par,'tail','both');
@@ -80,6 +81,9 @@ if(~isempty(par.Results.barEdgecolor))
 end
 if(~isempty(par.Results.add_jitter))
     IfAddJitter = par.Results.add_jitter;
+end
+if(~isempty(par.Results.add_jitter))
+    IfAddYJitter = par.Results.add_yjitter;
 end
 if(~isempty(par.Results.animal_colors))
     animal_colors = par.Results.animal_colors;
@@ -222,7 +226,7 @@ end
 
 
 
-
+try
 if(isempty(test_type))
     [P,h] = ranksum(mat_all_values(:,1),mat_all_values(:,end));
 else
@@ -237,7 +241,10 @@ else
             [P,h] = signrank(mat_all_values(:,1),mat_all_values(:,end),'tail',tail);
     end
 end
-
+catch
+    P = 1; h = 0;
+    warning('stats test error')
+end
 
 mean_values = nanmean(mat_all_values,1);
 diff_value = 100.*(mean_values(:,end)-mean_values(:,1))./abs(mean_values(:,1));
@@ -258,13 +265,16 @@ if ~IfPlotPrePostOnly   % plot all conditions
             barwitherr(sd_values(i),mean_values(i),'XData',x_positions(i),'barwidth',barwidth,'FaceColor','none','EdgeColor',color_lut(i,:),'LineWidth',1);
             hold on
             if(~IfColorAnimals)
-                if(~IfAddJitter)
-                    scatter(x_positions(i).*ones(size(temp_value)),temp_value,50,'MarkerFaceColor','none','MarkerEdgeColor',color_lut(i,:));
-                else
+                    plotx = x_positions(i);
+                    ploty = temp_value;
+                if(IfAddJitter)
                     jitters = randi([-200 200],size(temp_value))./200.*x_interval.*0.1;
-%                     jitters = linspace(-300,300,length(temp_value))'./200.*x_interval.*0.1;
-                    scatter(x_positions(i).*ones(size(temp_value))+jitters,temp_value,15,'MarkerFaceColor',color_lut(i,:),'MarkerEdgeColor','none');
+                    plotx = x_positions(i).*ones(size(temp_value))+jitters;  
                 end
+                if IfAddYJitter
+                    ploty = temp_value + randi([-200 200],size(temp_value))./200.*max(temp_value(:)).*0.05;
+                end
+                scatter(plotx,ploty,15,'MarkerFaceColor',color_lut(i,:),'MarkerEdgeColor','none');
             else
                 
                 for j = 1:numel(temp_value)

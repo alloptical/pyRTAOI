@@ -559,6 +559,7 @@ class Worker(QObject):
 	#
 	#		self.T1 = self.c['T1']
 			self.online_C = np.zeros_like(self.c['cnm2'].C_on)
+			self.filt_C = np.zeros_like(self.c['cnm2'].C_on)
 
 	#        self.dist_thresh = 21 # reject new rois too close to existing rois
 			self.display_shift = False  # option to display motion correction shift
@@ -768,6 +769,7 @@ class Worker(QObject):
 			 # fill the init_t trace frames with init results
 			if store_all_online:
 				self.online_C[:cnm2.M,:init_t] = cnm2.C_on[:cnm2.M,:init_t]
+				self.filt_C[:com_count+gnb,:init_t] = cnm2.C_on[accepted,:init_t]
 			else:
 				accepted = [0] + accepted # include gnb
 				self.online_C[:com_count+gnb,:init_t] = cnm2.C_on[accepted,:init_t]
@@ -1008,8 +1010,9 @@ class Worker(QObject):
 
 					# add data to buffer
 					try:
-						self.RoiBuffer[:com_count, BufferPointer] = cnm2.C_on[accepted, t_cnm] # RoiBuffer only includes accepted components
-						this_traj_val = np.sum(np.multiply(self.RoiBuffer[:com_count, BufferPointer]-current_bs_level,ROIw))-ROIsumThresh
+						this_value = np.median(cnm2.C_on[accepted, t_cnm-5:t_cnm],axis=1)
+						self.RoiBuffer[:com_count, BufferPointer] = this_value # RoiBuffer only includes accepted components
+						this_traj_val = np.sum(np.multiply(this_value-current_bs_level,ROIw))-ROIsumThresh
 						self.TrajBuffer[0,BufferPointer] = this_traj_val
 #						self.ROIlist_threshold[:com_count] = np.nanmean(self.RoiBuffer[:com_count,:], axis=1) + 2*np.nanstd(self.RoiBuffer[:com_count,:], axis=1)  # changed 3 to 2
 						# use noisy C to estimate noise:
@@ -1021,6 +1024,7 @@ class Worker(QObject):
 						if store_all_online:
 							online_traj[0][t_cnm] = this_traj_val
 							self.online_C[:cnm2.M, t_cnm] = cnm2.C_on[:cnm2.M, t_cnm]  # storing also background signal (gnb)
+							self.filt_C[:com_count, t_cnm] = this_value
 						else:
 							self.online_C[:com_count, t_cnm] = cnm2.C_on[accepted, t_cnm]
 					except Exception as e:
@@ -1047,7 +1051,7 @@ class Worker(QObject):
 													# use the easy trials at the beginning for normalisation
 							if sens_stim_idx < num_bs_trials:
 								print('adding baseline')
-								all_bs_level[:com_count,sens_stim_idx]= np.nanmean(cnm2.C_on[accepted, t_cnm - baseline_frames:t_cnm], axis=1)
+								all_bs_level[:com_count,sens_stim_idx]= np.nanmean(self.filt_C[accepted, t_cnm - baseline_frames:t_cnm], axis=1)
 								print(all_bs_level)
 
 						if sens_stim_idx>=num_bs_trials:
@@ -1066,7 +1070,7 @@ class Worker(QObject):
 
 						if sens_stim_idx == num_bs_trials and framesProc == stim_frames[sens_stim_idx]:
 							current_bs_level = np.nanmean(all_bs_level,axis=1)
-							current_sd_level = np.nanstd(cnm2.C_on[accepted, t_cnm - framesProc:t_cnm], axis=1)
+							current_sd_level = np.nanstd(self.filt_C[accepted, t_cnm - framesProc:t_cnm], axis=1)
 							ROIw = np.divide(ROIw,current_sd_level)
 							print('baseline:')
 							print(current_bs_level)
@@ -1485,6 +1489,7 @@ class Worker(QObject):
 				save_dict = dict()
 				save_dict['cnm2'] = deepcopy(cnm2)  # opsin info a part of cnm struct for now
 				save_dict['online_C']  = self.online_C
+				save_dict['filt_C']  = self.filt_C
 				save_dict['init_com_count'] = K_init # com_count from init file (in case any cells removed from init file)
 				save_dict['online_com_count'] = com_count
 				save_dict['online_photo_x'] = online_photo_x
@@ -3732,6 +3737,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 			self.updateStatusBar('Initialisation complete')
 			p['FLAG_USING_RESULT_FILE'] = FLAG_USING_RESULT_FILE
+
+
 		except Exception as e:
 			print('caiman initialisation error')
 			print(e)
@@ -4885,7 +4892,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 			try:
 				self.triggerConfigPath_lineEdit.setText(trigger_config_path)
 				[self.TriggerIdx,self.TriggerWeights,self.TriggerFrames,
-				 self.TriggerThresh,self.TargetIdx,p['TargetIdxList'],p['conditionTypes'],p['TriggerThreshSD']] = get_triggertargets_params(trigger_config_path)
+				 p['ROIsumThresh'],self.TargetIdx,p['TargetIdxList'],p['conditionTypes'],p['TriggerThreshSD']] = get_triggertargets_params(trigger_config_path)
 
 				# setup protocol
 				self.ROIsumThresh_doubleSpinBox.setValue(self.TriggerThresh)
