@@ -5,9 +5,12 @@ function [trial_seq] = generate_deflection_trial_seq(loop_stim_types,loop_stim_v
 % stim 1 - left discrimination trials (10 conditions)
 % stim 2 - right discrimination trials (10 conditions)
 % stim 3 - threshold trials (+ nogo catch)
-% stim 4 - sensory + photostim (10 conditions)
-% stim 5 - motor only (no cue) - THESE ARE NO CUE AND NO MOTOR TRIALS
+
+% stim 4 - condition stim type2 no reward
+% stim 5 - condition stim type1 no reward
+
 % stim 6 - cue only (no motor)
+
 
 stims = cell(1,num_loops);
 vars = cell(1,num_loops);
@@ -40,8 +43,8 @@ trial_seq(2,:) = horzcat(vars{:});
 
 
 % adding easy trials
-easyLeftTrial = 10:6:10000;
-easyRightTrial = 13:6:10000;
+easyLeftTrial = 10:12:10000;
+easyRightTrial = 13:12:10000;
 
 stim_count = 1;
 

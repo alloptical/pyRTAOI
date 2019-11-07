@@ -36,6 +36,8 @@ end
 for i = 1:num_comp
     cnm_struct(i).shape = reshape(cnm_A(:,i),cnm_dims);
     cnm_struct(i).noisyC = caiman_data.noisyC(i+1,1:num_frames);
+    
+    cnm_struct(i).onlineC = caiman_data.online_C(i+1,1:num_frames);
     cnm_struct(i).deconvC = caiman_data.cnm_C(i,1:num_frames);
     cnm_struct(i).centroid = cm(i,:);
     cnm_struct(i).frame_added = find(cnm_struct(i).noisyC >0,1);

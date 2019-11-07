@@ -769,7 +769,7 @@ class Worker(QObject):
 			 # fill the init_t trace frames with init results
 			if store_all_online:
 				self.online_C[:cnm2.M,:init_t] = cnm2.C_on[:cnm2.M,:init_t]
-				self.filt_C[:com_count+gnb,:init_t] = cnm2.C_on[accepted,:init_t]
+				self.filt_C[:com_count,:init_t] = cnm2.C_on[ accepted,:init_t] # only filter accepted ROIs, not saving global background here
 			else:
 				accepted = [0] + accepted # include gnb
 				self.online_C[:com_count+gnb,:init_t] = cnm2.C_on[accepted,:init_t]
@@ -1051,7 +1051,7 @@ class Worker(QObject):
 													# use the easy trials at the beginning for normalisation
 							if sens_stim_idx < num_bs_trials:
 								print('adding baseline')
-								all_bs_level[:com_count,sens_stim_idx]= np.nanmean(self.filt_C[accepted, t_cnm - baseline_frames:t_cnm], axis=1)
+								all_bs_level[:com_count,sens_stim_idx]= np.nanmean(self.filt_C[:com_count, t_cnm - baseline_frames:t_cnm], axis=1)
 								print(all_bs_level)
 
 						if sens_stim_idx>=num_bs_trials:
@@ -1070,7 +1070,7 @@ class Worker(QObject):
 
 						if sens_stim_idx == num_bs_trials and framesProc == stim_frames[sens_stim_idx]:
 							current_bs_level = np.nanmean(all_bs_level,axis=1)
-							current_sd_level = np.nanstd(self.filt_C[accepted, t_cnm - framesProc:t_cnm], axis=1)
+							current_sd_level = np.nanstd(self.filt_C[:com_count, t_cnm - framesProc:t_cnm], axis=1)
 							ROIw = np.divide(ROIw,current_sd_level)
 							print('baseline:')
 							print(current_bs_level)
@@ -4895,7 +4895,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 				 p['ROIsumThresh'],self.TargetIdx,p['TargetIdxList'],p['conditionTypes'],p['TriggerThreshSD']] = get_triggertargets_params(trigger_config_path)
 
 				# setup protocol
-				self.ROIsumThresh_doubleSpinBox.setValue(self.TriggerThresh)
+				self.ROIsumThresh_doubleSpinBox.setValue(p['ROIsumThresh'])
 				self.offsetFrames_spinBox.setValue(self.TriggerFrames[0])
 				self.staPostFrame_spinBox.setValue(self.TriggerFrames[-1]-self.TriggerFrames[0])
 				print('Trigger Weights:')
