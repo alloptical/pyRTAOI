@@ -8,23 +8,24 @@ for v = 1:numel(varargin)
 end
 concat_seq = [];
 num_bins = floor(size(cell_struct(1).(fd_names{1}),1)/bin_size); % trial length after binning
-for i = cell_idx
+for ii = 1:length(cell_idx)
+    i = cell_idx(ii);
     this_seq = [];
     num_trials = 0;
     for f = 1:numel(fd_names)
         try
-        X = cell_struct(i).(fd_names{f});
-        this_num_trials = size(X,2);
-        if IF_MEDFILT
-            for t = 1:this_num_trials
-                X(:,t) = medfilt1( X(:,t) ,3);
+            X = cell_struct(i).(fd_names{f});
+            this_num_trials = size(X,2);
+            if IF_MEDFILT
+                for t = 1:this_num_trials
+                    X(:,t) = medfilt1( X(:,t) ,3);
+                end
             end
-        end
-        if bin_size>1
-            XX = cell2mat(arrayfun(@(x)mean(X((x-1)*bin_size+[1:bin_size],:,1)),1:num_bins,'UniformOutput', false)');
-        else
-            XX = X;
-        end
+            if bin_size>1
+                XX = cell2mat(arrayfun(@(x)mean(X((x-1)*bin_size+[1:bin_size],:,1)),1:num_bins,'UniformOutput', false)');
+            else
+                XX = X;
+            end
         catch
             XX = [];
             this_num_trials = 0;

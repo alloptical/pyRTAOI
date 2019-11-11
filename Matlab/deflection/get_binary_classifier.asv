@@ -112,6 +112,7 @@ if IF_FRAMEWISE % different classifiers across frames
         %% TRAIN CLASSIFIER
         if IF_SHUFFLE % shuffle trials for a better fit; helps to deal with unbalanced sample size
             [min_num_sample,min_fd_idx] = min([num_trial.correct num_trial.incorrect]);
+            num_folds = min(5,floor(min_num_sample/2)); % number of folds for cross-validation
             
             min_fd = fd_names{min_fd_idx};
             shuf_fd_idx = setdiff([1,2],min_fd_idx);
@@ -124,7 +125,6 @@ if IF_FRAMEWISE % different classifiers across frames
             
             
             parfor s = 1:num_fit_shuf
-                num_folds = min(5,floor(min_num_sample/2)); % number of folds for cross-validation
                 this_shuf_idx =  randsample(1:max_num_sample,min_num_sample);
                 this_shuf_sample = this_big_data(this_shuf_idx,:);
                 if shuf_fd_idx ==1 % making sure the first field comes first
@@ -182,7 +182,7 @@ else % train one classifier using frames of interests
     %% TRAIN CLASSIFIER
     if IF_SHUFFLE % shuffle trials for a better fit; helps to deal with unbalanced sample size
         [min_num_sample,min_fd_idx] = min([num_trial.correct num_trial.incorrect]);
-%         num_folds = min(5,floor(min_num_sample/2)); % number of folds for cross-validation
+        num_folds = min(5,floor(min_num_sample/2)); % number of folds for cross-validation
         
         min_fd = fd_names{min_fd_idx};
         shuf_fd_idx = setdiff([1,2],min_fd_idx);
@@ -197,8 +197,7 @@ else % train one classifier using frames of interests
         
         parfor s = 1:num_fit_shuf
             this_shuf_idx =  randsample(1:max_num_sample,min_num_sample);
-            num_folds = min(5,floor(min_num_sample/2)); % number of folds for cross-validation
-
+            
             % linear model
             if strcmp(MODEL_TYPE,'logistic')
                 this_shuf_sample = this_big_data(this_shuf_idx,:);

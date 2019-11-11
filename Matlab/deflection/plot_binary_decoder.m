@@ -21,8 +21,9 @@ scatter(this_dc_frames/stim_opt.Fs,zeros(size(this_dc_frames)),30,'square','fill
 ylim([-0.5 0.5])
 xlim([x_ticks(1),x_ticks(end)])
 plot([1,1].*stim_opt.gocue_bin/stim_opt.Fs,ylim,':','color',[.5 .5 .5],'linewidth',2)
+try
 plot([1,1].*stim_opt.stim_bin/stim_opt.Fs,ylim,':','color','r','linewidth',2)
-
+end
 plot([1,1].*dc_frame/stim_opt.Fs,ylim,'color','g','linewidth',1)
 
 axis square
@@ -36,7 +37,9 @@ axis square
 ylim([0 1])
 xlim([x_ticks(1),x_ticks(end)])
 plot([1,1].*stim_opt.gocue_bin/stim_opt.Fs,ylim,':','color',[.5 .5 .5],'linewidth',2)
+try
 plot([1,1].*stim_opt.stim_bin/stim_opt.Fs,ylim,':','color','r','linewidth',2)
+end
 try
 plot([1,1].*stim_struct.disc_frame/stim_opt.Fs,ylim,'color','g','linewidth',1)
 end

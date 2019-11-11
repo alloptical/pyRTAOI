@@ -1,8 +1,8 @@
 %% test stim decoder performance on hard trials
 %% get projections on stim decoder
 test_opt = choice_opt;
-test_weights = choice_norm_weights;
-test_thresh = choice_norm_thresh;
+test_weights = stim_norm_weights;
+test_thresh = stim_norm_thresh;
 test_fd_names = {'stim_1_var_9_correct','stim_1_var_9_incorrect','stim_1_var_9_miss',...
                 'stim_1_var_3_correct','stim_1_var_3_incorrect','stim_1_var_3_miss',...
                      'stim_1_var_5_correct','stim_1_var_5_incorrect','stim_1_var_5_miss',...
@@ -22,6 +22,8 @@ all_stim_proj_struct = struct();
 %         'ylimit',[-20 20],'plot_ylabel','Projection','plot_num_cols',6,'IF_PLOT_RAW_ONLY',0)
 %% organise animal and decoder performance in the same structure
 stim_decod_result = struct();
+frames_to_avg = max(opt.sta_stimon_frame-opt.sta_baseline_frames+15,fa_opt.bin_size*(decod_struct.shuf_disc_frame-opt.sta_baseline_frames))+[0 15];
+frames_to_avg = frames_to_avg(1):frames_to_avg(end);
 for f = 1:numel(test_fd_names)
     fd = test_fd_names{f};
         this_type = strsplit(fd,'_');
@@ -39,10 +41,10 @@ for f = 1:numel(test_fd_names)
 
         
     if ~isempty(all_stim_proj_struct.(fd))
-        this_raw = 1+double( mean(all_stim_proj_struct.(fd)(:,test_opt.frames_to_avg),2)<0);
+        this_raw = 1+double( mean(all_stim_proj_struct.(fd)(:,frames_to_avg),2)<0);
         stim_decod_result(f).raw = this_raw;
         stim_decod_result(f).decod_correct = numel(find(this_raw ==this_stim_type));
-        stim_decod_result(f).proj_val = mean(all_stim_proj_struct.(fd)(:,test_opt.frames_to_avg),2);
+        stim_decod_result(f).proj_val = mean(all_stim_proj_struct.(fd)(:,frames_to_avg),2);
         if size( trial_hist.reward_type.(fd),2)>1
             stim_decod_result(f).prev_reward = trial_hist.reward_type.(fd)(:,pre_num_trials);
         else
@@ -71,7 +73,7 @@ end
 
 %% check if the trials used for training look normal
 plot_pop_vectors(all_stim_proj_struct,test_opt.fd_names,1,opt,...
-        'ylimit',[-20 20],'plot_ylabel','Projection','plot_num_cols',2,'IF_PLOT_RAW_ONLY',0)
+        'plot_ylabel','Projection','plot_num_cols',2,'IF_PLOT_RAW_ONLY',0)
 figure
 values = struct();
 values.stim1 = stim_decod_result(contains(test_fd_names,stim_fds{1})==1).proj_val ;
@@ -97,7 +99,7 @@ for f = 1:3:numel(test_fd_names)-1
     count = count+1;
 end
 
-%% compare projection on stim axis in correct and incorrect trials
+%% compare projection on decoder axis in correct and incorrect trials
 figure('name','projection on decoder')
 count = 1;
 num_plots = round(numel(test_fd_names)/3);

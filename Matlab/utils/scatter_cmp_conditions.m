@@ -4,7 +4,7 @@ function [ P,x_positions,y_pos,stats] = scatter_cmp_conditions(values,plot_name,
 % value.fields are row vectors
 % TO DO: compare more than 2 fields
 flag_color = 0;
-
+xtick_label = [];
 if(nargin>2)
     ifsubplot = subplot;
     if(~ifsubplot)
@@ -51,6 +51,7 @@ addParameter(par,'DisplayStyle','stairs')
 addParameter(par,'BriefXlabel',0)
 addParameter(par,'ShowMeanInXlabel',0)
 addParameter(par,'VeryBriefXlabel',0)
+addParameter(par,'xtick_label',[])
 parse(par,varargin{:})
 if(~ isempty(par.Results.tail))
     tail = par.Results.tail;
@@ -127,6 +128,10 @@ end
 
 if(~isempty(par.Results.VeryBriefXlabel))
     VeryBriefXlabel = par.Results.VeryBriefXlabel;
+end
+
+if(~isempty(par.Results.xtick_label))
+    xtick_label = par.Results.xtick_label;
 end
 % plot each field in value
 hold on
@@ -286,11 +291,19 @@ if ~IfPlotPrePostOnly   % plot all conditions
                 end
             end
         end
-        field_names = cellfun(@(x)strrep(x,'_',' '),fields,'UniformOutput',false);
+        if isempty(xtick_label)
+            field_names = cellfun(@(x)strrep(x,'_',' '),fields,'UniformOutput',false);
+        else
+            field_names = xtick_label;
+        end
         set(gca,'XTick',[x_positions(1)-x_interval, x_positions, x_positions(end)+x_interval],'XTickLabel',{'' char(field_names) ''});
     elseif IfBoxWhisker % plot interquantile range
         boxplot(mat_all_values,'Whisker',1,'colors',color_lut)
-         field_names = cellfun(@(x)strrep(x,'_',' '),fields,'UniformOutput',false);
+        if isempty(xtick_label)
+            field_names = cellfun(@(x)strrep(x,'_',' '),fields,'UniformOutput',false);
+        else
+            field_names = xtick_label;
+        end
         set(gca,'XTick',[x_positions(1)-x_interval, x_positions, x_positions(end)+x_interval],'XTickLabel',{'' char(field_names) ''});
     elseif IfHistogram
         hold on

@@ -6,6 +6,7 @@ IF_MEDIAN = 0;
 plot_num_cols = 1;
 IF_PLOT_RAW_ONLY = 0;
 noise_thresh = [];
+plot_area = false; % shaded area under curve, for hmm states
 for v = 1:numel(varargin)
     if strcmpi(varargin{v},'ylimit')
         ylimit = varargin{v+1};
@@ -27,6 +28,10 @@ for v = 1:numel(varargin)
     
     if strcmpi(varargin{v},'noise_thresh')
         noise_thresh = varargin{v+1};
+    end
+    
+    if strcmpi(varargin{v},'plot_area')
+        plot_area = varargin{v+1};
     end
 end
 
@@ -124,7 +129,13 @@ for f = 1:numel(fds)
     hold on
     % trace
     for s = 1:num_states
+        if plot_area
+            for t = 1:size(this_F,1)
+            area(this_F(t,:,s)','FaceColor',state_colors(s,:),'FaceAlpha',0.1,'EdgeColor','none')
+            end
+        end
         plot(this_F(:,:,s)','color',state_colors(s,:));
+
     end
     if num_states == 1
         plot(mean(this_F(:,:,s),1),'color','black','linewidth',2);
