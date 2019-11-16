@@ -5,6 +5,7 @@ function [ P,x_positions,y_pos,stats] = scatter_cmp_conditions(values,plot_name,
 % TO DO: compare more than 2 fields
 flag_color = 0;
 xtick_label = [];
+xlimit = [];
 if(nargin>2)
     ifsubplot = subplot;
     if(~ifsubplot)
@@ -52,7 +53,11 @@ addParameter(par,'BriefXlabel',0)
 addParameter(par,'ShowMeanInXlabel',0)
 addParameter(par,'VeryBriefXlabel',0)
 addParameter(par,'xtick_label',[])
+addParameter(par,'xlimit',[])
 parse(par,varargin{:})
+if(~ isempty(par.Results.xlimit))
+    xlimit = par.Results.xlimit;
+end
 if(~ isempty(par.Results.tail))
     tail = par.Results.tail;
 end
@@ -319,7 +324,9 @@ if ~IfPlotPrePostOnly   % plot all conditions
         for ii = 1:numel(fields)
             legend_name{ii} = strrep(fields{ii},'_', ' ');
         end
-        
+        if~isempty(xlimit)
+            xlim(xlimit)
+        end
         legend(hp,legend_name,'Location','northwest')
     end
     

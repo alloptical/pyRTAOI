@@ -15,16 +15,15 @@ for f = 1:numel(ref_fields)
 
     for s = 1:num_states
         for t = 1:this_num_trials % loop through trials
-%             corrs(t,s)  = xcorr(ref_trace',this_traces(t,:,s)',0,'coeff'  );% correlation with state trial average  - dosent make sense  
-            corrs(t,s)  = sum(ref_trace.*this_traces(t,:,s))/length(epoch_window); % probability
+%             corrs(t,s)  = xcorr(ref_trace',this_traces(t,:,s)',0,'coeff'  );% correlation with state trial average     
+            corrs(t,s)  = sum(ref_trace.*this_traces(t,:,s))/length(epoch_window);
 
         end
     end
     [p,tbl,stats] = anova1(corrs,[],'off'); % anova test (colums are groups)
 	[comparison,means,h,gnames] = multcompare(stats,'display','off');  
     if        all(comparison(:,6)<0.01)
-        FLAG_MATCHED_STATES(f) = find(means(:,1)==max(means(:,1)));
-        state_idx_struct.(this_fd) = FLAG_MATCHED_STATES(f);
+        FLAG_MATCHED_STATES(f) = find(means(:,1)==max(means(1,:)));
     else
         for s = 1:num_states
             this_p = comparison(find(comparison(:,1)==s|comparison(:,2)==s),end);

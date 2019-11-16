@@ -131,7 +131,7 @@ for f = 1:numel(fds)
     for s = 1:num_states
         if plot_area
             for t = 1:size(this_F,1)
-            area(this_F(t,:,s)','FaceColor',state_colors(s,:),'FaceAlpha',0.1,'EdgeColor','none')
+            area(this_F(t,:,s)','FaceColor',tint(state_colors(s,:),0.5),'FaceAlpha',0.1,'EdgeColor','none')
             end
         end
         plot(this_F(:,:,s)','color',state_colors(s,:));

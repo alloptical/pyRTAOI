@@ -40,7 +40,7 @@ for fd = 1:numel(proj_fds)
         end
         this_bias= bias;
         if length(bias)==1
-            this_bias = repmat(bias,this_num_bins);
+            this_bias = repmat(bias,[1,this_num_bins]);
         end
         for t = 1:this_num_trials
             for f = 1:this_num_bins

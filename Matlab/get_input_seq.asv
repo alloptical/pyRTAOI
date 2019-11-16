@@ -3,7 +3,6 @@ function [concat_seq,trial_idx,trial_count] = get_input_seq(cell_struct,cell_idx
 IF_MEDFILT = 0;
 trial_dim = 2;
 time_dim = 1;
-
 for v = 1:numel(varargin)
     if strcmpi(varargin{v},'IF_MEDFILT')
         IF_MEDFILT = varargin{v+1};
@@ -37,19 +36,20 @@ for ii = 1:length(cell_idx)
             for tr = 1:this_num_trials
                 XX = [XX;X(:,tr,:)];
             end
-            XX = squeeze(XX);
-            
+            XX
             % binning
             if bin_size>1
                 XX = cell2mat(arrayfun(@(x)mean(X((x-1)*bin_size+[1:bin_size],:,1)),1:num_bins,'UniformOutput', false)');
             end
+            
 
+            
         catch
             XX = [];
             this_num_trials = 0;
         end
 
-        this_seq = [this_seq; XX];
+        this_seq = [this_seq; XX(:)];
         num_trials = num_trials+this_num_trials;
     end
     concat_seq = [concat_seq,this_seq];
@@ -61,7 +61,7 @@ trial_count = 0;
 for f = 1:numel(fd_names)
     this_fd = fd_names{f}; 
     try
-    this_num_trials =  size(cell_struct(1).(this_fd),trial_dim);
+    this_num_trials =  size(cell_struct(i).(this_fd),2);
     catch
         this_num_trials = 0;
     end
