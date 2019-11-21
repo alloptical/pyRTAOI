@@ -1,0 +1,14 @@
+function [ r,hd,p_fit,s,y_fit,delta_fit,p ] = plot_fit_exp( x,y,zz,color,varargin )
+showError = 0;
+n = 1;
+for v = 1:numel(varargin)
+    if strcmpi(varargin{v},'degree')
+       n = varargin{v+1};
+   elseif strcmpi(varargin{v},'showError')
+        showError = varargin{v+1};
+    end
+end
+    f = fit(x,y,['exp' num2str(n)]);
+    plot(f,x,y)
+end
+

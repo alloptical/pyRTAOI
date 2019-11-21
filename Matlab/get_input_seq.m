@@ -3,7 +3,7 @@ function [concat_seq,trial_idx,trial_count] = get_input_seq(cell_struct,cell_idx
 IF_MEDFILT = 0;
 trial_dim = 2;
 time_dim = 1;
-
+fd_trial_idx = [];
 for v = 1:numel(varargin)
     if strcmpi(varargin{v},'IF_MEDFILT')
         IF_MEDFILT = varargin{v+1};
@@ -13,6 +13,9 @@ for v = 1:numel(varargin)
     end
     if strcmpi(varargin{v},'time_dim')
         time_dim = varargin{v+1};
+    end
+    if strcmpi(varargin{v},'fd_trial_idx')
+        fd_trial_idx = varargin{v+1};
     end
 end
 concat_seq = [];
@@ -25,6 +28,12 @@ for ii = 1:length(cell_idx)
     for f = 1:numel(fd_names)
         try
             X = cell_struct(i).(fd_names{f});
+
+            if ~isempty(fd_trial_idx) % only get specified trials
+                if ~isempty(fd_trial_idx{f})
+                    X = X(:,fd_trial_idx{f});
+                end
+            end
             this_num_trials = size(X,trial_dim);
             X = permute(X,[time_dim,trial_dim,state_dim]);
             if IF_MEDFILT
@@ -53,6 +62,7 @@ for ii = 1:length(cell_idx)
         num_trials = num_trials+this_num_trials;
     end
     concat_seq = [concat_seq,this_seq];
+    
 end
 
 % get trial idx for cropping concatinated traces
@@ -62,6 +72,11 @@ for f = 1:numel(fd_names)
     this_fd = fd_names{f}; 
     try
     this_num_trials =  size(cell_struct(1).(this_fd),trial_dim);
+    if ~isempty(fd_trial_idx) % only get specified trials
+        if ~isempty(fd_trial_idx{f})
+            this_num_trials =numel(fd_trial_idx{f});
+        end
+            end
     catch
         this_num_trials = 0;
     end

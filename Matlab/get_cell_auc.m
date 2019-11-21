@@ -1,6 +1,8 @@
 function [cell_struct] = get_cell_auc(cell_struct,cmp_fds,save_fd_name,opt)
 num_shuf = 300;
+try
 peak_frame_range = opt.sta_peak_search_range;
+end
 avg_frame_range = opt.sta_avg_frames;
 for i = 1:size(cell_struct,2)
     if ~ opt.flag_use_peak
@@ -18,7 +20,7 @@ scores(scores<0.01)=0;
 
 % shuffle to get zscore stim auc
 shuf_stim_auc = nan(1,num_shuf);
-for s = 1:num_shuf
+parfor s = 1:num_shuf
     shuf_labels = labels(randperm(length(labels))');
     [~,~,~, shuf_stim_auc(s)] = perfcurve(shuf_labels,scores,1);
 end

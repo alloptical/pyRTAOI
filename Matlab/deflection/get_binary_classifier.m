@@ -238,7 +238,7 @@ else % train one classifier using frames of interests
                         test = (indices == n); train = ~test;
 %                         mdl = fitlm(this_cmp_data(train,:),this_cmp_type(train),'RobustOpts','logistic');
 %                         b = mdl.Coefficients.Estimate;
-                         [b,dev,stats] = mnrfit(this_cmp_data(train,:),this_cmp_type(train)); % Logistic regression
+                         [b] = mnrfit(this_cmp_data(train,:),this_cmp_type(train)); % Logistic regression
                         this_test_data = this_cmp_data(test,:);
                         this_test_type = this_cmp_type(test);
                         pred = nan(size(this_test_type));
@@ -260,7 +260,7 @@ else % train one classifier using frames of interests
                     accur_shuf(s)= mean(this_pc_correct);
                     all_accur_shuf = [all_accur_shuf;this_pc_correct];
                 else
-                    [B,dev,stats] = mnrfit(this_cmp_data,this_cmp_type);% last category will be zero
+                    [B] = mnrfit(this_cmp_data,this_cmp_type);% last category will be zero
                 end
                 thresh_shuf(s) = -B(1);
                 b_shuf(1,:,s) = B;
@@ -296,7 +296,7 @@ else % train one classifier using frames of interests
         %         L = this_lda_sf.Coeffs(1,2).Linear;
         %         K = this_lda_sf.Coeffs(1,2).Const;
         %         log_thresh_shuf(s) = -K/L;
-        [B,dev,stats] = mnrfit(all_data,all_types);
+        [B] = mnrfit(all_data,all_types);
         thresh_fix = -B(1);
     end
     thresh_framewise = repmat(thresh_fix,[1,trial_length]);
