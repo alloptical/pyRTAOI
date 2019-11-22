@@ -41,7 +41,7 @@ if ~isempty(pop_params)
     output.trigger_thresh = pop_params.thresh;
     output.trigger_frames = pop_params.frames_enable_trigger;
     output.condition_type = pop_params.condition_type;
-    output.pop_opt = opt.pop_opt;
+%     output.pop_opt = opt.pop_opt;
     output.thresh_sd = pop_params.thresh_sd;
 end
 
