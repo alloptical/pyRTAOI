@@ -66,6 +66,9 @@ try
 catch
     stim_on_frame = [];
 end
+try
+    opt.Fs = opt.frame_rate;
+end
 state_colors = getOr(opt,'state_colors',brewermap(num_states,'Set1'));
 trial_colors = getOr(opt,'trial_color',online_tex_init_color());
 if num_states == 1

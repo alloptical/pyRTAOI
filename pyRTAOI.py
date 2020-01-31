@@ -716,7 +716,7 @@ class Worker(QObject):
 			gnb = cnm2.gnb
 			keep_prev = self.c['keep_prev']
 			cell_radius = cnm2.gSig[0]     # dowsampled radius value
-			dist_thresh = 2*cell_radius    # reject new rois too close to existing rois - based on cell radius
+			dist_thresh = cell_radius    # reject new rois too close to existing rois - based on cell radius
 			reject_mask = self.c['reject_mask']
 
 			# Define OnACID parameters
@@ -1383,7 +1383,7 @@ class Worker(QObject):
 						FLAG_SEND_COORDS = False
 
 #%% Update GUI display
-					print('updating gui')
+#					print('updating gui')
 					if framesProc > refreshFrame-1: #frame_count>self.BufferLength-1:
 						if LastPlot == refreshFrame:
 							self.refreshTrajPlot_signal.emit(self.TrajBuffer[0,:])
@@ -3709,7 +3709,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 				try:
 					min_SNR = init_values['min_SNR']
 				except:
-					min_SNR = 2.5 # default
+					min_SNR = 1.5 # default
 
 				self.cellRadius_spinBox_2.setValue(cell_radius)
 				self.rval_thresh_doubleSpinBox.setValue(rval_thr)
