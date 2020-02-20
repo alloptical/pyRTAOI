@@ -816,11 +816,7 @@ condition_pyrtaoi_stimvars  = [1 1]; % type and var need to match - vars are not
 condition_type = {[301],[401]}; % match target ensembles 100*stim_type + stim_va
 opt.target_idx_fd = {'tex2','tex1'}; % target groups corresponding to condition_type
 % above corresponds to: stimulate texture 2 group if population activity is
-% going above threshold (towards texutre 1 direction) in catch trials where
-% port2 will be rewarded.
-% control: if not doing closed loop but just randomly giving reward on
-% catch trials, then performance in the normal texutre trials will drop
-% (more)
+% going above threshold (towards texutre 1 direction) in catch trials and reward port2
 
 decod_struct = stim_struct; % choose which decoder to use
 pop_weights = stim_norm_weights; % select which weights to use

@@ -22,13 +22,14 @@ for f = 1:numel(ref_fields)
     end
     [p,tbl,stats] = anova1(corrs,[],'off'); % anova test (colums are groups)
 	[comparison,means,h,gnames] = multcompare(stats,'display','off');  
-    if        all(comparison(:,6)<0.01)
+    if   all(comparison(:,6)<0.01)
         FLAG_MATCHED_STATES(f) = find(means(:,1)==max(means(:,1)));
         state_idx_struct.(this_fd) = FLAG_MATCHED_STATES(f);
     else
         for s = 1:num_states
             this_p = comparison(find(comparison(:,1)==s|comparison(:,2)==s),end);
-            if p<0.05 && all(this_p<0.01/size(comparison,1))
+%             if p<0.05 && all(this_p<0.01/size(comparison,1)) % too strict
+            if p<0.05 && numel(find(this_p<0.05/size(comparison,1)))>round(numel(this_p)/2) % significant among more than half of comprisons
                 FLAG_MATCHED_STATES(f) = s;
                 state_idx_struct.(this_fd) = s;
             end

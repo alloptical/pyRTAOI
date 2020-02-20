@@ -37,7 +37,7 @@ color.stim4 = color.photo;
 color.stim5 = [.3 .3 .3];
 color.stim6 = color.gocue;
 
-
+color.photostim = [255 72 36]./255;
 
 
 

@@ -6,6 +6,7 @@ IF_MEDIAN = 0;
 plot_num_cols = 1;
 IF_PLOT_RAW_ONLY = 0;
 IF_PLOT_AVG_ONLY = 0;
+IF_SAVE_PLOT = 0;
 noise_thresh = [];
 plot_area = false; % shaded area under curve, for hmm states
 sup_title = [];
@@ -42,6 +43,10 @@ for v = 1:numel(varargin)
     
     if strcmpi(varargin{v},'IF_PLOT_AVG_ONLY')
         IF_PLOT_AVG_ONLY = varargin{v+1};
+    end
+    
+    if strcmpi(varargin{v},'IF_SAVE_PLOT')
+        IF_SAVE_PLOT = varargin{v+1};
     end
 end
 
@@ -82,7 +87,7 @@ if ~IF_PLOT_RAW_ONLY
     
     try
         if num_states>1
-            figure('name','trial average')
+            figure('name','trial average check')
             % imagesc
             for f = 1:numel(fds)
                 this_F_avg = pop_struct.([fds{f} '_avg']);
@@ -100,12 +105,34 @@ if ~IF_PLOT_RAW_ONLY
     end
     
     % shaded error bar
-    figure('name','trial averge')
+    figure('name','trial averge','units','normalized','outerposition',[0 0 .8,1])
+    plot_count = 1;
     for s = 1:num_states
-        subplot(num_states,1,s)
+        subplot(num_states,2,plot_count); hold on
         for f = 1:numel(fds)
-            this_F = pop_struct.([fds{f}]);
-            
+            this_F = pop_struct.([fds{f}]);           
+            this_traces = this_F(:,:,s);
+
+            plot(this_traces','color',condi_colors(f,:)');
+        end
+        if ~isempty(ylimit)
+            ylim(ylimit)
+        end
+
+        xlim([1,size(this_traces,2)])
+        plot([1 1].*go_cue_frame,ylim,':','color','black','linewidth',2)
+        plot(xlim,[0 0],'color','black')
+        xlabel('Time')
+        ylabel(plot_ylabel)
+        if num_states>1
+        title(['Component ' num2str(s) ' '])
+        end
+        plot_count = plot_count+1;
+        axis square
+        
+        subplot(num_states,2,plot_count)
+        for f = 1:numel(fds)
+            this_F = pop_struct.([fds{f}]);           
             this_traces = this_F(:,:,s);
             if~isempty(this_traces)
                 x_ticks =[0:1:size(this_traces,2)-1]./opt.Fs;
@@ -129,63 +156,80 @@ if ~IF_PLOT_RAW_ONLY
         plot(xlim,[0 0],'color','black')
         xlabel('Time')
         ylabel(plot_ylabel)
+        if num_states>1
         title(['Component ' num2str(s) ' '])
+        end
+        plot_count = plot_count+1;
+        axis square
+
+        
+        
+    end
+    if ~isempty(sup_title)
+        suptitle(sup_title)
+    end
+    if IF_SAVE_PLOT
+       export_fig([opt.save_path filesep sup_title '_AVG.png'])
+    end
+
+    
+end
+if ~IF_PLOT_AVG_ONLY
+    figure('name','raw projections','units','normalized','outerposition',[0 0 .6 1]); hold on
+    for f = 1:numel(fds)
+        this_F = pop_struct.([fds{f}]);
+        
+        subplot(plot_num_rows,plot_num_cols,f)
+        hold on
+        % trace
+        for s = 1:num_states
+            if plot_area
+                for t = 1:size(this_F,1)
+                    area(this_F(t,:,s)','FaceColor',tint(state_colors(s,:),0.5),'FaceAlpha',0.1,'EdgeColor','none');
+                end
+            end
+            plot(this_F(:,:,s)','color',state_colors(s,:));
+            
+        end
+        if num_states == 1
+            plot(mean(this_F(:,:,s),1),'color','black','linewidth',2);
+        end
+        
+        % limits
+        if ~isempty(ylimit)
+            ylim(ylimit)
+        end
+        try
+            xlim([0, opt.trial_length/opt.bin_size-1])
+        catch
+            xlim([0, opt.trial_length-1])
+        end
+        
+        plot(xlim,[0 0],'color','r')
+        axis square
+        try
+            plot([1 1].*go_cue_frame,ylim,':','color','black','linewidth',2)
+            plot([1 1].*stim_on_frame,ylim,':','color','r','linewidth',2)
+        end
+        
+        if~isempty(noise_thresh)
+            plot(xlim,[1 1].*noise_thresh,'--','color','r')
+            plot(xlim,-[1 1].*noise_thresh,'--','color','r')
+            
+        end
+        
+        xlabel('Time')
+        ylabel(plot_ylabel)
+        title([strrep(strrep(fds{f},'deconv',''),'_',' ') ':  ' num2str(size(this_F,1)) ' trials'])
         
     end
     if ~isempty(sup_title)
         suptitle(sup_title)
     end
     
-end
-if ~IF_PLOT_AVG_ONLY
-figure('name','raw projections','units','normalized','outerposition',[0 0 .6 1]); hold on
-for f = 1:numel(fds)
-    this_F = pop_struct.([fds{f}]);
-    
-    subplot(plot_num_rows,plot_num_cols,f)
-    hold on
-    % trace
-    for s = 1:num_states
-        if plot_area
-            for t = 1:size(this_F,1)
-            area(this_F(t,:,s)','FaceColor',tint(state_colors(s,:),0.5),'FaceAlpha',0.1,'EdgeColor','none')
-            end
-        end
-        plot(this_F(:,:,s)','color',state_colors(s,:));
-
+    if IF_SAVE_PLOT
+       export_fig([opt.save_path filesep sup_title '_RAW.png'])
     end
-    if num_states == 1
-        plot(mean(this_F(:,:,s),1),'color','black','linewidth',2);
-    end
-    
-    % limits
-    if ~isempty(ylimit)
-        ylim(ylimit)
-    end
-    xlim([0, opt.trial_length-1])
-    
-    plot(xlim,[0 0],'color','r')
-    axis square
-    try
-        plot([1 1].*go_cue_frame,ylim,':','color','black','linewidth',2)
-        plot([1 1].*stim_on_frame,ylim,':','color','r','linewidth',2)
-    end
-    
-    if~isempty(noise_thresh)
-        plot(xlim,[1 1].*noise_thresh,'--','color','r')
-        plot(xlim,-[1 1].*noise_thresh,'--','color','r')
-        
-    end
-    
-    xlabel('Time')
-    ylabel(plot_ylabel)
-    title([strrep(fds{f},'_',' ') ':  ' num2str(size(this_F,1)) ' trials'])
-    
-    
-end
-if ~isempty(sup_title)
-    suptitle(sup_title)
-end
 end
 end
 

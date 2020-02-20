@@ -9,3 +9,6 @@ end
 photostim_trial_idx = find(num_photo_per_trial>0);
 end
 
+% figure;
+% stem(this_trialon_frames,ones(size(this_trialon_frames)));
+% hold on;stem(photo_stim_frames,ones(size(photo_stim_frames)));

@@ -34,6 +34,7 @@ addParameter(par,'PlotPrePostOnly',defaultIfPrePostOnly);
 addParameter(par,'test_type',default_test_type);
 addParameter(par,'IfAvgByAnimal',0);
 addParameter(par,'IfBoxWhisker',0);
+addParameter(par,'IfViolin',0);
 addParameter(par,'x_shift',0);
 addParameter(par,'x_interval',1);
 addParameter(par,'barwidth',.5);
@@ -54,6 +55,9 @@ addParameter(par,'ShowMeanInXlabel',0)
 addParameter(par,'VeryBriefXlabel',0)
 addParameter(par,'xtick_label',[])
 addParameter(par,'xlimit',[])
+addParameter(par,'plot_mean',1) % for violin plot
+addParameter(par,'plot_median',1) % for violin plot
+
 parse(par,varargin{:})
 if(~ isempty(par.Results.xlimit))
     xlimit = par.Results.xlimit;
@@ -138,6 +142,16 @@ end
 if(~isempty(par.Results.xtick_label))
     xtick_label = par.Results.xtick_label;
 end
+
+if(~isempty(par.Results.IfViolin))
+    IfViolin = par.Results.IfViolin;
+end
+if(~isempty(par.Results.plot_mean))
+    plot_mean = par.Results.plot_mean;
+end
+if(~isempty(par.Results.plot_median))
+    plot_median = par.Results.plot_median;
+end
 % plot each field in value
 hold on
 fields = fieldnames(values);
@@ -175,7 +189,9 @@ else
 end
 stats = struct();
 max_value = max(mat_all_values(:));
-this_plot_stats_hight = max_value;
+min_value = min(mat_all_values(:));
+
+this_plot_stats_hight = (max_value-min_value)*0.1+max_value;
 plot_stats_step = 0.05*max_value;
 
 if(~(strcmp(test_type,'anova')||(strcmp(test_type,'KW'))))
@@ -193,7 +209,7 @@ if(~(strcmp(test_type,'anova')||(strcmp(test_type,'KW'))))
                     [h,P]=ttest(mat_all_values(:,idx1),mat_all_values(:,idx2));
                 case 'ranksum'
                     try
-                    [P,h] = ranksum(mat_all_values(:,idx1),mat_all_values(:,idx2));
+                        [P,h] = ranksum(mat_all_values(:,idx1),mat_all_values(:,idx2));
                     catch
                         P = 1; h = 0;
                     end
@@ -210,7 +226,7 @@ if(~(strcmp(test_type,'anova')||(strcmp(test_type,'KW'))))
         stats(c).h = h;
         
         % plot asterisks
-        if(plot_stats)
+        if(plot_stats&&(~isempty(plot_stats_step)))
             this_plot_stats_hight = this_plot_stats_hight+ plot_stats_step;
             plot([idx1 idx2],this_plot_stats_hight.*[1,1],'black');
             text(mean([idx1 idx2]),this_plot_stats_hight, get_stars_for_P(P), 'VerticalAlignment','bottom','HorizontalAlignment','center');
@@ -220,9 +236,9 @@ if(~(strcmp(test_type,'anova')||(strcmp(test_type,'KW'))))
 else
     % compare pairs - not corrected for multi comparison
     [~,~,mult_stats] = multcmp_stats_on_struct( values, 'test_type',test_type,'displayopt',displayopt );
-   C = multcompare(mult_stats,'Display',displayopt);
+    C = multcompare(mult_stats,'Display',displayopt);
     for c = 1:size(C,1)
-       stats(c).P = C(c,end);
+        stats(c).P = C(c,end);
         idx1 = C(c,1);
         idx2 = C(c,2);
         % plot asterisks
@@ -231,26 +247,26 @@ else
             plot([idx1 idx2],this_plot_stats_hight.*[1,1],'black');
             text(mean([idx1 idx2]),this_plot_stats_hight, get_stars_for_P( stats(c).P), 'VerticalAlignment','bottom','HorizontalAlignment','center');
         end
-   end
+    end
 end
 
 
 
 try
-if(isempty(test_type))
-    [P,h] = ranksum(mat_all_values(:,1),mat_all_values(:,end));
-else
-    switch test_type
-        case 'ttest'
-            [h,P]=ttest(mat_all_values(:,1),mat_all_values(:,end));
-        case 'ranksum'
-            [P,h] = ranksum(mat_all_values(:,1),mat_all_values(:,end));
-        case 'ttest2'
-            [h,P]=ttest2(mat_all_values(:,1),mat_all_values(:,end));
-        case 'signrank'
-            [P,h] = signrank(mat_all_values(:,1),mat_all_values(:,end),'tail',tail);
+    if(isempty(test_type))
+        [P,h] = ranksum(mat_all_values(:,1),mat_all_values(:,end));
+    else
+        switch test_type
+            case 'ttest'
+                [h,P]=ttest(mat_all_values(:,1),mat_all_values(:,end));
+            case 'ranksum'
+                [P,h] = ranksum(mat_all_values(:,1),mat_all_values(:,end));
+            case 'ttest2'
+                [h,P]=ttest2(mat_all_values(:,1),mat_all_values(:,end));
+            case 'signrank'
+                [P,h] = signrank(mat_all_values(:,1),mat_all_values(:,end),'tail',tail);
+        end
     end
-end
 catch
     P = 1; h = 0;
     warning('stats test error')
@@ -272,28 +288,37 @@ if ~IfPlotPrePostOnly   % plot all conditions
         end
         for i =1:num_plot
             temp_value = extractfield(values,char(fields{i}))';
-            barwitherr(sd_values(i),mean_values(i),'XData',x_positions(i),'barwidth',barwidth,'FaceColor','none','EdgeColor',color_lut(i,:),'LineWidth',1);
-            hold on
-            if(~IfColorAnimals)
+            if IfViolin
+                
+                violin(temp_value,'x',x_positions(i).*ones(size(temp_value)),...
+                    'plot_median',plot_median,'plot_mean',plot_mean,...
+                    'facealpha',.3,'facecolor',color_lut(i,:),'edgecolor','none','mc',color_lut(i,:),'medc',color_lut(i,:),'LineWidth',1);
+                
+            else
+                hold on
+                if(~IfColorAnimals)
                     plotx = x_positions(i);
                     ploty = temp_value;
-                if(IfAddJitter)
-                    jitters = randi([-200 200],size(temp_value))./200.*x_interval.*0.1;
-                    plotx = x_positions(i).*ones(size(temp_value))+jitters;  
-                end
-                if IfAddYJitter
-                    ploty = temp_value + randi([-200 200],size(temp_value))./200.*max(temp_value(:)).*0.05;
-                end
-                scatter(plotx,ploty,15,'MarkerFaceColor',color_lut(i,:),'MarkerEdgeColor','none');
-            else
-                
-                for j = 1:numel(temp_value)
-                    jitters = 0;
-                    if IfAddJitter
-                        jitters = randi([-200 200],1)./200.*x_interval.*0.1;                      
+                    if(IfAddJitter)
+                        jitters = randi([-200 200],size(temp_value))./200.*x_interval.*0.1;
+                        plotx = x_positions(i).*ones(size(temp_value))+jitters;
                     end
-                    scatter(x_positions(i)+jitters,temp_value(j),50,'MarkerEdgeColor',[1 1 1],'MarkerFaceColor',animal_colors(j,:),'MarkerFaceAlpha',0.5)
+                    if IfAddYJitter
+                        ploty = temp_value + randi([-200 200],size(temp_value))./200.*max(temp_value(:)).*0.05;
+                    end
+                    scatter(plotx,ploty,15,'MarkerFaceColor',color_lut(i,:),'MarkerEdgeColor','none');
+                else
+                    
+                    for j = 1:numel(temp_value)
+                        jitters = 0;
+                        if IfAddJitter
+                            jitters = randi([-200 200],1)./200.*x_interval.*0.1;
+                        end
+                        scatter(x_positions(i)+jitters,temp_value(j),50,'MarkerEdgeColor',[1 1 1],'MarkerFaceColor',animal_colors(j,:),'MarkerFaceAlpha',0.5)
+                    end
                 end
+                
+                barwitherr(sd_values(i),mean_values(i),'XData',x_positions(i),'barwidth',barwidth,'FaceColor','none','EdgeColor',color_lut(i,:),'LineWidth',1);
             end
         end
         if isempty(xtick_label)
@@ -312,14 +337,14 @@ if ~IfPlotPrePostOnly   % plot all conditions
         set(gca,'XTick',[x_positions(1)-x_interval, x_positions, x_positions(end)+x_interval],'XTickLabel',{'' char(field_names) ''});
     elseif IfHistogram
         hold on
-         for i =1:num_plot
-             temp_value = extractfield(values,char(fields{i}))';
-             if(strcmp(DisplayStyle,'stairs'))
-                 hp(i) = histogram(temp_value,'Normalization',Normalization,'DisplayStyle',DisplayStyle,'facecolor','none', 'edgecolor',color_lut(i,:),'linewidth',2,'Binwidth',BinWidth);
-             else
-                 hp(i) = histogram(temp_value,'Normalization',Normalization,'DisplayStyle',DisplayStyle,'facecolor',color_lut(i,:), 'edgecolor','none','Binwidth',BinWidth,'FaceAlpha',1);
-             end
-         end  
+        for i =1:num_plot
+            temp_value = extractfield(values,char(fields{i}))';
+            if(strcmp(DisplayStyle,'stairs'))
+                hp(i) = histogram(temp_value,'Normalization',Normalization,'DisplayStyle',DisplayStyle,'facecolor','none', 'edgecolor',color_lut(i,:),'linewidth',2,'Binwidth',BinWidth);
+            else
+                hp(i) = histogram(temp_value,'Normalization',Normalization,'DisplayStyle',DisplayStyle,'facecolor',color_lut(i,:), 'edgecolor','none','Binwidth',BinWidth,'FaceAlpha',1);
+            end
+        end
         legend_name = {};
         for ii = 1:numel(fields)
             legend_name{ii} = strrep(fields{ii},'_', ' ');
@@ -355,7 +380,7 @@ else
     title(plot_name)
     ylabel(Normalization)
 end
-
+% xtickangle(45)
 % show stats if only two fields are compared
 if ~ BriefXlabel
     if(num_plot == 2)
@@ -369,7 +394,7 @@ if ~ BriefXlabel
             ['Skewness: '  num2str(sk_values(1),'%10.3f') '; '  num2str(sk_values(end),'%10.3f')];...
             ['%Difference: ' num2str(diff_value,'%10.3f')]})
     else
-        xlabel({ 
+        xlabel({
             ['#Samples: ' num2str(num_samples)];...
             ['#Numeric: ' num2str(num_nonnan_samples)];...
             ['Mean:  ' num2str(mean_values,'%10.3f')];...
@@ -386,7 +411,7 @@ elseif ShowMeanInXlabel
         ['SD: '  num2str(sd_values(1),'%10.3f') '; '  num2str(sd_values(end),'%10.3f')]})
     
 else
-     xlabel({[ test_type ' P=' num2str(P,'%10.1e') ' h= ' num2str(h)]})
+    xlabel({[ test_type ' P=' num2str(P,'%10.1e') ' h= ' num2str(h)]})
 end
 if VeryBriefXlabel
     xlabel({['Mean: '  num2str(mean_values,'%10.3f')]})

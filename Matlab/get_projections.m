@@ -3,6 +3,7 @@ proj_struct = struct();
 bias = 0;
 trial_length = [];
 IS_CELL_STRUCT = 0; % if this_struct is cell_struct,i.e. each row is a cell, then organise traces to [trial,time,cell]
+IF_NOMINAL = 0; % if true then rescale for real probablilities
 for v = 1:numel(varargin)
     if strcmpi(varargin{v},'proj_struct')
         proj_struct = varargin{v+1};
@@ -15,6 +16,10 @@ for v = 1:numel(varargin)
     end
     if strcmpi(varargin{v},'trial_length')
         trial_length = varargin{v+1};
+    end
+    
+    if strcmpi(varargin{v},'IF_NOMINAL')
+        IF_NOMINAL = varargin{v+1};
     end
 end
 
@@ -44,7 +49,16 @@ for fd = 1:numel(proj_fds)
         end
         for t = 1:this_num_trials
             for f = 1:this_num_bins
-                this_proj(t,f) = squeeze(this_data(t,f,:))'* this_weights(:,f)+this_bias(f);
+                eta = squeeze(this_data(t,f,:))'* this_weights(:,f)+this_bias(f);
+%                 [pred] = mnrval([bias; weights],squeeze(this_data(t,f,:))')
+                if IF_NOMINAL
+                    maxeta = max(eta,[],2);
+                    pi = [exp(eta-maxeta), exp(-maxeta)]; % rescale so max probability is 1
+                    pred = pi ./ repmat(sum(pi,2),1,2);     % renormalize for real probabilities
+                    this_proj(t,f) = pred(1)-0.5;
+                else                  
+                    this_proj(t,f) = eta;
+                end
             end
             
         end

@@ -1058,9 +1058,9 @@ class Worker(QObject):
 							if framesProc == stim_frames[sens_stim_idx-1]+ offset_frames:
 								self.MonitorOn_signal.emit()
 							elif framesProc < stim_frames[sens_stim_idx-1]+ monitor_frames and framesProc > stim_frames[sens_stim_idx-1]+ offset_frames:
-								if this_trialOrder==1:# p['ROIsumAbove']
+								if (this_trialOrder%2)==1:# p['ROIsumAbove']
 									photostim_flag = this_traj_val
-								elif this_trialOrder==2: # p['ROIsumBelow']:
+								else: # p['ROIsumBelow']:
 									photostim_flag =  - this_traj_val
 								if photostim_flag-ROIsumThreshSD>0 and this_ensembleIdx>-1:
 									num_stim_targets = len(p['currentTargetX'])

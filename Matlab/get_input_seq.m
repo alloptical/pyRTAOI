@@ -1,9 +1,10 @@
 function [concat_seq,trial_idx,trial_count] = get_input_seq(cell_struct,cell_idx,fd_names,bin_size,varargin)
-% concatinate trials for trajectory analysis input 
+% concatinate trials or trial averages for trajectory analysis input 
 IF_MEDFILT = 0;
 trial_dim = 2;
 time_dim = 1;
 fd_trial_idx = [];
+avg_frames = [];
 for v = 1:numel(varargin)
     if strcmpi(varargin{v},'IF_MEDFILT')
         IF_MEDFILT = varargin{v+1};
@@ -16,6 +17,9 @@ for v = 1:numel(varargin)
     end
     if strcmpi(varargin{v},'fd_trial_idx')
         fd_trial_idx = varargin{v+1};
+    end
+    if strcmpi(varargin{v},'avg_frames')
+        avg_frames = varargin{v+1};
     end
 end
 concat_seq = [];
@@ -41,6 +45,13 @@ for ii = 1:length(cell_idx)
                     X(:,t) = medfilt1( X(:,t) ,3);
                 end
             end
+            
+            % take average across specified frames if given
+            if ~isempty(avg_frames)
+                X = mean(X(avg_frames,:,:),1);
+            end
+            
+            
             % dealing with more than one state
             XX = [];
             for tr = 1:this_num_trials
@@ -48,6 +59,7 @@ for ii = 1:length(cell_idx)
             end
             XX = squeeze(XX);
             
+
             % binning
             if bin_size>1
                 XX = cell2mat(arrayfun(@(x)mean(X((x-1)*bin_size+[1:bin_size],:,1)),1:num_bins,'UniformOutput', false)');
@@ -58,7 +70,7 @@ for ii = 1:length(cell_idx)
             this_num_trials = 0;
         end
 
-        this_seq = [this_seq; XX];
+        this_seq = [this_seq; XX(:)];
         num_trials = num_trials+this_num_trials;
     end
     concat_seq = [concat_seq,this_seq];

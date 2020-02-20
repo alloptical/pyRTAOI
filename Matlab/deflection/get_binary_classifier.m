@@ -1,5 +1,6 @@
 function [decod_struct] = get_binary_classifier( decod_struct,this_proj_struct, opt,varargin )
 % logistic regression for binary classification
+% input traces: [trial, time, state]
 IF_FRAMEWISE = 0;
 IF_CROSSVAL = 0;
 IF_MULTI_COMPO = 0;
