@@ -277,7 +277,7 @@ class DataStream(QObject):
 					# put frame in global queue
 					qbuffer.put(thisFrame.copy().astype(np.float32))
 					self.framesRecv += 1
-					print('frames recv ='+str(self.framesRecv))
+	#				print('frames recv ='+str(self.framesRecv))
 					incorrectCount = 0
 				else:
 					incorrectCount +=1
@@ -1052,9 +1052,9 @@ class Worker(QObject):
 							if sens_stim_idx < num_bs_trials:
 								print('adding baseline')
 								all_bs_level[:com_count,sens_stim_idx]= np.nanmean(self.filt_C[:com_count, t_cnm - baseline_frames:t_cnm], axis=1)
-								print(all_bs_level)
+			#					print(all_bs_level)
 
-						if sens_stim_idx>=num_bs_trials:
+						if sens_stim_idx>num_bs_trials:
 							if framesProc == stim_frames[sens_stim_idx-1]+ offset_frames:
 								self.MonitorOn_signal.emit()
 							elif framesProc < stim_frames[sens_stim_idx-1]+ monitor_frames and framesProc > stim_frames[sens_stim_idx-1]+ offset_frames:
@@ -1071,7 +1071,9 @@ class Worker(QObject):
 						if sens_stim_idx == num_bs_trials and framesProc == stim_frames[sens_stim_idx]:
 							current_bs_level = np.nanmean(all_bs_level,axis=1)
 							current_sd_level = np.nanstd(self.filt_C[:com_count, t_cnm - framesProc:t_cnm], axis=1)
+                        # avoid deviding 0
 							ROIw = np.divide(ROIw,current_sd_level)
+							ROIw = np.nan_to_num(ROIw)
 							print('baseline:')
 							print(current_bs_level)
 
@@ -1451,7 +1453,7 @@ class Worker(QObject):
 			# record timing
 			self.tottime.append(time.time() - t0)                       # store time for each frame
 #            print('process frame time: ' + str("%.4f"%(time.time()- t0)))
-			print('frames proc = ' + str(framesProc))
+#			print('frames proc = ' + str(framesProc))
 			self.frame_signal.emit(framesProc)
 			qbuffer.task_done()
 		# end of while loop
@@ -5076,9 +5078,9 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 		# setup configuration for stimulating current targets one by one in randomised sequence
 		self.photoProto_comboBox.setCurrentIndex(CONSTANTS.PHOTO_SEQUENCE)
 				# update trial parameters
-		self.interStimInterval_spinBox.setValue(30)
-		self.staPreFrame_spinBox.setValue(30)
-		self.staPostFrame_spinBox.setValue(60)
+		self.interStimInterval_spinBox.setValue(20)
+		self.staPreFrame_spinBox.setValue(20)
+		self.staPostFrame_spinBox.setValue(30)
 		self.stimStartFrame_spinBox.setValue(150)
 		self.enableStimTrigger_checkBox.setCheckState(Qt.Unchecked)
 		self.getValues()

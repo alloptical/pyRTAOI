@@ -1,0 +1,26 @@
+1. disconnect piezo
+2. green plug and power cable goes to linear stage
+	(check power is working as the adapter is bad)
+3. if motor does not respond - reset button on motor ardurino
+4. connect speaker
+5. upload pybehavior ardurino script in desktop/Christina/...fa_trialtrigger
+6. check in pybehavior pin36 pin37 for stim1 and stim2; pin10 for go cue; pin8 false alarm
+7. 
+
+
+master arduino: COM10
+outputs:
+- pin 10: go cue
+- pin 8: false alarm
+- pin 36: stim1
+- pin 37: stim2
+- pin 4: reward1
+- pin 5: reward2
+
+
+
+NOTE: UPLOAD ORIGINAL PYBEHAVIOR SCRIPT WHEN FINISH
+
+backup server:
+T drive
+\\ad.ucl.ac.uk\groupfolders\wibr_dendrite_christina

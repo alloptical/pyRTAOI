@@ -1,0 +1,238 @@
+pyRTAOI DURING TEXUTRE TASK 
+ZZ 2019
+(unfinished)
+
+-- Power Check --
+
+	Start PrairieView rev40 (in pyRTAOI-rig folder)
+		Note: change to resonant galve mode 
+
+	Connect AOM input cable(orangy-pink) to 'prarie AOM' BNC
+
+	Start Blink(Meadowlark), display 10spotstight in SLM/TestMasks folder
+
+	Measure photostim power at different Prairie inputs
+		Tools-Maintenance: center galvos, open shutter
+		Log to Bruker1:laser powers google sheet  
+		Run SavePowerFile([PV mW]): check curve fit, confirm if fitting is good
+
+	Close Blink(Meadowlark) on zoo
+
+-- Calibration Check --
+
+	Connect AOM input cable(orangy-pink) to 'pyRTAOI' BNC
+
+	Make sure 'Blink toSpiral' BNC is connected
+
+	Run Holobink.exe
+		from C:\Data\Zoe\VSprojects\HoloBlink\x64\Debug
+
+	Run pyRTAOI in Spyder
+		click 'Connect Priarie'
+		click 'Connect Blink'
+
+	Run Markpoint in Priarie View
+		load 'Zoe-pyRTAOI_calcheck'
+		click 'Run mark points'
+
+	Burn spots in orange slide:
+		in Prairie View:
+			Set save directories
+			Open imaging shutter, set imaging power to ~60 
+			Enable auto-conversion: Preferences - Automatically Converts Raw Files - After Acquisition
+			Take Single Scan (pre-burning): average every 128 frames
+
+		in pyRTAOI:
+			Load pyRTAOI config: 20190722_calcheck.cfg
+			click 'RunCalCheck', confirm.
+				Note: keep an eye on camera live image and packIO to check if things look normal
+
+		in Prairie View:
+			Take Single Scan (after-burning)
+			Abort Mark points
+
+		Drag-drop after-burning image (Ch1) in pyRTAOI to see if spirals are burnt at expected locations
+
+
+-- Cell Detection and Identification --
+
+	> MOVIE1 reference movie (500 frames for caiman initialisation)
+		in Prairie View:
+			Make sure ONLY Ch2 imaging window is live
+			Change to 'Average Every' 1 frame (under single-scan button)
+			Disable auto-conversion: Preferences - Automatically Converts Raw Files - Never
+			Set t-series save dir and name, change frames (#Reps) to 500
+
+		in pyRTAOI:
+			Load configuration: 20190804_init_zoom2_16x.cfg
+			Click Take Ref Movie
+			Click Initialise(auto save) when done
+
+
+	> MOVIE2  cell detection (30 trials)
+		In PyBehavior:
+			Setup b stage, change number of trials
+			Start 
+
+		in Prairie View:
+			Change t-series frames
+
+		in pyRTAOI:
+			Load configuration: 20190804_tex_celldetection_zoom2_16x.cfg
+			Click 'update trials', then check by 'plot trial type'
+			Click Run
+
+		Note: repeat this step if expect more cells to be detected
+			  confirm keep results each time
+
+	> MOVIE3  cell identification (50 trials)
+		In PyBehavior:
+			Setup o2 stage, change number of trials
+			Save out trial-order file (rename it, save to server)  
+			Start 
+
+		in pyRTAOI:
+			Load configuration: 20190804_tex_training_zoom2_16x.cfg
+			Change min SNR if not using default (2)
+			Load trialOrder (pyBehav)
+			Plot trial type to check number of trials
+
+		in Prairie View:
+			Change t-series frames
+
+		In PackIO: 
+			start recording
+
+		in pyRTAOI:
+			Click Run
+		
+		in Matlab:
+			OnlineProcTexture
+
+
+		Note: MAY NEED MORE TRIALS IF TOO MANY FALSE ALARMS
+
+	> MOVIE4  photoexcitabiliy test
+
+		in pyRTAOI:
+			Load configuration: 20190804_sequence_photo_zoom2_16x
+			Click 'Load trigger targetd config', select _OutputParam_..mat (saved out from OnlineProcTexture)
+			Click 'Config Seq Stim'
+			Check 'Stim from blink'
+			Click 'Update Params' (make sure HoloBlink updates)
+
+		in Prairie View:
+			Change t-series frames
+			Load MultiStim90ms in markpoints
+			Run mark point
+
+		In PackIO: 
+			Read input configuration: ZZ_2Textures_trialtrigger
+			Start recording
+
+		in pyRTAOI:
+			Click 'Run'
+
+		Note: you may either run this step after MOVIE3 or jump into this step after MOVIE2 by
+		checking 'select all' (in 'Blink settings' panel), rather than loading trigger targets Config
+
+	Run OnlinePhotoexcitability.m
+	Run OnlineFindTexPhotoTargets.m
+		you can change number of trials and proportions here
+		This script will generate files-to-load for pyRTAOI (pyrtaoi_stimOrder..,.mat), pyBehavior(pybehav_stimOrder..,.txt), Blink (\targets\) and PachIO (paciIO_triggers) 
+
+
+IN CASE HOLOBLINK CRASH, ABORT MARK POINT IMMEDIATELY
+
+
+
+-- All-optical experiment --
+(testing)
+
+HERE YOU HAVE TWO OPTIONS:
+
+	1. KEEP USING PYRTAOI AS MASTER
+		in pyBehavior:
+			Load pybehav_stimOrder..txt  (External file, load)
+			Start
+
+		in pyRTAOI
+			Load configuration: tex_photo
+			Load pyrtaoi_stimOrder...mat in pyRTAOI (click 'Load stimOrder(Matlab)')
+			Check 'Stim from blink'
+			Click 'Update Params' (make sure HoloBlink updates)
+
+		in Prairie View:
+			Change t-series frames
+			Load MultiStim90ms in markpoints (may need more iterations depending on how many trials)
+			Run mark point
+
+		In PackIO: 
+			Read input configuration: ZZ_2Textures_trialtrigger
+			Start recording
+
+		in pyRTAOI
+			Click Run
+
+		NOTES for option 1: 
+		1. HoloBlink crashed (quit) yesterday in the middle of running 
+			- try to run from VisualStudio (open HoloBlink.sln, click 'Debug')
+			- if it still happens, use option2
+
+
+	2. USE PACKIO AS MASTER
+
+		Close HoloBlnk
+		Change Cables:
+			Connect Dev2 AO4 from Zoo (Trial trigger for training) to pyBehav trial trigger input
+
+		in pyBehavior:
+			Load pybehav_stimOrder..txt  (External file, load)
+			Start
+
+		in Blink:
+			(this is Blink from Meadowlark)
+			Select dir: \targets\AllPhaseMasks  (in 'TexPhotoConfig_Date_Mouse_Tt...' folder generated by OnlineFindTexPhotoTargets.m)
+			Start sequencing
+
+		in Prairie View:
+			Change t-series frames
+			Load 5x90ms5Hz in markpoints 
+			Run mark point
+
+		In PackIO: 
+			Read input config: ZZ_2Textures_trialtrigger_spiraltrigger
+			Read outputput config: ZZ_2Textures_trialtrigger
+
+			(packIO will not find Dev2 after setting up: need to click Done, and go back to output settings panel; now you should see Dev2)
+
+			Load output waveforms: 
+				Click 'Load' for each output channel and select corresponding .dat file (in 'TexPhotoConfig_Date_Mouse_Tt...'\paciIO_triggers folder generated by OnlineFindTexPhotoTargets.m)
+			Start recording
+
+		in pyRTAOI: (optional)
+			(you don't need it for this, but in case want to monitor cells online)
+			Load configuration: 20190804_tex_training_zoom2_16x.cfg
+			Load pyrtaoi_stimOrder...mat in pyRTAOI (click 'Load stimOrder(Matlab)')
+			Click Run 
+
+		in Prairie View (skip this if already clicked RUN in pyRTAOI):
+			Start t-series
+
+		in PackIO:
+			Fire output
+
+		NOTES for option 2: 
+		1. COPY 'AllPhaseMask'	to local disk before loading to Blink (otherwise take ages to load)
+		2. BLINK WILL NOT RESPOND WHEN RUNNING SEQUENCE
+		3. PackIO will crash if you stop in the middle
+
+
+
+
+
+
+TO DO:
+	ADD MARK POINT ITERATIONS NEEDED
+
+

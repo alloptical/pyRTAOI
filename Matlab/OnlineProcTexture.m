@@ -113,16 +113,23 @@ else
 end
 
 % discard sens stim frames beyond tottime (deal with senarios when movie is aborted early)
+
 discard_trial_idx = find(sens_stim_frames>caiman_data.t_cnm-opt.sta_post_frames-opt.sta_pre_frames);
 sens_stim_frames(discard_trial_idx) = [];
 num_trials = length(sens_stim_frames);
+if FLAG_PYBEHAV_LOADED
 fds = fields(trials);
 for f =1:numel(fds)
 trials.(fds{f})(discard_trial_idx) = [];
 end
+end
 % trial type
 trialOrder = caiman_data.trialOrder;
+try
 trialOrder(discard_trial_idx) = [];
+catch
+    disp('no discarded trials')
+end
 trialTypes = unique(trialOrder);
 num_stim_type = length(unique(trialOrder)); % orientations/texture
 
@@ -135,6 +142,7 @@ else
     trials.correct = ones(size(sens_stim_frames));
     trials.incorrect = zeros(size(sens_stim_frames));
     trials.stim_type = trialOrder;
+    trials.cheated = zeros(size(sens_stim_frames));
 end
 
 for i = 1:numel(trialTypes)
@@ -213,7 +221,7 @@ num_cells = numel(accepted_idx);
 
 %% only analyse frames from the current recording
 glob_trialon_frames = caiman_data.sensory_stim_frames + caiman_data.t_init;
-% glob_trialon_frames(glob_trialon_frames>caiman_data.t_cnm-opt.sta_post_frames-opt.sta_pre_frames) = [];
+glob_trialon_frames(glob_trialon_frames>caiman_data.t_cnm-opt.sta_post_frames-opt.sta_pre_frames) = [];
 %% plot spatial components and save to cell struct
 com_fov = zeros(cnm_dims);
 accepted_com_fov = zeros(cnm_dims);
@@ -282,7 +290,7 @@ stim_cell_count = 1;
 non_stim_cell_count = 1;
 
 for i = 1:num_cells
-    this_cell_trace = cnm_struct(cell_struct(i).cnm_idx).deconvC_full;
+    this_cell_trace = zscore(cnm_struct(cell_struct(i).cnm_idx).onlineC);
     plot(this_cell_trace+i*plot_offset,'color','black','linewidth',1.5)
     stim_cell_count = stim_cell_count+1;
 end
@@ -351,16 +359,16 @@ end
 disp('got cell_struct sta')
 %% Normalise traces to baseline and std
 % get baseline and std from the first sets of easy trials
-% this is implemented for online 
+% this is implemented for online - shouldnt need to do again here?
 easy_trial_idx = 1:10;
 cell_bs = cell2mat(arrayfun(@(x)mean(reshape(cell_struct(x).raw_sta_traces(easy_trial_idx,1:opt.sta_baseline_frames),[1,numel(easy_trial_idx)*opt.sta_baseline_frames]),2),1:num_cells,'UniformOutput', false));
 cell_sd = cell2mat(arrayfun(@(x)std(reshape(cell_struct(x).raw_sta_traces(easy_trial_idx,:),[1,numel(easy_trial_idx)*opt.trial_length])),1:num_cells,'UniformOutput', false));
-for i = 1:num_cells
-    
-    cell_struct(i).raw_sta_traces = (cell_struct(i).raw_sta_traces - cell_bs(i))./cell_sd(i);
-    cell_struct(i).raw_sta_trace = (cell_struct(i).raw_sta_trace - cell_bs(i))./cell_sd(i);
-end
-disp('normalised cell_struct raw_sta_traces')
+% for i = 1:num_cells
+%     
+%     cell_struct(i).raw_sta_traces = (cell_struct(i).raw_sta_traces - cell_bs(i))./cell_sd(i);
+%     cell_struct(i).raw_sta_trace = (cell_struct(i).raw_sta_trace - cell_bs(i))./cell_sd(i);
+% end
+% disp('normalised cell_struct raw_sta_traces')
 
 
 %% Get trial types
@@ -376,7 +384,7 @@ raw_cell_struct = struct();
 for i = 1:numel(trial_types)
     this_fd = trial_types{i};
     this_idx = trial_indices.(this_fd);
-    this_idx = this_idx(this_idx<num_trials);
+    this_idx = this_idx(this_idx<=num_trials);
     if ~isempty(this_idx)
             for c = 1:num_cells
                     cell_struct(c).(this_fd) = cell_struct(c).sta_traces( this_idx,:)';
@@ -397,7 +405,36 @@ disp('sorted cell_struct sta_traces')
 peak_frame_range = opt.sta_peak_search_range;
 avg_frame_range = opt.sta_avg_frames;
 [cell_struct] = get_cell_auc(cell_struct,{'stim_1_correct','stim_2_correct'},'correct_stimAUC',opt);
-[cell_struct] = get_cell_auc(cell_struct,{'stim_1_incorrect','stim_2_incorrect'},'incorrect_stimAUC',opt);
+
+
+correct_stimulusAUC_zscore = extractfield(cell_struct,'correct_stimAUC_zscore');
+correct_texAUC = extractfield(cell_struct,'correct_stimAUC');
+disp('got correct trials auc')
+
+try
+    [cell_struct] = get_cell_auc(cell_struct,{'stim_1_incorrect','stim_2_incorrect'},'incorrect_stimAUC',opt);
+    FLAG_GOT_CHOICE_AUC = true;
+catch
+    disp('getting incorrect trials error')
+    FLAG_GOT_CHOICE_AUC = false;
+end
+%% get cellidx_struct
+cell_idx_struct = struct();
+cell_idx_struct.all = 1:num_cells;
+cell_idx_struct.tex2 = find(correct_stimulusAUC_zscore>opt.N& correct_texAUC>0.55); % cells prefering texture1 in correct trials
+cell_idx_struct.tex1 = find(correct_stimulusAUC_zscore<-opt.N& correct_texAUC<0.45); % cells prefering texture2 in correct trials
+cell_idx_struct.tex = unique([cell_idx_struct.tex1,cell_idx_struct.tex2]);
+
+if FLAG_GOT_CHOICE_AUC
+incorrect_stimulusAUC_zscore = extractfield(cell_struct,'incorrect_stimAUC_zscore');
+incorrect_texAUC = extractfield(cell_struct,'incorrect_stimAUC');
+cell_idx_struct.port2 = find(correct_stimulusAUC_zscore>opt.N & incorrect_stimulusAUC_zscore<-opt.N); % cells prefering texture1 in correct trials
+cell_idx_struct.port1 = find(correct_stimulusAUC_zscore<-opt.N& incorrect_stimulusAUC_zscore>opt.N); % cells prefering texture2 in correct trials
+cell_idx_struct.port = unique([cell_idx_struct.port1,cell_idx_struct.port2]);
+cell_idx_struct.relevant = unique([cell_idx_struct.port,cell_idx_struct.tex]);
+else
+    warning('no choice auc')
+end
 for c = 1:num_cells
     cell_struct(c).is_tuned = 0;
     cell_struct(c).pref = 0;
@@ -410,23 +447,6 @@ for c = 1:num_cells
         end
     end
 end
-correct_stimulusAUC_zscore = extractfield(cell_struct,'correct_stimAUC_zscore');
-correct_texAUC = extractfield(cell_struct,'correct_stimAUC');
-%%
-cell_idx_struct = struct();
-cell_idx_struct.all = 1:num_cells;
-cell_idx_struct.tex2 = find(correct_stimulusAUC_zscore>opt.N& correct_texAUC>0.55); % cells prefering texture1 in correct trials
-cell_idx_struct.tex1 = find(correct_stimulusAUC_zscore<-opt.N& correct_texAUC<0.45); % cells prefering texture2 in correct trials
-cell_idx_struct.tex = unique([cell_idx_struct.tex1,cell_idx_struct.tex2]);
-
-incorrect_stimulusAUC_zscore = extractfield(cell_struct,'incorrect_stimAUC_zscore');
-incorrect_texAUC = extractfield(cell_struct,'incorrect_stimAUC');
-cell_idx_struct.port2 = find(correct_stimulusAUC_zscore>opt.N & incorrect_stimulusAUC_zscore<-opt.N); % cells prefering texture1 in correct trials
-cell_idx_struct.port1 = find(correct_stimulusAUC_zscore<-opt.N& incorrect_stimulusAUC_zscore>opt.N); % cells prefering texture2 in correct trials
-cell_idx_struct.port = unique([cell_idx_struct.port1,cell_idx_struct.port2]);
-
-cell_idx_struct.relevant = unique([cell_idx_struct.port,cell_idx_struct.tex]);
-
 disp('got cell identity')
 
 
@@ -449,7 +469,7 @@ plot_value_in_rois( cell_struct, 'snr',[256 256],ax,'IF_NORM_PIX',0,...
 title('SNR')
 %% select cell identity for readout and stimulation
 opt.target_idx_fd = {'tex1','tex2'};
-opt.trigger_idx_fd = 'relevant';
+opt.trigger_idx_fd = 'tex';
 opt.fov_size = double(cnm_dims);
 opt.ds_factor = caiman_data.ds_factor;
 
@@ -505,7 +525,7 @@ for i = 1:num_cells
     
 end
 export_fig([fig_save_path filesep 'RawSTATrace_' strrep(caiman_file,'.mat','.png')])
-
+%
 figure('name','condition sta traces (errobar)','units','normalized','outerposition',[0 0 1 1])
 x_ticks =[0:1:opt.trial_length-1];
 
@@ -516,10 +536,11 @@ for i = 1:num_cells
         this_traces = cell_struct(i).(['stim_' num2str(j) '_correct'])';
         shadedErrorBar(x_ticks,mean(this_traces,1),...
             std(this_traces,[],1),{'color',trial_color.(['correct_stim' num2str(j)]),'linewidth',2},0.1);
-        
+        try
         this_traces = cell_struct(i).(['stim_' num2str(j) '_incorrect'])';
         shadedErrorBar(x_ticks,mean(this_traces,1),...
             std(this_traces,[],1),{'color',trial_color.(['incorrect_stim' num2str(j)]),'linewidth',2},0.1);
+        end
     end
     
     xlim([0 opt.sta_pre_frames+opt.sta_post_frames+1])
@@ -560,7 +581,7 @@ end
 export_fig([fig_save_path filesep 'ShadedSTATrace_' strrep(caiman_file,'.mat','.png')])
 
 %% Plot STAs traces for certain cell types
-plot_cell_type = 'port';
+plot_cell_type = 'tex';
 plot_cell_idx = cell_idx_struct.(plot_cell_type);
 num_plot_cols = 5;
 num_plot_rows = ceil(numel(plot_cell_idx)/num_plot_cols);
@@ -572,8 +593,8 @@ for ii = 1:numel(plot_cell_idx)
     hold on
     % correct trials
     for j = 1:num_stim_type
-        plot(cell_struct(i).(['stim_' num2str(j) '_correct']),'color',trial_color.(['correct_stim' num2str(j)]),'linewidth',1)
-        plot(cell_struct(i).(['stim_' num2str(j) '_incorrect']),'color',trial_color.(['incorrect_stim' num2str(j)]),'linewidth',1)
+        plot(raw_cell_struct(i).(['stim_' num2str(j) '_correct']),'color',trial_color.(['correct_stim' num2str(j)]),'linewidth',1)
+        plot(raw_cell_struct(i).(['stim_' num2str(j) '_incorrect']),'color',trial_color.(['incorrect_stim' num2str(j)]),'linewidth',1)
     end
     
     xlim([0 opt.sta_pre_frames+opt.sta_post_frames+1])
@@ -623,23 +644,33 @@ fa_opt.trial_length = opt.trial_length/fa_opt.bin_size;
 fa_opt.trial_color = trial_color;
 
 fa_opt.idx_fields = {opt.trigger_idx_fd};
-fa_opt.fd_names ={'stim_1_correct','stim_1_incorrect','stim_2_correct','stim_2_incorrect'};
+easy_trial_idx = [];
+%%
+if FLAG_GOT_CHOICE_AUC
+    fa_opt.fd_names ={'stim_1_correct','stim_1_incorrect','stim_2_correct','stim_2_incorrect'};
+else
+    fa_opt.fd_names ={'stim_1_correct','stim_2_correct'};
+    disp('using correct trials only')
+end
 fa_opt.plot_fds = fa_opt.fd_names;
-fa_opt.m = 4;
+fa_opt.m = 2;
 fa_opt.IF_MEDFILT = 0;
 disp('Rnning factor analysis...')
 tic
+% excluding first 10 trials that were used for baselining - didnt make a
+% difference..
+[~,trial_idx_struct ]= cellfun(@(x)setdiff(trial_indices.(x),easy_trial_idx),fa_opt.fd_names,'UniformOutput',false);
 [traces_in,fa_trial_idx,num_trials] = get_input_seq(raw_cell_struct,cell_idx_struct.(fa_opt.idx_fields{1}),...
-    fa_opt.fd_names,fa_opt.bin_size,'IF_MEDFILT',fa_opt.IF_MEDFILT);%%
+    fa_opt.fd_names,fa_opt.bin_size,'IF_MEDFILT',fa_opt.IF_MEDFILT,'fd_trial_idx',trial_idx_struct);%%
 fa_struct = struct();
 fa_struct.mean = mean(traces_in);
 fa_struct.std = std(traces_in);
 [fa_struct.lambda,fa_struct.psi,fa_struct.T,fa_struct.stats,fa_struct.F] = factoran(traces_in,fa_opt.m,'Xtype','data','Maxit',1000);
 invsqrtPsi = diag(1 ./  sqrt(fa_struct.psi)); % get transition matrix (multiply to zscored data)
 fa_struct.transmat = invsqrtPsi/(fa_struct.lambda'*invsqrtPsi);
-
 [fa_traj_struct,num_fs] = get_pop_vectors(fa_struct.F,fa_opt.trial_length,fa_trial_idx);
 toc
+
 disp('...Done')
 plot_pop_vectors(fa_traj_struct,fa_opt.plot_fds,fa_opt.m,fa_opt,...
     'plot_ylabel','Factor level','plot_num_cols',2);
@@ -649,13 +680,14 @@ plot_pop_vectors(fa_traj_struct,fa_opt.plot_fds,fa_opt.m,fa_opt,...
 choice_fds = {'stim_1_correct','stim_2_correct'};
 cd_opt = opt;
 cd_opt.trial_color = trial_color;
-coding_direct = cell2mat(arrayfun(@(x)mean(mean(raw_cell_struct(x).(choice_fds{1})(opt.sta_avg_frames,:),2)),cell_idx_struct.(opt.trigger_idx_fd),'UniformOutput', false))...
-    - cell2mat(arrayfun(@(x)mean(mean(raw_cell_struct(x).(choice_fds{2})(opt.sta_avg_frames,:),2)),cell_idx_struct.(opt.trigger_idx_fd),'UniformOutput', false));
+coding_direct = cell2mat(arrayfun(@(x)nanmean(mean(raw_cell_struct(x).(choice_fds{1})(opt.sta_avg_frames,:),2)),cell_idx_struct.(opt.trigger_idx_fd),'UniformOutput', false))...
+    - cell2mat(arrayfun(@(x)nanmean(mean(raw_cell_struct(x).(choice_fds{2})(opt.sta_avg_frames,:),2)),cell_idx_struct.(opt.trigger_idx_fd),'UniformOutput', false));
 % project to coding direction
-cd_traj_struct = get_cd_projection(raw_cell_struct(cell_idx_struct.(opt.trigger_idx_fd)),coding_direct);
+cd_traj_struct = get_cd_projection(raw_cell_struct(cell_idx_struct.(opt.trigger_idx_fd)),coding_direct,choice_fds);
 plot_pop_vectors(cd_traj_struct,choice_fds,1,cd_opt,...
         'plot_ylabel','Projection')
 %% choose which to use - factor analysis, or coding direction
+
 if opt.IF_USE_FA
     traj_struct = fa_traj_struct;
 else
@@ -749,7 +781,7 @@ stim_proj_struct = struct();
 [stim_proj_struct] = get_projections(raw_cell_struct(cell_idx_struct.(opt.trigger_idx_fd)),stim_norm_weights,test_fd_names,'proj_struct',stim_proj_struct,'bias',-stim_norm_thresh,'IS_CELL_STRUCT',1);
 
 plot_pop_vectors(stim_proj_struct,test_fd_names,1,opt,...
-        'ylimit',[-10 10],'plot_ylabel','Projection','plot_num_cols',2,'IF_PLOT_RAW_ONLY',1)
+        'ylimit',[-50 50],'plot_ylabel','Projection','plot_num_cols',2,'IF_PLOT_RAW_ONLY',1)
 suptitle('Stim decoder projections')
 %% get projections on choice decoder
 choice_thresh = -choice_struct.B(:,1);
@@ -810,11 +842,11 @@ suptitle('Choice-stim decoder')
 
 %% SELECT CONDITION STIM TYPES  CHANGE THIS
 disp('ENTER HERE!')
-condition_pybehav_stimtypes = [3 4]; % stim types in pybehav that will be monitored for photostim; 3 and 4 are catch trials where port2 or port1 will be rewarded
-condition_pyrtaoi_stimtypes = [3 4]; % odd stim types will be stimuated when above, even will be stimulated when below
+condition_pybehav_stimtypes = [1 2]; % stim types in pybehav that will be monitored for photostim; 3 and 4 are catch trials where port2 or port1 will be rewarded
+condition_pyrtaoi_stimtypes = [1 2]; % odd stim types will be stimuated when above, even will be stimulated when below
 condition_pyrtaoi_stimvars  = [1 1]; % type and var need to match - vars are not used for texture exp, set all to 1
-condition_type = {[301],[401]}; % match target ensembles 100*stim_type + stim_va
-opt.target_idx_fd = {'tex2','tex1'}; % target groups corresponding to condition_type
+condition_type = {[101],[201]}; % match target ensembles 100*stim_type + stim_va
+opt.target_idx_fd = {'tex1','tex2'}; % target groups corresponding to condition_type
 % above corresponds to: stimulate texture 2 group if population activity is
 % going above threshold (towards texutre 1 direction) in catch trials where
 % port2 will be rewarded.
@@ -830,17 +862,17 @@ pop_thresh = stim_norm_thresh;  % select which thresh to use
 pop_params = struct();
 pop_params.weights = pop_weights;
 pop_params.thresh = pop_thresh;
-pop_params.frames_enable_trigger = max(opt.sta_stimon_frame-opt.sta_baseline_frames+15,fa_opt.bin_size*(decod_struct.shuf_disc_frame-opt.sta_baseline_frames))+[0 15];
+% pop_params.frames_enable_trigger = max(opt.sta_stimon_frame-opt.sta_baseline_frames+15,fa_opt.bin_size*(decod_struct.shuf_disc_frame-opt.sta_baseline_frames))+[0 15];
 pop_params.condition_stim_type = condition_pyrtaoi_stimtypes; 
 pop_params.condition_stim_var  = condition_pyrtaoi_stimvars; 
 pop_params.condition_type = condition_type; 
-frames_of_interest = [pop_params.frames_enable_trigger(1):pop_params.frames_enable_trigger(end)]+opt.sta_baseline_frames;
+% frames_of_interest = [pop_params.frames_enable_trigger(1):pop_params.frames_enable_trigger(end)]+opt.sta_baseline_frames;
 % [proj_sd,fds_of_interest] = get_proj_noise(choice_proj_struct,condition_stim_type,condition_stim_var,frames_of_interest);
 % plot_pop_vectors(choice_proj_struct,fds_of_interest,1,opt,...
 %        'noise_thresh',proj_sd,'ylimit',[-100 100],'plot_ylabel','proj to choice-stim','plot_num_cols',2,'IF_PLOT_RAW_ONLY',1)
 pop_params.thresh_sd = 0;% NOT USING SD
 % pop_params.fds_of_interest = fds_of_interest;
-pop_params.frames_enable_trigger  = [110 125]-30;
+pop_params.frames_enable_trigger  = [120 150]-30;
 
 %% GET PHOTOEXCITABLE TARGETS - optional
 % load result file from OnlinePhotoexcitability.m
@@ -865,8 +897,8 @@ if IF_PHOTOTEST_LOADED
     end
     % get photoexcitable target indices
     photo_idx.all = find(extractfield(cell_struct,'is_photo')>0);
-    cell_idx_struct.photo_stim1 = intersect(photo_idx.all, cell_idx_struct.stim1);
-    cell_idx_struct.photo_stim2 = intersect(photo_idx.all, cell_idx_struct.stim2);
+    cell_idx_struct.photo_stim1 = intersect(photo_idx.all, cell_idx_struct.tex1);
+    cell_idx_struct.photo_stim2 = intersect(photo_idx.all, cell_idx_struct.tex2);
     opt.target_idx_fd = {'photo_stim1','photo_stim2'}; % overide target indices with the excitable ones
 end
 
@@ -875,18 +907,13 @@ end
 
 %% ==================== MAKE PYBEHAV EXTERNAL FILE ========================
 % make file for pybehavior
-loop_stim_types = [arrayfun(@(x)condition_pybehav_stimtypes(x),pop_params.condition_stim_type) 1 2]; % condition trial types plus two extreme stim types
-loop_stim_vars  = [pop_params.condition_stim_var 1  1 1];
-pyrtaoi_stim_types = [pop_params.condition_stim_type 1 2]; 
+loop_stim_types = [condition_pybehav_stimtypes 5 1 2]; % condition trial types plus two extreme stim types
+loop_stim_vars  = [pop_params.condition_stim_var 1 1 1];
 num_loops = 30; % will loop through loop_stim_types and loop_stim_vars, randomise within each loop
 file_save_name = [opt.exp_name '_PyBehavior_' save_time2];
 [trial_seq] = generate_texture_trial_seq(loop_stim_types,loop_stim_vars,num_loops,opt.output_path,file_save_name);
 % make file for pyrtaoi (use for 'load pybahave file')
-temp_types = trial_seq(1,:);
-temp_types(temp_types==condition_pybehav_stimtypes(1))=1;
-temp_types(temp_types==condition_pybehav_stimtypes(2))=2;
 pyrtaoi_seq = trial_seq;
-pyrtaoi_seq(1,:) = temp_types;
 pyrtaoi_file_save_name = [opt.exp_name '_RTAOiPyBehavior_' save_time2];
 dlmwrite([opt.output_path filesep pyrtaoi_file_save_name '.txt'],pyrtaoi_seq)
 disp(['saved as:' opt.output_path filesep pyrtaoi_file_save_name '.txt'] )

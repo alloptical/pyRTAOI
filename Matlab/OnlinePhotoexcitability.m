@@ -19,11 +19,11 @@ opt.N = 1; % auc zscore threshold
 opt.sta_amp_thresh = 0.1; % sta amplitude threshold
 
 opt.pre_exp_frames = 0;
-opt.sta_pre_frames = 30;
-opt.sta_post_frames = 60;
-opt.sta_baseline_frames = 30;
+opt.sta_pre_frames = 20;
+opt.sta_post_frames = 30;
+opt.sta_baseline_frames = 20;
 opt.bs_frame_range = opt.sta_pre_frames+[(-opt.sta_baseline_frames+1):0];
-opt.sta_avg_frames = 30; % frames after stim to average for response amp
+opt.sta_avg_frames = 20; % frames after stim to average for response amp
 opt.sta_thresh = 1;
 opt.frame_rate = 30; % Hz
 
@@ -37,7 +37,7 @@ close
 %% load CAIMAN data
 [caiman_file,caiman_path] = uigetfile('*.mat','Select seq photostim caiman data');
 disp(['Loaded file :',fullfile(caiman_path,caiman_file)])
-caiman_data = load(fullfile(caiman_path,caiman_file)) 
+caiman_data = load(fullfile(caiman_path,caiman_file));
 
 %% config save path
 save_path = [caiman_path filesep 'analysis_files'];
@@ -117,12 +117,12 @@ stim_cell_count = 1;
 non_stim_cell_count = 1;
 
 for i = 1:num_comp
-    plot(cnm_struct(i).deconvC_full+i*plot_offset,'color',[.7 .7 .7],'linewidth',1.5)
+    plot(zscore(cnm_struct(i).deconvC_full)+i*plot_offset,'color',[.7 .7 .7],'linewidth',1.5)
     stim_cell_count = stim_cell_count+1;
 end
 
 for i = target_cnm_idx
-    plot(cnm_struct(i).deconvC_full+i*plot_offset,'color','black','linewidth',1.5)
+    plot(zscore(cnm_struct(i).deconvC_full)+i*plot_offset,'color','black','linewidth',1.5)
     stim_cell_count = stim_cell_count+1;
 end
 
