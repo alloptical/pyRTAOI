@@ -67,10 +67,9 @@ end
 
 if IF_CONTOUR
     try
-        if_opsin = extractfield(cell_struct,'opsin_positive');
-        cc_pix = cell2mat({cell_struct(if_opsin>0).contour});
+        cc_pix = cell2mat({cell_struct(target_cell_idx).contour});
         scatter(cc_pix(1,:),cc_pix(2,:),1,'r')
-        cc_pix = cell2mat({cell_struct(if_opsin==0).contour});
+        cc_pix = cell2mat({cell_struct(setdiff( 1:size(cell_struct,2),target_cell_idx)).contour});
         scatter(cc_pix(1,:),cc_pix(2,:),1,[.5 .5 .5])
         IF_CONTOUR = 0;
     catch

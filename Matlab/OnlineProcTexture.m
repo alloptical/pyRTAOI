@@ -245,7 +245,7 @@ for i = 1:num_comp
     cnm_struct(i).noisyC_full = temp_trace;
     
     % use go-cue frame as 'stim frame' for sta traces
-    cnm_struct(i).stim_frames = sens_stim_frames+opt.sta_gocue_frame;
+    cnm_struct(i).stim_frames = sens_stim_frames+opt.gocue_frame;
 
 end
 
