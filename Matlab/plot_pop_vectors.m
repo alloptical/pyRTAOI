@@ -48,6 +48,7 @@ for v = 1:numel(varargin)
     if strcmpi(varargin{v},'IF_SAVE_PLOT')
         IF_SAVE_PLOT = varargin{v+1};
     end
+    
 end
 
 fds = plot_fields;
@@ -177,7 +178,12 @@ end
 if ~IF_PLOT_AVG_ONLY
     figure('name','raw projections','units','normalized','outerposition',[0 0 .6 1]); hold on
     for f = 1:numel(fds)
+        try
         this_F = pop_struct.([fds{f}]);
+        catch
+            disp([fds{f} 'error, skipped'])
+            continue
+        end
         
         subplot(plot_num_rows,plot_num_cols,f)
         hold on

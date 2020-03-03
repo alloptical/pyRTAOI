@@ -27,6 +27,12 @@ color.correct = [0 0 0];
 color.incorrect = [.5 .5 .5];
 color.stim1 = mean([color.correct_stim1;color.incorrect_stim1],1);
 color.stim2 = mean([color.correct_stim2;color.incorrect_stim2],1);
+color.stim3 = [.5 .5 .5]; % catch stimulus
+color.stim4 = [.5 .5 .5]; % catch
+color.stim5 = [.5 .5 .5]; % catch
+
+
+
 color.port1 = mean([color.correct_stim1;color.incorrect_stim2],1);
 color.port2 = mean([color.correct_stim2;color.incorrect_stim1],1);
 color.stim5 = [.5 .5 .5];
@@ -40,5 +46,10 @@ color.fa_trial = [0 0 0];
 color.photo = [255 60 10]./255;
 color.photostim = [255 72 36]./255;
 
+color.L1 = [0 0 0];
+color.L2 = [.5 .5 .5];
+
+color.trigger = [103, 232, 235]./255;
+color.target = color.photo;
 end
 

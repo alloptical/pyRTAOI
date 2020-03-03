@@ -90,7 +90,7 @@ end
 for t = 1:numel(target_cell_idx)
     target_cnm_idx(t) = cell_struct(target_cell_idx(t)).cnm_idx; % this is idx in cnm_struct
 end
-
+disp('got photo sta')
 %% make a stim order file for STA movie maker
 oris = photo_sequence_cell_idx;
 num_diff_stims = length(unique(oris));

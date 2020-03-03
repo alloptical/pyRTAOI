@@ -4,10 +4,15 @@ fd_names = {'stim_type','correct','incorrect','miss','firstresponse','cheated','
 num_fd = numel(fd_names);
 odd_trial_idx = [];
 output_trials = struct();
+tot_num_trials = numel(behavior_data.results);
 for i = 1:num_fd
     this_fd = fd_names{i};
     if isfield(behavior_data.results{1},this_fd)
+        try
         this_data = cellfun(@(x)extractfield(x,this_fd),behavior_data.results,'UniformOutput',false);
+        catch
+                    this_data = cellfun(@(x)extractfield(x,this_fd),behavior_data.results(1:tot_num_trials-1),'UniformOutput',false);
+        end
         if iscell(this_data)
             checktype = cellfun(@(x)class(x),this_data,'UniformOutput',false);
             [types,~,whichcell]=unique(checktype);
@@ -20,7 +25,7 @@ for i = 1:num_fd
             this_odd_trial = find(whichcell~= this_type_idx);
             odd_trial_idx = [odd_trial_idx,this_odd_trial];
             if numel(types)>1
-                warning(['some trial is odd! trial ' num2str(this_odd_trial) ' was excluded in' this_fd])
+                warning(['some trial is odd! trial ' num2str(this_odd_trial) ' was excluded in ' this_fd])
             end
             
         end
@@ -29,11 +34,14 @@ for i = 1:num_fd
         warning(['field not found in behavior: ' this_fd ', skipped'])
     end
 end
+output_trials.('firstlick') = behavior_data.reaction_time(1:tot_num_trials)';
+% exclude odd trials
 odd_trial_idx = unique(odd_trial_idx);
+normal_trial_idx = setdiff(1:tot_num_trials,odd_trial_idx);
 if ~isempty(odd_trial_idx)
-    disp(['odd trials indices: ' num2str(odd_trial_idx)]) % will get such trials if pybehav was forced to abort
+    disp(['odd trials indices: ' num2str(odd_trial_idx) ', excluded']) % will get such trials if pybehav was forced to abort
+    output_trials = structfun(@(x)x(normal_trial_idx),output_trials,'UniformOutput',false);
 end
-output_trials.('firstlick') = behavior_data.reaction_time';
 %%
 % figure
 % test_mat = [output_trials.correct; output_trials.incorrect; output_trials.fa; output_trials.miss];

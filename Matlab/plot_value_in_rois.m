@@ -33,6 +33,9 @@ all_values = extractfield(cell_struct,value_field);
 for i = 1:size(cell_struct,2)
     xy_coords = sub2ind(dims,cell_struct(i).coordinates(:,1),cell_struct(i).coordinates(:,2));
     plot_value = cell_struct(i).(value_field);
+    if isnan(plot_value)
+        continue
+    end
     
     if IF_NORM_PIX
         pix_values = cell_struct(i).pix_values;
@@ -41,8 +44,8 @@ for i = 1:size(cell_struct,2)
     else
         img(xy_coords) =plot_value;
     end
-    text(round(cell_struct(i).centroid(:,2)),...
-        round(cell_struct(i).centroid(:,1)),num2str(i),'color',textcolor,'fontweight','bold');
+%     text(round(cell_struct(i).centroid(:,2)),...
+%         round(cell_struct(i).centroid(:,1)),num2str(i),'color',textcolor,'fontweight','bold');
     
 end
 

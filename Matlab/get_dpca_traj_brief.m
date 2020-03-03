@@ -1,14 +1,14 @@
 function [dpca_struct,traces_idx_struct] = get_dpca_traj_brief(cell_struct,cell_idx,trial_fds,opt)
 filt_cell_struct = cell_struct(cell_idx);
 fig_save_path = opt.save_path;
-decision_types = {'_correct_','_incorrect_'};
+decision_types = {'_correct','_incorrect'};
 try
     save_name_ext= opt.save_name_ext;
 catch
     save_name_ext = [];
 end
 N = size(filt_cell_struct,2);   % number of neurons
-T = opt.trial_frames;           % number of time points
+T = opt.trial_length;           % number of time points
 S = 2;                          % number of stimuli
 D = 2;                          % number of decisions
 num_dPC = getOr(opt,'num_dPC',5);                   % number of PCs
@@ -97,8 +97,8 @@ try
     dpca_classificationPlot(accuracy, [], accuracyShuffle, [], decodingClasses,...
         'marginalizationNames', margNames,...
         'whichMarg', whichMarg,...
-        'time', 1:opt.trial_frames,...
-        'timeEvents',opt.gocue_frame_adj)
+        'time', 1:opt.trial_length,...
+        'timeEvents',opt.sta_gocue_frame)
     
     suptitle([ opt.exp_name  this_idx_field ' ROIs' ' dPCA decoding accuracy'])
     fig=gcf;
@@ -113,8 +113,8 @@ try
         'marginalizationNames', margNames, ...
         'marginalizationColours', margColours, ...
         'whichMarg', whichMarg,                 ...
-        'time', 1:opt.trial_frames,                        ...
-        'timeEvents',opt.gocue_frame_adj,               ...
+        'time', 1:opt.trial_length,                        ...
+        'timeEvents',opt.sta_gocue_frame,               ...
         'timeMarginalization', 3,           ...
         'legendSubplot', 16,                ...
         'componentsSignif', componentsSignif);
@@ -144,7 +144,7 @@ try
         traces_idx_struct.(trial_fds{f}) = temp_size+1:size(traces_in,1);
         
     end
-    cell_mean =  mean(traces_in,2);
+    cell_mean =  mean(traces_in,1);
     traces_in = traces_in - cell_mean; % normalise to mean
     
     F = traces_in*W;
@@ -158,12 +158,8 @@ try
             for m = 1:num_dPC
                 this_traces_reshape(t,:,m) = this_traces([1:T]+(t-1)*T,m)';
             end
-        end
-        
-        for m = 1:num_dPC
-            traj_struct(m).(trial_fds{f}) = this_traces_reshape(:,:,m);
-            traj_struct(m).([trial_fds{f} '_avg']) = mean(traj_struct(m).(trial_fds{f}),1);
-        end
+        end       
+            traj_struct.(trial_fds{f}) = this_traces_reshape;
     end
     
     % save to structure

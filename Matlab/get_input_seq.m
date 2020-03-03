@@ -32,10 +32,13 @@ for ii = 1:length(cell_idx)
     for f = 1:numel(fd_names)
         try
             X = cell_struct(i).(fd_names{f});
+            this_num_trials = size(X,trial_dim);
 
             if ~isempty(fd_trial_idx) % only get specified trials
                 if ~isempty(fd_trial_idx{f})
-                    X = X(:,fd_trial_idx{f});
+                    this_fd_trial_idx = fd_trial_idx{f};
+                    this_fd_trial_idx(this_fd_trial_idx>this_num_trials) = []; % discard out of range trials (happens when sta required post frame is longer than recording)
+                    X = X(:,this_fd_trial_idx);
                 end
             end
             this_num_trials = size(X,trial_dim);
@@ -48,7 +51,7 @@ for ii = 1:length(cell_idx)
             
             % take average across specified frames if given
             if ~isempty(avg_frames)
-                X = mean(X(avg_frames,:,:),1);
+                X = nanmean(X(avg_frames,:,:),1);
             end
             
             
@@ -81,14 +84,17 @@ end
 trial_idx = struct();
 trial_count = 0;
 for f = 1:numel(fd_names)
-    this_fd = fd_names{f}; 
+    this_fd = fd_names{f};
     try
-    this_num_trials =  size(cell_struct(1).(this_fd),trial_dim);
-    if ~isempty(fd_trial_idx) % only get specified trials
-        if ~isempty(fd_trial_idx{f})
-            this_num_trials =numel(fd_trial_idx{f});
-        end
+        this_num_trials =  size(cell_struct(1).(this_fd),trial_dim);
+        if ~isempty(fd_trial_idx) % only get specified trials
+            if ~isempty(fd_trial_idx{f})
+                this_fd_trial_idx = fd_trial_idx{f};
+                this_fd_trial_idx(this_fd_trial_idx>this_num_trials) = []; % discard out of range trials (happens when sta required post frame is longer than recording)
+                
+                this_num_trials =numel(this_fd_trial_idx);
             end
+        end
     catch
         this_num_trials = 0;
     end

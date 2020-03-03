@@ -26,6 +26,10 @@ parfor s = 1:num_shuf
 end
 cell_struct(i).([save_fd_name '_zscore']) = (correct_stimulusAUC-mean(shuf_stim_auc))/std(shuf_stim_auc);
 cell_struct(i).(save_fd_name) = correct_stimulusAUC;
+if isnan(cell_struct(i).([save_fd_name '_zscore']))
+    cell_struct(i).([save_fd_name '_zscore']) = 0;
+end
+
 end
 
 end
