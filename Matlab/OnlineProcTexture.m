@@ -321,7 +321,7 @@ for i = 1:num_cells
 end
 
 %% plot traces
-figure; hold on
+figure('name','traces','position',[100 100 1600 800]); hold on
 plot_offset = 5;
 stim_cell_count = 1;
 non_stim_cell_count = 1;
@@ -343,9 +343,10 @@ plot(backgroundC,'color',[.5 .5 .5],'linestyle',':')
 
 for i = 1:numel(sens_stim_frames)
     this_color = trial_color.(['stim' num2str(trials.stim_type(i) )]);
-    plot([sens_stim_frames(i) sens_stim_frames(i)],ylim,'color',this_color) % trial-on 
-    plot([sens_stim_frames(i) sens_stim_frames(i)]+opt.gocue_frame,ylim,'color',this_color,'linestyle',':') % go-cue
+    plot([sens_stim_frames(i) sens_stim_frames(i)],ylim,'color',this_color,'linestyle',':') % trial-on 
+    plot([sens_stim_frames(i) sens_stim_frames(i)]+opt.gocue_frame,ylim,'color',this_color) % go-cue
 end
+export_fig([fig_save_path filesep 'OnlineTraces_' strrep(caiman_file,'.mat','.png')])
 
 %% Get stim triggered average 
 for i = 1:num_cells
@@ -444,6 +445,7 @@ disp('sorted cell_struct sta_traces')
 
 %% == GET CELL IDENTITY ==
 % stimulus AUC calculated from correct trials
+% takes long, make it simple
 peak_frame_range = opt.sta_peak_search_range;
 avg_frame_range = opt.sta_avg_frames;
 [cell_struct] = get_cell_auc(cell_struct,{'stim_1_correct','stim_2_correct'},'correct_stimAUC',opt);
@@ -453,13 +455,13 @@ correct_stimulusAUC_zscore = extractfield(cell_struct,'correct_stimAUC_zscore');
 correct_texAUC = extractfield(cell_struct,'correct_stimAUC');
 disp('got correct trials auc')
 
-try
-    [cell_struct] = get_cell_auc(cell_struct,{'stim_1_incorrect','stim_2_incorrect'},'incorrect_stimAUC',opt);
-    FLAG_GOT_CHOICE_AUC = true;
-catch
-    disp('getting incorrect trials error')
-    FLAG_GOT_CHOICE_AUC = false;
-end
+% try
+%     [cell_struct] = get_cell_auc(cell_struct,{'stim_1_incorrect','stim_2_incorrect'},'incorrect_stimAUC',opt);
+%     FLAG_GOT_CHOICE_AUC = true;
+% catch
+%     disp('getting incorrect trials error')
+     FLAG_GOT_CHOICE_AUC = false;
+% end
 
 disp('got stim auc')
 %% get cell_idx_struct
@@ -513,7 +515,7 @@ end
 %% Discard cells of bad shapes from trigger and targets pool (optional)
 % not using cells with low cnn score as trigger or targets
 % will not do anything if no cnn result is loaded
-cnn_thresh = 0.1; % change this to higher value to exlude more dendrites
+cnn_thresh = 0.05; % change this to higher value to exlude more dendrites
 cell_idx_struct.cnn_above_thresh = find(cnn_predictions(accepted_idx)>cnn_thresh);
 cell_idx_struct = structfun(@(x)intersect(x,cell_idx_struct.cnn_above_thresh),cell_idx_struct,'UniformOutput',false);
 disp(['discarded cells with cnn prediction soore <' num2str(cnn_thresh)])
@@ -549,6 +551,7 @@ for f = 1:numel(opt.target_idx_fd)
     fd = opt.target_idx_fd{f};
     mark_cells_on_fov(cell_struct,cell_idx_struct.(fd),trial_color.(['stim' num2str(f)]),'MarkerSize',500,'Linewidth',2)
 end
+export_fig([fig_save_path filesep 'SelCNNonFOV_' strrep(caiman_file,'.mat','.png')])
 
 
 %% MAKE OUTPUT FILE FOR PYRTAOI PHOTOEXCITABILITY TEST
@@ -712,19 +715,9 @@ for ii = 1:numel(plot_cell_idx)
     
 %     ylim([-5 20])
 end
-% export_fig([fig_save_path filesep plot_cell_type 'STATrace_' strrep(caiman_file,'.mat','.png')])
+export_fig([fig_save_path filesep plot_cell_type 'STATrace_' strrep(caiman_file,'.mat','.png')])
 %%  == DIMENSIONALITY REDUCTION ==
-%% dpca
-% shuffle takes time - try parfor?
-dpca_opt = opt;
-dpca_opt.trial_color = trial_color;
-fd_names ={'stim_1_correct','stim_1_incorrect','stim_2_correct','stim_2_incorrect'};
-[dpca_struct,traces_idx_struct] = get_dpca_traj_brief(raw_cell_struct,cell_idx_struct.(opt.trigger_idx_fd),fd_names,opt);
-
-plot_pop_vectors(dpca_struct.traj_struct,fd_names,5,dpca_opt,...
-    'plot_ylabel','PC level','plot_num_cols',2);
-
-%% factor analysis
+%% params for factor analysis (also used for stim_opt so run this)
 fa_opt.bin_size = 1;
 fa_opt.gocue_bin = floor(opt.sta_gocue_frame/fa_opt.bin_size);
 fa_opt.stim_bin = ceil(opt.sta_stim_frame/fa_opt.bin_size);
@@ -737,13 +730,27 @@ fa_opt.idx_fields = {opt.trigger_idx_fd};
 % fa_opt.avg_frames = fa_opt.stim_bin+30:1:fa_opt.gocue_bin;
 fa_opt.avg_frames  = [];
 easy_trial_idx = [];
-%%
-if FLAG_GOT_CHOICE_AUC
-    fa_opt.fd_names ={'stim_1_correct','stim_1_incorrect','stim_2_correct','stim_2_incorrect'};
-else
-    fa_opt.fd_names ={'stim_1_correct','stim_2_correct'};
-    disp('using correct trials only')
+
+%% dpca
+% shuffle takes time - try parfor?
+if strcmp(opt.method,'dpca')
+dpca_opt = opt;
+dpca_opt.trial_color = trial_color;
+fd_names ={'stim_1_correct','stim_1_incorrect','stim_2_correct','stim_2_incorrect'};
+
+[dpca_struct,traces_idx_struct] = get_dpca_traj_brief(raw_cell_struct,cell_idx_struct.(opt.trigger_idx_fd),fd_names,opt);
+
+plot_pop_vectors(dpca_struct.traj_struct,fd_names,5,dpca_opt,...
+    'plot_ylabel','PC level','plot_num_cols',2);
 end
+%% run factor analysis
+if strcmp(opt.method,'fa')
+% if FLAG_GOT_CHOICE_AUC
+    fa_opt.fd_names ={'stim_1_correct','stim_1_incorrect','stim_2_correct','stim_2_incorrect'};
+% else
+%     fa_opt.fd_names ={'stim_1_correct','stim_2_correct'};
+%     disp('using correct trials only')
+% end
 fa_opt.plot_fds = fa_opt.fd_names;
 fa_opt.m = 3;
 fa_opt.IF_MEDFILT = 0;
@@ -775,10 +782,11 @@ plot_pop_vectors(fa_traj_struct,fa_opt.plot_fds,fa_opt.m,fa_opt,...
     'plot_ylabel','Factor level','plot_num_cols',2);
 toc
 disp('...Done')
-
+end
     
 %% coding direction
 % using raw onine traces to mimic online condition
+if strcmp(opt.method,'cd')
 choice_fds = {'stim_1_correct','stim_2_correct'};
 cd_opt = opt;
 cd_opt.trial_color = trial_color;
@@ -788,7 +796,7 @@ coding_direct = cell2mat(arrayfun(@(x)nanmean(mean(raw_cell_struct(x).(choice_fd
 cd_traj_struct = get_cd_projection(raw_cell_struct(cell_idx_struct.(opt.trigger_idx_fd)),coding_direct,choice_fds);
 plot_pop_vectors(cd_traj_struct,choice_fds,1,cd_opt,...
         'plot_ylabel','Projection')
-    
+end
 %% == GET  DECODERS ==    
 %% choose which trajectory to use 
 switch opt.method 
@@ -828,7 +836,7 @@ export_fig([fig_save_path filesep 'StimDecoderPerform_' strrep(caiman_file,'.mat
 
 %% get choice decoder (directly from traj, using threshold trials) 
 choice_opt = fa_opt;
-choice_opt.fd_names = {'stim_2_correct','stim_2_incorrect'}; %correct choice will be positive
+choice_opt.fd_names = {'stim_1_correct','stim_1_incorrect'}; %correct choice will be positive
 % choice_opt.fd_names = {TS_L2_fds{1},TS_L1_fds{1}};
 choice_opt.frames_to_avg = [120:150];
 choice_opt.frames_to_train = round([1:1:150]/choice_opt.bin_size);
@@ -976,7 +984,7 @@ condition_pybehav_stimvars = [1 1]; % stim types in pybehav that will be monitor
 condition_pyrtaoi_stimtypes = [1 2]; % stim type 1 will be stimuated when BELOW, stim type 2 will be stimulated when ABOVE
 condition_pyrtaoi_stimvars  = [1 1]; % type and var need to match - vars are not used for texture exp, set all to 1
 
-catch_pybehav_stimtypes = [3,4,3,4,3,4]; % 3 with reward, 4 no-reward
+catch_pybehav_stimtypes = [3,4,3,4,3,4]; % 4 with reward, 3 no-reward
 catch_pybehav_stimvars = [1,1,2,2,3,3]; % photostim targets. 1:tex1, 2:tex2, 3:none
 catch_pyrtaoi_stimtypes = [3,3,4,4,5,5]; % 3 stim tex1, 4 stim tex2, 5 no stim
 catch_pyrtaoi_stimvars = [1,1,1,1,1,1];
@@ -1041,7 +1049,7 @@ end
 
 %% ==================== MAKE PYBEHAV EXTERNAL FILE ========================
 % make file for pybehavior
-num_condition_per_loop = 3; 
+num_condition_per_loop = 4; 
 loop_pybehav_stim_types = [repmat(condition_pybehav_stimtypes,[1,num_condition_per_loop])  catch_pybehav_stimtypes]; % condition trial types plus two extreme stim types
 loop_pybehav_stim_vars  = [repmat(condition_pybehav_stimvars,[1,num_condition_per_loop])  catch_pybehav_stimvars];
 loop_pyrtaoi_stim_types = [repmat(condition_pyrtaoi_stimtypes ,[1,num_condition_per_loop]) catch_pyrtaoi_stimtypes]; % condition trial types plus two extreme stim types

@@ -13,7 +13,7 @@ clc
 % matlab_set_paths_zz
 
 %% stim parameter - CHANGE THIS
-crop_num_trials = 57; % specify number of trials recorded if aborted half way
+crop_num_trials = 100; % specify number of trials recorded if aborted half way
 IF_GO_NOGO = true;
 IF_USE_PYRTAOI_STIMTYPE = true; % for condition session this will be different from pybehav
 
@@ -110,7 +110,7 @@ opt.output_path = caiman_path;
 opt.exp_name = strrep(caiman_file,'.mat','proc');
 disp(['analysis files savepath:' save_path])
 %% organise data (generate plots for sanity check)
-tot_num_trials = min([crop_num_trials,length(caiman_data.trialOrder),length(trials.stim_type)]);
+tot_num_trials = min([crop_num_trials,length(caiman_data.trialOrder),numel(behavior_data.results)]);
 
 if(~isempty(caiman_data.stim_frames_caiman))
     sens_stim_frames = caiman_data.sensory_stim_frames+caiman_data.t_init;
@@ -159,6 +159,56 @@ opsin_positive_idx = accepted_idx(opsin_positive>0);
 
 opt.type_color = [trial_color.('stim1');trial_color.('stim2')];
 opt.trial_color = trial_color;
+%% get trial indices
+%% trial types for go-nogo condition
+% pyrtaoi: [1 2 3 4 3 4 5 5];
+% pybehav: [1 2 3 3 4 4 3 4];
+% texture: [1 2 3 3 3 3 3 3]; % by pybehav
+% reward:  [0 2 2 2 0 0 2 0]; % by pybehav, 2 is go, 0 is no-go
+% target:  [1 2 1 2 1 2 0 0]; % by pyrtaoi
+num_trial_types = 8;
+
+[photostim_trial_idx,num_photo_per_trial] = get_trials_with_photostim( caiman_data.sensory_stim_frames, caiman_data.online_photo_frames );
+trials.photostim = zeros(1,num_trials);
+trials.photostim(photostim_trial_idx(photostim_trial_idx<=num_trials))=1;
+
+trial_indices = struct(); % % get trialtype-outcome indices
+all_pyrtaoi_stimtype =  [1 2 3 4 3 4 5 5]; % will be used as variation below
+all_pybehav_stimtype =  [1 2 3 3 4 4 3 4];
+
+
+for v = 1:num_trial_types
+    this_var = all_pyrtaoi_stimtype(v);
+    this_stim = all_pybehav_stimtype(v);
+    trial_indices.(['stim_' num2str(this_stim) '_var_' num2str(this_var) '_correct'  ]) = find(trials.correct==1&trials.stim_type==this_stim&trials.trialOrder == this_var);
+    trial_indices.(['stim_' num2str(this_stim) '_var_' num2str(this_var) '_incorrect' ]) = find(trials.incorrect==1&trials.stim_type==this_stim&trials.trialOrder == this_var);
+    trial_indices.(['stim_' num2str(this_stim) '_var_' num2str(this_var) '_miss' ]) = find(trials.miss==1&trials.stim_type==this_stim&trials.trialOrder == this_var);
+    trial_indices.(['stim_' num2str(this_stim) '_var_' num2str(this_var) '_photostim'  ]) = intersect(find(trials.stim_type==this_stim&trials.trialOrder == this_var),photostim_trial_idx);
+    
+    if IF_GO_NOGO && ~isempty(intersect(opt.go_stim_types,this_stim))
+        trial_indices.(['stim_' num2str(this_stim) '_var_' num2str(this_var) '_incorrect' ]) = trial_indices.(['stim_' num2str(this_stim) '_var_' num2str(this_var) '_miss' ]);
+    end
+end
+
+
+% photostim trial indices
+photo_trials = struct();
+fds = fields(trials);
+for f = 1:numel(fds)
+    fd = fds{f};
+    photo_trials.(fd) = double(trials.(fd)).*trials.photostim;
+end
+
+% get trials with photostims
+if ~isempty( caiman_data.online_photo_frames)
+photo_stim_frames =  caiman_data.online_photo_frames + caiman_data.t_init;
+photo_stim_frames(photo_stim_frames>caiman_data.t_cnm)=[];
+else
+    photo_stim_frames = [];
+    disp('no photostim found')
+end
+
+disp('sorted trial indices')
 
 %% generate config file for control session
 % change closed-loop trials to photostim or no photostim trials
@@ -177,7 +227,7 @@ pybehav_seq = [control_trials.stim_type; ones(1,num_trials)];
 
 
 % make trial sequence file for pyrtaoi and pybehav
-% save_time = datestr(now,'yyyymmdd_HHMM');
+save_time = datestr(now,'yyyymmdd_HHMM');
 pyrtaoi_file_save_name = [opt.exp_name '_RTAOiPyBehavior_CONTROL_' save_time];
 dlmwrite([opt.output_path filesep pyrtaoi_file_save_name '.txt'],pyrtaoi_seq)
 disp(['saved as:' opt.output_path filesep pyrtaoi_file_save_name '.txt'] )
@@ -245,7 +295,7 @@ disp('made cnm_struct')
 
 %% check alignemnt
 figure; hold on
-plot(zscore(cnm_struct(74).onlineC_full));
+plot(zscore(cnm_struct(1).onlineC_full));
 for i = 1:numel(sens_stim_frames)
     this_color = trial_color.(['stim' num2str(trials.stim_type(i) )]);
     plot([sens_stim_frames(i) sens_stim_frames(i)]+opt.stimon_frame,ylim,'color',this_color) % trial-on + roughly first touch
@@ -260,25 +310,18 @@ for i = 1:numel(cnm_struct(74).stim_frames)
     plot([cnm_struct(74).stim_frames(i) cnm_struct(74).stim_frames(i)],ylim,'color',[0 0 0]) % sta gocue
 end
 
-    this_online_trace = cell_struct(74).filtC; % online trace med filtered
-    
-    temp_trace = nan(1,tot_frames);
-    temp_trace(caiman_frames) = this_online_trace(1,1:num_frames);
-    this_online_trace = fillmissing(temp_trace,'linear');
-    plot(this_online_trace,'black')
-
+%     this_online_trace = cell_struct(74).filtC; % online trace med filtered
+%     
+%     temp_trace = nan(1,tot_frames);
+%     temp_trace(caiman_frames) = this_online_trace(1,1:num_frames);
+%     this_online_trace = fillmissing(temp_trace,'linear');
+%     plot(this_online_trace,'black')
+% 
 %% only get accepted cells
 accepted_idx = caiman_data.accepted_idx+1;
 num_cells = numel(accepted_idx);
 
-%% get trials with photostims
-if ~isempty( caiman_data.online_photo_frames)
-photo_stim_frames =  caiman_data.online_photo_frames + caiman_data.t_init;
-photo_stim_frames(photo_stim_frames>caiman_data.t_cnm)=[];
-else
-    photo_stim_frames = [];
-    disp('no photostim found')
-end
+
 %% plot spatial components and save to cell struct
 com_fov = zeros(cnm_dims);
 accepted_com_fov = zeros(cnm_dims);
@@ -368,46 +411,6 @@ end
 
 for i = 1:numel(photo_stim_frames)
     plot([photo_stim_frames(i) photo_stim_frames(i)],ylim,'color',trial_color.photostim) % stim-on
-end
-
-%% get trial indices
-%% trial types for go-nogo condition
-% pyrtaoi: [1 2 3 4 3 4 5 5];
-% pybehav: [1 2 3 3 4 4 3 4];
-% texture: [1 2 3 3 3 3 3 3]; % by pybehav
-% reward:  [0 2 2 2 0 0 2 0]; % by pybehav, 2 is go, 0 is no-go
-% target:  [1 2 1 2 1 2 0 0]; % by pyrtaoi
-num_trial_types = 8;
-
-[photostim_trial_idx,num_photo_per_trial] = get_trials_with_photostim( caiman_data.sensory_stim_frames, caiman_data.online_photo_frames );
-trials.photostim = zeros(1,num_trials);
-trials.photostim(photostim_trial_idx(photostim_trial_idx<=num_trials))=1;
-
-trial_indices = struct(); % % get trialtype-outcome indices
-all_pyrtaoi_stimtype =  [1 2 3 4 3 4 5 5]; % will be used as variation below
-all_pybehav_stimtype =  [1 2 3 3 4 4 3 4];
-
-
-for v = 1:num_trial_types
-    this_var = all_pyrtaoi_stimtype(v);
-    this_stim = all_pybehav_stimtype(v);
-    trial_indices.(['stim_' num2str(this_stim) '_var_' num2str(this_var) '_correct'  ]) = find(trials.correct==1&trials.stim_type==this_stim&trials.trialOrder == this_var);
-    trial_indices.(['stim_' num2str(this_stim) '_var_' num2str(this_var) '_incorrect' ]) = find(trials.incorrect==1&trials.stim_type==this_stim&trials.trialOrder == this_var);
-    trial_indices.(['stim_' num2str(this_stim) '_var_' num2str(this_var) '_miss' ]) = find(trials.miss==1&trials.stim_type==this_stim&trials.trialOrder == this_var);
-    trial_indices.(['stim_' num2str(this_stim) '_var_' num2str(this_var) '_photostim'  ]) = intersect(find(trials.stim_type==this_stim&trials.trialOrder == this_var),photostim_trial_idx);
-    
-    if IF_GO_NOGO && ~isempty(intersect(opt.go_stim_types,this_stim))
-        trial_indices.(['stim_' num2str(this_stim) '_var_' num2str(this_var) '_incorrect' ]) = trial_indices.(['stim_' num2str(this_stim) '_var_' num2str(this_var) '_miss' ]);
-    end
-end
-
-
-% photostim trial indices
-photo_trials = struct();
-fds = fields(trials);
-for f = 1:numel(fds)
-    fd = fds{f};
-    photo_trials.(fd) = double(trials.(fd)).*trials.photostim;
 end
 
 

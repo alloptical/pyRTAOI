@@ -5,7 +5,7 @@
 clear all
 close all
 clc
-
+matlab_set_paths_zz
 % ZZ PC
 % addpath(genpath('C:\Users\User\Desktop\pyRTAOI-rig\Matlab'));
 % cd('C:\Users\User\Desktop\pyRTAOI-rig\Matlab');
