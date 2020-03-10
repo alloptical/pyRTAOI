@@ -4890,13 +4890,13 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                             if p['trialType'][i] in p['conditionTypes'][j][0].flatten():
                                 ensemble_idx[i]=j
                     p['trialEnsembleIdx'] = ensemble_idx
-                    print(p['trialEnsembleIdx'] )
+                    
                 elif p['NumTargetEnsembles']==1:
                     p['trialEnsembleIdx'] = [0]*num_trials
                 else:
                     print('NO TARGET ENSEMBLE LOADED!')
 
-
+            print(p['trialEnsembleIdx'] )
 
             self.updateStatusBar('Loaded trial type from trialOrder file')
             p['useExternalTrialOrder'] = True

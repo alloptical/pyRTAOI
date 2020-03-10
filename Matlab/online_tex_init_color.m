@@ -51,5 +51,8 @@ color.L2 = [.5 .5 .5];
 
 color.trigger = [103, 232, 235]./255;
 color.target = color.photo;
+
+color.go_trials = [0 0 0];
+color.nogo_trials = [.5 .5 .5];
 end
 

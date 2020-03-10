@@ -13,7 +13,7 @@ clc
 % matlab_set_paths_zz
 
 %% stim parameter - CHANGE THIS
-crop_num_trials = 100; % specify number of trials recorded if aborted half way
+crop_num_trials = 156; % specify number of trials recorded if aborted half way
 IF_GO_NOGO = true;
 IF_USE_PYRTAOI_STIMTYPE = true; % for condition session this will be different from pybehav
 
@@ -94,6 +94,7 @@ norm_weights = decod_struct.trigger_weights;
 norm_thresh = decod_struct.trigger_thresh;
 trigger_idx = decod_struct.trigger_idx;
 target_idx = decod_struct.target_idx;
+target_ensembles = decod_struct.target_ensembles;
 thresh_sd = decod_struct.thresh_sd;
 %% config save path
 save_path = [caiman_path filesep 'analysis_files'];
@@ -164,7 +165,7 @@ opt.trial_color = trial_color;
 % pyrtaoi: [1 2 3 4 3 4 5 5];
 % pybehav: [1 2 3 3 4 4 3 4];
 % texture: [1 2 3 3 3 3 3 3]; % by pybehav
-% reward:  [0 2 2 2 0 0 2 0]; % by pybehav, 2 is go, 0 is no-go
+% reward:  [0 2 0 0 2 2 2 0]; % by pybehav, 2 is go, 0 is no-go
 % target:  [1 2 1 2 1 2 0 0]; % by pyrtaoi
 num_trial_types = 8;
 
@@ -183,21 +184,19 @@ for v = 1:num_trial_types
     trial_indices.(['stim_' num2str(this_stim) '_var_' num2str(this_var) '_correct'  ]) = find(trials.correct==1&trials.stim_type==this_stim&trials.trialOrder == this_var);
     trial_indices.(['stim_' num2str(this_stim) '_var_' num2str(this_var) '_incorrect' ]) = find(trials.incorrect==1&trials.stim_type==this_stim&trials.trialOrder == this_var);
     trial_indices.(['stim_' num2str(this_stim) '_var_' num2str(this_var) '_miss' ]) = find(trials.miss==1&trials.stim_type==this_stim&trials.trialOrder == this_var);
-    trial_indices.(['stim_' num2str(this_stim) '_var_' num2str(this_var) '_photostim'  ]) = intersect(find(trials.stim_type==this_stim&trials.trialOrder == this_var),photostim_trial_idx);
-    
+    trial_indices.(['stim_' num2str(this_stim) '_var_' num2str(this_var) '_photostim'  ]) = find(trials.stim_type==this_stim&trials.trialOrder == this_var & trials.photostim ==1);
+    trial_indices.(['stim_' num2str(this_stim) '_var_' num2str(this_var) '_nonphotostim'  ]) = find(trials.stim_type==this_stim&trials.trialOrder == this_var & trials.photostim ==0);
+  
     if IF_GO_NOGO && ~isempty(intersect(opt.go_stim_types,this_stim))
         trial_indices.(['stim_' num2str(this_stim) '_var_' num2str(this_var) '_incorrect' ]) = trial_indices.(['stim_' num2str(this_stim) '_var_' num2str(this_var) '_miss' ]);
     end
 end
+% sort catch trials
+% using stim_5 as catch; var as target ensemble
+trial_indices.('stim_5_var_1') =  find(trials.trialOrder==3&trials.photostim == 1);
+trial_indices.('stim_5_var_2') =  find(trials.trialOrder==4&trials.photostim == 1);
+trial_indices.('stim_5_var_0') =  find(trials.trialOrder==5&trials.photostim == 0);
 
-
-% photostim trial indices
-photo_trials = struct();
-fds = fields(trials);
-for f = 1:numel(fds)
-    fd = fds{f};
-    photo_trials.(fd) = double(trials.(fd)).*trials.photostim;
-end
 
 % get trials with photostims
 if ~isempty( caiman_data.online_photo_frames)
@@ -293,30 +292,6 @@ temp_trace = fillmissing(temp_trace,'linear');
 backgroundC = temp_trace;
 disp('made cnm_struct')
 
-%% check alignemnt
-figure; hold on
-plot(zscore(cnm_struct(1).onlineC_full));
-for i = 1:numel(sens_stim_frames)
-    this_color = trial_color.(['stim' num2str(trials.stim_type(i) )]);
-    plot([sens_stim_frames(i) sens_stim_frames(i)]+opt.stimon_frame,ylim,'color',this_color) % trial-on + roughly first touch
-    plot([sens_stim_frames(i) sens_stim_frames(i)]+opt.gocue_frame,ylim,'color',this_color,'linestyle',':') % go-cue
-end
-
-for i = 1:numel(photo_stim_frames)
-    plot([photo_stim_frames(i) photo_stim_frames(i)],ylim,'color',trial_color.photostim) % stim-on
-end
-
-for i = 1:numel(cnm_struct(74).stim_frames)
-    plot([cnm_struct(74).stim_frames(i) cnm_struct(74).stim_frames(i)],ylim,'color',[0 0 0]) % sta gocue
-end
-
-%     this_online_trace = cell_struct(74).filtC; % online trace med filtered
-%     
-%     temp_trace = nan(1,tot_frames);
-%     temp_trace(caiman_frames) = this_online_trace(1,1:num_frames);
-%     this_online_trace = fillmissing(temp_trace,'linear');
-%     plot(this_online_trace,'black')
-% 
 %% only get accepted cells
 accepted_idx = caiman_data.accepted_idx+1;
 num_cells = numel(accepted_idx);
@@ -375,12 +350,52 @@ for i = 1:num_cells
     cell_struct(i).opsin_positive = 0;
     cell_struct(i).cnm_idx = this_idx;
     cell_struct(i).jsf = jsf(this_idx);
-    cell_struct(i).filtC = caiman_data.filt_C(i,1:num_frames);
+    
+    temp_trace = nan(1,tot_frames);
+    temp_trace(caiman_frames) =  caiman_data.filt_C(this_idx,1:num_frames);
+    temp_trace = fillmissing(temp_trace,'linear');
+
+    cell_struct(i).filtC = temp_trace;
 
     if(~isempty(find(opsin_positive_idx==i)))
         cell_struct(i).opsin_positive = 1;
     end
 end
+%% check alignment
+figure; hold on
+cell_count = 1;
+for e = 1:2
+    this_idx = target_ensembles{e};
+    for i = 1:length(this_idx)
+        cell_count = cell_count+1;
+    plot(zscore(cell_struct(this_idx(i)).filtC)+cell_count*5,'black');
+    end
+end
+
+
+
+for i = 1:numel(sens_stim_frames)
+    this_color = trial_color.(['stim' num2str(trials.stim_type(i) )]);
+    plot([sens_stim_frames(i) sens_stim_frames(i)]+opt.stimon_frame,ylim,'color',this_color) % trial-on + roughly first touch
+    plot([sens_stim_frames(i) sens_stim_frames(i)]+opt.gocue_frame,ylim,'color',this_color,'linestyle',':') % go-cue
+end
+
+for i = 1:numel(photo_stim_frames)
+    plot([photo_stim_frames(i) photo_stim_frames(i)],ylim,'color',trial_color.photostim,'linestyle',':') 
+end
+xlim([caiman_data.t_init tot_frames])
+
+% for i = 1:numel(cnm_struct(74).stim_frames)
+%     plot([cnm_struct(74).stim_frames(i) cnm_struct(74).stim_frames(i)],ylim,'color',[0 0 0]) % sta gocue
+% end
+
+%     this_online_trace = cell_struct(74).filtC; % online trace med filtered
+%     
+%     temp_trace = nan(1,tot_frames);
+%     temp_trace(caiman_frames) = this_online_trace(1,1:num_frames);
+%     this_online_trace = fillmissing(temp_trace,'linear');
+%     plot(this_online_trace,'black')
+% 
 
 %% plot full traces
 figure; hold on
@@ -418,12 +433,7 @@ end
 for i = 1:num_cells
     this_cell_trace = cnm_struct(cell_struct(i).cnm_idx).deconvC_full;
     this_online_trace = cell_struct(i).filtC; % online trace med filtered
-    
-    temp_trace = nan(1,tot_frames);
-    temp_trace(caiman_frames) = this_online_trace(1,1:num_frames);
-    this_online_trace = fillmissing(temp_trace,'linear');
-
-    
+        
     
     this_num_trials = numel(cnm_struct(cell_struct(i).cnm_idx).stim_frames );
     this_sens_stim_frames =  cnm_struct(cell_struct(i).cnm_idx).stim_frames;
@@ -493,11 +503,11 @@ for i = 1:numel(sens_stim_frames)
 end
 
 for i = 1:numel(photo_stim_frames)
-    plot([photo_stim_frames(i) photo_stim_frames(i)],ylim,'color',trial_color.photostim) % stim-on
+    plot([photo_stim_frames(i) photo_stim_frames(i)],ylim,'color',trial_color.photostim,'linestyle',':') % stim-on
 end
 
 plot(xlim,[0 0],'color','black')
-xlim([caiman_data.t_init tot_frames])
+% xlim([caiman_data.t_init tot_frames])
 
 %% Sort STAs by different trial types
 trial_types = fields(trial_indices);
@@ -523,7 +533,9 @@ disp('sorted cell_struct sta_traces')
 
 %% Plot STAs traces for certain cell types
 figure('name','condition sta traces','units','normalized','outerposition',[0 0 1 1])
-stim_fds = {'stim_1_var_1_correct','stim_2_var_2_correct'}; % extreme stim types
+stim_fds = {'stim_1_var_1_correct','stim_2_var_2_correct'...
+    'stim_1_var_1_photostim','stim_2_var_2_photostim'}; % extreme stim types
+
 peak_frame_range = opt.sta_peak_search_range;
 avg_frame_range = opt.sta_avg_frames;
 
@@ -541,10 +553,15 @@ for ii = 1:plot_num_cells
     plot(cell_struct(i).(stim_fds{1}),'color',trial_color.stim_1_correct,'linewidth',1)
     plot(cell_struct(i).(stim_fds{2}),'color',trial_color.stim_2_correct,'linewidth',1)
     
+    % photostim trials
+    plot(cell_struct(i).(stim_fds{3}),':','color',[0 0 0],'linewidth',1)
+    plot(cell_struct(i).(stim_fds{4}),':','color',[.5 .5 .5],'linewidth',1)
+   
     xlim([0 opt.sta_pre_frames+opt.sta_post_frames+1])
     axis square
     
     text(1,1,['Cell ' num2str(i) ' (ROI ' num2str(cell_struct(i).cnm_idx) ')'],'units','normalized','color','black','Horizontalalignment','right','VerticalAlignment','top')
+    text(1,0.9,['W '  num2str(online_w(i),'%0.001f') ],'units','normalized','color','black','Horizontalalignment','right','VerticalAlignment','top')
 
     box off
     
@@ -725,8 +742,7 @@ plot_pop_vectors(traj_struct,fds_of_interest,1,test_opt,...
     'plot_num_cols',3,'IF_PLOT_RAW_ONLY',1)
 suptitle('Closed-loop condition trials, online trajectory')
 
-fds_of_interest = {'stim_3_var_3_correct','stim_3_var_3_incorrect','stim_3_var_3_photostim',......
-    'stim_4_var_4_correct', 'stim_4_var_4_incorrect','stim_4_var_4_photostim'};
+fds_of_interest = {'stim_5_var_1','stim_5_var_2','stim_5_var_0'};  
 plot_pop_vectors(traj_struct,fds_of_interest,1,test_opt,...
     'noise_thresh',thresh_sd,'plot_ylabel','Projection',...
     'ylimit',[-300 300],...
@@ -736,7 +752,8 @@ suptitle('Catch condition trials, online trajectory')
 
 %% trajectory computed using raw_sta_traces
 fds_of_interest = {'stim_1_var_1_correct','stim_1_var_1_incorrect','stim_1_var_1_photostim',......
-    'stim_2_var_2_correct', 'stim_2_var_2_incorrect','stim_2_var_2_photostim'};
+    'stim_2_var_2_correct', 'stim_2_var_2_incorrect','stim_2_var_2_photostim',...
+    'stim_5_var_1','stim_5_var_2','stim_5_var_0'};
 [stim_proj_struct] = get_projections(raw_cell_struct(trigger_idx),norm_weights,fds_of_interest,'bias',-norm_thresh,'IS_CELL_STRUCT',1);
 
 plot_pop_vectors(stim_proj_struct,fds_of_interest,1,opt,...
@@ -745,12 +762,7 @@ suptitle('Stim decoder projections')
 %% plot the entire trajectory - drift of baseline between initialisation movie and condition movie
 % looks okay for consecutive movies, but a big jump between movies taken 1.5 hours apart..
 temp_filtC = cell2mat({cell_struct(:).('filtC')}');
-online_filtC = nan(num_cells,tot_frames);
-for c = 1:num_cells
-temp_trace = nan(1,tot_frames);
-temp_trace(caiman_frames) = temp_filtC(c,1:num_frames);
-online_filtC(c,:) = fillmissing(temp_trace,'linear',1);
-end
+
 test_traj = online_w*online_filtC-online_thresh;
 
 figure;hold on;
