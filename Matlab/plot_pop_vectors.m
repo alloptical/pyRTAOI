@@ -176,7 +176,7 @@ if ~IF_PLOT_RAW_ONLY
     
 end
 if ~IF_PLOT_AVG_ONLY
-    figure('name','raw projections','units','normalized','outerposition',[0 0 .6 1]); hold on
+    figure('name','raw projections','units','normalized','outerposition',[0 0 1 1]); hold on
     for f = 1:numel(fds)
         try
         this_F = pop_struct.([fds{f}]);
@@ -226,7 +226,7 @@ if ~IF_PLOT_AVG_ONLY
         
         xlabel('Time')
         ylabel(plot_ylabel)
-        title([strrep(strrep(fds{f},'deconv',''),'_',' ') ':  ' num2str(size(this_F,1)) ' trials'])
+        title([strrep(strrep(fds{f},'deconv',''),'_',' ') ': ' num2str(size(this_F,1))])
         
     end
     if ~isempty(sup_title)

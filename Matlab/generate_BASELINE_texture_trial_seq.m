@@ -13,7 +13,7 @@ save_dir = [];
 fname = [];
 loop_pybehavstim_types = [repmat([1,2],[1,9]),3,4]; %10% catch trials
 loop_pybehav_stim_vars = ones(size(loop_pybehavstim_types)); % dummy. not using this feature in pybehav
-num_loops = 5;
+num_loops = 6;
 
 for v = 1:numel(varargin)
     if strcmpi(varargin{v},'save_dir')

@@ -51,6 +51,9 @@ end
 
 if isempty(zlimit)
     zlimit = [min(all_values),max(all_values)];
+    if zlimit(1)>0
+       zlimit(1) = 0; % forcing min color to be white if all values are positive 
+    end
 else
     img(1) = zlimit(1);
     img(2) = zlimit(2);

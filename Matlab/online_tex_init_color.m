@@ -30,7 +30,8 @@ color.stim2 = mean([color.correct_stim2;color.incorrect_stim2],1);
 color.stim3 = [.5 .5 .5]; % catch stimulus
 color.stim4 = [.5 .5 .5]; % catch
 color.stim5 = [.5 .5 .5]; % catch
-
+color.stim_5_miss = [.5 .5 .5]; % catch
+color.stim_5_lick = [0 0 0]; % catch
 
 
 color.port1 = mean([color.correct_stim1;color.incorrect_stim2],1);
@@ -54,5 +55,12 @@ color.target = color.photo;
 
 color.go_trials = [0 0 0];
 color.nogo_trials = [.5 .5 .5];
+
+% performance plot
+color.all = [0 0 0];
+color.photo = color.photostim;
+color.nonphoto = [.5 .5 .5];
+color.dummyphoto = tint(color.photo,0.5);
+
 end
 

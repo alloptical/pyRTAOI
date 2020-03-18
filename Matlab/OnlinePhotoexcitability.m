@@ -30,7 +30,7 @@ opt.frame_rate = 30; % Hz
 cnm_plot_options = CNMFSetParms;
 cnm_plot_options.roi_color = [colormap(lines);colormap(lines);colormap(lines)];
 close
-%% color lut
+% color lut
 hsv = colormap(hsv);
 hsv = hsv(2:end-3,:);
 close 

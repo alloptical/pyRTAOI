@@ -402,10 +402,14 @@ class Photostimer(QObject):
             print('photostim error')
             print(e)
 
-    def photostimCurrentTargets(self,num_stim_targets):
+    def photostimCurrentTargets(self,num_stim_targets,if_dummy):
         ERROR = False
         p['FLAG_SKIP_FRAMES'] = True
-        this_volt = np.polyval(self.power_polyfit_p,self.photoPowerPerCell*num_stim_targets)
+        if if_dummy:
+            this_volt = 0
+        else:
+            this_volt = np.polyval(self.power_polyfit_p,self.photoPowerPerCell*num_stim_targets)
+        
         self.photostimOn_signal.emit()
         if not self.bl.send_trigger_power(this_volt):
             self.NumStimSent +=1
@@ -444,18 +448,23 @@ class Photostimer(QObject):
             if not self.bl.send_coords_power(currentTargetX, currentTargetY,this_volt):
                 self.NumStimSent +=1
                 self.totalNumPhotostim_signal.emit(self.NumStimSent)
+                print('echo received')
+                print(time.time() - t0) # almost same delay as TimerWoeker to BlinkSpiral when no photostim sent - tcp is not the major delay?
             else:
                 print('sendCoordsAndTriggerStim: msg to blink ERROR!')
                 ERROR = True
+
             p['FLAG_SKIP_FRAMES'] = False
         else:
             if self.bl.send_coords(currentTargetX, currentTargetY):
                 print('sendCoordsAndTriggerStim: msg to blink ERROR!')
                 ERROR = True
+            else:
+                print('echo received')
+                print(time.time() - t0) 
+
 
 #       self.niTimingWriter.write_many_sample( p['NI_1D_ARRAY'],10.0) # timing test - this trigger didnt work,, dont know why
-        print('echo received')
-        print(time.time() - t0) # almost same delay as TimerWoeker to BlinkSpiral when no photostim sent - tcp is not the major delay?
         return ERROR
 
 
@@ -490,7 +499,7 @@ class Worker(QObject):
     updateTargetROIs_signal  = pyqtSignal()
     photostimNewTargets_signal = pyqtSignal()
     updateNewTargets_signal  = pyqtSignal()
-    photostimCurrentTargets_signal = pyqtSignal(int)
+    photostimCurrentTargets_signal = pyqtSignal(int,bool)
     photostimOff_signal      = pyqtSignal()
     MonitorOff_signal        = pyqtSignal()
     MonitorOn_signal         = pyqtSignal()
@@ -668,6 +677,7 @@ class Worker(QObject):
             extraPhoto_caiman = []
             FLAG_TRIAL_START = False
             trialOrder = p['trialOrder']
+            trialVar = p['trialVar']
             trialEnsembleIdx = p['trialEnsembleIdx']
             num_bs_trials = int(p['numBaselineTrials'])
 
@@ -842,7 +852,7 @@ class Worker(QObject):
                     print('framesProc'+str(framesProc)+'skipped')
                     continue
                 else: self.photostimOff_signal.emit()
-                if frames_post_photostim == photo_duration: # looks like this is never reached
+                if frames_post_photostim == photo_duration+2: #  this should never be reached if blink is doing the right thing; 
                     print('End of Photo duration')
                     frames_post_photostim = 0
             elif frames_post_photostim == -1: # let one more frame in
@@ -1017,7 +1027,7 @@ class Worker(QObject):
                         self.TrajBuffer[0,BufferPointer] = this_traj_val
 #                       self.ROIlist_threshold[:com_count] = np.nanmean(self.RoiBuffer[:com_count,:], axis=1) + 2*np.nanstd(self.RoiBuffer[:com_count,:], axis=1)  # changed 3 to 2
                         # use noisy C to estimate noise:
-                        if not (PHOTO_PROTO_INX == CONSTANTS.PHOTO_CLAMP_DOWN):
+                        if not (PHOTO_PROTO_INX == CONSTANTS.PHOTO_WEIGH_SUM or PHOTO_PROTO_INX == CONSTANTS.PHOTO_CLAMP_DOWN): # update threshold for event detection
                             self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
                             online_thresh.append([items for items in self.ROIlist_threshold[0:com_count]])
 
@@ -1034,10 +1044,12 @@ class Worker(QObject):
                         logger.exception(e)
 
 #%% photostim protocols:
+                    FLAG_DUMMY_STIM = False
                     if PHOTO_PROTO_INX == CONSTANTS.PHOTO_WEIGH_SUM:
                         # for closed-loop trials
                         if sens_stim_idx < tot_num_senstim and framesProc == stim_frames[sens_stim_idx]-1:
                             this_trialOrder = trialOrder[sens_stim_idx]
+                            this_trialVar = trialVar[sens_stim_idx]
                             this_ensembleIdx = trialEnsembleIdx[sens_stim_idx]
                             print('current ensemble'+str(this_ensembleIdx))
                             print('current trialOrder'+str(this_trialOrder))
@@ -1067,11 +1079,19 @@ class Worker(QObject):
                                 else: # never stim
                                     photostim_flag = ROIsumThreshSD-1
                                     
+  
+                                    
                                 if photostim_flag-ROIsumThreshSD>0 and this_ensembleIdx>-1 and not FLAG_PHOTO_SENT_THIS_TRIAL:
                                     num_stim_targets = len(p['currentTargetX'])
                                     FLAG_TRIG_PHOTOSTIM = True # only send photostim once per trial
                                     FLAG_PHOTO_SENT_THIS_TRIAL = True
+                                    FLAG_DUMMY_STIM = False
                                     print('photo enabled')
+                                    
+                                if this_trialVar == 2 and FLAG_TRIG_PHOTOSTIM: # will trigger galvo without giving power
+                                    FLAG_DUMMY_STIM = True  
+                                    print('dummy photo enabled')
+                                    
                             elif framesProc == stim_frames[sens_stim_idx-1]+ monitor_frames:
                                 self.MonitorOff_signal.emit()
 
@@ -1355,7 +1375,7 @@ class Worker(QObject):
                                 self.photostimNewTargets_signal.emit()
                                 frames_post_photostim = -1 # accept next frame during phasemask update
                             else:
-                                self.photostimCurrentTargets_signal.emit(num_stim_targets)
+                                self.photostimCurrentTargets_signal.emit(num_stim_targets, FLAG_DUMMY_STIM)
 
                         else:
                             # update phase mask
@@ -3985,9 +4005,11 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         if init:
             cnm_struct = self.c['cnm_init']
             A = cnm_struct.A
+
         else:
             cnm_struct = self.c['cnm2']
             A = cnm_struct.Ab[:, cnm_struct.gnb:cnm_struct.M]
+            
 
         gSig = cnm_struct.gSig #  expected half size of neurons
         print('using model in: ',os.path.join(caiman_datadir(), 'model', 'cnn_model'))
@@ -3999,6 +4021,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         print('CNN prediction score:')
         print(p['CNN_predictions'])
         self.plotSTAonMasks(p['CNN_predictions'])
+        
+                
         return predictions[:, 1]
         
 #%% Opsin mask

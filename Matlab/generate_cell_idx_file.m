@@ -16,7 +16,7 @@ output.target_ensembles = [];
 % indices (note that ROIlist in pyRTAOI only contains accepted ROIs)
 if iscell(target_idx_fd)&&numel(target_idx_fd)>=1 % match stim types with target ensembles if more than one target-idx field is provided
      output.target_ensembles = cellfun(@(x)cell_idx_struct.(x),target_idx_fd,'UniformOutput',false);
-     output.target_idx = cell2mat(output.target_ensembles);
+     output.target_idx = unique(cell2mat(output.target_ensembles));
 else
     output.target_idx = cell_idx_struct.(target_idx_fd);
 end
