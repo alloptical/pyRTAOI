@@ -1100,7 +1100,7 @@ class Worker(QObject):
                             current_sd_level = np.nanstd(self.filt_C[:com_count, t_cnm - framesProc:t_cnm], axis=1)
                         # avoid deviding 0
                             # ROIw = np.divide(ROIw,current_sd_level)
-                            ROIw = np.nan_to_num(ROIw)
+                            #ROIw = np.nan_to_num(ROIw)
                             print('baseline:')
                             print(current_bs_level)
 
@@ -2128,7 +2128,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         self.configSeqStim_pushButton.clicked.connect(self.configSeqStim)
 
         # set weights (in ROIlist table)
-        self.Thresh_tableWidget.itemChanged.connect(self.tableItemChanged)
+#        self.Thresh_tableWidget.itemChanged.connect(self.tableItemChanged)
 
         # others
         self.test_pushButton.clicked.connect(self.tempTest)
@@ -4227,13 +4227,13 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
 
 
-    def tableItemChanged(self,item):
-        row = item.row()
-        col = item.column()
-        if col==3: #only deal with change in weights
-            self.ROIlist[row]["weight"] = item.text()
-        else:
-            return
+#    def tableItemChanged(self,item): //20200318 commented
+#        row = item.row()
+#        col = item.column()
+#        if col==3: #only deal with change in weights
+#            self.ROIlist[row]["weight"] = item.text()
+#        else:
+#            return
 
     def displayImg(self,event):
         if self.opsinMaskOn:
@@ -4979,12 +4979,15 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                 print(self.TriggerWeights)
                 for idx in range(self.thisROIIdx):
                     self.ROIlist[idx]["weight"] = 0 # set other cells zero
-                print(self.thisROIIdx)
+
                 for idx in range(len(self.TriggerIdx)):
                     self.ROIlist[self.TriggerIdx[idx]]["weight"] = self.TriggerWeights[idx]
                 self.updateTable()
                 self.getValues()
-
+                ROIw = np.asarray([item.get("weight") for item in self.ROIlist[:self.thisROIIdx]],dtype='float64')
+                print('ROIw:')
+                print(ROIw)
+                
                 # config trigger cells
                 print('loaded trigger idx:')
                 print(self.TriggerIdx)

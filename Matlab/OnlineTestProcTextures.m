@@ -10,10 +10,10 @@ clc
 % cd('Y:\zzhang\Python\pyRTAOI\Matlab');
 
 % BRUKER1
-% matlab_set_paths_zz
+matlab_set_paths_zz
 
 %% stim parameters - CHANGE THIS
-crop_num_trials = 211; % specify number of trials recorded if aborted half way
+crop_num_trials = 185; % specify number of trials recorded if aborted half way
 IF_GO_NOGO = true;
 IF_USE_PYRTAOI_STIMTYPE = true; % for condition session this will be different from pybehav
 
@@ -182,6 +182,7 @@ else
     disp('no photostim found')
 end
 
+
 disp('got trial struct')
 % roi indices
 opsin_positive = caiman_data.opsin_positive;
@@ -236,6 +237,9 @@ end
 trial_indices.('stim_5_var_1') =  find(trials.trialOrder==3&trials.photostim == 1);
 trial_indices.('stim_5_var_2') =  find(trials.trialOrder==4&trials.photostim == 1);
 trial_indices.('stim_5_var_0') =  find(trials.trialOrder==5&trials.photostim == 0);
+
+%exclude odd trials
+trial_indices = structfun(@(x)setdiff(x,odd_trial_idx),trial_indices,'UniformOutput',false);
 
 disp('sorted trial indices')
 %% quantify behavior
@@ -906,7 +910,7 @@ end
 test_opt.trial_color = trial_color;
 
 %% online recorded trajectory
-ylimit = [-3 3];
+ylimit = [-10 10];
 plot_num_cols = 5;
 fds_of_interest = {'stim_1_var_1_correct','stim_1_var_1_incorrect','stim_1_var_1_photostim','stim_1_var_1_nonphotostim','stim_1_var_1_dummyphotostim',......
     'stim_2_var_2_correct', 'stim_2_var_2_incorrect','stim_2_var_2_photostim','stim_2_var_2_nonphotostim','stim_2_var_2_dummyphotostim'};

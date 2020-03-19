@@ -47,7 +47,7 @@ opt.end_rw_frame = 180; % end of response window
 % will not be taken as miss trial if first lick occur during withold window
 opt.rw_win_end_sec = 5;
 opt.withold_win_start_sec = 3;
-opt.rw_start_sec = 3.9; %trials with first lick before this will not be used for analysis; 4 is beginning of response window in pybehav 
+opt.rw_start_sec = 3.6; %trials with first lick before this will not be used for analysis; 4 is beginning of response window in pybehav 
 
 % frame indices relative to sta trace
 opt.sta_gocue_frame = opt.sta_pre_frames;
@@ -74,7 +74,7 @@ opt.method = 'dpca'; % fa, dpca, cd
 
 % discard trials after this
 opt.discard_trials_after = [];
-opt.discard_trials_before = [];
+opt.discard_trials_before = [20];
 
 % define epochs (relative to trial start )
 opt.epoch_names = {'pre','early','late'};
@@ -470,7 +470,7 @@ disp('sorted cell_struct sta_traces')
 
 %% == GET CELL IDENTITY ==
 % stimulus AUC calculated from correct trials
-% takes long, make it simple
+% takes long, consider make it simple 
 peak_frame_range = opt.sta_peak_search_range;
 avg_frame_range = opt.sta_avg_frames;
 [cell_struct] = get_cell_auc(cell_struct,{'stim_1_correct','stim_2_correct'},'correct_stimAUC',opt);
@@ -544,7 +544,7 @@ end
 %% Discard cells of bad shapes from trigger and targets pool (optional)
 % not using cells with low cnn score as trigger or targets
 % will not do anything if no cnn result is loaded
-cnn_thresh = 0.1; % change this to higher value to exlude more dendrites
+% cnn_thresh = 0.05; % change this to higher value to exlude more dendrites
 cell_idx_struct.cnn_above_thresh = find(cnn_predictions(accepted_idx)>cnn_thresh);
 cell_idx_struct = structfun(@(x)intersect(x,cell_idx_struct.cnn_above_thresh),cell_idx_struct,'UniformOutput',false);
 disp(['discarded cells with cnn prediction soore <' num2str(cnn_thresh)])
@@ -764,7 +764,7 @@ for ii = 1:numel(plot_cell_idx)
     
 %     ylim([-5 20])
 end
-% export_fig([fig_save_path filesep plot_cell_type 'STATrace_' strrep(caiman_file,'.mat','.png')])
+export_fig([fig_save_path filesep plot_cell_type 'STATrace_' strrep(caiman_file,'.mat','.png')])
 
 
 %%
@@ -977,7 +977,6 @@ suptitle('Choice decoder')
 export_fig([fig_save_path filesep 'ChoiceDecoderPerform_' strrep(caiman_file,'.mat','.png')])
 
 %% get projections on stim decoder
-opt.pop_opt = stim_opt;
 stim_thresh = -stim_struct.B(:,1);
 
 switch opt.method
@@ -1076,7 +1075,7 @@ test_decoder_peformance(choice_proj_struct,test_opt,'Choice')
 
 %% SELECT CONDITION STIM TYPES  CHANGE THIS
 disp('ENTER HERE!')
-opt.decoder_to_use = 'choice'; % or choice
+opt.decoder_to_use = 'stim'; % or choice
 
 condition_pybehav_stimtypes = [1 2]; % stim types in pybehav that will be monitored for photostim;
 condition_pybehav_stimvars = [1 1]; % stim types in pybehav that will be monitored for photostim;
@@ -1112,10 +1111,14 @@ switch opt.decoder_to_use
         decod_struct = stim_struct; % choose which decoder to use
         pop_weights = stim_norm_weights; % select which weights to use
         pop_thresh = stim_norm_thresh;  % select which thresh to use
+        opt.pop_opt = stim_opt;
+
     case 'choice'
         decod_struct = choice_struct; % choose which decoder to use
         pop_weights = choice_norm_weights; % select which weights to use
         pop_thresh = choice_norm_thresh;  % select which thresh to use
+        opt.pop_opt = choice_opt;
+
 end
 
 % generate parameters for pyRTAOI population analysis
@@ -1128,7 +1131,7 @@ pop_params.condition_type = condition_type;
 % plot_pop_vectors(choice_proj_struct,fds_of_interest,1,opt,...
 %        'noise_thresh',proj_sd,'ylimit',[-100 100],'plot_ylabel','proj to choice-stim','plot_num_cols',2,'IF_PLOT_RAW_ONLY',1)
 pop_params.thresh_sd = 0;% NOT USING SD
-pop_params.frames_enable_trigger  = [90 120]; % monitor frames, frame 120 is go-cue
+pop_params.frames_enable_trigger  = [100 120]; % monitor frames, frame 120 is go-cue
 
 %% project catch trials on decoder
 test_fd_names = {'stim_5_miss','stim_5_lick'};
