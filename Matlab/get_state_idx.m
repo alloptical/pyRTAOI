@@ -35,6 +35,12 @@ for f = 1:numel(ref_fields)
             end
         end
     end
+    
+    % save the state with max mean if didnt pass stats test
+    if  FLAG_MATCHED_STATES(f)==0
+         [~,state_idx_struct.(this_fd)] = max(stats.means);
+    end
+    
 
 
     corr_struct.(this_fd).data = corrs;

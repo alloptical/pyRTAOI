@@ -27,10 +27,10 @@ color.correct = [0 0 0];
 color.incorrect = [.5 .5 .5];
 color.stim1 = mean([color.correct_stim1;color.incorrect_stim1],1);
 color.stim2 = mean([color.correct_stim2;color.incorrect_stim2],1);
-color.stim3 = [.5 .5 .5]; % catch stimulus
+color.stim3 = [.5 .5 .5]; % catch 
 color.stim4 = [.5 .5 .5]; % catch
 color.stim5 = [.5 .5 .5]; % catch
-color.stim_5_miss = [.5 .5 .5]; % catch
+color.stim_5_miss = [.5 .5 .5]; % catch 
 color.stim_5_lick = [0 0 0]; % catch
 
 
@@ -55,12 +55,44 @@ color.target = color.photo;
 
 color.go_trials = [0 0 0];
 color.nogo_trials = [.5 .5 .5];
+color.stim1_trials = color.stim1;
+color.stim2_trials = color.stim2;
+
 
 % performance plot
 color.all = [0 0 0];
 color.photo = color.photostim;
 color.nonphoto = [.5 .5 .5];
 color.dummyphoto = tint(color.photo,0.5);
+color.photostim = color.photostim;
+color.nonphotostim = [.5 .5 .5];
+color.dummyphotostim = tint(color.photo,0.5);
+for s = 1:2
+    color.(['stim_' num2str(s) '_photo']) = color.photo;
+    color.(['stim_' num2str(s) '_nonphoto']) = color.nonphoto;
+    color.(['stim_' num2str(s) '_dummyphoto']) = color.dummyphoto;  
+end
+
+% added for posthoc
+photo_types = {'_nonphoto','_photo','_dummyphoto'};
+catch_photo_types = {'_nonphoto','_photo_1','_photo_2'};
+
+for s = 1:2
+    for p = 1:numel(photo_types)
+        this_color = color.(strrep(photo_types{p},'_',''));
+        color.(['stim_' num2str(s) photo_types{p}]) = this_color;
+        color.(['stim_' num2str(s) photo_types{p} '_correct']) = this_color;
+        color.(['stim_' num2str(s) photo_types{p} '_incorrect']) = shade(this_color,.5);
+    end
+end
+
+s = 5;% catch type
+for p = 1:numel(catch_photo_types)
+    this_color = color.(strrep(strrep(catch_photo_types{p},'_photo','stim'),'_',''));
+    color.(['stim_' num2str(s) catch_photo_types{p}]) = this_color;
+    color.(['stim_' num2str(s) catch_photo_types{p} '_lick']) = this_color;
+    color.(['stim_' num2str(s) catch_photo_types{p} '_nolick']) = tint(this_color,.5);
+end
 
 end
 

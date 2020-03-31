@@ -101,6 +101,7 @@ catch
     cnn_thresh = 0;
     cnn_predictions = ones(1,caiman_data.cnm_N);
 end
+caiman_data.cnn_predictions = cnn_predictions;
 %% load Pybehavior data
 try
 [pb_file,pb_path] = uigetfile('*.mat','Select pybehavior data');
@@ -140,7 +141,6 @@ else
     warning('no pybehav data loaded')
 end
 %% == ORGANISE TRIAL TYPES ==
-tex_stim_frames = {};
 if(~isempty(caiman_data.stim_frames_caiman))
     sens_stim_frames = caiman_data.sensory_stim_frames+caiman_data.t_init;
 else
@@ -179,7 +179,6 @@ trialOrder(discard_trial_idx) = [];
 catch
     disp('no discarded trials')
 end
-trialTypes = unique(trialOrder);
 num_stim_type = length(unique(trialOrder)); % orientations/texture
 
 if ~ FLAG_PYBEHAV_LOADED
@@ -191,14 +190,36 @@ if ~ FLAG_PYBEHAV_LOADED
     trials.miss = zeros(size(sens_stim_frames));
 end
 
-for i = 1:numel(trialTypes)
-    tex_stim_frames{i} = sens_stim_frames(trialOrder == trialTypes(i));
+
+%% Get trial types
+num_trials = numel(sens_stim_frames);
+
+trial_indices = struct(); % % get trialtype-outcome indices
+for i = 1:num_stim_type
+    trial_indices.(['stim_' num2str(i) '_correct']) = find(trials.correct==1&trials.stim_type==i&trials.cheated==0);
+    trial_indices.(['stim_' num2str(i) '_incorrect']) = find(trials.incorrect==1&trials.stim_type==i&trials.cheated==0);
+    trial_indices.(['stim_' num2str(i) '_correct'])(trial_indices.(['stim_' num2str(i) '_correct'])>num_trials)=[];
+    trial_indices.(['stim_' num2str(i) '_incorrect'])(trial_indices.(['stim_' num2str(i) '_incorrect'])>num_trials)=[];
+    
+end
+if IF_GO_NOGO %overide incorrect trials by miss trials for go-stim
+    trial_indices.(['stim_' num2str(opt.go_stim_type) '_incorrect']) = find(trials.miss==1&trials.stim_type==opt.go_stim_type&trials.cheated==0& ...
+        (trials.firstlick>opt.rw_win_end_sec|trials.firstlick<opt.withold_win_start_sec|isnan(trials.firstlick)));
+    % no-go stim type correct trials should exclude trials with licks in
+    % withold window (use fa as incorrect)
+    trial_indices.(['stim_' num2str(opt.nogo_stim_type) '_correct']) = find(trials.correct==1&trials.fa==0&trials.stim_type==opt.nogo_stim_type&trials.cheated==0);
+    trial_indices.(['stim_' num2str(opt.nogo_stim_type) '_incorrect']) = find(trials.fa==1&trials.stim_type==opt.nogo_stim_type&trials.cheated==0);
+
+end
+try
+% catch trials
+    trial_indices.(['stim_5_miss']) = find((trials.stim_type==3|trials.stim_type==4)&trials.miss==1); 
+    trial_indices.(['stim_5_lick']) = find((trials.stim_type==3|trials.stim_type==4)&trials.miss==0); 
+
 end
 
-% roi indices
-opsin_positive = caiman_data.opsin_positive;
-accepted_idx = caiman_data.accepted_idx+1;
-opsin_positive_idx = accepted_idx(opsin_positive>0);
+[dp,hr,fa] = get_gonogo_baseline_performance(trial_indices);
+
 
 % color trial by stim type
 % hsv_lut = colormap(hsv);
@@ -211,52 +232,16 @@ opsin_positive_idx = accepted_idx(opsin_positive>0);
 %     opt.trial_color(t,:) = trial_color.(['stim' num2str(trialOrder(t))]);
 % end
 
-num_trials = numel(sens_stim_frames);
 opt.type_color = [trial_color.('stim1');trial_color.('stim2')];
 opt.trial_color = trial_color;
 %% == ORGANISE IMAGING DATA ==
 %% make cnm data structure
-cnm_struct = struct();
-cnm_dims = double(caiman_data.cnm_dims);
-cnm_image = reshape(caiman_data.cnm_b,cnm_dims);
-cnm_A = full(caiman_data.cnm_A);
-num_frames = caiman_data.t_cnm;
+% roi indices
+opsin_positive = caiman_data.opsin_positive;
+accepted_idx = caiman_data.accepted_idx+1;
+num_cells = numel(accepted_idx);
 
-num_comp = size(cnm_A,2);
-comp_shape =[cnm_dims(1),cnm_dims(2),num_comp];
-cm = com(sparse(double(cnm_A)),cnm_dims(1),cnm_dims(2)); % center of mass
-
-
-if ~isempty(caiman_data.frames_skipped)
-    skip_frames = caiman_data.frames_skipped + caiman_data.t_init;
-    tot_frames = num_frames + numel(skip_frames);
-    caiman_frames = setdiff([1:tot_frames],skip_frames);
-else
-    caiman_frames = 1:num_frames;
-    tot_frames = num_frames;
-end
-
-for i = 1:num_comp
-    cnm_struct(i).shape = reshape(cnm_A(:,i),cnm_dims);
-    cnm_struct(i).onlineC = caiman_data.online_C(i+1,1:num_frames);
-    cnm_struct(i).deconvC = caiman_data.cnm_C(i,1:num_frames);
-    cnm_struct(i).centroid = cm(i,:);
-    
-    % set skipped frames to nan
-    temp_trace = nan(1,tot_frames);
-    temp_trace(caiman_frames) =  caiman_data.cnm_C(i,1:num_frames);
-    temp_trace = fillmissing(temp_trace,'linear');
-    cnm_struct(i).deconvC_full = temp_trace;
-    
-    temp_trace = nan(1,tot_frames);
-    temp_trace(caiman_frames) =  caiman_data.noisyC(i+1,1:num_frames);
-    temp_trace = fillmissing(temp_trace,'linear');
-    cnm_struct(i).noisyC_full = temp_trace;
-    
-    % use go-cue frame as 'stim frame' for sta traces
-    cnm_struct(i).stim_frames = sens_stim_frames+opt.gocue_frame;
-
-end
+[cnm_struct,cnm_dims] = get_cnm_struct(caiman_data);
 
 temp_trace = nan(1,tot_frames);
 temp_trace(caiman_frames) =  caiman_data.noisyC(1,1:num_frames);
@@ -265,9 +250,6 @@ backgroundC = temp_trace;
 
 disp('made cnm struct')
 
-% only get accepted cells
-accepted_idx = caiman_data.accepted_idx+1;
-num_cells = numel(accepted_idx);
 %% plot spatial components and save to cell struct
 com_fov = zeros(cnm_dims);
 accepted_com_fov = zeros(cnm_dims);
@@ -304,6 +286,7 @@ colormap(gray)
 axis square
 title('GCaMP')
 
+opsin_positive_idx = accepted_idx(opsin_positive>0);
 cell_struct = struct();
 for i = 1:num_cells
     this_idx = accepted_idx(i);
@@ -328,6 +311,53 @@ for i = 1:num_cells
          cell_struct(i).opsin_positive = 1;
     end
 end
+%% Get stim triggered average 
+for i = 1:num_cells
+    this_cell_trace = zscore( cnm_struct(cell_struct(i).cnm_idx).deconvC_full);
+    
+    if opt.IF_USE_FILTC
+        this_online_trace = cell_struct(i).filtC; % online trace med filtered
+    else
+        this_online_trace = cnm_struct(cell_struct(i).cnm_idx).onlineC_full; % online trace without median filter
+    end
+
+    
+    this_num_trials = numel(cnm_struct(cell_struct(i).cnm_idx).stim_frames );
+    sta_sens_stim_frames =  sens_stim_frames+opt.gocue_frame;
+    cell_struct(i).num_trials = this_num_trials;
+    cell_struct(i).is_sensory = 0;
+    cell_struct(i).is_offcell = 0;
+    cell_struct(i).pref_orient = [];
+    cell_struct(i).sta_amp = 0;
+    cell_struct(i).sta_traces = [];
+    cell_struct(i).sta_trace = [];
+    cell_struct(i).accepted = 0;
+    cell_struct(i).pref_orient = nan;
+    if(~isempty(find(accepted_idx==i)))
+        cell_struct(i).accepted = 1;
+    end
+    
+    if(this_num_trials>0)
+        % average across all stim types
+        % using df 
+%         [~,~,~,~,~,cell_struct(i).sta_traces,cell_struct(i).sta_trace] = make_sta_from_traces(this_cell_trace,this_sens_stim_frames,opt.sta_pre_frames,opt.sta_post_frames,1:opt.sta_baseline_frames);
+          % using raw f
+        [~,~,~,cell_struct(i).sta_traces,~,~,cell_struct(i).sta_trace] = make_sta_from_traces(this_cell_trace,sta_sens_stim_frames,opt.sta_pre_frames,opt.sta_post_frames,1:opt.sta_baseline_frames);
+        [~,~,~,cell_struct(i).raw_sta_traces,~,~,cell_struct(i).raw_sta_trace] = make_sta_from_traces(this_online_trace,sta_sens_stim_frames,opt.sta_pre_frames,opt.sta_post_frames,1:opt.sta_baseline_frames);
+
+            cell_struct(i).sta_amp = mean(cell_struct(i).sta_trace(opt.sta_avg_frames));
+
+        if  cell_struct(i).sta_amp > opt.sta_amp_thresh
+            cell_struct(i).is_sensory = 1;
+        end        
+    end
+    
+end
+
+% sta of backgound component (for alignment check)
+% [~,~,~,~,~,bg_sta_traces,bg_sta_trace] =...
+%     make_sta_from_traces(backgroundC,sens_stim_frames+opt.sta_gocue_frame ,opt.sta_pre_frames,opt.sta_post_frames,1:opt.sta_baseline_frames);
+disp('got cell_struct sta')
 
 %% plot traces
 figure('name','traces','position',[100 100 1600 800]); hold on
@@ -357,53 +387,6 @@ for i = 1:numel(sens_stim_frames)
 end
 export_fig([fig_save_path filesep 'OnlineTraces_' strrep(caiman_file,'.mat','.png')])
 
-%% Get stim triggered average 
-for i = 1:num_cells
-    this_cell_trace = zscore( cnm_struct(cell_struct(i).cnm_idx).deconvC_full);
-    
-    if opt.IF_USE_FILTC
-        this_online_trace = cell_struct(i).filtC; % online trace med filtered
-    else
-        this_online_trace = cnm_struct(cell_struct(i).cnm_idx).onlineC_full; % online trace without median filter
-    end
-
-    
-    this_num_trials = numel(cnm_struct(cell_struct(i).cnm_idx).stim_frames );
-    this_sens_stim_frames =  cnm_struct(cell_struct(i).cnm_idx).stim_frames;
-    cell_struct(i).num_trials = this_num_trials;
-    cell_struct(i).is_sensory = 0;
-    cell_struct(i).is_offcell = 0;
-    cell_struct(i).pref_orient = [];
-    cell_struct(i).sta_amp = 0;
-    cell_struct(i).sta_traces = [];
-    cell_struct(i).sta_trace = [];
-    cell_struct(i).accepted = 0;
-    cell_struct(i).pref_orient = nan;
-    if(~isempty(find(accepted_idx==i)))
-        cell_struct(i).accepted = 1;
-    end
-    
-    if(this_num_trials>0)
-        % average across all stim types
-        % using df 
-%         [~,~,~,~,~,cell_struct(i).sta_traces,cell_struct(i).sta_trace] = make_sta_from_traces(this_cell_trace,this_sens_stim_frames,opt.sta_pre_frames,opt.sta_post_frames,1:opt.sta_baseline_frames);
-          % using raw f
-        [~,~,~,cell_struct(i).sta_traces,~,~,cell_struct(i).sta_trace] = make_sta_from_traces(this_cell_trace,this_sens_stim_frames,opt.sta_pre_frames,opt.sta_post_frames,1:opt.sta_baseline_frames);
-        [~,~,~,cell_struct(i).raw_sta_traces,~,~,cell_struct(i).raw_sta_trace] = make_sta_from_traces(this_online_trace,this_sens_stim_frames,opt.sta_pre_frames,opt.sta_post_frames,1:opt.sta_baseline_frames);
-
-            cell_struct(i).sta_amp = mean(cell_struct(i).sta_trace(opt.sta_avg_frames));
-
-        if  cell_struct(i).sta_amp > opt.sta_amp_thresh
-            cell_struct(i).is_sensory = 1;
-        end        
-    end
-    
-end
-
-% sta of backgound component (for alignment check)
-[~,~,~,~,~,bg_sta_traces,bg_sta_trace] =...
-    make_sta_from_traces(backgroundC,sens_stim_frames+opt.sta_gocue_frame ,opt.sta_pre_frames,opt.sta_post_frames,1:opt.sta_baseline_frames);
-disp('got cell_struct sta')
 %% Normalise traces to baseline and std
 % get baseline and std from the first sets of easy trials
 % this is implemented for online - shouldnt need to do again here?
@@ -415,34 +398,6 @@ for i = 1:num_cells
     cell_struct(i).raw_sta_trace = (cell_struct(i).raw_sta_trace - cell_bs(i));
 end
 disp('normalised cell_struct raw_sta_traces')
-
-
-%% Get trial types
-trial_indices = struct(); % % get trialtype-outcome indices
-for i = 1:num_stim_type
-    trial_indices.(['stim_' num2str(i) '_correct']) = find(trials.correct==1&trials.stim_type==i&trials.cheated==0);
-    trial_indices.(['stim_' num2str(i) '_incorrect']) = find(trials.incorrect==1&trials.stim_type==i&trials.cheated==0);
-    trial_indices.(['stim_' num2str(i) '_correct'])(trial_indices.(['stim_' num2str(i) '_correct'])>num_trials)=[];
-    trial_indices.(['stim_' num2str(i) '_incorrect'])(trial_indices.(['stim_' num2str(i) '_incorrect'])>num_trials)=[];
-    
-end
-if IF_GO_NOGO %overide incorrect trials by miss trials for go-stim
-    trial_indices.(['stim_' num2str(opt.go_stim_type) '_incorrect']) = find(trials.miss==1&trials.stim_type==opt.go_stim_type&trials.cheated==0& ...
-        (trials.firstlick>opt.rw_win_end_sec|trials.firstlick<opt.withold_win_start_sec|isnan(trials.firstlick)));
-    % no-go stim type correct trials should exclude trials with licks in
-    % withold window (use fa as incorrect)
-    trial_indices.(['stim_' num2str(opt.nogo_stim_type) '_correct']) = find(trials.correct==1&trials.fa==0&trials.stim_type==opt.nogo_stim_type&trials.cheated==0);
-    trial_indices.(['stim_' num2str(opt.nogo_stim_type) '_incorrect']) = find(trials.fa==1&trials.stim_type==opt.nogo_stim_type&trials.cheated==0);
-
-end
-try
-% catch trials
-    trial_indices.(['stim_5_miss']) = find((trials.stim_type==3|trials.stim_type==4)&trials.miss==1); 
-    trial_indices.(['stim_5_lick']) = find((trials.stim_type==3|trials.stim_type==4)&trials.miss==0); 
-
-end
-
-[dp,hr,fa] = get_gonogo_baseline_performance(trial_indices);
 
 
 %% Sort STAs for different trial types

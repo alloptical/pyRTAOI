@@ -9,6 +9,7 @@ zlimit = []; % dummy dots to force colorlut matching preset max and min range
 show_cell_idx = [];
 target_cell_idx = [];
 trigger_cell_idx = [];
+max_abs_value = [];
 for v = 1:numel(varargin)
     if strcmpi(varargin{v},'IF_NORM_PIX')
         IF_NORM_PIX = varargin{v+1};
@@ -24,6 +25,8 @@ for v = 1:numel(varargin)
         target_cell_idx = varargin{v+1};
     elseif  strcmpi(varargin(v),'trigger_cell_idx')
         trigger_cell_idx = varargin{v+1};
+    elseif  strcmpi(varargin(v),'max_abs_value')
+        max_abs_value = varargin{v+1};
     end
 end
 
@@ -39,7 +42,7 @@ for i = 1:size(cell_struct,2)
     
     if IF_NORM_PIX
         pix_values = cell_struct(i).pix_values;
-        norm_pix_values = pix_values/sum(pix_values);
+        norm_pix_values = pix_values;%./sum(pix_values);
         img(xy_coords) = norm_pix_values.*plot_value;
     else
         img(xy_coords) =plot_value;
@@ -48,11 +51,15 @@ for i = 1:size(cell_struct,2)
 %         round(cell_struct(i).centroid(:,1)),num2str(i),'color',textcolor,'fontweight','bold');
     
 end
-
+all_values = img(:);
 if isempty(zlimit)
     zlimit = [min(all_values),max(all_values)];
     if zlimit(1)>0
        zlimit(1) = 0; % forcing min color to be white if all values are positive 
+    end
+    if ~isempty(max_abs_value)
+        zlimit(end) = min(zlimit(end),max_abs_value);
+        zlimit(1) = max(zlimit(1),-max_abs_value);
     end
 else
     img(1) = zlimit(1);
@@ -79,8 +86,8 @@ if IF_CONTOUR
         warning('getting contours')
     end
 else
-    scatter(round(cell_struct(i).centroid(:,2)),round(cell_struct(i).centroid(:,1)),...
-        10,textcolor)
+%     scatter(round(cell_struct(i).centroid(:,2)),round(cell_struct(i).centroid(:,1)),...
+%         10,textcolor)
 end
 
 % mark cell indices
@@ -100,6 +107,8 @@ if ~isempty(target_cell_idx)
      text(round(cell_struct(i).centroid(:,2)),...
         round(cell_struct(i).centroid(:,1)),num2str(cell_struct(i).cnm_idx),'color','r','fontweight','bold');
     end
+    cc_pix = cell2mat({cell_struct(target_cell_idx).contour});
+    scatter(cc_pix(1,:),cc_pix(2,:),1,'r')
 end
 
 % mark trigger cells
@@ -108,6 +117,9 @@ if ~isempty(trigger_cell_idx)
      text(round(cell_struct(i).centroid(:,2)),...
         round(cell_struct(i).centroid(:,1)),num2str(cell_struct(i).cnm_idx),'color','blue','fontweight','bold');
     end
+    cc_pix = cell2mat({cell_struct(trigger_cell_idx).contour});
+    scatter(cc_pix(1,:),cc_pix(2,:),1,[.5 .5 .5])
+
 end
 
 xlim([1,size(img,1)])

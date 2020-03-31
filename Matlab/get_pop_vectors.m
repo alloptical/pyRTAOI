@@ -13,7 +13,7 @@ for f = 1:numel(fds)
     end
     this_F_avg = squeeze(mean(this_F,1))';
     pop_struct.(fds{f}) = this_F;
-    pop_struct.([fds{f} '_avg']) = this_F_avg;
+%     pop_struct.([fds{f} '_avg']) = this_F_avg;
 end
 
 end

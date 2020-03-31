@@ -1016,7 +1016,6 @@ disp('...Done')
 plot_pop_vectors(fa_traj_struct,fa_opt.plot_fds,fa_opt.m,fa_opt,...
     'plot_ylabel','Factor level','plot_num_cols',2);
 %% hidden markov 
-
     hmm_opt = fa_opt;
     hmm_opt.plot_fds = hmm_opt.fd_names;
     hmm_opt.num_states = 3;

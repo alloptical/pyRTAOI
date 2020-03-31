@@ -1,4 +1,4 @@
-function [dpca_struct,traces_idx_struct] = get_dpca_traj_brief(cell_struct,cell_idx,trial_fds,opt)
+function [dpca_struct,traces_idx_struct,trial_idx_struct] = get_dpca_traj_brief(cell_struct,cell_idx,trial_fds,opt)
 filt_cell_struct = cell_struct(cell_idx);
 fig_save_path = opt.save_path;
 decision_types = {'_correct','_incorrect'};
@@ -161,7 +161,14 @@ try
         end       
             traj_struct.(trial_fds{f}) = this_traces_reshape;
     end
-    
+    % trial indices
+    temp_num_trials = structfun(@(x)round(numel(x)./opt.trial_length),traces_idx_struct,'UniformOutput', false );
+    trial_count = 0;
+    trial_fds = opt.fd_names;
+    for i = 1:numel(trial_fds)
+        trial_idx_struct.(trial_fds{i}) = trial_count+[1:temp_num_trials.(trial_fds{i})];
+        trial_count = trial_count+temp_num_trials.(trial_fds{i});
+    end
     % save to structure
     this_dpca_struct.traj_struct = traj_struct;
     this_dpca_struct.W = W;
@@ -176,6 +183,7 @@ try
     
 catch e
     fprintf(1,'get dpca error! The message was:\n%s',e.message);
+    return
 end
 
 end

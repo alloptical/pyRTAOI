@@ -167,7 +167,7 @@ if ~IF_PLOT_RAW_ONLY
         
     end
     if ~isempty(sup_title)
-        suptitle(sup_title)
+        suptitle(strrep(sup_title,'_',''))
     end
     if IF_SAVE_PLOT
        export_fig([opt.save_path filesep sup_title '_AVG.png'])
@@ -230,7 +230,7 @@ if ~IF_PLOT_AVG_ONLY
         
     end
     if ~isempty(sup_title)
-        suptitle(sup_title)
+        suptitle(strrep(sup_title,'_',''))
     end
     
     if IF_SAVE_PLOT
