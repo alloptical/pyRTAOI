@@ -1,8 +1,12 @@
 function [] = plot_trial_avg_imagesc(cell_struct,trial_indices,photo_ensembles,plot_cell_idx,plot_photo_types,plot_condition_types,opt,varargin)
 sta_trace_fd = 'sta_traces';
+sort_cell = true;
 for v = 1:numel(varargin)
     if strcmpi(varargin{v},'sta_trace_fd')
         sta_trace_fd = varargin{v+1};
+    end
+    if strcmpi(varargin{v},'sort_cell')
+        sort_cell = varargin{v+1};
     end
 end
 
@@ -32,12 +36,21 @@ for p = 1:numel(plot_condition_types)
         if ~isempty(this_trials)
             this_traces = cell2mat(arrayfun(@(x)mean(x.(sta_trace_fd)(this_trials,:),1)',cell_struct(plot_cell_idx),'UniformOutput',false));
             
-            if plot_count ==1
+            if photo_type ==1
+                if sort_cell
                 % rank cell by sta amp and set colorlut limit
                 this_amp = mean(this_traces(opt.sta_avg_frames,:),1);
                 [~,this_plot_cell_idx] = sort(this_amp,'descend');
-                zlimit =[min(this_traces(:)) max(this_traces(:))];
                 ylabel('Cell idx (sorted)')
+                else
+                    this_plot_cell_idx = plot_cell_idx;
+                    ylabel('Cell idx')
+
+                end
+            end
+            
+            if plot_count ==1
+                zlimit =[min(this_traces(:)) max(this_traces(:))];
             end
             
             if photo_type == 1
@@ -67,13 +80,15 @@ for p = 1:numel(plot_condition_types)
             this_traces = [];
         end
         plot_count = plot_count+1;
+%         colorbar('SouthOutside')
         
         title({['Tex' num2str(photo_idx) ' '  strrep(plot_photo_types{photo_type},'_',' ') ];[ num2str(numel(this_trials)) ' trials']})
         
         all_traces{photo_type} = this_traces;
         all_trials{photo_type} = this_trials;
     end
-    
+%     colorbar('EastOutside')
+   
     % differences
     for c = 1:num_compares
         c1 = cmp_pairs(c,1);
@@ -102,7 +117,6 @@ for p = 1:numel(plot_condition_types)
         title({[strrep(plot_photo_types{c1},'_',' ')];[ '-' strrep(plot_photo_types{c2},'_',' ')]})
     end
     xlabel('Time from trial start (sec)')
-    
     %     this_title = ['TrialAvgStim' num2str(photo_idx) '_STATrace_' strrep(caiman_file,'.mat','')];
     %     suptitle(strrep(this_title,'_',' '))
     %     export_fig([fig_save_path filesep this_title '.png'])

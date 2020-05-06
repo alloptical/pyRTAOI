@@ -15,7 +15,6 @@ end
 
 % discard sens stim frames beyond tottime (deal with senarios when movie is aborted early)
 
-
 if ~isempty(opt.discard_trials_after)
     discard_trial_idx = [discard_trial_idx, opt.discard_trials_after:numel(sens_stim_frames)];
 end
@@ -23,10 +22,10 @@ if ~isempty(opt.discard_trials_before)
     discard_trial_idx = [discard_trial_idx, 1:opt.discard_trials_before];
 end
 if FLAG_PYBEHAV_LOADED
-    trials.miss(trials.firstlick<opt.rw_start_sec) = 0; % discard early response trials from miss trials
-    trials.correct(trials.firstlick<opt.rw_start_sec) = 0; % discard early response trials 
-    trials.incorrect(trials.firstlick<opt.rw_start_sec) = 0; % discard early response trials
-    trials.fa(trials.firstlick<opt.rw_start_sec) = 0; % discard early response trials
+%     trials.miss(trials.firstlick<opt.rw_start_sec) = 0; % discard early response trials from miss trials
+%     trials.correct(trials.firstlick<opt.rw_start_sec) = 0; % discard early response trials 
+%     trials.incorrect(trials.firstlick<opt.rw_start_sec) = 0; % discard early response trials
+%     trials.fa(trials.firstlick<opt.rw_start_sec) = 0; % discard early response trials
 
     fds = fields(trials);
     try

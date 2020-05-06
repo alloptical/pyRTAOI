@@ -81,7 +81,12 @@ if num_states == 1
     state_colors = [.5 .5 .5];
 end
 if ~IF_PLOT_RAW_ONLY
+    try
     condi_colors = cell2mat(cellfun(@(f)trial_colors.(strrep(f,'_smooth_deconv','_stim')),fds,'UniformOutput',false));
+    catch
+            condi_colors = cell2mat(cellfun(@(f)trial_colors.(f),fds,'UniformOutput',false));
+
+    end
     if size(condi_colors,2)~=3
         condi_colors = cell2mat(cellfun(@(f)trial_colors.(strrep(f,'_smooth_deconv','_stim')),fds,'UniformOutput',false)');
     end
@@ -206,7 +211,7 @@ if ~IF_PLOT_AVG_ONLY
             ylim(ylimit)
         end
         try
-            xlim([0, opt.trial_length/opt.bin_size-1])
+            xlim([0, opt.trial_length-1])
         catch
             xlim([0, opt.trial_length-1])
         end

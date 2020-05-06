@@ -1,10 +1,18 @@
-function [output_trials,odd_trial_idx] = make_trials_struct(behavior_data)
+function [output_trials,odd_trial_idx] = make_trials_struct(behavior_data,varargin)
+tot_num_trials = [];
+for v = 1:numel(varargin)
+    if strcmpi(varargin{v},'tot_num_trials')
+        tot_num_trials = varargin{v+1};
+    end
+end
 % make trials.m struct from pybehavior output
 fd_names = {'stim_type','correct','incorrect','miss','firstresponse','cheated','stim_var','fa'};
 num_fd = numel(fd_names);
 odd_trial_idx = [];
 output_trials = struct();
-tot_num_trials = numel(behavior_data.results);
+if isempty(tot_num_trials)
+    tot_num_trials = numel(behavior_data.results);
+end
 this_norm_trials = 1:tot_num_trials;
 for i = 1:num_fd
     this_fd = fd_names{i};

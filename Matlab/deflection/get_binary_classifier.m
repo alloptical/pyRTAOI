@@ -123,53 +123,99 @@ if IF_FRAMEWISE % different classifiers across frames
             this_big_data = this_data.(shuf_fd); %
             this_cmp_type = [ones(1,num_trial.(min_fd)),ones(1,num_trial.(min_fd)).*2]';
             
-            
-            parfor s = 1:num_fit_shuf
-                num_folds = min(5,floor(min_num_sample/2)); % number of folds for cross-validation
-                this_shuf_idx =  randsample(1:max_num_sample,min_num_sample);
-                this_shuf_sample = this_big_data(this_shuf_idx,:);
-                if shuf_fd_idx ==1 % making sure the first field comes first
-                    this_cmp_data = [this_shuf_sample;this_small_data];
-                else
-                    this_cmp_data = [this_small_data;this_shuf_sample];
-                end
-                if (IF_CROSSVAL)
-                    indices = crossvalind('Kfold',this_cmp_type,num_folds);
-                    this_b = nan(size(this_cmp_data,2)+1,num_folds);
-                    this_pc_correct = nan(1,num_folds);
-                    try
-                    for n = 1:num_folds % loop through cross-validation folds
-                        test = (indices == n); train = ~test;
-                        [b,dev,stats] = mnrfit(this_cmp_data(train,:),this_cmp_type(train)); % Logistic regression
-                        this_test_data = this_cmp_data(test,:);
-                        this_test_type = this_cmp_type(test);
-                        pred = nan(size(this_test_type));
-                        for t = 1:size(this_test_data,1)
-                            pred(t) = this_test_data(t,:)* b(2:end)+b(1); % Use unconditional sample sizes, even for 'cond'
+            if num_fit_shuf>10 % only use parfor when may shuffles
+                parfor s = 1:num_fit_shuf
+                    num_folds = min(5,floor(min_num_sample/2)); % number of folds for cross-validation
+                    this_shuf_idx =  randsample(1:max_num_sample,min_num_sample);
+                    this_shuf_sample = this_big_data(this_shuf_idx,:);
+                    if shuf_fd_idx ==1 % making sure the first field comes first
+                        this_cmp_data = [this_shuf_sample;this_small_data];
+                    else
+                        this_cmp_data = [this_small_data;this_shuf_sample];
+                    end
+                    if (IF_CROSSVAL)
+                        indices = crossvalind('Kfold',this_cmp_type,num_folds);
+                        this_b = nan(size(this_cmp_data,2)+1,num_folds);
+                        this_pc_correct = nan(1,num_folds);
+                        try
+                            for n = 1:num_folds % loop through cross-validation folds
+                                test = (indices == n); train = ~test;
+                                [b,dev,stats] = mnrfit(this_cmp_data(train,:),this_cmp_type(train)); % Logistic regression
+                                this_test_data = this_cmp_data(test,:);
+                                this_test_type = this_cmp_type(test);
+                                pred = nan(size(this_test_type));
+                                for t = 1:size(this_test_data,1)
+                                    pred(t) = this_test_data(t,:)* b(2:end)+b(1); % Use unconditional sample sizes, even for 'cond'
+                                end
+                                %                 [pred,dlo,dhi]= mnrval(b,this_cmp_data(test,:),stats);
+                                this_pc_correct(n) = length(intersect(find(pred>0),find(this_cmp_type(test)==1)))/length(find(this_cmp_type(test)==1));
+                                this_b(:,n) = b;
+                            end
+                            %                     this_b_idx = find(this_pc_correct == max(this_pc_correct));
+                            %                     if length(this_b_idx)==1
+                            %                         B = this_b(:,this_b_idx);
+                            %                     else
+                            %                         B = mean(this_b(:,this_b_idx),2);
+                            %                     end
+                            
+                            B = mean(this_b,2);
+                            b_shuf(fr,:,s) = B;
+                            accur_shuf(fr,s)= mean(this_pc_correct);
+                        catch
+                            continue
                         end
-                        %                 [pred,dlo,dhi]= mnrval(b,this_cmp_data(test,:),stats);
-                        this_pc_correct(n) = length(intersect(find(pred>0),find(this_cmp_type(test)==1)))/length(find(this_cmp_type(test)==1));
-                        this_b(:,n) = b;
+                    else
+                        [B,dev,stats] = mnrfit(this_cmp_data,this_cmp_type);
+                        b_shuf(fr,:,s) = B;
                     end
-%                     this_b_idx = find(this_pc_correct == max(this_pc_correct));
-%                     if length(this_b_idx)==1
-%                         B = this_b(:,this_b_idx);
-%                     else
-%                         B = mean(this_b(:,this_b_idx),2);
-%                     end
-
-                    B = mean(this_b,2);                   
-                    b_shuf(fr,:,s) = B;
-                    accur_shuf(fr,s)= mean(this_pc_correct);
-                    catch
-                        continue
+                end
+            else
+                for s = 1:num_fit_shuf
+                    num_folds = min(5,floor(min_num_sample/2)); % number of folds for cross-validation
+                    this_shuf_idx =  randsample(1:max_num_sample,min_num_sample);
+                    this_shuf_sample = this_big_data(this_shuf_idx,:);
+                    if shuf_fd_idx ==1 % making sure the first field comes first
+                        this_cmp_data = [this_shuf_sample;this_small_data];
+                    else
+                        this_cmp_data = [this_small_data;this_shuf_sample];
                     end
-                else
-                    [B,dev,stats] = mnrfit(this_cmp_data,this_cmp_type);
-                    b_shuf(fr,:,s) = B;
+                    if (IF_CROSSVAL)
+                        indices = crossvalind('Kfold',this_cmp_type,num_folds);
+                        this_b = nan(size(this_cmp_data,2)+1,num_folds);
+                        this_pc_correct = nan(1,num_folds);
+                        try
+                            for n = 1:num_folds % loop through cross-validation folds
+                                test = (indices == n); train = ~test;
+                                [b,dev,stats] = mnrfit(this_cmp_data(train,:),this_cmp_type(train)); % Logistic regression
+                                this_test_data = this_cmp_data(test,:);
+                                this_test_type = this_cmp_type(test);
+                                pred = nan(size(this_test_type));
+                                for t = 1:size(this_test_data,1)
+                                    pred(t) = this_test_data(t,:)* b(2:end)+b(1); % Use unconditional sample sizes, even for 'cond'
+                                end
+                                %                 [pred,dlo,dhi]= mnrval(b,this_cmp_data(test,:),stats);
+                                this_pc_correct(n) = length(intersect(find(pred>0),find(this_cmp_type(test)==1)))/length(find(this_cmp_type(test)==1));
+                                this_b(:,n) = b;
+                            end
+                            %                     this_b_idx = find(this_pc_correct == max(this_pc_correct));
+                            %                     if length(this_b_idx)==1
+                            %                         B = this_b(:,this_b_idx);
+                            %                     else
+                            %                         B = mean(this_b(:,this_b_idx),2);
+                            %                     end
+                            
+                            B = mean(this_b,2);
+                            b_shuf(fr,:,s) = B;
+                            accur_shuf(fr,s)= mean(this_pc_correct);
+                        catch
+                            continue
+                        end
+                    else
+                        [B,dev,stats] = mnrfit(this_cmp_data,this_cmp_type);
+                        b_shuf(fr,:,s) = B;
+                    end
                 end
             end
-            
         end
     end
     % for the frames not used for traning threshold, use the closest
@@ -195,96 +241,188 @@ else % train one classifier using frames of interests
 
         coef_shuf = {};
         coef0_shuf = {};
-        
-        parfor s = 1:num_fit_shuf
-            this_shuf_idx =  randsample(1:max_num_sample,min_num_sample);
-            num_folds = min(5,floor(min_num_sample/2)); % number of folds for cross-validation
-
-            % linear model
-            if strcmp(MODEL_TYPE,'logistic')
-                this_shuf_sample = this_big_data(this_shuf_idx,:);
-                if ~IF_MULTI_COMPO
-                    if shuf_fd_idx ==1 % making sure the correct field comes first
-                        this_cmp_data = [this_shuf_sample(:);this_small_data(:)];
-                        this_cmp_type = [shuf_fd_idx.*ones(size(this_shuf_sample(:)));min_fd_idx.*ones(size(this_small_data(:)))];
-                    else
-                        this_cmp_data = [this_small_data(:);this_shuf_sample(:)];
-                        this_cmp_type = [min_fd_idx.*ones(size(this_small_data(:)));shuf_fd_idx.*ones(size(this_shuf_sample(:)))];
-
-                    end
-                else
-                    if shuf_fd_idx ==1 % making sure the correct field comes first
-                        this_cmp_data = [this_shuf_sample;this_small_data];
-                        this_cmp_type = [shuf_fd_idx.*ones(size(this_shuf_sample,1),1);min_fd_idx.*ones(size(this_small_data,1),1)];
-
-                    else
-                        this_cmp_data = [this_small_data;this_shuf_sample];
-                        this_cmp_type = [min_fd_idx.*ones(size(this_small_data,1),1);shuf_fd_idx.*ones(size(this_shuf_sample,1),1)];
-                    end
-                end
-                if (IF_CROSSVAL)
-                    if num_folds>2
-                        indices = crossvalind('Kfold',this_cmp_type,num_folds);
-                        IF_LEAVEONEOUT = 0;
-                    else
-                        IF_LEAVEONEOUT = 1;
-                        num_folds = length(this_cmp_type);
-                    end
-                    this_b = nan(num_comp+1,num_folds);
-                    this_pc_correct = nan(1,num_folds);
-                    for n = 1:num_folds % loop through cross-validation folds
-                        if IF_LEAVEONEOUT
-                             indices = crossvalind('LeaveMOut',this_cmp_type,1);
+        if num_fit_shuf>10 % only use parfor when may shuffles           
+            parfor s = 1:num_fit_shuf
+                this_shuf_idx =  randsample(1:max_num_sample,min_num_sample);
+                num_folds = min(5,floor(min_num_sample/2)); % number of folds for cross-validation
+                
+                % linear model
+                if strcmp(MODEL_TYPE,'logistic')
+                    this_shuf_sample = this_big_data(this_shuf_idx,:);
+                    if ~IF_MULTI_COMPO
+                        if shuf_fd_idx ==1 % making sure the correct field comes first
+                            this_cmp_data = [this_shuf_sample(:);this_small_data(:)];
+                            this_cmp_type = [shuf_fd_idx.*ones(size(this_shuf_sample(:)));min_fd_idx.*ones(size(this_small_data(:)))];
+                        else
+                            this_cmp_data = [this_small_data(:);this_shuf_sample(:)];
+                            this_cmp_type = [min_fd_idx.*ones(size(this_small_data(:)));shuf_fd_idx.*ones(size(this_shuf_sample(:)))];
+                            
                         end
-                        test = (indices == n); train = ~test;
-%                         mdl = fitlm(this_cmp_data(train,:),this_cmp_type(train),'RobustOpts','logistic');
-%                         b = mdl.Coefficients.Estimate;
-                         [b] = mnrfit(this_cmp_data(train,:),this_cmp_type(train)); % Logistic regression
-                        this_test_data = this_cmp_data(test,:);
-                        this_test_type = this_cmp_type(test);
-                        pred = nan(size(this_test_type));
-                        for t = 1:size(this_test_data,1)
-                            pred(t) = this_test_data(t,:)* b(2:end)+b(1); % Use unconditional sample sizes, even for 'cond'
+                    else
+                        if shuf_fd_idx ==1 % making sure the correct field comes first
+                            this_cmp_data = [this_shuf_sample;this_small_data];
+                            this_cmp_type = [shuf_fd_idx.*ones(size(this_shuf_sample,1),1);min_fd_idx.*ones(size(this_small_data,1),1)];
+                            
+                        else
+                            this_cmp_data = [this_small_data;this_shuf_sample];
+                            this_cmp_type = [min_fd_idx.*ones(size(this_small_data,1),1);shuf_fd_idx.*ones(size(this_shuf_sample,1),1)];
                         end
-                        %                 [pred,dlo,dhi]= mnrval(b,this_cmp_data(test,:),stats);
-                        this_pc_correct(n) = length(intersect(find(pred>0),find(this_cmp_type(test)==1)))/length(find(this_cmp_type(test)==1)); 
-                        this_b(:,n) = b;
                     end
-%                     this_b_idx = find(this_pc_correct == max(this_pc_correct));
-%                     if length(this_b_idx)==1
-%                         B = this_b(:,this_b_idx);
-%                     else
-%                         B = mean(this_b(:,this_b_idx),2);
-%                     end
-
-                    B = mean(this_b,2);
-                    accur_shuf(s)= mean(this_pc_correct);
-                    all_accur_shuf = [all_accur_shuf;this_pc_correct];
-                else
-                    [B] = mnrfit(this_cmp_data,this_cmp_type);% last category will be zero
+                    if (IF_CROSSVAL)
+                        if num_folds>2
+                            indices = crossvalind('Kfold',this_cmp_type,num_folds);
+                            IF_LEAVEONEOUT = 0;
+                        else
+                            IF_LEAVEONEOUT = 1;
+                            num_folds = length(this_cmp_type);
+                        end
+                        this_b = nan(num_comp+1,num_folds);
+                        this_pc_correct = nan(1,num_folds);
+                        for n = 1:num_folds % loop through cross-validation folds
+                            if IF_LEAVEONEOUT
+                                indices = crossvalind('LeaveMOut',this_cmp_type,1);
+                            end
+                            test = (indices == n); train = ~test;
+                            %                         mdl = fitlm(this_cmp_data(train,:),this_cmp_type(train),'RobustOpts','logistic');
+                            %                         b = mdl.Coefficients.Estimate;
+                            [b] = mnrfit(this_cmp_data(train,:),this_cmp_type(train)); % Logistic regression
+                            this_test_data = this_cmp_data(test,:);
+                            this_test_type = this_cmp_type(test);
+                            pred = nan(size(this_test_type));
+                            for t = 1:size(this_test_data,1)
+                                pred(t) = this_test_data(t,:)* b(2:end)+b(1); % Use unconditional sample sizes, even for 'cond'
+                            end
+                            %                 [pred,dlo,dhi]= mnrval(b,this_cmp_data(test,:),stats);
+                            this_pc_correct(n) = length(intersect(find(pred>0),find(this_cmp_type(test)==1)))/length(find(this_cmp_type(test)==1));
+                            this_b(:,n) = b;
+                        end
+                        %                     this_b_idx = find(this_pc_correct == max(this_pc_correct));
+                        %                     if length(this_b_idx)==1
+                        %                         B = this_b(:,this_b_idx);
+                        %                     else
+                        %                         B = mean(this_b(:,this_b_idx),2);
+                        %                     end
+                        
+                        B = mean(this_b,2);
+                        accur_shuf(s)= mean(this_pc_correct);
+                        all_accur_shuf = [all_accur_shuf;this_pc_correct];
+                    else
+                        [B] = mnrfit(this_cmp_data,this_cmp_type);% last category will be zero
+                    end
+                    thresh_shuf(s) = -B(1);
+                    b_shuf(1,:,s) = B;
+                    
+                elseif strcmp(MODEL_TYPE,'elastic')
+                    this_shuf_sample = this_big_data(this_shuf_idx,:);
+                    this_cmp_type = [ones(1,min_num_sample),zeros(1,min_num_sample)]';
+                    
+                    if shuf_fd_idx ==1 % making sure the correct field comes first
+                        this_cmp_data = [this_shuf_sample;data.(min_fd)];
+                    else
+                        this_cmp_data = [data.(min_fd);this_shuf_sample];
+                    end
+                    
+                    [B,stats] = lassoglm(this_cmp_data,this_cmp_type,'binomial','Alpha',0.75,'CV',3,'NumLambda',50);
+                    idxLambda1 = stats.IndexMinDeviance;
+                    coef = B(:,idxLambda1);
+                    coef0 = stats.Intercept(idxLambda1);
+                    coef_shuf{s} = coef;
+                    coef0_shuf{s} = coef0;
+                    
                 end
-                thresh_shuf(s) = -B(1);
-                b_shuf(1,:,s) = B;
-                
-            elseif strcmp(MODEL_TYPE,'elastic')
-                this_shuf_sample = this_big_data(this_shuf_idx,:);
-                this_cmp_type = [ones(1,min_num_sample),zeros(1,min_num_sample)]';
-                
-                if shuf_fd_idx ==1 % making sure the correct field comes first
-                    this_cmp_data = [this_shuf_sample;data.(min_fd)];
-                else
-                    this_cmp_data = [data.(min_fd);this_shuf_sample];
-                end
-                
-                [B,stats] = lassoglm(this_cmp_data,this_cmp_type,'binomial','Alpha',0.75,'CV',3,'NumLambda',50);
-                idxLambda1 = stats.IndexMinDeviance;
-                coef = B(:,idxLambda1);
-                coef0 = stats.Intercept(idxLambda1);
-                coef_shuf{s} = coef;
-                coef0_shuf{s} = coef0;
                 
             end
-            
+        else
+            for s = 1:num_fit_shuf
+                this_shuf_idx =  randsample(1:max_num_sample,min_num_sample);
+                num_folds = min(5,floor(min_num_sample/2)); % number of folds for cross-validation
+                
+                % linear model
+                if strcmp(MODEL_TYPE,'logistic')
+                    this_shuf_sample = this_big_data(this_shuf_idx,:);
+                    if ~IF_MULTI_COMPO
+                        if shuf_fd_idx ==1 % making sure the correct field comes first
+                            this_cmp_data = [this_shuf_sample(:);this_small_data(:)];
+                            this_cmp_type = [shuf_fd_idx.*ones(size(this_shuf_sample(:)));min_fd_idx.*ones(size(this_small_data(:)))];
+                        else
+                            this_cmp_data = [this_small_data(:);this_shuf_sample(:)];
+                            this_cmp_type = [min_fd_idx.*ones(size(this_small_data(:)));shuf_fd_idx.*ones(size(this_shuf_sample(:)))];
+                            
+                        end
+                    else
+                        if shuf_fd_idx ==1 % making sure the correct field comes first
+                            this_cmp_data = [this_shuf_sample;this_small_data];
+                            this_cmp_type = [shuf_fd_idx.*ones(size(this_shuf_sample,1),1);min_fd_idx.*ones(size(this_small_data,1),1)];
+                            
+                        else
+                            this_cmp_data = [this_small_data;this_shuf_sample];
+                            this_cmp_type = [min_fd_idx.*ones(size(this_small_data,1),1);shuf_fd_idx.*ones(size(this_shuf_sample,1),1)];
+                        end
+                    end
+                    if (IF_CROSSVAL)
+                        if num_folds>2
+                            indices = crossvalind('Kfold',this_cmp_type,num_folds);
+                            IF_LEAVEONEOUT = 0;
+                        else
+                            IF_LEAVEONEOUT = 1;
+                            num_folds = length(this_cmp_type);
+                        end
+                        this_b = nan(num_comp+1,num_folds);
+                        this_pc_correct = nan(1,num_folds);
+                        for n = 1:num_folds % loop through cross-validation folds
+                            if IF_LEAVEONEOUT
+                                indices = crossvalind('LeaveMOut',this_cmp_type,1);
+                            end
+                            test = (indices == n); train = ~test;
+                            %                         mdl = fitlm(this_cmp_data(train,:),this_cmp_type(train),'RobustOpts','logistic');
+                            %                         b = mdl.Coefficients.Estimate;
+                            [b] = mnrfit(this_cmp_data(train,:),this_cmp_type(train)); % Logistic regression
+                            this_test_data = this_cmp_data(test,:);
+                            this_test_type = this_cmp_type(test);
+                            pred = nan(size(this_test_type));
+                            for t = 1:size(this_test_data,1)
+                                pred(t) = this_test_data(t,:)* b(2:end)+b(1); % Use unconditional sample sizes, even for 'cond'
+                            end
+                            %                 [pred,dlo,dhi]= mnrval(b,this_cmp_data(test,:),stats);
+                            this_pc_correct(n) = length(intersect(find(pred>0),find(this_cmp_type(test)==1)))/length(find(this_cmp_type(test)==1));
+                            this_b(:,n) = b;
+                        end
+                        %                     this_b_idx = find(this_pc_correct == max(this_pc_correct));
+                        %                     if length(this_b_idx)==1
+                        %                         B = this_b(:,this_b_idx);
+                        %                     else
+                        %                         B = mean(this_b(:,this_b_idx),2);
+                        %                     end
+                        
+                        B = mean(this_b,2);
+                        accur_shuf(s)= mean(this_pc_correct);
+                        all_accur_shuf = [all_accur_shuf;this_pc_correct];
+                    else
+                        [B] = mnrfit(this_cmp_data,this_cmp_type);% last category will be zero
+                    end
+                    thresh_shuf(s) = -B(1);
+                    b_shuf(1,:,s) = B;
+                    
+                elseif strcmp(MODEL_TYPE,'elastic')
+                    this_shuf_sample = this_big_data(this_shuf_idx,:);
+                    this_cmp_type = [ones(1,min_num_sample),zeros(1,min_num_sample)]';
+                    
+                    if shuf_fd_idx ==1 % making sure the correct field comes first
+                        this_cmp_data = [this_shuf_sample;data.(min_fd)];
+                    else
+                        this_cmp_data = [data.(min_fd);this_shuf_sample];
+                    end
+                    
+                    [B,stats] = lassoglm(this_cmp_data,this_cmp_type,'binomial','Alpha',0.75,'CV',3,'NumLambda',50);
+                    idxLambda1 = stats.IndexMinDeviance;
+                    coef = B(:,idxLambda1);
+                    coef0 = stats.Intercept(idxLambda1);
+                    coef_shuf{s} = coef;
+                    coef0_shuf{s} = coef0;
+                    
+                end
+                
+            end            
         end
         thresh_fix = mean(thresh_shuf);
     else

@@ -32,6 +32,7 @@ color.stim4 = [.5 .5 .5]; % catch
 color.stim5 = [.5 .5 .5]; % catch
 color.stim_5_miss = [.5 .5 .5]; % catch 
 color.stim_5_lick = [0 0 0]; % catch
+color.stim_5_nolick = color.stim_5_miss ; % catch
 
 
 color.port1 = mean([color.correct_stim1;color.incorrect_stim2],1);
@@ -55,9 +56,19 @@ color.target = color.photo;
 
 color.go_trials = [0 0 0];
 color.nogo_trials = [.5 .5 .5];
+color.lick = [0 0 0];
+color.nolick = [.5 .5 .5];
+color.hold = [.5 .5 .5];
 color.stim1_trials = color.stim1;
 color.stim2_trials = color.stim2;
-
+color.hit = color.st_correct_stim_2;
+color.cr = color.st_correct_stim_1;
+color.miss = color.st_incorrect_stim_2;
+color.fa = color.st_incorrect_stim_1;
+color.all = [.5 .5 .5];
+color.touch = [0 0 0];
+color.tex1 = color.cr;
+color.tex2 = color.hit;
 
 % performance plot
 color.all = [0 0 0];
@@ -67,7 +78,7 @@ color.dummyphoto = tint(color.photo,0.5);
 color.photostim = color.photostim;
 color.nonphotostim = [.5 .5 .5];
 color.dummyphotostim = tint(color.photo,0.5);
-for s = 1:2
+for s = 1:4
     color.(['stim_' num2str(s) '_photo']) = color.photo;
     color.(['stim_' num2str(s) '_nonphoto']) = color.nonphoto;
     color.(['stim_' num2str(s) '_dummyphoto']) = color.dummyphoto;  
@@ -84,6 +95,9 @@ for s = 1:2
         color.(['stim_' num2str(s) photo_types{p} '_correct']) = this_color;
         color.(['stim_' num2str(s) photo_types{p} '_incorrect']) = shade(this_color,.5);
     end
+        color.(['stim_' num2str(s) '_correct_ctr']) = color.(['correct_stim'  num2str(s)]);
+        color.(['stim_' num2str(s) '_incorrect_ctr']) = color.(['incorrect_stim'  num2str(s)]);
+
 end
 
 s = 5;% catch type
@@ -94,5 +108,12 @@ for p = 1:numel(catch_photo_types)
     color.(['stim_' num2str(s) catch_photo_types{p} '_nolick']) = tint(this_color,.5);
 end
 
+color.stim_1_photo = color.photo;
+color.stim_1_nonphoto = color.nonphoto;
+color.stim_1_dummyphoto = color.dummyphoto;
+
+color.stim_2_photo = color.photo;
+color.stim_2_nonphoto = color.nonphoto;
+color.stim_2_dummyphoto = color.dummyphoto;
 end
 

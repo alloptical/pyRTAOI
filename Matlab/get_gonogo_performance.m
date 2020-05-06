@@ -29,7 +29,11 @@ num_trials.('stim_1_nonphoto') = numel(trial_indices.stim_1_var_1_nonphotostim);
 num_trials.('stim_2_nonphoto') =  numel(trial_indices.stim_2_var_2_nonphotostim);
 
 [dp.nonphoto,hr.nonphoto,fa.nonphoto] = get_dprime(num_hit,num_miss,num_fa,num_cr);
+catch
+    warning('no phototrial found')
+end
 
+try
 num_hit = numel(intersect(trial_indices.stim_2_var_2_correct,trial_indices.stim_2_var_2_dummyphotostim));
 num_miss =  numel(intersect(trial_indices.stim_2_var_2_incorrect,trial_indices.stim_2_var_2_dummyphotostim));
 num_cr = numel(intersect(trial_indices.stim_1_var_1_correct,trial_indices.stim_1_var_1_dummyphotostim));
@@ -38,10 +42,11 @@ num_trials.('stim_1_dummyphoto') = numel(trial_indices.stim_1_var_1_dummyphotost
 num_trials.('stim_2_dummyphoto') =  numel(trial_indices.stim_2_var_2_dummyphotostim);
 
 [dp.dummyphoto,hr.dummyphoto,fa.dummyphoto] = get_dprime(num_hit,num_miss,num_fa,num_cr);
-
 catch
-    warning('no phototrial found')
+    warning('no dummy phototrial found')
 end
+
+
 
 end
 

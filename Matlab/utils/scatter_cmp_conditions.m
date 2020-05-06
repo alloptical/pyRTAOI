@@ -190,9 +190,13 @@ end
 stats = struct();
 max_value = max(mat_all_values(:));
 min_value = min(mat_all_values(:));
-
+if IfHistogram
+    max_value = 0.5;
+    min_value = 0;
+end
 this_plot_stats_hight = (max_value-min_value)*0.1+max_value;
-plot_stats_step = 0.05*max_value;
+plot_stats_step = 0.1*max_value;
+
 
 if(~(strcmp(test_type,'anova')||(strcmp(test_type,'KW'))))
     % compare pairs - not corrected for multi comparison
@@ -214,9 +218,13 @@ if(~(strcmp(test_type,'anova')||(strcmp(test_type,'KW'))))
                         P = 1; h = 0;
                     end
                 case 'ttest2'
-                    [h,P]=ttest2(mat_all_values(:,idx1),mat_all_values(:,idx2),'tail',tail);
+                    [h,P]=ttest2(mat_all_values(:,idx1),mat_all_values(:,idx2),'tail',tail,'Vartype','unequal');
                 case 'signrank'
-                    [P,h] = signrank(mat_all_values(:,idx1),mat_all_values(:,idx2),'tail',tail);
+                    try
+                        [P,h] = signrank(mat_all_values(:,idx1),mat_all_values(:,idx2),'tail',tail);
+                    catch
+                        P = 1; h = 0;
+                    end
                 case 'KS'
                     [h,P] = kstest2(mat_all_values(:,idx1),mat_all_values(:,idx2));
                     %                 IfHistogram = 1; % will plot histogram if chosen KS test
@@ -227,6 +235,9 @@ if(~(strcmp(test_type,'anova')||(strcmp(test_type,'KW'))))
         
         % plot asterisks
         if(plot_stats&&(~isempty(plot_stats_step)))
+            if P>0.05 % only show significant
+                continue
+            end
             this_plot_stats_hight = this_plot_stats_hight+ plot_stats_step;
             plot([idx1 idx2],this_plot_stats_hight.*[1,1],'black');
             text(mean([idx1 idx2]),this_plot_stats_hight, get_stars_for_P(P), 'VerticalAlignment','bottom','HorizontalAlignment','center');
@@ -243,9 +254,13 @@ else
         idx2 = C(c,2);
         % plot asterisks
         if(plot_stats)
-            this_plot_stats_hight = this_plot_stats_hight+ plot_stats_step;
-            plot([idx1 idx2],this_plot_stats_hight.*[1,1],'black');
-            text(mean([idx1 idx2]),this_plot_stats_hight, get_stars_for_P( stats(c).P), 'VerticalAlignment','bottom','HorizontalAlignment','center');
+            if  stats(c).P<0.05 % only show significant
+                this_plot_stats_hight = this_plot_stats_hight+ plot_stats_step;
+                plot([idx1 idx2],this_plot_stats_hight.*[1,1],'black');
+                text(mean([idx1 idx2]),this_plot_stats_hight, get_stars_for_P( stats(c).P), 'VerticalAlignment','bottom','HorizontalAlignment','center');
+            else
+                continue
+            end
         end
     end
 end
@@ -287,7 +302,11 @@ if ~IfPlotPrePostOnly   % plot all conditions
             plot(repmat(x_positions,size(mat_all_values,1),1)',mat_all_values','color',[.7 .7 .7],'linewidth',0.5)
         end
         for i =1:num_plot
-            temp_value = extractfield(values,char(fields{i}))';
+            temp_value = extractfield(values,char(fields{i}));
+            temp_value = temp_value(:);
+            if isempty(temp_value)
+                continue;
+            end
             if IfViolin
                 
                 violin(temp_value,'x',x_positions(i).*ones(size(temp_value)),...
@@ -297,7 +316,7 @@ if ~IfPlotPrePostOnly   % plot all conditions
             else
                 hold on
                 if(~IfColorAnimals)
-                    plotx = x_positions(i);
+                    plotx = x_positions(i).*ones(size(temp_value));
                     ploty = temp_value;
                     if(IfAddJitter)
                         jitters = randi([-200 200],size(temp_value))./200.*x_interval.*0.1;
@@ -407,11 +426,15 @@ if ~ BriefXlabel
 elseif ShowMeanInXlabel
     xlabel({['#Samples: ' num2str(num_samples)];...
         ['#Numeric: ' num2str(num_nonnan_samples)];...
-        ['Mean: '  num2str(mean_values(1),'%10.3f') '; '  num2str(mean_values(end),'%10.3f')];...
-        ['SD: '  num2str(sd_values(1),'%10.3f') '; '  num2str(sd_values(end),'%10.3f')]})
-    
+        ['Mean: '  num2str(mean_values,'%10.3f') ];...
+        ['SD: '  num2str(sd_values,'%10.3f')]})
 else
-    xlabel({[ test_type ' P=' num2str(P,'%10.1e') ' h= ' num2str(h)]})
+        xlabel({ ['Mean: '  num2str(mean_values,'%10.3f') ];...
+            ['Median:' num2str(median_values,'%10.3f')];...
+        ['SD: '  num2str(sd_values,'%10.3f')]})
+ 
+
+%     xlabel({[ test_type ' P=' num2str(P,'%10.1e') ' h= ' num2str(h)]})
 end
 if VeryBriefXlabel
     xlabel({['Mean: '  num2str(mean_values,'%10.3f')]})

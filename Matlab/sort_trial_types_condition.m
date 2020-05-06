@@ -12,8 +12,12 @@ all_pyrtaoi_stimtype =  [1 2 3 4 3 4 5 5 1 2]; % will be used as variation below
 all_pybehav_stimtype =  [1 2 3 3 4 4 3 4 1 2];
 all_pyrtaoi_var      =  [1 1 1 1 1 1 1 1 2 2];% this gives dummy photostim trials
 
-% discard early response trials
 fds = fields(trials);
+% discard first 10 trials for baselining 
+for f = 1:numel(fds)
+trials.(fds{f})(1:10) = 0;
+end
+% discard early response trials
 for f = 1:numel(fds)
 trials.(fds{f})(trials.firstlick<opt.rw_start_sec) = 0;
 end
@@ -74,5 +78,17 @@ trial_indices.('stim_5_photostim_2_nolick') = intersect([trial_indices.('stim_3_
 trial_indices.('stim_5_nonphotostim_lick') = intersect([trial_indices.('stim_3_var_5_incorrect'),trial_indices.('stim_4_var_5_correct')],trial_indices.('stim_5_nonphotostim'));
 trial_indices.('stim_5_nonphotostim_nolick') = intersect([trial_indices.('stim_3_var_5_correct'),trial_indices.('stim_4_var_5_incorrect')],trial_indices.('stim_5_nonphotostim'));
 
+try
+trial_indices.('stim_1_photo') = unique([trial_indices.stim_1_photostim_correct,trial_indices.stim_1_photostim_incorrect]);
+trial_indices.('stim_1_dummyphoto') = unique([trial_indices.stim_1_dummyphotostim_correct,trial_indices.stim_1_dummyphotostim_incorrect]);
+trial_indices.('stim_1_nonphoto') = unique([trial_indices.stim_1_nonphotostim_correct,trial_indices.stim_1_nonphotostim_incorrect]);
+
+trial_indices.('stim_2_photo') = unique([trial_indices.stim_2_photostim_correct,trial_indices.stim_2_photostim_incorrect]);
+trial_indices.('stim_2_dummyphoto') = unique([trial_indices.stim_2_dummyphotostim_correct,trial_indices.stim_2_dummyphotostim_incorrect]);
+trial_indices.('stim_2_nonphoto') = unique([trial_indices.stim_2_nonphotostim_correct,trial_indices.stim_2_nonphotostim_incorrect]);
+
+
+
+end
 end
 

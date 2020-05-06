@@ -12,6 +12,6 @@ end
 
 for i = 1:length(mark_idx)
     scatter(round(cell_struct(mark_idx(i)).centroid(:,2)),round(cell_struct(mark_idx(i)).centroid(:,1)),...
-        MarkerSize,'MarkerEdgeColor',color,'Linewidth',Linewidth)
+        MarkerSize,'MarkerEdgeColor',color,'Linewidth',Linewidth,'MarkerEdgeAlpha',0.5)
 end
 

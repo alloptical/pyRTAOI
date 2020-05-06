@@ -10,6 +10,7 @@ show_cell_idx = [];
 target_cell_idx = [];
 trigger_cell_idx = [];
 max_abs_value = [];
+random_color = false;
 for v = 1:numel(varargin)
     if strcmpi(varargin{v},'IF_NORM_PIX')
         IF_NORM_PIX = varargin{v+1};
@@ -27,22 +28,35 @@ for v = 1:numel(varargin)
         trigger_cell_idx = varargin{v+1};
     elseif  strcmpi(varargin(v),'max_abs_value')
         max_abs_value = varargin{v+1};
+    elseif strcmpi(varargin{v},'random_color')
+        random_color = varargin{v+1};
+
     end
+        
 end
 
 img = zeros(dims);
-all_values = extractfield(cell_struct,value_field);
+if random_color
+    img = ones(dims);
+end
+if ~isempty(value_field)
+    all_values = extractfield(cell_struct,value_field);
+else
+    all_values = ones(size(cell_struct));
+end
 
 for i = 1:size(cell_struct,2)
     xy_coords = sub2ind(dims,cell_struct(i).coordinates(:,1),cell_struct(i).coordinates(:,2));
-    plot_value = cell_struct(i).(value_field);
+    plot_value = all_values(i);
     if isnan(plot_value)
         continue
     end
-    
+    if random_color
+        plot_value = randi([1,size(cell_struct,2)],1)/size(cell_struct,2);
+    end
     if IF_NORM_PIX
         pix_values = cell_struct(i).pix_values;
-        norm_pix_values = pix_values;%./sum(pix_values);
+        norm_pix_values = pix_values./max(pix_values);%./sum(pix_values);
         img(xy_coords) = norm_pix_values.*plot_value;
     else
         img(xy_coords) =plot_value;
@@ -68,8 +82,12 @@ end
 
 hold on
 imagesc(img);
-if isempty(colorlut)
+if random_color
+%     colormap(colorcube)
+    brighten(colorcube,.3);
+elseif isempty(colorlut)
     colormap(ax,b2r(zlimit(1) ,zlimit(2)))
+
 else
     colormap(ax,colorlut)
 end
@@ -93,22 +111,26 @@ end
 % mark cell indices
 if ~isempty(show_cell_idx)
     plot_tex_idx = show_cell_idx;
-else
+elseif ~isnan(show_cell_idx)
     plot_tex_idx = 1:size(cell_struct,2);
+else
+    plot_tex_idx = [];
 end
-for i = plot_tex_idx
-    text(round(cell_struct(i).centroid(:,2)),...
-        round(cell_struct(i).centroid(:,1)),num2str(cell_struct(i).cnm_idx),'color',textcolor,'fontweight','bold');
+if ~isempty(plot_tex_idx)
+    for i = plot_tex_idx
+        text(round(cell_struct(i).centroid(:,2)),...
+            round(cell_struct(i).centroid(:,1)),num2str(cell_struct(i).cnm_idx),'color',textcolor,'fontweight','bold');
+    end
 end
 
 % mark target cells
 if ~isempty(target_cell_idx)
     for i = target_cell_idx
      text(round(cell_struct(i).centroid(:,2)),...
-        round(cell_struct(i).centroid(:,1)),num2str(cell_struct(i).cnm_idx),'color','r','fontweight','bold');
+        round(cell_struct(i).centroid(:,1)),num2str(cell_struct(i).cnm_idx),'color',[.5 .5 .5],'fontweight','bold');
     end
     cc_pix = cell2mat({cell_struct(target_cell_idx).contour});
-    scatter(cc_pix(1,:),cc_pix(2,:),1,'r')
+    scatter(cc_pix(1,:),cc_pix(2,:),1,[.3 .3 .3])
 end
 
 % mark trigger cells

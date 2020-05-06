@@ -48,9 +48,9 @@ for v = 1:num_trial_types
 end
 % sort catch trials
 % using stim_5 as catch; var as target ensemble
-trial_indices.('stim_5_photostim_1') =  find(trials.trialOrder==3&trials.photostim == 1);
-trial_indices.('stim_5_photostim_2') =  find(trials.trialOrder==4&trials.photostim == 1);
-trial_indices.('stim_5_nonphotostim') =  find(trials.trialOrder==5&trials.photostim == 0);
+trial_indices.('stim_5_photostim_1') =  find((trials.stim_type==3|trials.stim_type ==4)&trials.trialOrder==3&trials.photostim == 1);
+trial_indices.('stim_5_photostim_2') =  find((trials.stim_type==3|trials.stim_type ==4)&trials.trialOrder==4&trials.photostim == 1);
+trial_indices.('stim_5_nonphotostim') =  find((trials.stim_type==3|trials.stim_type ==4)&trials.trialOrder==5&trials.photostim == 0);
 
 
 % performance in photo and nonphoto tirals
