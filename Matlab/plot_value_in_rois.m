@@ -11,6 +11,7 @@ target_cell_idx = [];
 trigger_cell_idx = [];
 max_abs_value = [];
 random_color = false;
+cell_values = [];
 for v = 1:numel(varargin)
     if strcmpi(varargin{v},'IF_NORM_PIX')
         IF_NORM_PIX = varargin{v+1};
@@ -30,7 +31,8 @@ for v = 1:numel(varargin)
         max_abs_value = varargin{v+1};
     elseif strcmpi(varargin{v},'random_color')
         random_color = varargin{v+1};
-
+     elseif strcmpi(varargin{v},'cell_values')
+        cell_values = varargin{v+1};       
     end
         
 end
@@ -43,6 +45,10 @@ if ~isempty(value_field)
     all_values = extractfield(cell_struct,value_field);
 else
     all_values = ones(size(cell_struct));
+end
+
+if ~isempty(cell_values) % put given cell_values into ROIs
+    all_values = cell_values;
 end
 
 for i = 1:size(cell_struct,2)

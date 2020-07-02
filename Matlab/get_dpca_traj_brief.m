@@ -2,10 +2,15 @@ function [dpca_struct,traces_idx_struct,trial_idx_struct] = get_dpca_traj_brief(
 filt_cell_struct = cell_struct(cell_idx);
 fig_save_path = opt.save_path;
 decision_types = {'_correct','_incorrect'};
+frame_range = 1:opt.trial_length;
 IF_PLOT = true;
 for v = 1:numel(varargin)
     if strcmpi(varargin{v},'IF_PLOT')
         IF_PLOT = varargin{v+1};
+    end
+    
+     if strcmpi(varargin{v},'frame_range')
+        frame_range = varargin{v+1};
     end
 end
 
@@ -15,7 +20,7 @@ catch
     save_name_ext = [];
 end
 N = size(filt_cell_struct,2);   % number of neurons
-T = opt.trial_length;           % number of time points
+T = numel(frame_range);           % number of time points
 S = 2;                          % number of stimuli
 D = 2;                          % number of decisions
 num_dPC = getOr(opt,'num_dPC',5);                   % number of PCs
@@ -34,13 +39,12 @@ for tex_count = 1:S
         this_num_trials = size(filt_cell_struct(1).(this_fd),2);
         this_trial_traces = nan(N,T,maxTrialNum);
         for c = 1:N
-            this_trial_traces(c,:,1:this_num_trials) = filt_cell_struct(c).(this_fd);
+            this_trial_traces(c,:,1:this_num_trials) = filt_cell_struct(c).(this_fd)(frame_range,:);
         end
         firingRates(:,tex_count,decision_count,:,:) = this_trial_traces; %data(neuron_count,frame_count,trial_count);
         trialNum(1,tex_count,decision_count) = this_num_trials;
     end
 end
-
 trialNum = repmat(trialNum,N,1);
 firingRatesAverage = bsxfun(@times, nanmean(firingRates,5), size(firingRates,5)./trialNum);
 
@@ -125,7 +129,7 @@ try
             'marginalizationNames', margNames, ...
             'marginalizationColours', margColours, ...
             'whichMarg', whichMarg,                 ...
-            'time', 1:opt.trial_length,                        ...
+            'time', frame_range,                        ...
             'timeEvents',opt.sta_gocue_frame,               ...
             'timeMarginalization', 3,           ...
             'legendSubplot', 16,                ...
@@ -164,11 +168,11 @@ try
     for f = 1:numel(trial_fds)
         this_trial_idx = traces_idx_struct.(trial_fds{f});
         this_traces = F(this_trial_idx,:);
-        this_num_trials = size(this_traces,1)/T;
-        this_traces_reshape = nan(this_num_trials,T,num_dPC); %[trial,frames,factor]
+        this_num_trials = size(this_traces,1)/opt.trial_length;
+        this_traces_reshape = nan(this_num_trials,opt.trial_length,num_dPC); %[trial,frames,factor]
         for t = 1:this_num_trials
             for m = 1:num_dPC
-                this_traces_reshape(t,:,m) = this_traces([1:T]+(t-1)*T,m)';
+                this_traces_reshape(t,:,m) = this_traces([1:opt.trial_length]+(t-1)*opt.trial_length,m)';
             end
         end       
             traj_struct.(trial_fds{f}) = this_traces_reshape;

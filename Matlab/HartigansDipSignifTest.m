@@ -6,6 +6,22 @@ function		[dip, p_value, xlow,xup]=HartigansDipSignifTest(xpdf,nboot)
 % NBOOT is the user-supplied sample size of boot-strap
 % Code by F. Mechler (27 August 2002)
 
+% The HDS is a statistic calculated by taking the maximum
+% difference between the observed distribution of data and a
+% uniform distribution that is chosen to minimize this maximum difference. The idea is that repeated sampling from the
+% uniform (with the sample size of the original data) produces
+% a sampling distribution over these differences; a bimodal (or
+% n-modal) distribution is one in which the HDS is at or
+% greater than the 95th percentile among all sampled values.
+% In other words, as compared to the uniform distribution
+% (which Hartigan & Hartigan, 1985, argued to be the best
+% choice for testing unimodality), a multimodal distribution
+% has statistically significant disparities in its distribution
+% function. Thus, the HDS is given to null-hypothesis logic
+% and is inferential; if p < .05, the distribution is considered to
+% be bimodal or multimodal
+
+
 % calculate the DIP statistic from the empirical pdf
 [dip,xlow,xup, ifault, gcm, lcm, mn, mj]=HartigansDipTest(xpdf);
 N=length(xpdf);

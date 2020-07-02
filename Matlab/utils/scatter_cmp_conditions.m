@@ -57,8 +57,12 @@ addParameter(par,'xtick_label',[])
 addParameter(par,'xlimit',[])
 addParameter(par,'plot_mean',1) % for violin plot
 addParameter(par,'plot_median',1) % for violin plot
+addParameter(par,'barfacecolor','none') 
 
 parse(par,varargin{:})
+if(~ isempty(par.Results.xlimit))
+    xlimit = par.Results.xlimit;
+end
 if(~ isempty(par.Results.xlimit))
     xlimit = par.Results.xlimit;
 end
@@ -152,6 +156,9 @@ end
 if(~isempty(par.Results.plot_median))
     plot_median = par.Results.plot_median;
 end
+if(~isempty(par.Results.barfacecolor))
+    barfacecolor = par.Results.barfacecolor;
+end
 % plot each field in value
 hold on
 fields = fieldnames(values);
@@ -194,7 +201,7 @@ if IfHistogram
     max_value = 0.5;
     min_value = 0;
 end
-this_plot_stats_hight = (max_value-min_value)*0.1+max_value;
+this_plot_stats_hight = (max_value-min_value)*0.1+max_value*0.75;
 plot_stats_step = 0.1*max_value;
 
 
@@ -245,6 +252,7 @@ if(~(strcmp(test_type,'anova')||(strcmp(test_type,'KW'))))
         
     end
 else
+    P = [];
     % compare pairs - not corrected for multi comparison
     [~,~,mult_stats] = multcmp_stats_on_struct( values, 'test_type',test_type,'displayopt',displayopt );
     C = multcompare(mult_stats,'Display',displayopt);
@@ -333,11 +341,11 @@ if ~IfPlotPrePostOnly   % plot all conditions
                         if IfAddJitter
                             jitters = randi([-200 200],1)./200.*x_interval.*0.1;
                         end
-                        scatter(x_positions(i)+jitters,temp_value(j),50,'MarkerEdgeColor',[1 1 1],'MarkerFaceColor',animal_colors(j,:),'MarkerFaceAlpha',0.5)
+                        scatter(x_positions(i)+jitters,temp_value(j),50,'MarkerEdgeColor',[1 1 1],'MarkerFaceColor',animal_colors(j,:),'MarkerFaceAlpha',0.7)
                     end
                 end
                 
-                barwitherr(sd_values(i),mean_values(i),'XData',x_positions(i),'barwidth',barwidth,'FaceColor','none','EdgeColor',color_lut(i,:),'LineWidth',1);
+                barwitherr(sd_values(i),mean_values(i),'XData',x_positions(i),'barwidth',barwidth,'FaceColor',barfacecolor,'EdgeColor',color_lut(i,:),'LineWidth',1.5);
             end
         end
         if isempty(xtick_label)
@@ -368,10 +376,13 @@ if ~IfPlotPrePostOnly   % plot all conditions
         for ii = 1:numel(fields)
             legend_name{ii} = strrep(fields{ii},'_', ' ');
         end
+        if ~isempty(xtick_label)
+            legend_name = xtick_label;
+        end
         if~isempty(xlimit)
             xlim(xlimit)
         end
-        legend(hp,legend_name,'Location','northwest')
+        legend(hp,legend_name,'Location','northoutside','box','off')
     end
     
     
@@ -394,6 +405,7 @@ end
 
 if(~IfHistogram)
     ylabel(plot_name)
+    xlim([0 num_plot+1])
 else
     plot_name = strrep(plot_name,'_',' ');
     title(plot_name)
@@ -441,6 +453,5 @@ if VeryBriefXlabel
 end
 set(gcf,'color','w')
 y_pos = double(1.1*max(max(mat_all_values)));
-
 end
 

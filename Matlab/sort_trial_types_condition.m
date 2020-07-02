@@ -14,9 +14,9 @@ all_pyrtaoi_var      =  [1 1 1 1 1 1 1 1 2 2];% this gives dummy photostim trial
 
 fds = fields(trials);
 % discard first 10 trials for baselining 
-for f = 1:numel(fds)
-trials.(fds{f})(1:10) = 0;
-end
+% for f = 1:numel(fds)
+% trials.(fds{f})(1:10) = 0;
+% end
 % discard early response trials
 for f = 1:numel(fds)
 trials.(fds{f})(trials.firstlick<opt.rw_start_sec) = 0;

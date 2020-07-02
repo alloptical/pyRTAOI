@@ -6,7 +6,7 @@ for i = 1:size(cell_struct,2)
     for c = 1:numel(cmp_fds)
         
         all_stim = mean(cell_struct(i).(cmp_fds{c})(avg_frame_range,:),1);
-        all_bs = mean(cell_struct(i).(cmp_fds{c})(1:opt.sta_baseline_frames,:),1);
+        all_bs = mean(cell_struct(i).(cmp_fds{c})(opt.sta_baseline_frames+[1:30],:),1);
         
         labels = [ones(1,length(all_stim)),2.*ones(1,length(all_stim))]';
         scores = [ all_bs  all_stim]';

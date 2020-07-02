@@ -34,12 +34,6 @@ for i = 1:num_comp
     temp_trace = fillmissing(temp_trace,'linear');
     cnm_struct(i).deconvC_full = temp_trace;
     
-    temp_trace = nan(1,tot_frames);
-    temp_trace(caiman_frames) =  caiman_data.noisyC(i+1,1:num_frames);
-    temp_trace = fillmissing(temp_trace,'linear');
-    cnm_struct(i).noisyC_full = temp_trace;
-    
-
 end
 %% plot spatial components and save to cell struct
 com_fov = zeros(cnm_dims);

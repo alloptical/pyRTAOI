@@ -467,6 +467,8 @@ cell_idx_struct.port2 = find(correct_stimulusAUC_zscore>opt.N & incorrect_stimul
 cell_idx_struct.port1 = find(correct_stimulusAUC_zscore<-opt.N& incorrect_stimulusAUC_zscore>opt.N); % cells prefering texture2 in correct trials
 cell_idx_struct.port = unique([cell_idx_struct.port1,cell_idx_struct.port2]);
 cell_idx_struct.relevant = unique([cell_idx_struct.port,cell_idx_struct.tex]);
+
+% cell_idx_struct = structfun(@(x)x(x>1),cell_idx_struct); % excluding background compo
 else
     warning('no choice auc')
 end

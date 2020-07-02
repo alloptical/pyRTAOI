@@ -4,7 +4,11 @@ linecolor = [255,153,187;237,23,94;153,186,255;20,81,204; 255 51 255; 153 0 153;
 trace_fds = {'correct_stim1','incorrect_stim1','correct_stim2','incorrect_stim2',...
     'correct_stim3','incorrect_stim3','correct_stim4','incorrect_stim4'};
 mod_trace_fds = {'stim_1_correct','stim_1_incorrect','stim_2_correct','stim_2_incorrect'};
+nophoto_trace_fds = {'stim_1_nophoto_correct','stim_1_nophoto_incorrect','stim_2_nophoto_correct','stim_2_nophoto_incorrect'};
+
 smooth_trace_fds = {'st_correct_smooth_deconv_1','st_incorrect_smooth_deconv_1','st_correct_smooth_deconv_2','st_incorrect_smooth_deconv_2'};
+raw_trace_fds = {'st_correct_raw_1','st_incorrect_raw_1','st_correct_raw_2','st_incorrect_raw_2'};
+deconv_trace_fds = {'st_correct_deconv_1','st_incorrect_deconv_1','st_correct_deconv_2','st_incorrect_deconv_2'};
 
 init_fds = {'st_correct_stim_1','st_incorrect_stim_1','st_correct_stim_2','st_incorrect_stim_2',...
     'st_correct_stim_3','st_incorrect_stim_3','st_correct_stim_4','st_incorrect_stim_4'};
@@ -13,16 +17,27 @@ for f = 1:numel(init_fds)
     color.(init_fds{f}) = linecolor(f,:);
 end
 
+for f = 1:numel(raw_trace_fds)
+    color.(raw_trace_fds{f}) = linecolor(f,:);
+end
+
+for f = 1:numel(deconv_trace_fds)
+    color.(deconv_trace_fds{f}) = linecolor(f,:);
+end
+
 for f = 1:numel(trace_fds)
     color.(trace_fds{f}) = linecolor(f,:);
 end
 for f = 1:numel(mod_trace_fds)
     color.(mod_trace_fds{f}) = linecolor(f,:);
+    color.(nophoto_trace_fds{f}) = linecolor(f,:);
+ 
 end
 
 for f = 1:numel(smooth_trace_fds)
     color.(smooth_trace_fds{f}) = linecolor(f,:);
 end
+color.dummyfd = [1,1,1];
 color.correct = [0 0 0];
 color.incorrect = [.5 .5 .5];
 color.stim1 = mean([color.correct_stim1;color.incorrect_stim1],1);
@@ -92,7 +107,7 @@ for s = 1:2
     for p = 1:numel(photo_types)
         this_color = color.(strrep(photo_types{p},'_',''));
         color.(['stim_' num2str(s) photo_types{p}]) = this_color;
-        color.(['stim_' num2str(s) photo_types{p} '_correct']) = this_color;
+        color.(['stim_' num2str(s) photo_types{p} '_correct']) = tint(this_color,.3);
         color.(['stim_' num2str(s) photo_types{p} '_incorrect']) = shade(this_color,.5);
     end
         color.(['stim_' num2str(s) '_correct_ctr']) = color.(['correct_stim'  num2str(s)]);
@@ -111,9 +126,18 @@ end
 color.stim_1_photo = color.photo;
 color.stim_1_nonphoto = color.nonphoto;
 color.stim_1_dummyphoto = color.dummyphoto;
+color.stim_1_control = [.5 .5 .5];
+
 
 color.stim_2_photo = color.photo;
 color.stim_2_nonphoto = color.nonphoto;
 color.stim_2_dummyphoto = color.dummyphoto;
+color.stim_2_control = [.5 .5 .5];
+
+
+color.stim_5_photo_1 = tint(color.stim1,.5);
+color.stim_5_photo_2 = tint(color.stim2,.5);
+color.stim_5_nophoto = [.7 .7 .7];
+
 end
 

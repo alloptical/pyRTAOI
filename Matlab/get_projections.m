@@ -51,11 +51,8 @@ for fd = 1:numel(proj_fds)
             for f = 1:this_num_bins
                 eta = squeeze(this_data(t,f,:))'* this_weights(:,f)+this_bias(f);
 %                 [pred] = mnrval([bias; weights],squeeze(this_data(t,f,:))')
-                if IF_NOMINAL
-                    maxeta = max(eta,[],2);
-                    pi = [exp(eta-maxeta), exp(-maxeta)]; % rescale so max probability is 1
-                    pred = pi ./ repmat(sum(pi,2),1,2);     % renormalize for real probabilities
-                    this_proj(t,f) = pred(1)-0.5;
+                if IF_NOMINAL               
+                    this_proj(t,f) =  1./(1+exp(-eta))-0.5;
                 else                  
                     this_proj(t,f) = eta;
                 end
@@ -67,9 +64,15 @@ for fd = 1:numel(proj_fds)
                 this_proj = this_proj';
             end
         end
+        
+        if this_num_bins == 1
+            this_proj = this_proj';
+        end
+        
     catch
         this_proj =[];
     end
+    
     proj_struct.(this_fd) = this_proj;
 end
 

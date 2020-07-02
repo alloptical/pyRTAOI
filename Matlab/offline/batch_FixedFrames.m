@@ -66,6 +66,25 @@ text(1,.95,['Med. proc. time: ' num2str(med_time,3) 'ms'],'units','normalized', 
 text(1,.9,'Frame rate: 30 Hz','units','normalized', 'horizontalalignment','right','color','r')
 xlim([0 50])
 % export_fig  D:\pyRTAOI_data\stim_at_fixed_frames\GCaMP6f\plots\proc_time.pdf -painters 
+
+%% plot opsin map
+plot_exp_idx = 1;
+
+figure
+ax = subplot(1,2,1)
+plot_value_in_rois( all_data(1).cell_struct, [],[256 256],ax,...
+    'IF_NORM_PIX',1,'IF_CONTOUR',0,'zlimit',[0 1],'colorlut',flipud(gray));
+% set(gca,'Ydir','reverse')
+
+title('all cells')
+
+ax = subplot(1,2,2)
+plot_value_in_rois( all_data(1).cell_struct, 'opsin_positive',[256 256],ax,...
+    'IF_NORM_PIX',1,'IF_CONTOUR',0,'zlimit',[0 1],'colorlut',flipud(gray));
+set(gca,'Ydir','reverse')
+
+title('opsin positive cells')
+
 %% photostim responses
 sta_traces = struct();
 sta_traces.target = [];

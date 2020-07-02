@@ -91,25 +91,7 @@ if ~IF_PLOT_RAW_ONLY
         condi_colors = cell2mat(cellfun(@(f)trial_colors.(strrep(f,'_smooth_deconv','_stim')),fds,'UniformOutput',false)');
     end
     
-    try
-        if num_states>1
-            figure('name','trial average check')
-            % imagesc
-            for f = 1:numel(fds)
-                this_F_avg = pop_struct.([fds{f} '_avg']);
-                subplot(numel(fds),1,f)
-                hold on
-                imagesc(this_F_avg)
-                plot([1 1].*go_cue_frame,ylim,'color','w','linewidth',2)
-                ylim([0.5 0.5+num_states])
-                xlabel('Time')
-                ylabel('States')
-                title(strrep(fds{f},'_',' '))
-                
-            end
-        end
-    end
-    
+
     % shaded error bar
     figure('name','trial averge','units','normalized','outerposition',[0 0 .8,1])
     plot_count = 1;

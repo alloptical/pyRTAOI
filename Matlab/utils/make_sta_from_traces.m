@@ -24,6 +24,8 @@ raw_sta_traces = make_sta_traces(traces, stim_frames, pre_frames, post_frames);
 
 % get baselined sta traces
 sta_baseline = mean (raw_sta_traces(:,:,baseline_frames),3);
+% sta_baseline = min (raw_sta_traces(:,:,baseline_frames),[],3);
+
 for m = 1:size(sta_baseline,1)
     for n = 1: size(sta_baseline,2)
         dff_sta(m,n,1:size(raw_sta_traces,3)) = (raw_sta_traces(m,n,:)-sta_baseline(m,n))./sta_baseline(m,n);
