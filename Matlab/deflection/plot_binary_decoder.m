@@ -63,7 +63,7 @@ end
 legend('Hit','FA')
 plot_ticks = xticks;
 if IF_ALIGNGOCUE
-    xticklabels((plot_ticks-stim_opt.gocue_bin)./stim_opt.Fs)
+    xticklabels(plot_ticks-stim_opt.gocue_bin./stim_opt.Fs)
 end
 end
 

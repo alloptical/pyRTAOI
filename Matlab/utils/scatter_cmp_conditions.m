@@ -254,7 +254,7 @@ if(~(strcmp(test_type,'anova')||(strcmp(test_type,'KW'))))
 else
     P = [];
     % compare pairs - not corrected for multi comparison
-    [~,~,mult_stats] = multcmp_stats_on_struct( values, 'test_type',test_type,'displayopt',displayopt );
+    [P,~,mult_stats] = multcmp_stats_on_struct( values, 'test_type',test_type,'displayopt',displayopt );
     C = multcompare(mult_stats,'Display',displayopt);
     for c = 1:size(C,1)
         stats(c).P = C(c,end);

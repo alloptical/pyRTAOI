@@ -1,5 +1,5 @@
 function [cell_struct] = get_cell_auc(cell_struct,cmp_fds,save_fd_name,opt)
-num_shuf = 300;
+num_shuf = 2000;
 try
 peak_frame_range = opt.sta_peak_search_range;
 end
