@@ -46,3 +46,11 @@
 6. configure stim types from pybehavior output file - done
 8. set different targets for stim types - done for photo_sequence
 9. photoexcitability check (stim one by one after detection) - done
+
+
+-0. multiply selected cells by weight and compare with threshold
+    show population trajectory in gui - done, test on rig
+
+ .5 Load different targets for each stim type - done
+
+-1. test motion correction on gpu using caiman code - using onacid template matching, working well

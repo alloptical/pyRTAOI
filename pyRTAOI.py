@@ -15,15 +15,10 @@ UPDATE REV40 PV SETTINGS MAX VOLTAGE FOR PHOTOSTIM CONTROL!!!
 
 TO DO    log this to Notes ToDo_log when it's done and tested
 
--0. multiply selected cells by weight and compare with threshold
-    show population trajectory in gui - done, test on rig
-
- .5 Load different targets for each stim type - done
-
--1. test motion correction on gpu using caiman code - using onacid template matching, working well
+1. use different decoders for two texture types (need to update matlab as well) - done
+2. photostimulate the opposite ensemble in a random subset of putative correct trials
 
 4. temporally save a sequence of phase masks in holoblink, display on slm on command
-
 7. seed cell detection by cell masks from previous recordings
 
 
@@ -661,6 +656,7 @@ class Worker(QObject):
             FLAG_TRIG_PHOTOSTIM = False
             FLAG_SEND_COORDS = False
             FLAG_PHOTO_SENT_THIS_TRIAL = False
+            FLAG_OPPO_PHOTO = False
 
             # control trials
             numExtraPhoto = len(p['extraPhotoFrames'])
@@ -685,6 +681,7 @@ class Worker(QObject):
 
             # Local buffer for recording online protocol
             online_photo_frames = []
+            online_oppo_photo_frames = []
             online_photo_targets = []
             online_photo_x = []
             online_photo_y = []
@@ -692,6 +689,8 @@ class Worker(QObject):
             online_clamp_level = []
             online_traj = np.zeros((1,200000))
             this_traj_val = 0
+            this_trialOrder = 1
+            this_weightOrder = 0
 
             PHOTO_PROTO_INX = p['photoProtoInx']
             print('local params in work set')
@@ -750,6 +749,14 @@ class Worker(QObject):
             ROIx = np.asarray([item.get("ROIx") for item in self.ROIlist[:com_count]])   # could also predefine ROIx/y as arrays of bigger size (e.g. 100) and fill them in instad of append
             ROIy = np.asarray([item.get("ROIy") for item in self.ROIlist[:com_count]])
             ROIw = np.asarray([item.get("weight") for item in self.ROIlist[:com_count]],dtype='float64')
+            w1 = np.asarray([item.get("w1") for item in self.ROIlist[:com_count]],dtype='float64')
+            w2 = np.asarray([item.get("w2") for item in self.ROIlist[:com_count]],dtype='float64')
+            ROIw12 = [w1,w2] # different weights for two conditions
+            if len(w1)+len(w2)==0:
+                ROIw12 = [ROIw,ROIw] # use 'weight' for all conditions
+            if isinstance(p['ROIsumThresh'],float):
+                ROIsumThresh = [ROIsumThresh,ROIsumThresh] # use same threshold for all conditions
+
             current_bs_level = np.full(com_count,0) # will update this at each trial starts
             current_sd_level = np.full(com_count,1) # will update this at each trial starts
             all_bs_level = np.full((com_count,num_bs_trials),np.nan)
@@ -912,7 +919,7 @@ class Worker(QObject):
                         MyTiffwriter.save(frame_cor)
 
                     frame_cor = frame_cor / img_norm                            # normalize data-frame
-                    cnm2.fit_next(t_cnm, frame_cor.reshape(-1, order='F'))      # run OnACID on this frame
+                    cnm2.fit_next(t_cnm, frame_cor.reshape(-1, order='F'),update_shape = expect_components)      # run OnACID on this frame
 
 #%% detect new components
                     if expect_components:
@@ -938,6 +945,9 @@ class Worker(QObject):
                                 ROIx = np.append(ROIx,x*ds_factor)  # ~0.11 ms // filling in empty array: ~0.07 ms
                                 ROIy = np.append(ROIy,y*ds_factor)
                                 ROIw = np.append(ROIw,0) # set newly detected roi weights to zero
+                                w1 = np.append(w1,0)
+                                w2 = np.append(w2,0) 
+                                ROIw12 = [w1,w2]
                                 current_bs_level = np.append(current_bs_level,0)
                                 current_sd_level = np.append(current_sd_level,1)
                                 all_bs_level= np.append(all_bs_level,np.full((1,num_bs_trials),np.nan),0)
@@ -1019,12 +1029,15 @@ class Worker(QObject):
                             cnm2.update_num_comps = False
 
 
-                    # add data to buffer
+#%% add data to buffer                    
                     try:
+                        p['ROIw12'] = ROIw12
                         this_value = np.median(cnm2.C_on[accepted, t_cnm-5:t_cnm],axis=1)
                         self.RoiBuffer[:com_count, BufferPointer] = this_value # RoiBuffer only includes accepted components
-                        this_traj_val = np.sum(np.multiply(this_value-current_bs_level,ROIw))-ROIsumThresh
+                        
+                        this_traj_val = np.sum(np.multiply(this_value-current_bs_level,ROIw12[this_weightOrder]))-ROIsumThresh[this_weightOrder]
                         self.TrajBuffer[0,BufferPointer] = this_traj_val
+
 #                       self.ROIlist_threshold[:com_count] = np.nanmean(self.RoiBuffer[:com_count,:], axis=1) + 2*np.nanstd(self.RoiBuffer[:com_count,:], axis=1)  # changed 3 to 2
                         # use noisy C to estimate noise:
                         if not (PHOTO_PROTO_INX == CONSTANTS.PHOTO_WEIGH_SUM or PHOTO_PROTO_INX == CONSTANTS.PHOTO_CLAMP_DOWN): # update threshold for event detection
@@ -1049,6 +1062,7 @@ class Worker(QObject):
                         # for closed-loop trials
                         if sens_stim_idx < tot_num_senstim and framesProc == stim_frames[sens_stim_idx]-1:
                             this_trialOrder = trialOrder[sens_stim_idx]
+                            this_weightOrder = (this_trialOrder-1)%2
                             this_trialVar = trialVar[sens_stim_idx]
                             this_ensembleIdx = trialEnsembleIdx[sens_stim_idx]
                             print('current ensemble'+str(this_ensembleIdx))
@@ -1088,12 +1102,22 @@ class Worker(QObject):
                                     FLAG_DUMMY_STIM = False
                                     print('photo enabled')
                                     
+                                 
                                 if this_trialVar == 2 and FLAG_TRIG_PHOTOSTIM: # will trigger galvo without giving power
                                     FLAG_DUMMY_STIM = True  
                                     print('dummy photo enabled')
                                     
                             elif framesProc == stim_frames[sens_stim_idx-1]+ monitor_frames:
                                 self.MonitorOff_signal.emit()
+                                if (not FLAG_DUMMY_STIM) and (not FLAG_PHOTO_SENT_THIS_TRIAL) and this_ensembleIdx>-1 and random.randint(0, 2)<1:
+                                    # stimulate the other ensemble in 30% of non stim trials, use a small percentage to avoid confusing the animal
+                                    the_other_ensemble_idx = (this_ensembleIdx+1)%2
+                                    if this_ensembleIdx>-1:
+                                        p['currentTargetX'] = p['TargetEnsembleX'][the_other_ensemble_idx]
+                                        p['currentTargetY'] = p['TargetEnsembleY'][the_other_ensemble_idx]
+                                        FLAG_SEND_COORDS = True
+                                        FLAG_TRIG_PHOTOSTIM = True
+                                        FLAG_OPPO_PHOTO = True
 
                         if sens_stim_idx == num_bs_trials and framesProc == stim_frames[sens_stim_idx]:
                             current_bs_level = np.nanmean(all_bs_level,axis=1)
@@ -1393,8 +1417,12 @@ class Worker(QObject):
                             self.updateTargetROIs_signal.emit() # update display
                             FLAG_SEND_COORDS = False
 
-                        # take notes and update counts
-                        online_photo_frames.append(framesProc)
+                        # take notes and update counts                        
+                        if FLAG_OPPO_PHOTO:
+                            online_oppo_photo_frames.append(framesProc)
+                            FLAG_OPPO_PHOTO = False
+                        else:
+                            online_photo_frames.append(framesProc)    
                         online_photo_targets.append(current_target_idx[:])
                         online_photo_x.append(p['currentTargetX'][:])
                         online_photo_y.append(p['currentTargetY'][:])
@@ -1545,6 +1573,7 @@ class Worker(QObject):
                 save_dict['img_min'] = img_min
 
                 save_dict['online_photo_frames'] = online_photo_frames
+                save_dict['online_oppo_photo_frames'] = online_oppo_photo_frames
                 save_dict['online_photo_targets'] = online_photo_targets
                 save_dict['photo_stim_frames_caiman'] = photo_stim_frames_caiman
                 save_dict['stim_frames_caiman'] = stim_frames_caiman
@@ -1802,8 +1831,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
         # dictionary of ROIs
         self.ROIlist = [dict() for i in range(self.MaxNumROIs)] # this only include accepted rois
-        self.Thresh_tableWidget.setColumnCount(5)
-        self.Thresh_tableWidget.setHorizontalHeaderLabels(['X','Y','Thresh','W','STA'])
+        self.Thresh_tableWidget.setColumnCount(6)
+        self.Thresh_tableWidget.setHorizontalHeaderLabels(['X','Y','Thresh','W','w1','w2'])
         self.Thresh_tableWidget.setSizeAdjustPolicy(QAbstractScrollArea.AdjustToContents)
         self.updateTable()
 
@@ -2470,6 +2499,9 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                     self.ROIlist[ROIIdx]["STA"] = list()
                     self.ROIlist[ROIIdx]["weight"] = 0
                     self.ROIlist[ROIIdx]["glb_idx"] = 0
+                    self.ROIlist[ROIIdx]["w1"] = 0
+                    self.ROIlist[ROIIdx]["w2"] = 0
+
 
                 self.MaxNumROIs = self.MaxNumROIs_spinBox.value()
 
@@ -2982,6 +3014,9 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             self.ROIlist[ROIIdx]["STA"] = list()
             self.ROIlist[ROIIdx]["weight"] = 0 # default weight is 0
             self.ROIlist[ROIIdx]["glb_idx"] = 0
+            self.ROIlist[ROIIdx]["w1"] = 0
+            self.ROIlist[ROIIdx]["w2"] = 0
+
 
         # print(self.ROIlist[ROIIdx]["ROIcolor"])
 
@@ -3982,6 +4017,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                 bad_roi_idx = [accepted.index(x) for x in both]
                 
                 # mark bad ROIs
+                self.Rejectcontour_item.clear()
                 bad_roi_x = [self.ROIlist[i]["ROIx"] for i in bad_roi_idx]
                 bad_roi_y = [self.ROIlist[i]["ROIy"] for i in bad_roi_idx]
                 self.Rejectcontour_item.addPoints(x = bad_roi_x, y = bad_roi_y, pen = self.RejectPen, size = self.RoiRadius*2+5)  # added
@@ -4179,8 +4215,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
     def updateTable(self):
         # re-create the whole table in the table to those in the ROIlist
         self.Thresh_tableWidget.clear()  # empty the table
-        self.Thresh_tableWidget.setHorizontalHeaderLabels(['X','Y','Thresh','W','STA'])  # column names disappear with clearing
-        self.Thresh_tableWidget.setColumnCount(5)
+        self.Thresh_tableWidget.setHorizontalHeaderLabels(['X','Y','Thresh','W','w1','w2'])  # column names disappear with clearing
+        self.Thresh_tableWidget.setColumnCount(6)
 
         if self.thisROIIdx > self.MaxNumROIs:  # do not allow to miss detected cells
             self.MaxNumROIs = self.thisROIIdx + 10
@@ -4190,17 +4226,19 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         NumROIs = self.MaxNumROIs
         self.Thresh_tableWidget.setRowCount(NumROIs)
         self.Thresh_labels = [QTableWidgetItem() for i in range(NumROIs)]
-        self.STA_labels = [QTableWidgetItem() for i in range(NumROIs)]
         self.X_labels = [QTableWidgetItem() for i in range(NumROIs)]
         self.Y_labels = [QTableWidgetItem() for i in range(NumROIs)]
         self.W_labels = [QTableWidgetItem() for i in range(NumROIs)]
-
+        self.w1_labels = [QTableWidgetItem() for i in range(NumROIs)]
+        self.w2_labels = [QTableWidgetItem() for i in range(NumROIs)]
 
         for ROIIdx in range(self.thisROIIdx):
 
             thisROIx = self.ROIlist[ROIIdx]["ROIx"]
             thisROIy = self.ROIlist[ROIIdx]["ROIy"]
             thisW = self.ROIlist[ROIIdx]["weight"]
+            thisW1= self.ROIlist[ROIIdx]["w1"]
+            thisW2= self.ROIlist[ROIIdx]["w2"]
             qcolor = self.ROIlist[ROIIdx]["ROIcolor"]
 
             tempbrush = QBrush(qcolor)
@@ -4208,10 +4246,14 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             self.Y_labels[ROIIdx].setForeground(tempbrush)
             self.Thresh_labels[ROIIdx].setForeground(tempbrush)
             self.W_labels[ROIIdx].setForeground(tempbrush)
+            self.w1_labels[ROIIdx].setForeground(tempbrush)
+            self.w2_labels[ROIIdx].setForeground(tempbrush)
 
             self.X_labels[ROIIdx].setText(str('{:.0f}'.format(thisROIx)))
             self.Y_labels[ROIIdx].setText(str('{:.0f}'.format(thisROIy)))
             self.W_labels[ROIIdx].setText(str('{:.3f}'.format(thisW)))
+            self.w1_labels[ROIIdx].setText(str('{:.3f}'.format(thisW1)))
+            self.w2_labels[ROIIdx].setText(str('{:.3f}'.format(thisW2)))
 
             # make items read-only
             self.X_labels[ROIIdx].setFlags(Qt.ItemIsEditable)
@@ -4222,7 +4264,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             self.Thresh_tableWidget.setItem(ROIIdx,1,self.Y_labels[ROIIdx])
             self.Thresh_tableWidget.setItem(ROIIdx,2,self.Thresh_labels[ROIIdx])
             self.Thresh_tableWidget.setItem(ROIIdx,3,self.W_labels[ROIIdx])
-
+            self.Thresh_tableWidget.setItem(ROIIdx,4,self.w1_labels[ROIIdx])
+            self.Thresh_tableWidget.setItem(ROIIdx,5,self.w2_labels[ROIIdx])
         self.Thresh_tableWidget.resizeColumnsToContents
 
 
@@ -4969,10 +5012,10 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             try:
                 self.triggerConfigPath_lineEdit.setText(trigger_config_path)
                 [self.TriggerIdx,self.TriggerWeights,self.TriggerFrames,
-                 p['ROIsumThresh'],self.TargetIdx,p['TargetIdxList'],p['conditionTypes'],p['TriggerThreshSD']] = get_triggertargets_params(trigger_config_path)
+                 p['ROIsumThresh'],self.TargetIdx,p['TargetIdxList'],p['conditionTypes'],p['TriggerThreshSD'],w1,w2,th1,th2] = get_triggertargets_params(trigger_config_path)
 
                 # setup protocol
-                self.ROIsumThresh_doubleSpinBox.setValue(p['ROIsumThresh'])
+                self.ROIsumThresh_doubleSpinBox.setValue(p['ROIsumThresh']) # will be differnt if th1 and th2 are provided
                 self.offsetFrames_spinBox.setValue(self.TriggerFrames[0])
                 self.staPostFrame_spinBox.setValue(self.TriggerFrames[-1]-self.TriggerFrames[0])
                 print('Trigger Weights:')
@@ -4980,14 +5023,22 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                 for idx in range(self.thisROIIdx):
                     self.ROIlist[idx]["weight"] = 0 # set other cells zero
 
-                for idx in range(len(self.TriggerIdx)):
+                for idx in range(len(self.TriggerIdx)):# same weights for all conditinos
                     self.ROIlist[self.TriggerIdx[idx]]["weight"] = self.TriggerWeights[idx]
+                
+                # use different triggers and weights for two conditions
+                if len(w1)>0:
+                    for idx in range(len(self.TriggerIdx)):# weights for condition 1
+                        self.ROIlist[self.TriggerIdx[idx]]["w1"] = w1[idx]
+                if len(w2)>0:
+                    for idx in range(len(self.TriggerIdx)):# weights for condition 2
+                        self.ROIlist[self.TriggerIdx[idx]]["w2"] = w2[idx]
+                if len(th1)+len(th2)>0:
+                    p['ROIsumThresh'] = th1+th2
+                        
                 self.updateTable()
                 self.getValues()
-                ROIw = np.asarray([item.get("weight") for item in self.ROIlist[:self.thisROIIdx]],dtype='float64')
-                print('ROIw:')
-                print(ROIw)
-                
+
                 # config trigger cells
                 print('loaded trigger idx:')
                 print(self.TriggerIdx)
@@ -5008,6 +5059,8 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
 
                 p['TargetEnsembleX'] = []
                 p['TargetEnsembleY'] = []
+                
+
 
                 for j in range(p['NumTargetEnsembles']):
                     # save current targets to p

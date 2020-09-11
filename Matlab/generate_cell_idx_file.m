@@ -43,6 +43,14 @@ if ~isempty(pop_params)
     output.condition_type = pop_params.condition_type;
 %     output.pop_opt = opt.pop_opt;
     output.thresh_sd = pop_params.thresh_sd;
+    try
+        output.w1 = pop_params.all_weights{1};
+        output.w2 = pop_params.all_weights{2};
+        output.th1 = pop_params.all_thresh(1); % using same triggers
+        output.th2 = pop_params.all_thresh(2);
+    catch
+        disp('using same weights')
+    end
 end
 
 output.exp_name = opt.exp_name;

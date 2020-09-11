@@ -36,6 +36,10 @@ def get_triggertargets_params(file_full_name):
 	target_ensembles = []
 	trigger_thresh_sd = []
 	condition_type = []
+	w1 = []
+	w2 = []
+	th1 = []
+	th2 = []
 	mat_file = sio.loadmat(file_full_name)
 	trigger_file = mat_file['output']
 	trigger_idx = trigger_file['trigger_idx'][0][0].flatten()-1
@@ -45,12 +49,16 @@ def get_triggertargets_params(file_full_name):
 	trigger_thresh = trigger_file['trigger_thresh'][0][0].flatten()
 
 	try:
+		w1 = trigger_file['w1'][0][0].flatten() 
+		w2 = trigger_file['w2'][0][0].flatten()
+		th1 = trigger_file['th1'][0][0].flatten()-1
+		th2 = trigger_file['th2'][0][0].flatten()-1
 		trigger_thresh_sd = trigger_file['thresh_sd'][0][0].flatten()
 		target_ensembles = trigger_file['target_ensembles'][0][0].flatten()-1
 		condition_type = trigger_file['condition_type'][0][0].flatten()
 	except:
 		pass
-	return trigger_idx,trigger_weights,trigger_frames,trigger_thresh, target_idx,target_ensembles,condition_type,trigger_thresh_sd
+	return trigger_idx,trigger_weights,trigger_frames,trigger_thresh, target_idx,target_ensembles,condition_type,trigger_thresh_sd,w1,w2,th1,th2
 
 
 def get_stimOrder(file_full_name):

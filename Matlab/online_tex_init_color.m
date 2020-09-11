@@ -93,6 +93,7 @@ color.dummyphoto = tint(color.photo,0.5);
 color.photostim = color.photostim;
 color.nonphotostim = [.5 .5 .5];
 color.dummyphotostim = tint(color.photo,0.5);
+color.oppophoto = [.3 .3 .3];
 for s = 1:4
     color.(['stim_' num2str(s) '_photo']) = color.photo;
     color.(['stim_' num2str(s) '_nonphoto']) = color.nonphoto;
@@ -126,6 +127,8 @@ end
 color.stim_1_photo = color.photo;
 color.stim_1_nonphoto = color.nonphoto;
 color.stim_1_dummyphoto = color.dummyphoto;
+color.stim_1_oppophoto = color.oppophoto;
+
 color.stim_1_control = [.5 .5 .5];
 
 
@@ -133,6 +136,7 @@ color.stim_2_photo = color.photo;
 color.stim_2_nonphoto = color.nonphoto;
 color.stim_2_dummyphoto = color.dummyphoto;
 color.stim_2_control = [.5 .5 .5];
+color.stim_2_oppophoto = color.oppophoto;
 
 
 color.stim_5_photo_1 = tint(color.stim1,.5);

@@ -1,18 +1,24 @@
 function plot_pop_vectors(pop_struct,plot_fields,num_states,opt,varargin)
 % plot traces saved in get_pop_vectors
 ylimit = [];
+xlimit = [0, opt.trial_length-1];
 plot_ylabel = 'State probability';
 IF_MEDIAN = 0;
 plot_num_cols = 1;
 IF_PLOT_RAW_ONLY = 0;
 IF_PLOT_AVG_ONLY = 0;
 IF_SAVE_PLOT = 0;
+IF_NORMALISE = false;
 noise_thresh = [];
 plot_area = false; % shaded area under curve, for hmm states
 sup_title = [];
+func = @(x)1./(1+exp(-x))-0.5;
 for v = 1:numel(varargin)
     if strcmpi(varargin{v},'ylimit')
         ylimit = varargin{v+1};
+    end
+    if strcmpi(varargin{v},'xlimit')
+        xlimit = varargin{v+1};
     end
     if strcmpi(varargin{v},'plot_ylabel')
         plot_ylabel = varargin{v+1};
@@ -48,6 +54,11 @@ for v = 1:numel(varargin)
     if strcmpi(varargin{v},'IF_SAVE_PLOT')
         IF_SAVE_PLOT = varargin{v+1};
     end
+    
+    if strcmpi(varargin{v},'IF_NORMALISE')
+        IF_NORMALISE = varargin{v+1}; %logistic regression, normalise to max probability==1
+    end
+    
     
 end
 
@@ -93,12 +104,15 @@ if ~IF_PLOT_RAW_ONLY
     
 
     % shaded error bar
-    figure('name','trial averge','units','normalized','outerposition',[0 0 .8,1])
+    figure('name','trial averge','units','normalized','outerposition',[0 0 .4,.7])
     plot_count = 1;
     for s = 1:num_states
         subplot(num_states,2,plot_count); hold on
         for f = 1:numel(fds)
-            this_F = pop_struct.([fds{f}]);           
+            this_F = pop_struct.([fds{f}]);
+            if IF_NORMALISE
+                this_F = func(this_F);
+            end
             this_traces = this_F(:,:,s);
 
             plot(this_traces','color',condi_colors(f,:)');
@@ -107,7 +121,7 @@ if ~IF_PLOT_RAW_ONLY
             ylim(ylimit)
         end
 
-        xlim([1,size(this_traces,2)])
+        xlim(xlimit)
         plot([1 1].*go_cue_frame,ylim,':','color','black','linewidth',2)
         plot(xlim,[0 0],'color','black')
         xlabel('Time')
@@ -120,7 +134,10 @@ if ~IF_PLOT_RAW_ONLY
         
         subplot(num_states,2,plot_count)
         for f = 1:numel(fds)
-            this_F = pop_struct.([fds{f}]);           
+            this_F = pop_struct.([fds{f}]);
+            if IF_NORMALISE
+                this_F = func(this_F);
+            end
             this_traces = this_F(:,:,s);
             if~isempty(this_traces)
                 x_ticks =[0:1:size(this_traces,2)-1]./opt.Fs;
@@ -167,6 +184,9 @@ if ~IF_PLOT_AVG_ONLY
     for f = 1:numel(fds)
         try
         this_F = pop_struct.([fds{f}]);
+        if IF_NORMALISE
+            this_F = func(this_F);
+        end
         catch
             disp([fds{f} 'error, skipped'])
             continue
@@ -192,11 +212,8 @@ if ~IF_PLOT_AVG_ONLY
         if ~isempty(ylimit)
             ylim(ylimit)
         end
-        try
-            xlim([0, opt.trial_length-1])
-        catch
-            xlim([0, opt.trial_length-1])
-        end
+          xlim(xlimit)
+
         
         plot(xlim,[0 0],'color','r')
         axis square

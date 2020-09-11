@@ -55,7 +55,7 @@ for p = 1:numel(plot_condition_types)
             
             if photo_type == 1
                 try
-                    [~,mark_target_idx] = intersect(this_plot_cell_idx,photo_ensembles{photo_idx});
+                    [mark_target_idx] = intersect(this_plot_cell_idx,photo_ensembles{photo_idx});
                 catch
                     mark_target_idx = [];
                 end
@@ -72,7 +72,7 @@ for p = 1:numel(plot_condition_types)
             plot([1,1].*opt.sta_gocue_frame, ylim,'color','black','linestyle',':')
             axis ij
             box off
-            ylim([0 size(this_traces,2)])
+            ylim([0 size(this_traces,1)])
             xlim([0 opt.sta_pre_frames+opt.sta_post_frames+1])
             xticks(xaxisvalues)
             xticklabels(arrayfun(@(x){num2str(x)},(xaxisvalues-opt.sta_trialon_frame)./opt.frame_rate))
@@ -98,7 +98,7 @@ for p = 1:numel(plot_condition_types)
         if (~isempty(all_traces{c1}))&&(~isempty(all_traces{c2}))
             
             diff_traces = all_traces{c1}-all_traces{c2};
-            if c == 1&& p ==1
+            if (c == 1&& p ==1)||isempty(diff_zlimit)
                 diff_zlimit =[min(diff_traces(:)) max(diff_traces(:))];
             end
             imagesc(diff_traces);
@@ -107,7 +107,7 @@ for p = 1:numel(plot_condition_types)
             plot([1,1].*opt.sta_gocue_frame, ylim,'color','black','linestyle',':')
             axis ij
             box off
-            ylim([0 size(diff_traces,2)])
+            ylim([0 size(diff_traces,1)])
             
             xlim([0 opt.sta_pre_frames+opt.sta_post_frames+1])
             xticks(xaxisvalues)

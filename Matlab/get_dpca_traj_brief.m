@@ -180,7 +180,6 @@ try
     % trial indices
     temp_num_trials = structfun(@(x)round(numel(x)./opt.trial_length),traces_idx_struct,'UniformOutput', false );
     trial_count = 0;
-    trial_fds = opt.fd_names;
     for i = 1:numel(trial_fds)
         trial_idx_struct.(trial_fds{i}) = trial_count+[1:temp_num_trials.(trial_fds{i})];
         trial_count = trial_count+temp_num_trials.(trial_fds{i});

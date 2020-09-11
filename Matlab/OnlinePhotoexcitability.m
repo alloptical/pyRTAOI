@@ -15,7 +15,7 @@ matlab_set_paths_zz
 
 %% parameters - CHANGE THIS
 
-opt.N = 1; % auc zscore threshold
+opt.N = 1.5; % auc zscore threshold
 opt.sta_amp_thresh = 0.1; % sta amplitude threshold
 
 opt.pre_exp_frames = 0;
