@@ -27,6 +27,10 @@ for f = 1:numel(fds)
 trials.(fds{f})(trials.firstlick<opt.rw_start_sec) = 0;
 end
 
+if ~isfield(trials,'oppo_photostim')
+    trials.oppo_photostim = zeros(size(trials.photostim));
+end
+
 for v = 1:num_trial_types
     this_rtaoi_stim = all_pyrtaoi_stimtype(v);
     this_pybehav_stim = all_pybehav_stimtype(v);
@@ -53,7 +57,7 @@ for v = 1:num_trial_types
     end
     this_trials = [ trial_indices.(['stim_' num2str(this_pybehav_stim) '_var_' num2str(this_rtaoi_stim) '_correct'  ]), trial_indices.(['stim_' num2str(this_pybehav_stim) '_var_' num2str(this_rtaoi_stim) '_incorrect'  ])];
     trial_indices.(['stim_' num2str(this_pybehav_stim) '_var_' num2str(this_rtaoi_stim) '_photostim'  ]) = intersect(this_trials,find(trials.stim_type==this_pybehav_stim&trials.trialOrder == this_rtaoi_stim & trials.photostim ==1&trials.trialVar==1&trials.cheated==0));
-    trial_indices.(['stim_' num2str(this_pybehav_stim) '_var_' num2str(this_rtaoi_stim) '_nonphotostim'  ]) = intersect(this_trials,find(trials.stim_type==this_pybehav_stim&trials.trialOrder == this_rtaoi_stim & trials.photostim ==0&trials.cheated==0));
+    trial_indices.(['stim_' num2str(this_pybehav_stim) '_var_' num2str(this_rtaoi_stim) '_nonphotostim'  ]) = intersect(this_trials,find(trials.stim_type==this_pybehav_stim&trials.trialOrder == this_rtaoi_stim & trials.photostim ==0&trials.oppo_photostim ==0&trials.cheated==0));
     trial_indices.(['stim_' num2str(this_pybehav_stim) '_var_' num2str(this_rtaoi_stim) '_dummyphotostim'  ]) =intersect(this_trials, find(trials.stim_type==this_pybehav_stim&trials.trialOrder == this_rtaoi_stim & trials.photostim ==1&trials.trialVar==2&trials.cheated==0));
     try
         trial_indices.(['stim_' num2str(this_pybehav_stim) '_var_' num2str(this_rtaoi_stim) '_oppophotostim'  ]) = intersect(this_trials,find(trials.stim_type==this_pybehav_stim&trials.trialOrder == this_rtaoi_stim & trials.oppo_photostim ==1&trials.trialVar==1&trials.cheated==0));       

@@ -1,5 +1,6 @@
-function [proj_struct] = get_projections(this_struct,weights,proj_fds,varargin)
+function [proj_struct,add_proj_struct] = get_projections(this_struct,weights,proj_fds,varargin)
 proj_struct = struct();
+add_proj_struct = struct();
 bias = 0;
 trial_length = [];
 IS_CELL_STRUCT = 0; % if this_struct is cell_struct,i.e. each row is a cell, then organise traces to [trial,time,cell]
@@ -74,6 +75,8 @@ for fd = 1:numel(proj_fds)
     end
     
     proj_struct.(this_fd) = this_proj;
+    add_proj_struct.(this_fd) = this_proj;
+ 
 end
 
 end

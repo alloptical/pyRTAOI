@@ -633,7 +633,7 @@ class Worker(QObject):
             stim_duration = p['staPostFrame']
             wait_frames = p['photoWaitFrames']
             baseline_frames = p['staPreFrame']
-            ROIsumThresh = p['ROIsumThresh']
+            ROIsumThresh = p['ROIsumThreshold']
             ROIsumThreshSD = p['TriggerThreshSD']
             photostim_flag = 0
             tot_num_photostim = self.tot_num_photostim
@@ -754,8 +754,9 @@ class Worker(QObject):
             ROIw12 = [w1,w2] # different weights for two conditions
             if len(w1)+len(w2)==0:
                 ROIw12 = [ROIw,ROIw] # use 'weight' for all conditions
-            if isinstance(p['ROIsumThresh'],float):
+            if isinstance(p['ROIsumThreshold'],float):
                 ROIsumThresh = [ROIsumThresh,ROIsumThresh] # use same threshold for all conditions
+                print('USING SAME THRESHOLDS!')
 
             current_bs_level = np.full(com_count,0) # will update this at each trial starts
             current_sd_level = np.full(com_count,1) # will update this at each trial starts
@@ -2966,7 +2967,6 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         self.removeIdx = self.TriggerIdx
         self.removeCells(FLAG_KEEP_SELECTED = True,reinitiate = not p['FLAG_USING_RESULT_FILE'] )
         # load weights and threshold
-        self.ROIsumThresh_doubleSpinBox.setValue(self.TriggerThresh)
         for idx in range(self.thisROIIdx):
             self.ROIlist[idx]["weight"] = self.TriggerWeights[idx]
         self.updateTable()
@@ -3055,6 +3055,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             self.rejectIdx = []
             p['rejectedX'] = []
             p['rejectedY'] = []
+            p['ROIsumThreshold'] = 0
 
             p['FLAG_SKIP_FRAMES'] = False
 #            self.calcium_img_path = ''
@@ -5012,10 +5013,15 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             try:
                 self.triggerConfigPath_lineEdit.setText(trigger_config_path)
                 [self.TriggerIdx,self.TriggerWeights,self.TriggerFrames,
-                 p['ROIsumThresh'],self.TargetIdx,p['TargetIdxList'],p['conditionTypes'],p['TriggerThreshSD'],w1,w2,th1,th2] = get_triggertargets_params(trigger_config_path)
-
+                 p['ROIsumThreshold'],self.TargetIdx,p['TargetIdxList'],p['conditionTypes'],p['TriggerThreshSD'],w1,w2,th1,th2] = get_triggertargets_params(trigger_config_path)
+                
+                # use different thresholds for two conditions
+                if len(th1)+len(th2)>0:
+                    p['ROIsumThreshold'] = [th1.item(0),th2.item(0)]
+                print('ROIsumThreshold:')
+                print(p['ROIsumThreshold'])
                 # setup protocol
-                self.ROIsumThresh_doubleSpinBox.setValue(p['ROIsumThresh']) # will be differnt if th1 and th2 are provided
+ #               self.ROIsumThresh_doubleSpinBox.setValue(p['ROIsumThresh']) # will be differnt if th1 and th2 are provided
                 self.offsetFrames_spinBox.setValue(self.TriggerFrames[0])
                 self.staPostFrame_spinBox.setValue(self.TriggerFrames[-1]-self.TriggerFrames[0])
                 print('Trigger Weights:')
@@ -5033,8 +5039,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
                 if len(w2)>0:
                     for idx in range(len(self.TriggerIdx)):# weights for condition 2
                         self.ROIlist[self.TriggerIdx[idx]]["w2"] = w2[idx]
-                if len(th1)+len(th2)>0:
-                    p['ROIsumThresh'] = th1+th2
+
                         
                 self.updateTable()
                 self.getValues()

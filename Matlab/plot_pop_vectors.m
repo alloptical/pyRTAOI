@@ -109,6 +109,7 @@ if ~IF_PLOT_RAW_ONLY
     for s = 1:num_states
         subplot(num_states,2,plot_count); hold on
         for f = 1:numel(fds)
+            try
             this_F = pop_struct.([fds{f}]);
             if IF_NORMALISE
                 this_F = func(this_F);
@@ -116,6 +117,9 @@ if ~IF_PLOT_RAW_ONLY
             this_traces = this_F(:,:,s);
 
             plot(this_traces','color',condi_colors(f,:)');
+            catch
+                continue
+            end
         end
         if ~isempty(ylimit)
             ylim(ylimit)
@@ -134,6 +138,7 @@ if ~IF_PLOT_RAW_ONLY
         
         subplot(num_states,2,plot_count)
         for f = 1:numel(fds)
+            try
             this_F = pop_struct.([fds{f}]);
             if IF_NORMALISE
                 this_F = func(this_F);
@@ -152,6 +157,9 @@ if ~IF_PLOT_RAW_ONLY
                         nanmedian(this_traces,1)-quantile(this_traces,0.25)],{'color',condi_colors(f,:),'linewidth',2},0.5)
                     
                 end
+            end
+            catch
+                continue
             end
         end
         if ~isempty(ylimit)

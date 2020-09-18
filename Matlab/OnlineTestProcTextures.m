@@ -13,7 +13,7 @@ clc
  matlab_set_paths_zz
 
 %%  parameters - CHANGE THIS
-crop_num_trials = 162; % specify number of trials recorded if aborted half way
+crop_num_trials = 151; % specify number of trials recorded if aborted half way
 IF_CONTROL_SESSION = false;
 FLAG_PAQ_LOADED = false;
 disp('CHECK SETTINGS BEFORE CONTINEU!')
@@ -844,7 +844,7 @@ for i = 1:num_cells
         this_stim_type = pybehav_condition_types(e);
         this_photo_trials = find(trials.photostim==1&trials.stim_type == this_stim_type&trials.trialVar==1&trials.cheated==0);
         this_dummy_photo_trials = find(trials.photostim==1&trials.stim_type == this_stim_type&trials.trialOrder==this_photo_type&trials.trialVar==2&trials.cheated==0);
-        this_oppo_photo_trials = find(trials.oppo_photostim==1&trials.stim_type == this_stim_type&trials.trialOrder==this_photo_type&trials.trialVar==2&trials.cheated==0);
+        this_oppo_photo_trials = find(trials.oppo_photostim==1&trials.stim_type == this_stim_type&trials.cheated==0);
 
         if ~isempty(intersect(this_stim_type,catch_photo_types))       
             % pyrtaoi defines stim type
@@ -1042,6 +1042,7 @@ figure('name','condition sta traces','units','normalized','outerposition',[0 0 .
 ensemble_cell_indices = {target_ensembles{1},target_ensembles{2}};
 ensemble_names = {'Tex1 targets','Tex2 targets'};
 ylimit = [-1,4];
+x_ticks =[0:1:opt.trial_length-1];
 plot_count = 1;
 num_plot_cols = numel(pyrtaoi_condition_types);
 num_plot_rows = numel(ensemble_cell_indices);
@@ -1105,8 +1106,10 @@ num_plot_rows = numel(ensemble_cell_indices);
 for e = 1:numel(ensemble_cell_indices)
     plot_cell_idx = ensemble_cell_indices{e};    
     for photo_idx = 1:numel(plot_condition_types)
+        
         this_photo_type = plot_condition_types(photo_idx);
         subplot(num_plot_rows,num_plot_cols,plot_count); hold on;
+        try
         
         this_traces = {cell_struct(plot_cell_idx).(['sta_trace_nonphoto_' num2str(this_photo_type)])}';
         this_traces = cell2mat(arrayfun(@(x)permute(x{:},[3 1 2]),this_traces,'UniformOutput',false));
@@ -1142,7 +1145,8 @@ for e = 1:numel(ensemble_cell_indices)
         xaxisvalues = [0:30:opt.sta_pre_frames+opt.sta_post_frames];
         xticks(xaxisvalues)
         xticklabels(arrayfun(@(x){num2str(x)},(xaxisvalues-opt.sta_trialon_frame)./opt.frame_rate))
-        
+        end
+        axis square
         title([ensemble_names{e},' Var. ' num2str(this_photo_type)])
         plot_count = plot_count+1;
     end
@@ -1234,14 +1238,18 @@ plot_fds = {'stim_1_var_1_correct','stim_1_var_1_incorrect','stim_1_var_1_photos
     'stim_2_var_2_correct', 'stim_2_var_2_incorrect','stim_2_var_2_photostim','stim_2_var_2_nonphotostim','stim_2_var_2_dummyphotostim','stim_5_photostim_2'};
 plot_num_cols = 3;
 IF_PLOT_AVG_ONLY = 1;
+IF_NORMALISE = 0;
 % online recorded trajectory
 xlimit = [30,270];
 ylimit = [-1 1];
+
+ylimit = [-500 500];
+
 plot_fds1 = {'stim_1_var_1_photostim','stim_1_var_1_nonphotostim','stim_1_var_1_dummyphotostim'};
 plot_pop_vectors(traj_struct,plot_fds1,1,test_opt,...
     'noise_thresh',thresh_sd,'plot_ylabel','Projection',...
     'ylimit',ylimit,'xlimit',xlimit,...
-    'plot_num_cols',plot_num_cols,'IF_PLOT_RAW_ONLY',0,'IF_NORMALISE',1,'IF_PLOT_AVG_ONLY',IF_PLOT_AVG_ONLY)
+    'plot_num_cols',plot_num_cols,'IF_PLOT_RAW_ONLY',0,'IF_NORMALISE',IF_NORMALISE,'IF_PLOT_AVG_ONLY',IF_PLOT_AVG_ONLY)
 suptitle('Closed-loop condition trials, online trajectory, tex1')
 export_fig([fig_save_path filesep 'OnlineTrajTex1' strrep(caiman_file,'.mat','.png')])
 
@@ -1249,7 +1257,7 @@ plot_fds2 = {'stim_2_var_2_photostim','stim_2_var_2_nonphotostim','stim_2_var_2_
 plot_pop_vectors(traj_struct,plot_fds2,1,test_opt,...
     'noise_thresh',thresh_sd,'plot_ylabel','Projection',...
     'ylimit',ylimit,'xlimit',xlimit,...
-    'plot_num_cols',plot_num_cols,'IF_PLOT_RAW_ONLY',0,'IF_NORMALISE',1,'IF_PLOT_AVG_ONLY',IF_PLOT_AVG_ONLY)
+    'plot_num_cols',plot_num_cols,'IF_PLOT_RAW_ONLY',0,'IF_NORMALISE',IF_NORMALISE,'IF_PLOT_AVG_ONLY',IF_PLOT_AVG_ONLY)
 suptitle('Closed-loop condition trials, online trajectory, tex2')
 export_fig([fig_save_path filesep 'OnlineTrajTex2' strrep(caiman_file,'.mat','.png')])
 

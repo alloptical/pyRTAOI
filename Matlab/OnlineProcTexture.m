@@ -190,8 +190,6 @@ if ~ FLAG_PYBEHAV_LOADED
     trials.miss = zeros(size(sens_stim_frames));
 end
 
-keyboard
-trialOrder = trials.stim_type;
 
 %% Get trial types
 num_trials = numel(sens_stim_frames);
@@ -458,6 +456,8 @@ catch
      FLAG_GOT_CHOICE_AUC = false;
      incorrect_stimulusAUC_zscore = [];
 end
+disp('got cell auc')
+%% get cell_idx_struct
 figure('name','AUC','position',[100 100 1200 500])
 subplot(1,3,1)
 histogram(correct_stimulusAUC_zscore,'facecolor',[.5 .5 .5],'edgecolor','black'); box off; axis square
@@ -483,9 +483,8 @@ if FLAG_GOT_CHOICE_AUC
 
 end
 export_fig([fig_save_path filesep 'SelectivityAUC_' strrep(caiman_file,'.mat','')],'-pdf','-pdf','-painters')
+export_fig([fig_save_path filesep 'SelectivityAUC_' strrep(caiman_file,'.mat','')],'-png')
 
-disp('got cell auc')
-%% get cell_idx_struct
 cell_idx_struct = struct();
 cell_idx_struct.all = 1:num_cells;
 cell_idx_struct.all_tex2 = find(correct_stimulusAUC_zscore>opt.N); % cells prefering texture1 in correct trials
@@ -505,6 +504,9 @@ cell_idx_struct.port1 = find(correct_stimulusAUC_zscore<-opt.N& incorrect_stimul
 cell_idx_struct.port = unique([cell_idx_struct.port1,cell_idx_struct.port2]);
 
 cell_idx_struct.relevant = unique([cell_idx_struct.port,cell_idx_struct.tex]);
+cell_idx_struct.noport_tex1 = setdiff(cell_idx_struct.all_tex1,cell_idx_struct.port);
+cell_idx_struct.noport_tex2 = setdiff(cell_idx_struct.all_tex2,cell_idx_struct.port);
+
 
 % cell_idx_struct = structfun(@(x)x(x>1),cell_idx_struct); % excluding background compo
 else
@@ -542,9 +544,10 @@ cnn_thresh = 0.1; % change this to higher value to exlude more dendrites
 cell_idx_struct.cnn_above_thresh = find(cnn_predictions(accepted_idx)>cnn_thresh);
 cell_idx_struct = structfun(@(x)intersect(x,cell_idx_struct.cnn_above_thresh),cell_idx_struct,'UniformOutput',false);
 disp(['discarded cells with cnn prediction soore <' num2str(cnn_thresh)])
+% cell_idx_struct = structfun(@(x)x(x<113),cell_idx_struct,'un',false);
 %% select cell identity for readout and stimulation
 % check ROI quality - increase cnn_thresh and update cell_idx_struct
-opt.target_idx_fd = {'all_tex1','all_tex2'};
+opt.target_idx_fd = {'noport_tex1','noport_tex2'};
 opt.trigger_idx_fd = 'tex';
 opt.fov_size = double(cnm_dims);
 opt.ds_factor = caiman_data.ds_factor;
@@ -729,7 +732,7 @@ fa_opt.idx_fields = {opt.trigger_idx_fd};
 
 % fa_opt.avg_frames = fa_opt.stim_bin+30:1:fa_opt.gocue_bin;
 fa_opt.avg_frames  = [];
-easy_trial_idx = 1:10;
+easy_trial_idx = 1;
 for dummy = 1
 %% dpca
 % shuffle takes time - try parfor?
@@ -834,51 +837,8 @@ figure;
 plot_binary_decoder(stim_struct,stim_opt)
 suptitle('Stimulus decoder')
 export_fig([fig_save_path filesep 'StimDecoderPerform_' strrep(caiman_file,'.mat','.png')])
-
-%% get choice decoder (directly from traj, using threshold trials) 
-choice_opt = fa_opt;
-if IF_GO_NOGO
-traj_struct.('go_trials') = cat(1,traj_struct.stim_1_incorrect,traj_struct.stim_2_correct);
-traj_struct.('nogo_trials') = cat(1,traj_struct.stim_1_correct,traj_struct.stim_2_incorrect);
-decod_fd_names = {{'nogo_trials','go_trials'}};
-else
-    decod_fd_names = {{'stim_1_correct','stim_1_incorrect'},...
-    {'stim_2_incorrect','stim_2_correct'}};%first field will be positive
-end
-
-choice_opt.frames_to_train = round([1:1:150]/choice_opt.bin_size);
-choice_opt.min_frames = 10;
-choice_opt.Nstd = 1.5;
-choice_opt.IF_FRAMEWISE = 0;
-choice_struct = {};
-choice_proj_struct = {};
-choice_opt.frames_to_avg = [120:150];
-all_choice_struct = {};
-disp('Rnning choice decoder...')
-for stim_idx = 1:numel(decod_fd_names)
-    choice_opt.fd_names = decod_fd_names{stim_idx};
-    tic
-    choice_struct =  get_binary_classifier( choice_struct,traj_struct, choice_opt,...
-        'IF_CROSSVAL',1,'IF_FRAMEWISE',choice_opt.IF_FRAMEWISE,'fd_names',choice_opt.fd_names);
-    [choice_proj_struct] = get_projections(traj_struct,choice_struct.B(:,2:end)',choice_opt.fd_names,'proj_struct',choice_proj_struct,'bias',choice_struct.B(:,1));
-    plot_pop_vectors(choice_proj_struct,choice_opt.fd_names,1,choice_opt,...
-        'plot_ylabel','Choice projection')
-    [ choice_struct ] =  get_binary_decoder_disc_time( choice_proj_struct, choice_struct,...
-        choice_opt.fd_names,choice_opt,'IF_FRAMEWISE',choice_opt.IF_FRAMEWISE,'threshold',0);
-    toc
-    disp('Done')
-    
-    figure;
-    hold on
-    plot_binary_decoder(choice_struct,choice_opt)
-    suptitle(['Choice decoder, stim' num2str(stim_idx)])
-    export_fig([fig_save_path filesep 'ChoiceDecoderPerform_Stim' num2str(stim_idx) '_' strrep(caiman_file,'.mat','.png')])
-    choice_struct.fd_names = choice_opt.fd_names;
-    all_choice_struct{stim_idx} = choice_struct;
-end
-%% get projections on stim decoder
+% get projections on stim decoder
 stim_thresh = -stim_struct.B(:,1);
-
 switch opt.method
     case 'fa'
         stim_weights = fa_struct.transmat* stim_struct.B(:,2:end)';
@@ -914,6 +874,47 @@ scatter_cmp_conditions(values,[],...
     1,fd_colors,'connect_scatter',0,'BriefXlabel',0,'ShowMeanInXlabel',1,'add_jitter',1);
 suptitle('Stim decoder projections')
 export_fig([fig_save_path filesep 'StimDecoderProj_' strrep(caiman_file,'.mat','.png')])
+%% get choice decoder (directly from traj, using threshold trials) 
+choice_opt = fa_opt;
+if IF_GO_NOGO
+traj_struct.('go_trials') = cat(1,traj_struct.stim_1_incorrect,traj_struct.stim_2_correct);
+traj_struct.('nogo_trials') = cat(1,traj_struct.stim_1_correct,traj_struct.stim_2_incorrect);
+decod_fd_names = {{'nogo_trials','go_trials'}};
+else
+    decod_fd_names = {{'stim_1_correct','stim_1_incorrect'},...
+    {'stim_2_incorrect','stim_2_correct'}};%first field will be positive
+end
+
+choice_opt.frames_to_train = round([1:1:150]/choice_opt.bin_size);
+choice_opt.min_frames = 10;
+choice_opt.Nstd = 1.5;
+choice_opt.IF_FRAMEWISE = 0;
+choice_struct = {};
+choice_proj_struct = {};
+choice_opt.frames_to_avg = [130:150];
+all_choice_struct = {};
+disp('Rnning choice decoder...')
+for stim_idx = 1:numel(decod_fd_names)
+    choice_opt.fd_names = decod_fd_names{stim_idx};
+    tic
+    choice_struct =  get_binary_classifier( choice_struct,traj_struct, choice_opt,...
+        'IF_CROSSVAL',1,'IF_FRAMEWISE',choice_opt.IF_FRAMEWISE,'fd_names',choice_opt.fd_names);
+    [choice_proj_struct] = get_projections(traj_struct,choice_struct.B(:,2:end)',choice_opt.fd_names,'proj_struct',choice_proj_struct,'bias',choice_struct.B(:,1));
+    plot_pop_vectors(choice_proj_struct,choice_opt.fd_names,1,choice_opt,...
+        'plot_ylabel','Choice projection')
+    [ choice_struct ] =  get_binary_decoder_disc_time( choice_proj_struct, choice_struct,...
+        choice_opt.fd_names,choice_opt,'IF_FRAMEWISE',choice_opt.IF_FRAMEWISE,'threshold',0);
+    toc
+    disp('Done')
+    
+    figure;
+    hold on
+    plot_binary_decoder(choice_struct,choice_opt)
+    suptitle(['Choice decoder, stim' num2str(stim_idx)])
+    export_fig([fig_save_path filesep 'ChoiceDecoderPerform_Stim' num2str(stim_idx) '_' strrep(caiman_file,'.mat','.png')])
+    choice_struct.fd_names = choice_opt.fd_names;
+    all_choice_struct{stim_idx} = choice_struct;
+end
 
 %% get projections on choice decoder
 all_choice_weights = {};
@@ -942,7 +943,7 @@ for stim_idx = 1:numel(decod_fd_names)
 
     % plot
     test_fd_names = choice_struct.fd_names;
-    [choice_proj_struct] = get_projections(raw_cell_struct(cell_idx_struct.(opt.trigger_idx_fd)),choice_norm_weights,...
+    [choice_proj_struct,this_plot_struct] = get_projections(raw_cell_struct(cell_idx_struct.(opt.trigger_idx_fd)),choice_norm_weights,...
         test_fd_names,'proj_struct',choice_proj_struct,'bias',-choice_norm_thresh,'IS_CELL_STRUCT',1);
     % compare projection on choice axis trials
     plot_pop_vectors(choice_proj_struct,test_fd_names,1,opt,...
@@ -950,7 +951,7 @@ for stim_idx = 1:numel(decod_fd_names)
     suptitle('Choice decoder projections')
     
     figure('name','choice decoder projection','position',[100 100 800 400])
-    values = structfun(@(x)mean(x(:,opt.sta_avg_frames),2),choice_proj_struct,'UniformOutput',false);
+    values = structfun(@(x)mean(x(:,opt.sta_avg_frames),2),this_plot_struct,'UniformOutput',false);
     fd_colors =  cell2mat(cellfun(@(f)getfield(trial_color,f),fields(values),'UniformOutput',false));
     scatter_cmp_conditions(values,[],...
         1,fd_colors,'connect_scatter',0,'BriefXlabel',0,'ShowMeanInXlabel',1,'add_jitter',1);
