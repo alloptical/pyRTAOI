@@ -213,8 +213,8 @@ if IF_GO_NOGO %overide incorrect trials by miss trials for go-stim
 end
 try
 % catch trials
-    trial_indices.(['stim_5_miss']) = find((trials.stim_type==3|trials.stim_type==4)&trials.miss==1); 
-    trial_indices.(['stim_5_lick']) = find((trials.stim_type==3|trials.stim_type==4)&trials.miss==0); 
+    trial_indices.(['stim_5_miss']) = find((trials.stim_type==3|trials.stim_type==4)&trials.miss==1&trials.cheated==0); 
+    trial_indices.(['stim_5_lick']) = find((trials.stim_type==3|trials.stim_type==4)&trials.miss==0&trials.cheated==0); 
 
 end
 
@@ -547,7 +547,7 @@ disp(['discarded cells with cnn prediction soore <' num2str(cnn_thresh)])
 % cell_idx_struct = structfun(@(x)x(x<113),cell_idx_struct,'un',false);
 %% select cell identity for readout and stimulation
 % check ROI quality - increase cnn_thresh and update cell_idx_struct
-opt.target_idx_fd = {'noport_tex1','noport_tex2'};
+opt.target_idx_fd = {'all_tex1','all_tex2'};
 opt.trigger_idx_fd = 'tex';
 opt.fov_size = double(cnm_dims);
 opt.ds_factor = caiman_data.ds_factor;
@@ -1043,7 +1043,7 @@ pop_params.all_thresh = all_choice_thresh;
 % plot_pop_vectors(choice_proj_struct,fds_of_interest,1,opt,...
 %        'noise_thresh',proj_sd,'ylimit',[-100 100],'plot_ylabel','proj to choice-stim','plot_num_cols',2,'IF_PLOT_RAW_ONLY',1)
 pop_params.thresh_sd = 0;% NOT USING SD
-pop_params.frames_enable_trigger  = [100 115]; % monitor frames, frame 120 is go-cue
+pop_params.frames_enable_trigger  = [105 110]; % monitor frames, frame 120 is go-cue
 
 
 %% GET PHOTOEXCITABLE TARGETS - optional

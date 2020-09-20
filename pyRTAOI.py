@@ -841,7 +841,7 @@ class Worker(QObject):
         if p['FLAG_OFFLINE']:
             max_wait = None  # wait till video loaded and buffer starts filling
         else:
-            max_wait = 10 # timeout
+            max_wait = 20 # timeout
 #%% Worker main Loop
         print('Woker entering loop..')
         # keep processing frames in qbuffer
@@ -1110,7 +1110,7 @@ class Worker(QObject):
                                     
                             elif framesProc == stim_frames[sens_stim_idx-1]+ monitor_frames:
                                 self.MonitorOff_signal.emit()
-                                if (not FLAG_DUMMY_STIM) and (not FLAG_PHOTO_SENT_THIS_TRIAL) and this_ensembleIdx>-1 and random.randint(0, 2)<1:
+                                if (not FLAG_DUMMY_STIM) and (not FLAG_PHOTO_SENT_THIS_TRIAL) and this_ensembleIdx>-1 and random.randint(0, 2)<1 and this_trialOrder<3:
                                     # stimulate the other ensemble in 30% of non stim trials, use a small percentage to avoid confusing the animal
                                     the_other_ensemble_idx = (this_ensembleIdx+1)%2
                                     if this_ensembleIdx>-1:
@@ -1731,6 +1731,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
         p['NumTargetEnsembles'] = 0
         p['trialEnsembleIdx'] =[]
         p['TriggerThreshSD'] = 0
+        p['ROIsumThreshold'] = 0.0
 
         # camain init
         p['FLAG_USING_RESULT_FILE'] = False
@@ -3055,7 +3056,7 @@ class MainWindow(QMainWindow, GUI.Ui_MainWindow,CONSTANTS):
             self.rejectIdx = []
             p['rejectedX'] = []
             p['rejectedY'] = []
-            p['ROIsumThreshold'] = 0
+            p['ROIsumThreshold'] = 0.0
 
             p['FLAG_SKIP_FRAMES'] = False
 #            self.calcium_img_path = ''

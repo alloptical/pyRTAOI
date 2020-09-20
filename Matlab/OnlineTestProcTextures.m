@@ -13,7 +13,7 @@ clc
  matlab_set_paths_zz
 
 %%  parameters - CHANGE THIS
-crop_num_trials = 151; % specify number of trials recorded if aborted half way
+crop_num_trials = 124; % specify number of trials recorded if aborted half way
 IF_CONTROL_SESSION = false;
 FLAG_PAQ_LOADED = false;
 disp('CHECK SETTINGS BEFORE CONTINEU!')
@@ -169,9 +169,16 @@ if ~isempty( caiman_data.online_photo_frames)
     photo_stim_frames(photo_stim_frames>sens_stim_frames(end)+opt.trial_length)=[];
     photo_trial_idx = find(trials.photostim==1);
     dummy_trial_idx = find(trials.trialVar==2);
-    [~,idx]=intersect(photo_trial_idx,dummy_trial_idx);
+    [dummy_photostim_trial_idx,idx]=intersect(photo_trial_idx,dummy_trial_idx);
+    true_photo_trial_idx = setdiff(photo_trial_idx,dummy_trial_idx);
     dummy_photo_stim_frames = photo_stim_frames(idx);
     photo_stim_frames = setdiff(photo_stim_frames,dummy_photo_stim_frames);
+    try
+        oppo_photo_frames = caiman_data.online_oppo_photo_frames + caiman_data.t_init;
+    catch
+        oppo_photo_frames = [];
+        oppo_trial_idx = find(trials.oppo_photostim==1);
+    end
 else
     photo_stim_frames = [];
     disp('no photostim found')
@@ -187,18 +194,72 @@ if FLAG_PAQ_LOADED
     check_aom_volt = aom_volt(1:length(check_skip_trace));
     figure; hold on
     plot(check_skip_trace);
-    stem(movie_photo_stim_frames,2.*ones(size(movie_photo_stim_frames)))
+    stem(movie_photo_stim_frames,2.*ones(size(movie_photo_stim_frames)),'color','r')
     stem(paq_photo_frames,1.5.*ones(size(paq_photo_frames)))
     plot(check_aom_volt)
+    
+    try
+        movie_dummy_photo_stim_frames = dummy_photo_stim_frames - caiman_data.t_init;
+        stem(movie_dummy_photo_stim_frames,2.*ones(size(movie_dummy_photo_stim_frames)),'color',tint([1,0, 0],.5))
+       
+
+        movie_oppo_photo_frames = oppo_photo_frames - caiman_data.t_init; % for checking with raw movie
+        stem(movie_oppo_photo_frames,2.*ones(size(movie_oppo_photo_frames)),'color','black')      
+    end
 
     % check aom volt in photo and dummuy photo trials
-    [~,~,~,aom_dummy,~,~,aom_dummy_avg] = make_sta_from_traces(check_aom_volt,dummy_photo_stim_frames- caiman_data.t_init,30,30,1:opt.sta_baseline_frames);
-    [~,~,~,aom_photo,~,~,aom_photo_avg] = make_sta_from_traces(check_aom_volt,photo_stim_frames- caiman_data.t_init,30,30,1:opt.sta_baseline_frames);
+    [~,~,~,aom_dummy,~,~,aom_dummy_avg] = make_sta_from_traces(check_aom_volt,dummy_photo_stim_frames- caiman_data.t_init,30,150,1:opt.sta_baseline_frames);
+    [~,~,~,aom_photo,~,~,aom_photo_avg] = make_sta_from_traces(check_aom_volt,photo_stim_frames- caiman_data.t_init,30,150,1:opt.sta_baseline_frames);
 
     figure('name','aom volt check');subplot(1,2,1); plot(aom_dummy','color',[.5 .5 .5]);ylim([0 0.5]); title('control photo trials')
     subplot(1,2,2);plot(aom_photo','color','r');ylim([0 0.5]); title('photo trials')
     
     find(check_aom_volt>0.01&check_skip_trace==0)
+    
+    % check caiman recorded photo frame vs actual photo frame
+    pre_frames = 30;
+    check_photo_trace = zeros(1,movie_frames_skipped(end));
+    check_photo_trace(paq_photo_frames) = 1;
+    [~,~,~,paq_photo] = make_sta_from_traces(check_photo_trace,movie_photo_stim_frames,pre_frames,150,1:opt.sta_baseline_frames);
+    check_photo_trace = zeros(1,movie_frames_skipped(end));
+    check_photo_trace(paq_photo_frames) = 1;
+    [~,~,~,paq_dummyphoto] = make_sta_from_traces(check_photo_trace,movie_dummy_photo_stim_frames,pre_frames,150,1:opt.sta_baseline_frames);
+    check_photo_trace = zeros(1,movie_frames_skipped(end));
+    check_photo_trace(paq_photo_frames) = 1;
+    [~,~,~,paq_oppophoto] = make_sta_from_traces(check_photo_trace,movie_oppo_photo_frames,pre_frames,150,1:opt.sta_baseline_frames);
+    
+    figure('name','photostim delay check','position',[200 200 1200 500]);
+    subplot(1,4,1);hold on;imagesc(paq_photo); colormap('gray')
+    plot([30 30],ylim,'color','r');xlabel('Frames'); title('Photostim triggers'); axis square
+    subplot(1,4,2);hold on;imagesc(paq_dummyphoto); colormap('gray')
+    plot([30 30],ylim,'color','r');xlabel('Frames'); title('Dummy Photostim triggers'); axis square   
+    subplot(1,4,3);hold on;imagesc(paq_oppophoto); colormap('gray')
+    plot([30 30],ylim,'color','r');xlabel('Frames'); title('Oppo Photostim triggers'); axis square 
+    
+    % get trials with very long delay 
+    max_photo_delay = 10; % frames
+    binwidth = 3;
+    [~,photo_delays] = find(paq_photo == 1); photo_delays = photo_delays-pre_frames;
+    [~,dummyphoto_delays] = find(paq_dummyphoto == 1); dummyphoto_delays = dummyphoto_delays-pre_frames;
+    [~,oppophoto_delays] = find(paq_oppophoto == 1); oppophoto_delays = oppophoto_delays-pre_frames;
+     subplot(1,4,4); hold on
+     histogram(photo_delays,'displaystyle','stairs','edgecolor','r','binwidth',binwidth)
+     histogram(dummyphoto_delays,'displaystyle','stairs','edgecolor', trial_color.dummyphoto,'binwidth',binwidth)
+     histogram(oppophoto_delays,'displaystyle','stairs','edgecolor',[0 0 0],'binwidth',binwidth); axis square
+     xlabel('Delay frames'); ylabel('Num. trials')
+     delayed_trials_idx = sort([true_photo_trial_idx(photo_delays>max_photo_delay) dummy_photostim_trial_idx(dummyphoto_delays>max_photo_delay) oppo_photostim_trial_idx(oppophoto_delays>max_photo_delay)]);
+     delayed_phototrial_idx = sort([true_photo_trial_idx(photo_delays>max_photo_delay) oppo_photostim_trial_idx(oppophoto_delays>max_photo_delay)]);
+     disp(['delayed trial idx:' num2str(delayed_trials_idx)])
+     if ~isempty(delayed_phototrial_idx) % put these trials into cheated
+         first_bug_trial = delayed_trials_idx(1);
+         disp(['First delayed trial:' num2str(delayed_trials_idx(1))])
+         suptitle(['First delayed trial:' num2str(delayed_trials_idx(1)) ', stim type:' num2str(trials.stim_type(first_bug_trial)) 'Var' num2str(trials.trialVar(first_bug_trial))...
+             ' photo:'  num2str(trials.photostim(first_bug_trial)) ' fa:' num2str(trials.fa(first_bug_trial))])
+         
+         trials.cheated(delayed_phototrial_idx(delayed_phototrial_idx<tot_num_trials)) = 1;
+     end
+     export_fig([fig_save_path filesep 'PhotodelayCheck_' strrep(caiman_file,'.mat','')],'-png')
+
 end
 disp('got trial struct')
 
@@ -314,7 +375,7 @@ axis square
 export_fig([fig_save_path filesep 'PerformanceSummary_' strrep(caiman_file,'.mat','')],'-png')
 
 %% catch trial behavior
-[pc_lick,lick1,lick2,num_trials] = get_catchtrial_performance(trial_indices);
+[pc_lick,lick1,lick2] = get_catchtrial_performance(trial_indices);
 fd_colors = [trial_color.nonphoto;trial_color.photo;trial_color.photo];
 figure('name','catch trial performance','position',[400 400 2400 600])
 
@@ -1208,6 +1269,9 @@ for i = 1:numel(test_opt.fd_names )
     if contains(this_fd,'_dummyphotostim')
         trial_color.(this_fd) = trial_color.dummyphoto;
     end
+    if contains(this_fd,'_oppophotostim')
+        trial_color.(this_fd) = trial_color.oppophoto;
+    end
     
     % add shade to incorrect trials
     if contains(this_fd,'_photostim_incorrect')
@@ -1238,14 +1302,14 @@ plot_fds = {'stim_1_var_1_correct','stim_1_var_1_incorrect','stim_1_var_1_photos
     'stim_2_var_2_correct', 'stim_2_var_2_incorrect','stim_2_var_2_photostim','stim_2_var_2_nonphotostim','stim_2_var_2_dummyphotostim','stim_5_photostim_2'};
 plot_num_cols = 3;
 IF_PLOT_AVG_ONLY = 1;
-IF_NORMALISE = 0;
+IF_NORMALISE = 1;
 % online recorded trajectory
 xlimit = [30,270];
 ylimit = [-1 1];
 
-ylimit = [-500 500];
+% ylimit = [-500 500];
 
-plot_fds1 = {'stim_1_var_1_photostim','stim_1_var_1_nonphotostim','stim_1_var_1_dummyphotostim'};
+plot_fds1 = {'stim_1_var_1_photostim','stim_1_var_1_nonphotostim','stim_1_var_1_dummyphotostim','stim_1_var_1_oppophotostim'};
 plot_pop_vectors(traj_struct,plot_fds1,1,test_opt,...
     'noise_thresh',thresh_sd,'plot_ylabel','Projection',...
     'ylimit',ylimit,'xlimit',xlimit,...
@@ -1253,7 +1317,7 @@ plot_pop_vectors(traj_struct,plot_fds1,1,test_opt,...
 suptitle('Closed-loop condition trials, online trajectory, tex1')
 export_fig([fig_save_path filesep 'OnlineTrajTex1' strrep(caiman_file,'.mat','.png')])
 
-plot_fds2 = {'stim_2_var_2_photostim','stim_2_var_2_nonphotostim','stim_2_var_2_dummyphotostim'};
+plot_fds2 = {'stim_2_var_2_photostim','stim_2_var_2_nonphotostim','stim_2_var_2_dummyphotostim','stim_2_var_2_oppophotostim'};
 plot_pop_vectors(traj_struct,plot_fds2,1,test_opt,...
     'noise_thresh',thresh_sd,'plot_ylabel','Projection',...
     'ylimit',ylimit,'xlimit',xlimit,...
