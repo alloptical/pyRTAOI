@@ -142,6 +142,7 @@ color.stim_2_oppophoto = color.oppophoto;
 color.stim_5_photo_1 = tint(color.stim1,.5);
 color.stim_5_photo_2 = tint(color.stim2,.5);
 color.stim_5_nophoto = [.7 .7 .7];
+color.catch_nonphoto = [.5 .5 .5];
 
 end
 

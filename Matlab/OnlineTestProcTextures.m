@@ -13,7 +13,7 @@ clc
  matlab_set_paths_zz
 
 %%  parameters - CHANGE THIS
-crop_num_trials = 124; % specify number of trials recorded if aborted half way
+crop_num_trials = 220; % specify number of trials recorded if aborted half way
 IF_CONTROL_SESSION = false;
 FLAG_PAQ_LOADED = false;
 disp('CHECK SETTINGS BEFORE CONTINEU!')
@@ -301,6 +301,9 @@ end
 trial_indices = structfun(@(x)setdiff(x,odd_trial_idx),trial_indices,'UniformOutput',false);
 disp('sorted trial indices')
 %% quantify behavior
+% including early licks
+[all_trial_indices] = sort_trial_types_condition_incl_earlylick(trials,opt);
+
 figure('name','animal performance','position',[400 400 2400 600])
 for dummy = 1
     if IF_GO_NOGO
@@ -332,7 +335,7 @@ for dummy = 1
         axis square
 
     else
-        [overall,tex1,tex2,num_trials_struct] = get_2afc_performance(trial_indices);
+        [overall,tex1,tex2,num_trials_struct] = get_2afc_performance(all_trial_indices);
         
         subplot(1,4,1)
         fd_colors =  cell2mat(cellfun(@(f)getfield(trial_color,f),fields(overall),'UniformOutput',false));
@@ -371,15 +374,16 @@ scatter_cmp_conditions(num_trials_struct,[],...
 xtickangle(30)
 ylabel('Num. trials')
 axis square
-
+%%
 export_fig([fig_save_path filesep 'PerformanceSummary_' strrep(caiman_file,'.mat','')],'-png')
 
+
 %% catch trial behavior
-[pc_lick,lick1,lick2] = get_catchtrial_performance(trial_indices);
+[pc_lick,lick1,lick2,num_catch_trials] = get_catchtrial_performance(trial_indices);
 fd_colors = [trial_color.nonphoto;trial_color.photo;trial_color.photo];
 figure('name','catch trial performance','position',[400 400 2400 600])
 
-subplot(1,3,1)
+subplot(1,4,1)
 scatter_cmp_conditions(pc_lick,[],...
     1,fd_colors,'connect_scatter',0,'BriefXlabel',0,'ShowMeanInXlabel',1,'add_jitter',0);
 ylim([0,1])
@@ -387,7 +391,7 @@ xtickangle(30)
 ylabel('Fraction lick')
 axis square
 
-subplot(1,3,2)
+subplot(1,4,2)
 scatter_cmp_conditions(lick1,[],...
     1,fd_colors,'connect_scatter',0,'BriefXlabel',0,'ShowMeanInXlabel',1,'add_jitter',0);
 ylim([0,1])
@@ -395,13 +399,21 @@ xtickangle(30)
 ylabel('Fraction lick port1')
 axis square
 
-subplot(1,3,3)
+subplot(1,4,3)
 scatter_cmp_conditions(lick2,[],...
     1,fd_colors,'connect_scatter',0,'BriefXlabel',0,'ShowMeanInXlabel',1,'add_jitter',0);
 ylim([0,1])
 xtickangle(30)
 ylabel('Fraction lick port2')
 axis square
+
+subplot(1,4,4) 
+scatter_cmp_conditions(num_catch_trials,[],...
+    1,fd_colors,'connect_scatter',0,'BriefXlabel',0,'ShowMeanInXlabel',1,'add_jitter',0);
+xtickangle(30)
+ylabel('Num. trials')
+axis square
+
 export_fig([fig_save_path filesep 'CatchTrialsPerformanceSummary_' strrep(caiman_file,'.mat','')],'-png')
 
 %% generate config file for control session
@@ -1337,7 +1349,7 @@ export_fig([fig_save_path filesep 'OnlineTrajTex2' strrep(caiman_file,'.mat','.p
 %% trajectory computed using raw_sta_traces
 [decod_proj_struct] = get_projections(raw_cell_struct(trigger_idx),norm_weights,plot_fds,'bias',-norm_thresh,'IS_CELL_STRUCT',1);
 plot_pop_vectors(decod_proj_struct,plot_fds,1,opt,...
-    'ylimit',ylimit,'plot_ylabel','Projection','plot_num_cols',plot_num_cols,'IF_PLOT_RAW_ONLY',1)
+    'ylimit',ylimit,'plot_ylabel','Projection','plot_num_cols',plot_num_cols,'IF_PLOT_RAW_ONLY',1,'IF_NORMALISE',IF_NORMALISE)
 suptitle('Decoder projections')
 
 %% ============== POST-HOC DECODER ========================

@@ -540,7 +540,7 @@ end
 %% Discard cells of bad shapes from trigger and targets pool (optional)
 % not using cells with low cnn score as trigger or targets
 % will not do anything if no cnn result is loaded
-cnn_thresh = 0.1; % change this to higher value to exlude more dendrites
+cnn_thresh = 0.05; % change this to higher value to exlude more dendrites
 cell_idx_struct.cnn_above_thresh = find(cnn_predictions(accepted_idx)>cnn_thresh);
 cell_idx_struct = structfun(@(x)intersect(x,cell_idx_struct.cnn_above_thresh),cell_idx_struct,'UniformOutput',false);
 disp(['discarded cells with cnn prediction soore <' num2str(cnn_thresh)])
