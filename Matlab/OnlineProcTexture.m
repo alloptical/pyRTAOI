@@ -136,6 +136,9 @@ if FLAG_PYBEHAV_LOADED
         disp('data matched')
     else
         warning('trial order mismatch!')
+        keyboard
+         caiman_data.trialOrder = trials.stim_type;
+        
     end
 else
     warning('no pybehav data loaded')
@@ -162,7 +165,7 @@ sens_stim_frames(discard_trial_idx) = [];
 if FLAG_PYBEHAV_LOADED
     trials.miss(trials.firstlick<opt.rw_start_sec) = 0; % discard early response trials from miss trials
     trials.correct(trials.firstlick<opt.rw_start_sec) = 0; % discard early response trials 
-    trials.incorrect(trials.firstlick<opt.rw_start_sec) = 0; % discard early response trials
+%     trials.incorrect(trials.firstlick<opt.rw_start_sec) = 0; % discard early response trials
     trials.fa(trials.firstlick<opt.rw_start_sec) = 0; % discard early response trials
 
     fds = fields(trials);

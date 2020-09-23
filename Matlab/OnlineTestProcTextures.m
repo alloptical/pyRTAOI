@@ -13,7 +13,7 @@ clc
  matlab_set_paths_zz
 
 %%  parameters - CHANGE THIS
-crop_num_trials = 220; % specify number of trials recorded if aborted half way
+crop_num_trials = 244; % specify number of trials recorded if aborted half way
 IF_CONTROL_SESSION = false;
 FLAG_PAQ_LOADED = false;
 disp('CHECK SETTINGS BEFORE CONTINEU!')
@@ -213,9 +213,7 @@ if FLAG_PAQ_LOADED
 
     figure('name','aom volt check');subplot(1,2,1); plot(aom_dummy','color',[.5 .5 .5]);ylim([0 0.5]); title('control photo trials')
     subplot(1,2,2);plot(aom_photo','color','r');ylim([0 0.5]); title('photo trials')
-    
-    find(check_aom_volt>0.01&check_skip_trace==0)
-    
+       
     % check caiman recorded photo frame vs actual photo frame
     pre_frames = 30;
     check_photo_trace = zeros(1,movie_frames_skipped(end));
@@ -374,7 +372,7 @@ scatter_cmp_conditions(num_trials_struct,[],...
 xtickangle(30)
 ylabel('Num. trials')
 axis square
-%%
+
 export_fig([fig_save_path filesep 'PerformanceSummary_' strrep(caiman_file,'.mat','')],'-png')
 
 
