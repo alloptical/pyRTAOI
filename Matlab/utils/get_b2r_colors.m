@@ -1,4 +1,4 @@
-function [b2r_colors,sort_colors] = get_b2r_colors(values)
+function [b2r_colors,sort_colors,norm_factor] = get_b2r_colors(values,varargin)
 
 norm_factor = max(abs(values));
 b2r_colors = ones(length(values),3);

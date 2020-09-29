@@ -1,4 +1,4 @@
-function [traces_struct] = plot_trial_avg_imagesc(cell_struct,trial_indices,photo_ensembles,plot_cell_idx,plot_photo_types,plot_condition_types,opt,varargin)
+function [] = plot_trial_avg_imagesc(cell_struct,trial_indices,photo_ensembles,plot_cell_idx,plot_photo_types,plot_condition_types,opt,varargin)
 sta_trace_fd = 'sta_traces';
 sort_cell = true;
 for v = 1:numel(varargin)
@@ -16,14 +16,14 @@ num_compares = nchoosek(num_photo_types,2);
 cmp_pairs = combnk(1:num_photo_types,2);
 
 num_plot_cols = num_photo_types+num_compares;
-num_plot_rows = numel(plot_condition_types);
+num_plot_rows = 2;
 all_trial_types = fields(trial_indices);
 
 fun = @(x)text(0,x,['\rightarrow'], 'horizontalalignment','right', 'color','red');
 xaxisvalues = [0:30:opt.sta_pre_frames+opt.sta_post_frames];
 figure('name',['cell avg traces'],'units','normalized','outerposition',[0 0 1 1]);
 plot_count = 1;
-traces_struct = struct();
+
 for p = 1:numel(plot_condition_types)
     photo_idx = plot_condition_types(p);
     all_traces = {};
@@ -55,7 +55,7 @@ for p = 1:numel(plot_condition_types)
             
             if photo_type == 1
                 try
-                    [~,mark_target_idx] =intersect(sorted_plot_cell_idx,photo_ensembles{photo_idx});
+                    [mark_target_idx] =this_plot_cell_idx(intersect(sorted_plot_cell_idx,photo_ensembles{photo_idx}));
                 catch
                     mark_target_idx = [];
                 end
@@ -86,7 +86,6 @@ for p = 1:numel(plot_condition_types)
         
         all_traces{photo_type} = this_traces;
         all_trials{photo_type} = this_trials;
-        traces_struct.(['stim_' num2str(photo_idx) plot_photo_types{photo_type}]) = this_traces;
     end
 %     colorbar('EastOutside')
    

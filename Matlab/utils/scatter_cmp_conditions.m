@@ -371,6 +371,7 @@ if ~IfPlotPrePostOnly   % plot all conditions
             else
                 hp(i) = histogram(temp_value,'Normalization',Normalization,'DisplayStyle',DisplayStyle,'facecolor',color_lut(i,:), 'edgecolor','none','Binwidth',BinWidth,'FaceAlpha',1);
             end
+            plot([1,1].*mean(temp_value),ylim,'color',color_lut(i,:))
         end
         legend_name = {};
         for ii = 1:numel(fields)
@@ -382,7 +383,7 @@ if ~IfPlotPrePostOnly   % plot all conditions
         if~isempty(xlimit)
             xlim(xlimit)
         end
-        legend(hp,legend_name,'Location','northoutside','box','off')
+        legend(hp(1:num_plot),legend_name,'Location','northoutside','box','off')
     end
     
     
@@ -436,15 +437,24 @@ if ~ BriefXlabel
         
     end
 elseif ShowMeanInXlabel
+    
     xlabel({['#Samples: ' num2str(num_samples)];...
         ['#Numeric: ' num2str(num_nonnan_samples)];...
-        ['Mean: '  num2str(mean_values,'%10.3f') ];...
-        ['SD: '  num2str(sd_values,'%10.3f')]})
+        ['Mean: '  num2str(mean_values,'%10.2f') ];...
+        ['SD: '  num2str(sd_values,'%10.2f')]})
 else
+    if (num_plot == 2)
+        xlabel({ [ test_type ' P=' num2str(P,'%10.1e') ' h= ' num2str(h)];...
+            ['Mean: '  num2str(mean_values,'%10.3f') ];...
+            ['Median:' num2str(median_values,'%10.3f')];...
+            ['SD: '  num2str(sd_values,'%10.3f')]})
+        
+    else
+        
         xlabel({ ['Mean: '  num2str(mean_values,'%10.3f') ];...
             ['Median:' num2str(median_values,'%10.3f')];...
-        ['SD: '  num2str(sd_values,'%10.3f')]})
- 
+            ['SD: '  num2str(sd_values,'%10.3f')]})
+    end
 
 %     xlabel({[ test_type ' P=' num2str(P,'%10.1e') ' h= ' num2str(h)]})
 end

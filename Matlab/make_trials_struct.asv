@@ -1,6 +1,5 @@
 function [output_trials,odd_trial_idx] = make_trials_struct(behavior_data,varargin)
 withold_win_start = 3; 
-reward_win_end = 5;
 tot_num_trials = [];
 for v = 1:numel(varargin)
     if strcmpi(varargin{v},'tot_num_trials')
@@ -19,7 +18,7 @@ if isempty(tot_num_trials)
     tot_num_trials = numel(behavior_data.results);
 end
 this_norm_trials = 1:tot_num_trials;
-func = @(x)func_fristresponse(x,withold_win_start,reward_win_end);
+func = @(x)func_fristresponse(x,withold_win_start);
 for i = 1:num_fd
     this_fd = fd_names{i};
     if isfield(behavior_data.results{1},this_fd)
@@ -28,13 +27,11 @@ for i = 1:num_fd
         if strcmp(this_fd,'firstresponse') 
             % get first response with actual response recorded AFTER WITHOLD WINDOW ONSET (fa trials first response were all zero!)
             this_responses = cellfun(@(x)x.('responses'),behavior_data.results,'UniformOutput',false);
-            this_first_response = nan(1,tot_num_trials);
-            this_first_lick = nan(1,tot_num_trials);
-            [this_first_lick(~cellfun(@(x)isempty(x),this_responses)),this_first_response(~cellfun(@(x)isempty(x),this_responses))] = cellfun(@(x)func(x), this_responses(cellfun(@(x)~isempty(x),this_responses)));
+            this_first_response = zeros(1,tot_num_trials);
+            this_first_lick = zeros(1,tot_num_trials);
+            [this_first_lick(~cellfun(@(x)isempty(x),this_responses)),this_first_response(~cellfun(@(x)isempty(x),this_responses))] =cellfun(@(x)func(x), this_responses(cellfun(@(x)~isempty(x),this_responses)));
             
-            output_trials.(this_fd) = this_first_response(1:tot_num_trials);
-            output_trials.('firstlick') = this_first_lick(1:tot_num_trials);
-      
+            output_trials.(this_fd) = this_first_response;
             continue;
         else
             this_data(this_norm_trials) = cellfun(@(x)extractfield(x,this_fd),behavior_data.results(this_norm_trials),'UniformOutput',false);
@@ -72,6 +69,7 @@ for i = 1:num_fd
         warning(['field not found in behavior: ' this_fd ', skipped'])
     end
 end
+output_trials.('firstlick') = behavior_data.reaction_time(1:tot_num_trials)';
 
 
 

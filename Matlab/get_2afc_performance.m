@@ -4,6 +4,7 @@ tex1 = struct();
 tex2 = struct();
 num_trials = struct();
 
+
 num_correct2 = numel(trial_indices.stim_2_var_2_correct);
 num_incorrect2 =  numel(trial_indices.stim_2_var_2_incorrect);
 num_correct1 = numel(trial_indices.stim_1_var_1_correct);
