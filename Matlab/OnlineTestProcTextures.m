@@ -13,7 +13,7 @@ clc
  matlab_set_paths_zz
 
 %%  parameters - CHANGE THIS
-crop_num_trials = 244; % specify number of trials recorded if aborted half way
+crop_num_trials = 105; % specify number of trials recorded if aborted half way
 IF_CONTROL_SESSION = false;
 FLAG_PAQ_LOADED = false;
 disp('CHECK SETTINGS BEFORE CONTINEU!')
@@ -21,8 +21,9 @@ keyboard
 IF_GO_NOGO = false;
 IF_USE_PYRTAOI_STIMTYPE = true; % for condition session this will be different from pybehav
 opt.IF_GO_NOGO = IF_GO_NOGO;
-pyrtaoi_condition_types = [1,2,3,4]; % for checking files only. pyrtaoi will use [1,2] for closed-loop stim_type; 3,4 for photstim tex1 and tex2 ensembles in catch trials, and 5 for catch trial without photostim
-pybehav_condition_types = [1,2,3,4];
+pyrtaoi_condition_types = [1,2,3,4,6,7]; % for checking files only. pyrtaoi will use [1,2] for closed-loop stim_type; 3,4 for photstim tex1 and tex2 ensembles in catch trials, and 5 for catch trial without photostim
+pybehav_condition_types = [1,2,3,4,5,5];
+photo_ensemble_types =    [1,2,3,4,7,8];
 easy_trial_idx = 1:10;
 % init opt
 [opt] = init_opt_posthoc(opt);
@@ -904,8 +905,8 @@ export_fig([fig_save_path filesep 'CatchPhotoTrace_' strrep(caiman_file,'.mat','
 
 %% get photostim sta amp
 photo_ensembles = decod_struct.target_ensembles;
-photo_types = unique(floor(cell2mat(decod_struct.condition_type)./100));
-catch_photo_types = [3,4]; % catch texture with photostim
+photo_types = pyrtaoi_condition_types;
+catch_photo_types = [3,4,6,7,8,9]; % catch texture with photostim
 catch_nonphoto_type = 5;   % catch texture without photostim
 
 for i = 1:num_cells
@@ -945,35 +946,36 @@ disp('got photo amp')
 %% Plot photostim STA amp on FOV
 max_abs_value = 5; % will saturate colorlut at this value if greater than
 for e = 1:numel(pyrtaoi_condition_types)
+    ee= photo_ensemble_types(e);
     figure('name',['photstim response on fov type' num2str(e)],'units','normalized','outerposition',[0 0 1 1]);
     plot_count = 1;
     ax = subplot(1,3,plot_count);
     if e==1
         [~,zlimit] = plot_value_in_rois( cell_struct, ['sta_amp_photo_' num2str(photo_types(e))],[256 256],ax,'IF_NORM_PIX',1,...
-            'IF_CONTOUR',0,'IF_SHOW_OPSIN',0,'target_cell_idx',photo_ensembles{e},'show_cell_idx',photo_ensembles{e},'max_abs_value',max_abs_value);
+            'IF_CONTOUR',0,'IF_SHOW_OPSIN',0,'target_cell_idx',photo_ensembles{ee},'show_cell_idx',photo_ensembles{ee},'max_abs_value',max_abs_value);
         zlimit(end) = min(zlimit(end),max_abs_value);
         zlimit(1) = max(zlimit(1),-max_abs_value);
 
         plot_zlimit = zlimit;
     else
         plot_value_in_rois( cell_struct, ['sta_amp_photo_' num2str(photo_types(e))],[256 256],ax,'IF_NORM_PIX',1,...
-            'IF_CONTOUR',0,'IF_SHOW_OPSIN',0,'target_cell_idx',photo_ensembles{e},'zlimit',plot_zlimit,'show_cell_idx',photo_ensembles{e});
+            'IF_CONTOUR',0,'IF_SHOW_OPSIN',0,'target_cell_idx',photo_ensembles{ee},'zlimit',plot_zlimit,'show_cell_idx',photo_ensembles{ee});
     end
     title(['Stim type:' num2str(photo_types(e)) ', photo+'])
     plot_count= plot_count+1;
     
     ax = subplot(1,3,plot_count);
     plot_value_in_rois( cell_struct, ['sta_amp_nonphoto_' num2str(photo_types(e))],[256 256],ax,'IF_NORM_PIX',1,...
-        'IF_CONTOUR',0,'IF_SHOW_OPSIN',0,'zlimit',plot_zlimit,'target_cell_idx',photo_ensembles{e},'show_cell_idx',photo_ensembles{e});
+        'IF_CONTOUR',0,'IF_SHOW_OPSIN',0,'zlimit',plot_zlimit,'target_cell_idx',photo_ensembles{ee},'show_cell_idx',photo_ensembles{ee});
     plot_count= plot_count+1;
     title(['Stim type:' num2str(photo_types(e)) ', photo-'])
     
     ax = subplot(1,3,plot_count);
     plot_value_in_rois( cell_struct, ['sta_amp_diffphoto_' num2str(photo_types(e))],[256 256],ax,'IF_NORM_PIX',1,...
-        'IF_CONTOUR',0,'IF_SHOW_OPSIN',0,'target_cell_idx',photo_ensembles{e},'show_cell_idx',photo_ensembles{e});
+        'IF_CONTOUR',0,'IF_SHOW_OPSIN',0,'target_cell_idx',photo_ensembles{ee},'show_cell_idx',photo_ensembles{ee});
 
     title(['Stim type:' num2str(photo_types(e)) ', diff'])
-    export_fig([fig_save_path filesep 'PhotoSTA_FOV_Stim' num2str(e) strrep(caiman_file,'.mat','.png')])
+%     export_fig([fig_save_path filesep 'PhotoSTA_FOV_Stim' num2str(e) strrep(caiman_file,'.mat','.png')])
     
 end
 
@@ -1224,6 +1226,8 @@ for e = 1:numel(ensemble_cell_indices)
     
 end
 export_fig([fig_save_path filesep 'OppoTargetEnsemble_STATrace_' strrep(caiman_file,'.mat','.png')])
+
+
 %% Plot trial average as imagesc - photo response
 % plot_photo_types = {'_photostim','_nonphotostim','_dummyphotostim'};
 plot_photo_types = {'_photostim','_dummyphotostim'};

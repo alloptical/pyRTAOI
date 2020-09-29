@@ -7,12 +7,8 @@
 % adapted from OnlineProcVisual
 
 % TO DO:
-% concatinate multiple sessions
-% check different epochs; 
-% classify cells baseed on epoch time-average
-% classify cells baseed on t-SNE with 'baits'
-% check trial average
-% condition on catch trials
+% stimulate stimulus and choice coding neurons separately
+% stimulate opposite ensemble in a subset of putative incorrect trials 
 
 
 %% add path - change this for rig
@@ -271,7 +267,6 @@ for i = accepted_idx
     accepted_com_fov = com_fov+cnm_struct(i).shape;
 end
 
-
 cnm_plot_options = CNMFSetParms;
 cnm_plot_options.roi_color = [colormap(lines);colormap(lines);colormap(lines)];
 close
@@ -444,39 +439,56 @@ avg_frame_range = opt.sta_avg_frames;
 [cell_struct] = get_cell_auc(cell_struct,{'stim_1_correct','stim_2_correct'},'correct_stimAUC',opt);
 [cell_struct] = get_cell_active_auc(cell_struct,{'stim_1_correct','stim_2_correct'},opt);
 
-correct_stimulusAUC_zscore = extractfield(cell_struct,'correct_stimAUC_zscore');
+% trial-coding neurons
+tex_auc_zscore = extractfield(cell_struct,'correct_stimAUC_zscore');
 stim_1_correct_offcell = extractfield(cell_struct,'stim_1_correct_offcell');
 stim_2_correct_offcell = extractfield(cell_struct,'stim_2_correct_offcell');
 correct_texAUC = extractfield(cell_struct,'correct_stimAUC');
 disp('got correct trials auc')
 
-try
-    [cell_struct] = get_cell_auc(cell_struct,{'stim_1_incorrect','stim_2_incorrect'},'incorrect_stimAUC',opt);
-    FLAG_GOT_CHOICE_AUC = true;
-    incorrect_stimulusAUC_zscore = extractfield(cell_struct,'incorrect_stimAUC_zscore');
-catch
-    disp('getting incorrect trials error')
-     FLAG_GOT_CHOICE_AUC = false;
-     incorrect_stimulusAUC_zscore = [];
-end
+% stimulus and choice coding neurons
+% pool trials by stimulus and choice type
+[cell_struct] = add_pool_trials(cell_struct);
+[cell_struct] = get_cell_auc(cell_struct,{'stim_1','stim_2'},'stim_auc',opt);
+[cell_struct] = get_cell_auc(cell_struct,{'port_1','port_2'},'choice_auc',opt);
+stim_auc_zscore = extractfield(cell_struct,'stim_auc_zscore');
+choice_auc_zscore = extractfield(cell_struct,'choice_auc_zscore');
+
+FLAG_GOT_CHOICE_AUC = true;
+% get tex selectivity in incorrect trials - not used anymore 20200925
+% try
+%     [cell_struct] = get_cell_auc(cell_struct,{'stim_1_incorrect','stim_2_incorrect'},'incorrect_stimAUC',opt);
+%     FLAG_GOT_CHOICE_AUC = true;
+%     incorrect_stimulusAUC_zscore = extractfield(cell_struct,'incorrect_stimAUC_zscore');
+% catch
+%     disp('getting incorrect trials error')
+%      FLAG_GOT_CHOICE_AUC = false;
+%      incorrect_stimulusAUC_zscore = [];
+% end
+
 disp('got cell auc')
 %% get cell_idx_struct
 figure('name','AUC','position',[100 100 1200 500])
-subplot(1,3,1)
-histogram(correct_stimulusAUC_zscore,'facecolor',[.5 .5 .5],'edgecolor','black'); box off; axis square
-xlabel('Stimulus Selectivity (correct trials)')
+subplot(1,4,1)
+histogram(tex_auc_zscore,'facecolor',[.5 .5 .5],'edgecolor','black'); box off; axis square
+xlabel('Texture Selectivity (correct trials)')
 ylabel('Counts')
 
 if FLAG_GOT_CHOICE_AUC
-    subplot(1,3,2)
-    histogram(incorrect_stimulusAUC_zscore,'facecolor',[.5 .5 .5],'edgecolor','black'); box off; axis square
-    xlabel('Stimulus Selectivity (incorrect trials)')
+    subplot(1,4,2)
+    histogram(stim_auc_zscore,'facecolor',[.5 .5 .5],'edgecolor','black'); box off; axis square
+    xlabel('Stimulus Selectivity')
     ylabel('Counts')
     
-    subplot(1,3,3); hold on
-    scatter(correct_stimulusAUC_zscore,incorrect_stimulusAUC_zscore,'markerfacecolor',[.5 .5 .5],'markeredgecolor','black'); box off; axis square
-    xlabel('Stimulus Selectivity (correct trials)')
-    ylabel('Stimulus Selectivity (incorrect trials)')
+    subplot(1,4,3)
+    histogram(choice_auc_zscore,'facecolor',[.5 .5 .5],'edgecolor','black'); box off; axis square
+    xlabel('Choice Selectivity')
+    ylabel('Counts')
+        
+    subplot(1,4,4); hold on
+    scatter(stim_auc_zscore,choice_auc_zscore,'markerfacecolor',[.5 .5 .5],'markeredgecolor','black'); box off; axis square
+    xlabel('Stimulus Selectivity')
+    ylabel('Choice Selectivity')
     plot([0 0],ylim,'black');
     plot(xlim,[0 0],'black');
     plot([1 1].*opt.N,ylim,':black');
@@ -486,27 +498,29 @@ if FLAG_GOT_CHOICE_AUC
 
 end
 export_fig([fig_save_path filesep 'SelectivityAUC_' strrep(caiman_file,'.mat','')],'-pdf','-pdf','-painters')
-export_fig([fig_save_path filesep 'SelectivityAUC_' strrep(caiman_file,'.mat','')],'-png')
 
 cell_idx_struct = struct();
 cell_idx_struct.all = 1:num_cells;
-cell_idx_struct.all_tex2 = find(correct_stimulusAUC_zscore>opt.N); % cells prefering texture1 in correct trials
-cell_idx_struct.all_tex1 = find(correct_stimulusAUC_zscore<-opt.N); % cells prefering texture2 in correct trials
+cell_idx_struct.all_tex2 = find(tex_auc_zscore>opt.N); % cells prefering texture1 in correct trials
+cell_idx_struct.all_tex1 = find(tex_auc_zscore<-opt.N); % cells prefering texture2 in correct trials
 
 % exclude cells with negative sensory response from target
-cell_idx_struct.tex2 = find(correct_stimulusAUC_zscore>opt.N&stim_1_correct_offcell==0); % cells prefering texture2 in correct trials
-cell_idx_struct.tex1 = find(correct_stimulusAUC_zscore<-opt.N&stim_2_correct_offcell==0); % cells prefering texture2 in correct trials
+cell_idx_struct.tex2 = find(tex_auc_zscore>opt.N&stim_1_correct_offcell==0); % cells prefering texture2 in correct trials
+cell_idx_struct.tex1 = find(tex_auc_zscore<-opt.N&stim_2_correct_offcell==0); % cells prefering texture2 in correct trials
 
-cell_idx_struct.tex = unique([find(correct_stimulusAUC_zscore>opt.N), find(correct_stimulusAUC_zscore<-opt.N)]);
+cell_idx_struct.tex = unique([find(tex_auc_zscore>opt.N), find(tex_auc_zscore<-opt.N)]);
 
 if FLAG_GOT_CHOICE_AUC
-incorrect_stimulusAUC_zscore = extractfield(cell_struct,'incorrect_stimAUC_zscore');
-incorrect_texAUC = extractfield(cell_struct,'incorrect_stimAUC');
-cell_idx_struct.port2 = find(correct_stimulusAUC_zscore>opt.N & incorrect_stimulusAUC_zscore<-opt.N); % cells prefering texture1 in correct trials
-cell_idx_struct.port1 = find(correct_stimulusAUC_zscore<-opt.N& incorrect_stimulusAUC_zscore>opt.N); % cells prefering texture2 in correct trials
+cell_idx_struct.port2 = find(choice_auc_zscore>opt.N); 
+cell_idx_struct.port1 = find(choice_auc_zscore<-opt.N); % cells prefering port1
 cell_idx_struct.port = unique([cell_idx_struct.port1,cell_idx_struct.port2]);
 
-cell_idx_struct.relevant = unique([cell_idx_struct.port,cell_idx_struct.tex]);
+cell_idx_struct.stim2 = find(stim_auc_zscore>opt.N); 
+cell_idx_struct.stim1 = find(stim_auc_zscore<-opt.N); % cells prefering tex1
+cell_idx_struct.stim = unique([cell_idx_struct.stim1,cell_idx_struct.stim2]);
+
+
+cell_idx_struct.relevant = unique([cell_idx_struct.port,cell_idx_struct.stim]);
 cell_idx_struct.noport_tex1 = setdiff(cell_idx_struct.all_tex1,cell_idx_struct.port);
 cell_idx_struct.noport_tex2 = setdiff(cell_idx_struct.all_tex2,cell_idx_struct.port);
 
@@ -551,7 +565,9 @@ disp(['discarded cells with cnn prediction soore <' num2str(cnn_thresh)])
 %% select cell identity for readout and stimulation
 % check ROI quality - increase cnn_thresh and update cell_idx_struct
 opt.target_idx_fd = {'all_tex1','all_tex2'};
-opt.trigger_idx_fd = 'tex';
+% opt.target_idx_fd = {'port1','port2'};
+
+opt.trigger_idx_fd = 'relevant';
 opt.fov_size = double(cnm_dims);
 opt.ds_factor = caiman_data.ds_factor;
 
@@ -602,7 +618,7 @@ export_fig([fig_save_path filesep 'SelCNNonFOV_' strrep(caiman_file,'.mat','.png
 disp(['No. photo required: ' num2str(length(output1.target_idx)*15)])
 
 %% Plot STAs traces for certain cell types
-plot_cell_type = 'tex';
+plot_cell_type = 'port';
 plot_cell_idx = cell_idx_struct.(plot_cell_type);
 num_plot_cols = 8;
 num_plot_rows = ceil(numel(plot_cell_idx)/num_plot_cols);
@@ -988,6 +1004,8 @@ test_decoder_peformance(choice_proj_struct,test_opt,'Choice')
 %% SELECT CONDITION STIM TYPES  CHANGE THIS
 disp('ENTER HERE!')
 opt.decoder_to_use = 'choice'; % or choice
+opt.target_set = 'tex';
+opt.add_catch_type = 3; % 0: not other catch photo; 1: add catch photostim for  stim1 and port1; or 2 add catch photostim for stim2 and port2
 
 condition_pybehav_stimtypes = [1 2]; % stim types in pybehav that will be monitored for photostim;
 condition_pybehav_stimvars = [1 1]; % stim types in pybehav that will be monitored for photostim;
@@ -1000,24 +1018,24 @@ control_pyrtaoi_stimtypes = [1 2]; % NO-Power stim: stim type 1 will be stimuate
 control_pyrtaoi_stimvars  = [2 2]; % type and var need to match - vars are not used for texture exp, set all to 1
 
 
-
-catch_pybehav_stimtypes = [3,4,3,4,3,4]; % 4 with reward, 3 no-reward
-catch_pybehav_stimvars = [1,1,2,2,3,3]; % photostim targets. 1:tex1, 2:tex2, 3:none
-catch_pyrtaoi_stimtypes = [3,3,4,4,5,5]; % 3 stim tex1, 4 stim tex2, 5 no stim
-catch_pyrtaoi_stimvars = [1,1,1,1,1,1];
-
-condition_type = {[101],[201],[301],[401],[102],[202]}; % match target ensembles 100*stim_type + stim_va
-opt.target_idx_fd = {'all_tex1','all_tex2','all_tex1','all_tex2','all_tex1','all_tex2'}; % target groups corresponding to condition_type
-
-% opt.target_idx_fd = {'tex1','tex2','tex1','tex2','tex1','tex2'}; % target groups corresponding to condition_type
-% above corresponds to: stimulate texture 2 group if population activity is
-% going above threshold (towards texutre 1 direction) in catch trials where
-% port2 will be rewarded.
-% control: if not doing closed loop but just randomly giving reward on
-% catch trials, then performance in the normal texutre trials will drop
-% (more)
-
 keyboard
+condition_type = {[101],[201],[301],[401],[102],[202],...  % match target ensembles 100*stim_type + stim_va
+    [601],[701],[801],[901]}; % catch trials with stim or choice neurons
+switch opt.target_set
+    case 'tex'
+        opt.target_idx_fd = {'all_tex1','all_tex2','all_tex1','all_tex2','all_tex1','all_tex2',...}; % target groups corresponding to condition_type
+            'stim1','port1','stim2','port2'};
+    case 'choice'
+        opt.target_idx_fd = {'port1','port2','port1','port2','port1','port2',...}; % target groups corresponding to condition_type
+            'stim1','stim2'};
+        opt.add_catch_type = 1;       
+    case 'stim'
+        opt.target_idx_fd = {'stim1','stim2','stim1','stim2','stim1','stim2',...}; % target groups corresponding to condition_type
+            'port1','port2'};
+        opt.add_catch_type = 1;       
+end
+
+
 switch opt.decoder_to_use
     case 'stim'
         decod_struct = stim_struct; % choose which decoder to use
@@ -1032,6 +1050,37 @@ switch opt.decoder_to_use
         opt.pop_opt = choice_opt;
 
 end
+
+switch opt.add_catch_type
+    case 0
+        % catch trials with same targets as condition trials
+        catch_pybehav_stimtypes = [3,4,3,4,5]; % 4 with reward, 3 no-reward
+        catch_pybehav_stimvars = [1,1,2,2,3]; % photostim targets. 1:tex1, 2:tex2, 3:none
+        catch_pyrtaoi_stimtypes = [3,3,4,4,5]; % 3 stim tex1, 4 stim tex2, 5 no stim
+        catch_pyrtaoi_stimvars = [1,1,1,1,1];
+    case 1
+        % catch trials with stim or choice targets
+        catch_pybehav_stimtypes = [3,4,3,4,5,5,5]; % 4 reward2, 3 reward1, 5 no reward
+        catch_pybehav_stimvars =  [1,1,2,2,3,4,5]; % photostim targets. 1:tex1, 2:tex2, 3:none 4:stim1 5 choice1
+        catch_pyrtaoi_stimtypes = [3,3,4,4,5,6,7]; % 3 stim tex1, 4 stim tex2, 5 no stim, 6 stim neuron, 7 choice neuron
+        catch_pyrtaoi_stimvars =  [1,1,1,1,1,1,1];
+        
+    case 2
+        % catch trials with stim or choice targets
+        catch_pybehav_stimtypes = [3,4,3,4,5,5,5]; % 4 reward2, 3 reward1, 5 no reward
+        catch_pybehav_stimvars =  [1,1,2,2,3,6,7]; % photostim targets. 1:tex1, 2:tex2, 3:none 4:stim1 5 choice1
+        catch_pyrtaoi_stimtypes = [3,3,4,4,5,8,9]; % 3 stim tex1, 4 stim tex2, 5 no stim, 6 stim neuron, 7 choice neuron
+        catch_pyrtaoi_stimvars =  [1,1,1,1,1,1,1];
+        
+    case 3 % stim1 and port2
+        % catch trials with stim or choice targets
+        catch_pybehav_stimtypes = [3,4,3,4,5,5,5]; % 4 reward2, 3 reward1, 5 no reward
+        catch_pybehav_stimvars =  [1,1,2,2,3,4,5]; % photostim targets. 1:tex1, 2:tex2, 3:none 4:stim1 5 choice1
+        catch_pyrtaoi_stimtypes = [3,3,4,4,5,6,9]; % 3 stim tex1, 4 stim tex2, 5 no stim, 6 stim neuron, 7 choice neuron
+        catch_pyrtaoi_stimvars =  [1,1,1,1,1,1,1];
+
+end
+
 
 % generate parameters for pyRTAOI population analysis
 pop_params = struct();
@@ -1156,7 +1205,7 @@ export_fig([fig_save_path filesep 'Traces_' strrep(caiman_file,'.mat','.png')])
 
 %% ==================== MAKE PYBEHAV EXTERNAL FILE ========================
 % make file for pybehavior
-num_condition_per_loop = 5; 
+num_condition_per_loop = 4; 
 num_control_per_loop = 3;
 loop_pybehav_stim_types = [repmat(condition_pybehav_stimtypes,[1,num_condition_per_loop]),...
     repmat(control_pybehav_stimtypes,[1,num_control_per_loop]),catch_pybehav_stimtypes]; % condition trial types plus two extreme stim types

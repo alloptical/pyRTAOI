@@ -94,13 +94,7 @@ class bLink(socket):
 
 	def send_trigger_power(self,volt):
 		print('sending trigger')
-		try:
-			self.sendall(self.add_prefix("T", [volt]))
-		except Exception as e:
-				print('sending trigger error: '+str(e))
-				self.CONNECTED = False
-				return True
-
+		self.sendall(self.add_prefix("T", [volt]))
 		while self.CONNECTED:
 			try:
 				data = self._readline()

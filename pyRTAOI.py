@@ -1033,15 +1033,14 @@ class Worker(QObject):
 #%% add data to buffer                    
                     try:
                         p['ROIw12'] = ROIw12
-                        this_value = np.median(cnm2.C_on[accepted, t_cnm-5:t_cnm],axis=1)
-                        self.RoiBuffer[:com_count, BufferPointer] = this_value # RoiBuffer only includes accepted components
-                        
+                        this_value = np.median(cnm2.C_on[accepted, t_cnm-5:t_cnm],axis=1)                       
                         this_traj_val = np.sum(np.multiply(this_value-current_bs_level,ROIw12[this_weightOrder]))-ROIsumThresh[this_weightOrder]
                         self.TrajBuffer[0,BufferPointer] = this_traj_val
 
 #                       self.ROIlist_threshold[:com_count] = np.nanmean(self.RoiBuffer[:com_count,:], axis=1) + 2*np.nanstd(self.RoiBuffer[:com_count,:], axis=1)  # changed 3 to 2
                         # use noisy C to estimate noise:
                         if not (PHOTO_PROTO_INX == CONSTANTS.PHOTO_WEIGH_SUM or PHOTO_PROTO_INX == CONSTANTS.PHOTO_CLAMP_DOWN): # update threshold for event detection
+                            self.RoiBuffer[:com_count, BufferPointer] = this_value # RoiBuffer only includes accepted components
                             self.ROIlist_threshold[:com_count] = np.nanmean(cnm2.C_on[accepted, t_cnm - buflength:t_cnm], axis=1) + 2*np.nanstd(cnm2.noisyC[accepted, t_cnm - buflength:t_cnm], axis=1)  # changed 3 to 2
                             online_thresh.append([items for items in self.ROIlist_threshold[0:com_count]])
 
@@ -1089,10 +1088,10 @@ class Worker(QObject):
                                     photostim_flag = this_traj_val
                                 elif this_trialOrder == 1: # p['ROIsumBelow']: stim when traj<0
                                     photostim_flag =  - this_traj_val
-                                elif this_trialOrder == 3 or this_trialOrder == 4: # always stim
-                                    photostim_flag = ROIsumThreshSD+1
-                                else: # never stim
+                                elif this_trialOrder == 5:  # never stim 
                                     photostim_flag = ROIsumThreshSD-1
+                                else: # alwyas stim
+                                    photostim_flag = ROIsumThreshSD+1
                                     
   
                                     
@@ -1110,7 +1109,7 @@ class Worker(QObject):
                                     
                             elif framesProc == stim_frames[sens_stim_idx-1]+ monitor_frames:
                                 self.MonitorOff_signal.emit()
-                                if (not FLAG_DUMMY_STIM) and (not FLAG_PHOTO_SENT_THIS_TRIAL) and this_ensembleIdx>-1 and random.randint(0, 4)<2 and this_trialOrder<3:
+                                if (not FLAG_DUMMY_STIM) and (not FLAG_TRIG_PHOTOSTIM) and this_ensembleIdx>-1 and random.randint(0, 4)<2 and this_trialOrder<3:
                                     # stimulate the other ensemble in 30% of non stim trials, use a small percentage to avoid confusing the animal
                                     the_other_ensemble_idx = (this_ensembleIdx+1)%2
                                     if this_ensembleIdx>-1:
@@ -1126,8 +1125,7 @@ class Worker(QObject):
                         # avoid deviding 0
                             # ROIw = np.divide(ROIw,current_sd_level)
                             #ROIw = np.nan_to_num(ROIw)
-                            print('baseline:')
-                            print(current_bs_level)
+                            print('got baseline')
 
                     elif PHOTO_PROTO_INX == CONSTANTS.PHOTO_FIX_SEQUENCE:
                         if num_photostim < tot_num_photostim:
