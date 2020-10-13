@@ -13,7 +13,7 @@ clc
  matlab_set_paths_zz
 
 %%  parameters - CHANGE THIS
-crop_num_trials = 105; % specify number of trials recorded if aborted half way
+crop_num_trials = 178; % specify number of trials recorded if aborted half way
 IF_CONTROL_SESSION = false;
 FLAG_PAQ_LOADED = false;
 disp('CHECK SETTINGS BEFORE CONTINEU!')
@@ -21,9 +21,9 @@ keyboard
 IF_GO_NOGO = false;
 IF_USE_PYRTAOI_STIMTYPE = true; % for condition session this will be different from pybehav
 opt.IF_GO_NOGO = IF_GO_NOGO;
-pyrtaoi_condition_types = [1,2,3,4,6,7]; % for checking files only. pyrtaoi will use [1,2] for closed-loop stim_type; 3,4 for photstim tex1 and tex2 ensembles in catch trials, and 5 for catch trial without photostim
-pybehav_condition_types = [1,2,3,4,5,5];
-photo_ensemble_types =    [1,2,3,4,7,8];
+pyrtaoi_condition_types = [1,2,3,4]; % for checking files only. pyrtaoi will use [1,2] for closed-loop stim_type; 3,4 for photstim tex1 and tex2 ensembles in catch trials, and 5 for catch trial without photostim
+pybehav_condition_types = [1,2,3,4];
+photo_ensemble_types =    [1,2,3,4]; % catch trial photo types are offset from condition type by 1
 easy_trial_idx = 1:10;
 % init opt
 [opt] = init_opt_posthoc(opt);
@@ -43,6 +43,9 @@ catch
     opt.sta_stimon_frame = [];
     warning('no photostim for the session loaded')
 end
+% %% check processing time per frame
+% figure
+% plot(caiman_data.tottime)
 %% load Pybehavior data
 try
     [pb_file,pb_path] = uigetfile('*.mat','Select pybehavior data',caiman_path);
@@ -58,6 +61,7 @@ try
 [paq_file,paq_path] = uigetfile('*.paq','Select paq file',caiman_path);
 [paq_photo_frames,paq_trial_frames,running_speed,aom_volt] = read_paq_file(fullfile(paq_path,paq_file));
 [paq_photostim_trial_idx] = get_trials_with_photostim( paq_trial_frames, paq_photo_frames );
+disp(['Loaded file :',fullfile(paq_path,paq_file)])
 FLAG_PAQ_LOADED = true;
 catch
     warning('loading paq error')
@@ -301,7 +305,7 @@ trial_indices = structfun(@(x)setdiff(x,odd_trial_idx),trial_indices,'UniformOut
 disp('sorted trial indices')
 %% quantify behavior
 % including early licks
-[all_trial_indices] = sort_trial_types_condition_incl_earlylick(trials,opt);
+[all_trial_indices] = sort_trial_types_condition(trials,opt);
 
 figure('name','animal performance','position',[400 400 2400 600])
 for dummy = 1
@@ -914,7 +918,7 @@ for i = 1:num_cells
         
         this_photo_type = pyrtaoi_condition_types(e);
         this_stim_type = pybehav_condition_types(e);
-        this_photo_trials = find(trials.photostim==1&trials.stim_type == this_stim_type&trials.trialVar==1&trials.cheated==0);
+        this_photo_trials = find(trials.photostim==1&trials.stim_type == this_stim_type&trials.trialVar==1&trials.cheated==0&trials.trialOrder==this_photo_type);
         this_dummy_photo_trials = find(trials.photostim==1&trials.stim_type == this_stim_type&trials.trialOrder==this_photo_type&trials.trialVar==2&trials.cheated==0);
         this_oppo_photo_trials = find(trials.oppo_photostim==1&trials.stim_type == this_stim_type&trials.cheated==0);
 
@@ -975,7 +979,7 @@ for e = 1:numel(pyrtaoi_condition_types)
         'IF_CONTOUR',0,'IF_SHOW_OPSIN',0,'target_cell_idx',photo_ensembles{ee},'show_cell_idx',photo_ensembles{ee});
 
     title(['Stim type:' num2str(photo_types(e)) ', diff'])
-%     export_fig([fig_save_path filesep 'PhotoSTA_FOV_Stim' num2str(e) strrep(caiman_file,'.mat','.png')])
+    export_fig([fig_save_path filesep 'PhotoSTA_FOV_Stim' num2str(e) strrep(caiman_file,'.mat','.png')])
     
 end
 
@@ -1111,9 +1115,18 @@ for photo_idx = 1:numel(pyrtaoi_condition_types)
 end
 
 %% ensemble average traces
+peak_frame_range = opt.sta_peak_search_range;
+avg_frame_range = opt.sta_avg_frames;
 figure('name','condition sta traces','units','normalized','outerposition',[0 0 .5 1])
+% target response in tex1 and tex2 trials
 ensemble_cell_indices = {target_ensembles{1},target_ensembles{2}};
 ensemble_names = {'Tex1 targets','Tex2 targets'};
+
+% target response in all trial types
+ensemble_cell_indices = target_ensembles(photo_ensemble_types);
+ensemble_names = cell(1,numel(pyrtaoi_condition_types));
+ensemble_names(:) = {'Tar.'};
+
 ylimit = [-1,4];
 x_ticks =[0:1:opt.trial_length-1];
 plot_count = 1;
@@ -1161,13 +1174,13 @@ for e = 1:numel(ensemble_cell_indices)
         xticks(xaxisvalues)
         xticklabels(arrayfun(@(x){num2str(x)},(xaxisvalues-opt.sta_trialon_frame)./opt.frame_rate))
         
-        title([ensemble_names{e},' Var. ' num2str(this_photo_type)])
+        title([ensemble_names{e}, num2str(photo_ensemble_types(e)) ' TrialVar. ' num2str(this_photo_type)])
         plot_count = plot_count+1;
     end
     
 end
 export_fig([fig_save_path filesep 'TargetEnsemble_STATrace_' strrep(caiman_file,'.mat','.png')])
-
+%%
 figure('name','oppo condition sta traces','units','normalized','outerposition',[0 0 .3 1])
 ensemble_cell_indices = {target_ensembles{1},target_ensembles{2}};
 ensemble_names = {'Tex1 targets','Tex2 targets'};

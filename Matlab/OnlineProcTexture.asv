@@ -557,7 +557,7 @@ end
 %% Discard cells of bad shapes from trigger and targets pool (optional)
 % not using cells with low cnn score as trigger or targets
 % will not do anything if no cnn result is loaded
-cnn_thresh = 0.23; % change this to higher value to exlude more dendrites
+cnn_thresh = 0.2; % change this to higher value to exlude more dendrites
 cell_idx_struct.cnn_above_thresh = find(cnn_predictions(accepted_idx)>cnn_thresh);
 cell_idx_struct = structfun(@(x)intersect(x,cell_idx_struct.cnn_above_thresh),cell_idx_struct,'UniformOutput',false);
 disp(['discarded cells with cnn prediction soore <' num2str(cnn_thresh)])
@@ -762,7 +762,7 @@ fd_names ={'stim_1_correct','stim_1_incorrect','stim_2_correct','stim_2_incorrec
 
 [dpca_struct,traces_idx_struct] = get_dpca_traj_brief(raw_cell_struct,cell_idx_struct.(opt.trigger_idx_fd),fd_names,opt);
 
-plot_pop_vectors(dpca_struct.traj_struct,fd_names,4,dpca_opt,...
+plot_pop_vectors(dpca_struct.traj_struct,fd_names,5,dpca_opt,...
     'plot_ylabel','PC level','plot_num_cols',2);
 end
 %% run factor analysis
@@ -920,7 +920,7 @@ end
 disp('ENTER HERE!')
 opt.decoder_to_use = 'choice'; % or choice
 opt.target_set = 'tex';
-opt.add_catch_type = 2; % 0: not other catch photo; 1: add catch photostim for  stim1 and port1; or 2 add catch photostim for stim2 and port2
+opt.add_catch_type = 0; % 0: not other catch photo; 1: add catch photostim for  stim1 and port1; or 2 add catch photostim for stim2 and port2
 
 condition_pybehav_stimtypes = [1 2]; % stim types in pybehav that will be monitored for photostim;
 condition_pybehav_stimvars = [1 1]; % stim types in pybehav that will be monitored for photostim;
