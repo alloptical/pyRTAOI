@@ -13,7 +13,7 @@ clc
  matlab_set_paths_zz
 
 %%  parameters - CHANGE THIS
-crop_num_trials = 178; % specify number of trials recorded if aborted half way
+crop_num_trials = 214; % specify number of trials recorded if aborted half way
 IF_CONTROL_SESSION = false;
 FLAG_PAQ_LOADED = false;
 disp('CHECK SETTINGS BEFORE CONTINEU!')
@@ -265,10 +265,9 @@ if FLAG_PAQ_LOADED
 
 end
 disp('got trial struct')
-
+%% get contineous miss or licking trials
 opt.type_color = [trial_color.('stim1');trial_color.('stim2')];
 opt.trial_color = trial_color;
-%% get contineous miss or licking trials
 min_num_active_licks = 15; 
 trials.active_licks = (~isnan(trials.firstlick))&(~trials.cheated);
 nolicking_period = pt_continuousabove(1-trials.active_licks,0,0.1,min_num_active_licks,100000,0);
@@ -976,7 +975,7 @@ for e = 1:numel(pyrtaoi_condition_types)
     
     ax = subplot(1,3,plot_count);
     plot_value_in_rois( cell_struct, ['sta_amp_diffphoto_' num2str(photo_types(e))],[256 256],ax,'IF_NORM_PIX',1,...
-        'IF_CONTOUR',0,'IF_SHOW_OPSIN',0,'target_cell_idx',photo_ensembles{ee},'show_cell_idx',photo_ensembles{ee});
+        'IF_CONTOUR',0,'IF_SHOW_OPSIN',0,'target_cell_idx',photo_ensembles{ee},'show_cell_idx',photo_ensembles{ee},'zlimit',[-3 3]);
 
     title(['Stim type:' num2str(photo_types(e)) ', diff'])
     export_fig([fig_save_path filesep 'PhotoSTA_FOV_Stim' num2str(e) strrep(caiman_file,'.mat','.png')])
