@@ -94,12 +94,21 @@ for s = 1:numel(stim_types)
 end
 
 % catch trials lick (go/no-go)
-trial_indices.('stim_5_photostim_1_lick') = intersect([trial_indices.('stim_3_var_3_incorrect'),trial_indices.('stim_4_var_3_correct')],trial_indices.('stim_5_photostim_1'));
-trial_indices.('stim_5_photostim_1_nolick') = intersect([trial_indices.('stim_3_var_3_correct'),trial_indices.('stim_4_var_3_incorrect')],trial_indices.('stim_5_photostim_1'));
-trial_indices.('stim_5_photostim_2_lick') = intersect([trial_indices.('stim_3_var_4_incorrect'),trial_indices.('stim_4_var_4_correct')],trial_indices.('stim_5_photostim_2'));
-trial_indices.('stim_5_photostim_2_nolick') = intersect([trial_indices.('stim_3_var_4_correct'),trial_indices.('stim_4_var_4_incorrect')],trial_indices.('stim_5_photostim_2'));
-trial_indices.('stim_5_nonphotostim_lick') = intersect([trial_indices.('stim_3_var_5_incorrect'),trial_indices.('stim_4_var_5_correct')],trial_indices.('stim_5_nonphotostim'));
-trial_indices.('stim_5_nonphotostim_nolick') = intersect([trial_indices.('stim_3_var_5_correct'),trial_indices.('stim_4_var_5_incorrect')],trial_indices.('stim_5_nonphotostim'));
+if opt.IF_GO_NOGO
+    trial_indices.('stim_5_photostim_1_lick') = intersect([trial_indices.('stim_3_var_3_incorrect'),trial_indices.('stim_4_var_3_correct')],trial_indices.('stim_5_photostim_1'));
+    trial_indices.('stim_5_photostim_1_nolick') = intersect([trial_indices.('stim_3_var_3_correct'),trial_indices.('stim_4_var_3_incorrect')],trial_indices.('stim_5_photostim_1'));
+    trial_indices.('stim_5_photostim_2_lick') = intersect([trial_indices.('stim_3_var_4_incorrect'),trial_indices.('stim_4_var_4_correct')],trial_indices.('stim_5_photostim_2'));
+    trial_indices.('stim_5_photostim_2_nolick') = intersect([trial_indices.('stim_3_var_4_correct'),trial_indices.('stim_4_var_4_incorrect')],trial_indices.('stim_5_photostim_2'));
+    trial_indices.('stim_5_nonphotostim_lick') = intersect([trial_indices.('stim_3_var_5_incorrect'),trial_indices.('stim_4_var_5_correct')],trial_indices.('stim_5_nonphotostim'));
+    trial_indices.('stim_5_nonphotostim_nolick') = intersect([trial_indices.('stim_3_var_5_correct'),trial_indices.('stim_4_var_5_incorrect')],trial_indices.('stim_5_nonphotostim'));    
+else
+    trial_indices.('stim_5_photo1_lick1') = intersect(find(trials.firstlick>opt.rw_start_sec&trials.firstresponse == 1),trial_indices.('stim_5_photostim_1'));
+    trial_indices.('stim_5_photo1_lick2') = intersect(find(trials.firstlick>opt.rw_start_sec&trials.firstresponse == 2),trial_indices.('stim_5_photostim_1'));
+    trial_indices.('stim_5_photo2_lick1') = intersect(find(trials.firstlick>opt.rw_start_sec&trials.firstresponse == 1),trial_indices.('stim_5_photostim_2'));
+    trial_indices.('stim_5_photo2_lick2') = intersect(find(trials.firstlick>opt.rw_start_sec&trials.firstresponse == 2),trial_indices.('stim_5_photostim_2'));
+    trial_indices.('stim_5_nonphoto_lick1') = intersect(find(trials.firstlick>opt.rw_start_sec&trials.firstresponse == 1),trial_indices.('stim_5_nonphotostim'));
+    trial_indices.('stim_5_nonphoto_lick2') = intersect(find(trials.firstlick>opt.rw_start_sec&trials.firstresponse == 2),trial_indices.('stim_5_nonphotostim'));
+end
 
 try
 trial_indices.('stim_1_photo') = unique([trial_indices.stim_1_photostim_correct,trial_indices.stim_1_photostim_incorrect]);

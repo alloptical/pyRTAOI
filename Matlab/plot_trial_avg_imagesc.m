@@ -24,6 +24,7 @@ xaxisvalues = [0:30:opt.sta_pre_frames+opt.sta_post_frames];
 figure('name',['cell avg traces'],'units','normalized','outerposition',[0 0 1 1]);
 plot_count = 1;
 traces_struct = struct();
+this_plot_cell_idx = [];
 for p = 1:numel(plot_condition_types)
     photo_idx = plot_condition_types(p);
     all_traces = {};
@@ -60,22 +61,23 @@ for p = 1:numel(plot_condition_types)
                     mark_target_idx = [];
                 end
             end
-            
-            this_traces = this_traces(:,this_plot_cell_idx)';
-            imagesc(this_traces)
-            colormap(ax,b2r(zlimit(1) ,zlimit(2)))
-            colorbar('southoutside','box','off')
-            % mark target idx
-            arrayfun(@(x)fun(x),mark_target_idx)
-            
-            % mark go-cue
-            plot([1,1].*opt.sta_gocue_frame, ylim,'color','black','linestyle',':')
-            axis ij
-            box off
-            ylim([0 size(this_traces,1)])
-            xlim([0 opt.sta_pre_frames+opt.sta_post_frames+1])
-            xticks(xaxisvalues)
-            xticklabels(arrayfun(@(x){num2str(x)},(xaxisvalues-opt.sta_trialon_frame)./opt.frame_rate))
+            if~isempty(this_plot_cell_idx)
+                this_traces = this_traces(:,this_plot_cell_idx)';
+                imagesc(this_traces)
+                colormap(ax,b2r(zlimit(1) ,zlimit(2)))
+                colorbar('southoutside','box','off')
+                % mark target idx
+                arrayfun(@(x)fun(x),mark_target_idx)
+                
+                % mark go-cue
+                plot([1,1].*opt.sta_gocue_frame, ylim,'color','black','linestyle',':')
+                axis ij
+                box off
+                ylim([0 size(this_traces,1)])
+                xlim([0 opt.sta_pre_frames+opt.sta_post_frames+1])
+                xticks(xaxisvalues)
+                xticklabels(arrayfun(@(x){num2str(x)},(xaxisvalues-opt.sta_trialon_frame)./opt.frame_rate))
+            end
         else
             this_traces = [];
         end

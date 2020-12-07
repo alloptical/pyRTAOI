@@ -3,9 +3,9 @@ function [ P,x_positions,y_pos,stats] = scatter_cmp_conditions(values,plot_name,
 % inputs: values,plot_name,subplot,input_color_lut,varargin
 % value.fields are row vectors
 % TO DO: compare more than 2 fields
-flag_color = 0;
+flag_color = 0; markerfacealpha = 1;
 xtick_label = [];
-xlimit = [];
+xlimit = [];ylimit = []; connect_pairs = [];
 if(nargin>2)
     ifsubplot = subplot;
     if(~ifsubplot)
@@ -17,7 +17,7 @@ if(nargin>2)
             flag_color = 1;
             color_lut = input_color_lut;
         else
-            color_lut = [0.3 0.3 0.3;[231 73 24]./255;0.3 0.3 0.3];
+            color_lut = repmat([0 0 0],numel(fields(values)),1);
         end
     catch
         color_lut = [0.3 0.3 0.3;[231 73 24]./255;0.3 0.3 0.3];
@@ -55,16 +55,21 @@ addParameter(par,'ShowMeanInXlabel',0)
 addParameter(par,'VeryBriefXlabel',0)
 addParameter(par,'xtick_label',[])
 addParameter(par,'xlimit',[])
+addParameter(par,'ylimit',[])
 addParameter(par,'plot_mean',1) % for violin plot
 addParameter(par,'plot_median',1) % for violin plot
 addParameter(par,'barfacecolor','none') 
+addParameter(par,'markerfacealpha',1) 
+addParameter(par,'plot_se',0) 
+addParameter(par,'plot_scatter',1) 
+addParameter(par,'connect_pairs',[]) 
 
 parse(par,varargin{:})
 if(~ isempty(par.Results.xlimit))
     xlimit = par.Results.xlimit;
 end
-if(~ isempty(par.Results.xlimit))
-    xlimit = par.Results.xlimit;
+if(~ isempty(par.Results.ylimit))
+    ylimit = par.Results.ylimit;
 end
 if(~ isempty(par.Results.tail))
     tail = par.Results.tail;
@@ -77,6 +82,9 @@ if(~isempty(par.Results.test_type))
 end
 if(~isempty(par.Results.connect_scatter))
     connect_scatter = par.Results.connect_scatter;
+end
+if(~isempty(par.Results.connect_pairs))
+    connect_pairs = par.Results.connect_pairs;
 end
 if(~isempty(par.Results.IfBoxWhisker))
     IfBoxWhisker = par.Results.IfBoxWhisker;
@@ -159,15 +167,24 @@ end
 if(~isempty(par.Results.barfacecolor))
     barfacecolor = par.Results.barfacecolor;
 end
+if(~isempty(par.Results.markerfacealpha))
+    markerfacealpha = par.Results.markerfacealpha;
+end
+if(~isempty(par.Results.plot_se))
+    plot_se = par.Results.plot_se;
+end
+if(~isempty(par.Results.plot_scatter))
+    plot_scatter = par.Results.plot_scatter;
+end
 % plot each field in value
 hold on
-fields = fieldnames(values);
-num_plot = numel(fields);
+fd_names = fieldnames(values);
+num_plot = numel(fd_names);
 
 % initialise
 max_size = 0;
 for m = 1:num_plot
-    temp_value = extractfield(values,char(fields{m}))';
+    temp_value = extractfield(values,char(fd_names{m}))';
     this_size = numel(temp_value);
     if(this_size>max_size)
         max_size = this_size;
@@ -178,7 +195,7 @@ num_samples = zeros(1,num_plot);
 num_nonnan_samples = zeros(1,num_plot);
 
 for m =1:num_plot
-    temp_value = extractfield(values,char(fields{m}))';
+    temp_value = extractfield(values,char(fd_names{m}))';
     if(size(temp_value,2)>1)
         temp_value = temp_value';   % rotate to row vector
     end
@@ -201,6 +218,10 @@ if IfHistogram
     max_value = 0.5;
     min_value = 0;
 end
+if ~isempty(ylimit)
+    max_value = ylimit(2);
+    min_value = ylimit(1);    
+end
 this_plot_stats_hight = (max_value-min_value)*0.1+max_value*0.75;
 plot_stats_step = 0.1*max_value;
 
@@ -210,8 +231,8 @@ if(~(strcmp(test_type,'anova')||(strcmp(test_type,'KW'))))
     for c = 1:size(all_cmp,1)
         idx1 = all_cmp(c,1);
         idx2 = all_cmp(c,2);
-        stats(c).field1 = fields{idx1};
-        stats(c).field2 = fields(idx2);
+        stats(c).field1 = fd_names{idx1};
+        stats(c).field2 = fd_names(idx2);
         if(isempty(test_type))
             [P,h] = ranksum(mat_all_values(:,idx1),mat_all_values(:,idx2));
         else
@@ -297,7 +318,7 @@ end
 
 mean_values = nanmean(mat_all_values,1);
 diff_value = 100.*(mean_values(:,end)-mean_values(:,1))./abs(mean_values(:,1));
-se_values = nanstd( mat_all_values,0,1)/sqrt(size(mat_all_values,1));
+se_values = nanstd( mat_all_values,0,1)./sqrt(arrayfun(@(x)numel(find(~isnan(mat_all_values(:,x)))),1:size(mat_all_values,2)));
 sd_values = nanstd( mat_all_values,0,1);
 sk_values = skewness(mat_all_values);
 median_values = nanmedian(mat_all_values,1);
@@ -306,11 +327,31 @@ x_positions = (1:num_plot).*x_interval+x_shift;
 if ~IfPlotPrePostOnly   % plot all conditions
     if((~IfBoxWhisker)&&(~IfHistogram)) % mean +- se
         hold on
-        if(connect_scatter)
-            plot(repmat(x_positions,size(mat_all_values,1),1)',mat_all_values','color',[.7 .7 .7],'linewidth',0.5)
+        if(connect_scatter)&&(~IfColorAnimals) % connect dots with gray lines
+            if isempty(connect_pairs)
+                plot(repmat(x_positions,size(mat_all_values,1),1)',mat_all_values','color',[.7 .7 .7],'linewidth',0.5)
+            else
+                for c = 1:numel(connect_pairs)
+                     plot(repmat(x_positions(connect_pairs{c}),size(mat_all_values,1),1)',mat_all_values(:,connect_pairs{c})','color',[.7 .7 .7],'linewidth',0.5)               
+                end
+                
+            end
+        end
+        if IfColorAnimals % connect dots colored by animal
+            temp_value = extractfield(values,char(fd_names{1}));
+            for j = 1:numel(temp_value)
+                if isempty(connect_pairs)
+                    plot(x_positions,mat_all_values(j,:),'color',animal_colors(j,:),'linewidth',0.25)
+                else
+                    for c = 1:numel(connect_pairs)
+                        plot(x_positions(connect_pairs{c}),mat_all_values(j,connect_pairs{c}),'color',animal_colors(j,:),'linewidth',0.5)
+                    end
+                    
+                end
+            end
         end
         for i =1:num_plot
-            temp_value = extractfield(values,char(fields{i}));
+            temp_value = extractfield(values,char(fd_names{i}));
             temp_value = temp_value(:);
             if isempty(temp_value)
                 continue;
@@ -323,33 +364,40 @@ if ~IfPlotPrePostOnly   % plot all conditions
                 
             else
                 hold on
-                if(~IfColorAnimals)
-                    plotx = x_positions(i).*ones(size(temp_value));
-                    ploty = temp_value;
-                    if(IfAddJitter)
-                        jitters = randi([-200 200],size(temp_value))./200.*x_interval.*0.1;
-                        plotx = x_positions(i).*ones(size(temp_value))+jitters;
-                    end
-                    if IfAddYJitter
-                        ploty = temp_value + randi([-200 200],size(temp_value))./200.*max(temp_value(:)).*0.05;
-                    end
-                    scatter(plotx,ploty,15,'MarkerFaceColor',color_lut(i,:),'MarkerEdgeColor','none');
-                else
-                    
-                    for j = 1:numel(temp_value)
-                        jitters = 0;
-                        if IfAddJitter
-                            jitters = randi([-200 200],1)./200.*x_interval.*0.1;
+                % scatter individual dots
+                if plot_scatter
+                    if(~IfColorAnimals)
+                        plotx = x_positions(i).*ones(size(temp_value));
+                        ploty = temp_value;
+                        if(IfAddJitter)
+                            jitters = randi([-200 200],size(temp_value))./200.*x_interval.*0.1;
+                            plotx = x_positions(i).*ones(size(temp_value))+jitters;
                         end
-                        scatter(x_positions(i)+jitters,temp_value(j),50,'MarkerEdgeColor',[1 1 1],'MarkerFaceColor',animal_colors(j,:),'MarkerFaceAlpha',0.7)
+                        if IfAddYJitter
+                            ploty = temp_value + randi([-200 200],size(temp_value))./200.*max(temp_value(:)).*0.05;
+                        end
+                        scatter(plotx,ploty,15,'MarkerFaceColor',color_lut(i,:),'MarkerEdgeColor','none','markerfacealpha',markerfacealpha);
+                    else
+                        
+                        for j = 1:numel(temp_value)
+                            jitters = 0;
+                            if IfAddJitter
+                                jitters = randi([-200 200],1)./200.*x_interval.*0.1;
+                            end
+                            scatter(x_positions(i)+jitters,temp_value(j),15,'MarkerEdgeColor',[1 1 1],'MarkerFaceColor',animal_colors(j,:))
+                        end                                                
                     end
                 end
-                
-                barwitherr(sd_values(i),mean_values(i),'XData',x_positions(i),'barwidth',barwidth,'FaceColor',barfacecolor,'EdgeColor',color_lut(i,:),'LineWidth',1.5);
+                % bar and whisker
+                if ~plot_se
+                    barwitherr(sd_values(i),mean_values(i),'XData',x_positions(i),'barwidth',barwidth,'FaceColor',barfacecolor,'EdgeColor',color_lut(i,:),'LineWidth',1.5);
+                else
+                    barwitherr(se_values(i),mean_values(i),'XData',x_positions(i),'barwidth',barwidth,'FaceColor',barfacecolor,'EdgeColor',color_lut(i,:),'LineWidth',1.5);                   
+                end
             end
         end
         if isempty(xtick_label)
-            field_names = cellfun(@(x)strrep(x,'_',' '),fields,'UniformOutput',false);
+            field_names = cellfun(@(x)strrep(x,'_',' '),fd_names,'UniformOutput',false);
         else
             field_names = xtick_label;
         end
@@ -357,7 +405,7 @@ if ~IfPlotPrePostOnly   % plot all conditions
     elseif IfBoxWhisker % plot interquantile range
         boxplot(mat_all_values,'Whisker',1,'colors',color_lut)
         if isempty(xtick_label)
-            field_names = cellfun(@(x)strrep(x,'_',' '),fields,'UniformOutput',false);
+            field_names = cellfun(@(x)strrep(x,'_',' '),fd_names,'UniformOutput',false);
         else
             field_names = xtick_label;
         end
@@ -365,17 +413,17 @@ if ~IfPlotPrePostOnly   % plot all conditions
     elseif IfHistogram
         hold on
         for i =1:num_plot
-            temp_value = extractfield(values,char(fields{i}))';
+            temp_value = extractfield(values,char(fd_names{i}))';
             if(strcmp(DisplayStyle,'stairs'))
                 hp(i) = histogram(temp_value,'Normalization',Normalization,'DisplayStyle',DisplayStyle,'facecolor','none', 'edgecolor',color_lut(i,:),'linewidth',2,'Binwidth',BinWidth);
             else
                 hp(i) = histogram(temp_value,'Normalization',Normalization,'DisplayStyle',DisplayStyle,'facecolor',color_lut(i,:), 'edgecolor','none','Binwidth',BinWidth,'FaceAlpha',1);
             end
-            plot([1,1].*mean(temp_value),ylim,'color',color_lut(i,:))
+            plot([1,1].*nanmean(temp_value),ylim,'color',color_lut(i,:))
         end
         legend_name = {};
-        for ii = 1:numel(fields)
-            legend_name{ii} = strrep(fields{ii},'_', ' ');
+        for ii = 1:numel(fd_names)
+            legend_name{ii} = strrep(fd_names{ii},'_', ' ');
         end
         if ~isempty(xtick_label)
             legend_name = xtick_label;
