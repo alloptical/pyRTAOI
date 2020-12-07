@@ -565,7 +565,7 @@ disp(['discarded cells with cnn prediction soore <' num2str(cnn_thresh)])
 %% select cell identity for readout and stimulation
 % check ROI quality - increase cnn_thresh and update cell_idx_struct
 opt.target_idx_fd = {'all_tex1','all_tex2'};
-% opt.target_idx_fd = {'stim1','stim2'};
+opt.target_idx_fd = {'stim1','stim2'};
 % opt.target_idx_fd = {'port1','port2'};
 % opt.target_idx_fd = {'relevant'};
 
@@ -620,7 +620,7 @@ export_fig([fig_save_path filesep 'SelCNNonFOV_' strrep(caiman_file,'.mat','.png
 disp(['No. photo required: ' num2str(length(output1.target_idx)*15)])
 
 %% Plot STAs traces for certain cell types
-plot_cell_type = 'stim';
+plot_cell_type = 'tex';
 plot_cell_idx = cell_idx_struct.(plot_cell_type);
 num_plot_cols = 8;
 num_plot_rows = ceil(numel(plot_cell_idx)/num_plot_cols);
@@ -823,12 +823,10 @@ end
 all_choice_weights = {};
 all_choice_thresh = [];
 choice_proj_struct = struct();
-% higher thresh means smaller value on decoder, correct for tex2,incorrect for tex1
-% increase threshold for tex1 if want to stimulte opposite only
-% decrease thresh for tex2 if want to stimulte opposite only
+% higher thresh means smaller value on decoder - correct for stim1, incor
 for stim_idx = 1:numel(decod_fd_names)
     choice_struct = all_choice_struct{stim_idx};
-    choice_thresh = -choice_struct.B(:,1); % larger choice_thresh, smaller value on decoder
+    choice_thresh = -choice_struct.B(:,1); % larger choice_thresh, smaller value on decoder, more likely take tex2 trials as correct, and tex1 trials as incorrect
     switch opt.method
         case 'fa'
             choice_weights = fa_struct.transmat* choice_struct.B(:,2:end)';
@@ -850,7 +848,7 @@ for stim_idx = 1:numel(decod_fd_names)
     % plot
     test_fd_names = choice_struct.fd_names;
     [choice_proj_struct,this_plot_struct] = get_projections(raw_cell_struct(cell_idx_struct.(opt.trigger_idx_fd)),choice_norm_weights,...
-        test_fd_names,'proj_struct',choice_proj_struct,'bias',-all_choice_thresh(stim_idx) ,'IS_CELL_STRUCT',1);
+        test_fd_names,'proj_struct',choice_proj_struct,'bias',-choice_norm_thresh,'IS_CELL_STRUCT',1);
     % compare projection on choice axis trials
     plot_pop_vectors(choice_proj_struct,test_fd_names,1,opt,...
         'plot_ylabel','Projection','plot_num_cols',2,'IF_PLOT_RAW_ONLY',0,'IF_PLOT_AVG_ONLY',1)
@@ -865,14 +863,11 @@ for stim_idx = 1:numel(decod_fd_names)
     export_fig([fig_save_path filesep 'ChoiceDecoderProj_Stim' num2str(stim_idx)  strrep(caiman_file,'.mat','.png')])
 
 end
-%% force to give stim or oppo stim
-% all_choice_thresh = [500,-500]; % force to always decode as incorrect
-% all_choice_thresh = [-500,500]; % force to always decode as correct
 
 %% SELECT CONDITION STIM TYPES  CHANGE THIS
 disp('ENTER HERE!')
 opt.decoder_to_use = 'choice'; % or choice
-opt.target_set = 'tex';
+opt.target_set = 'stim';
 opt.add_catch_type = 0; % 0: not other catch photo; 1: add catch photostim for  stim1 and port1; or 2 add catch photostim for stim2 and port2
 
 condition_pybehav_stimtypes = [1 2]; % stim types in pybehav that will be monitored for photostim;

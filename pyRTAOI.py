@@ -1109,7 +1109,7 @@ class Worker(QObject):
                                     
                             elif framesProc == stim_frames[sens_stim_idx-1]+ monitor_frames:
                                 self.MonitorOff_signal.emit()
-                                if (not FLAG_DUMMY_STIM) and (not FLAG_TRIG_PHOTOSTIM) and this_ensembleIdx>-1 and random.randint(0, 4)<2 and this_trialOrder<3:
+                                if (not FLAG_DUMMY_STIM) and (not FLAG_TRIG_PHOTOSTIM) and this_ensembleIdx>-1 and random.randint(0, 3)<2 and this_trialOrder<3:
                                     # stimulate the other ensemble in 30% of non stim trials, use a small percentage to avoid confusing the animal
                                     the_other_ensemble_idx = (this_ensembleIdx+1)%2
                                     if this_ensembleIdx>-1:
