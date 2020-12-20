@@ -142,7 +142,7 @@ else
        x =  handles.bar.XData + [handles.bar.XOffset];
    end
     
-    hErrorbar = errorbar(mean(x,1), values, lowerErrors, upperErrors, '.k','linewidth',1.5);
+    hErrorbar = errorbar(mean(x,1), values, lowerErrors, upperErrors, '.k','linewidth',1.5,'CapSize',0);
     set(hErrorbar, 'marker', 'none')
 end
 
