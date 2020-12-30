@@ -13,7 +13,7 @@ clc
  matlab_set_paths_zz
 
 %%  parameters - CHANGE THIS
-crop_num_trials = 214; % specify number of trials recorded if aborted half way
+crop_num_trials = 325; % specify number of trials recorded if aborted half way
 IF_CONTROL_SESSION = false;
 FLAG_PAQ_LOADED = false;
 disp('CHECK SETTINGS BEFORE CONTINEU!')
@@ -278,8 +278,8 @@ figure
 plot(trials.firstlick)
 hold on;plot(trials.active_licks);legend('lick time','responded')
 disp([' excluding the last no-licking period, OR QUIT DEBUGGING AND SKIP THIS'])
-keyboard
 if num_nolicking_period>0
+    keyboard
     last_no_licking_trials = nolicking_period(end,1):1:num_trials;
     trials = structfun(@(x)x(setdiff(1:numel(x),last_no_licking_trials+5)),trials,'UniformOutput',false);   
 end

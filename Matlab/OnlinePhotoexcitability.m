@@ -140,7 +140,7 @@ for s = 1:num_stim_type
 end
 xlim([caiman_data.t_init tot_frames])
 ylim([0 num_comp].*plot_offset+3)
-%% plot fov with sta amp
+%% get sta amp
 figure('name','fov','units','normalized','outerposition',[0 0 1 1])
 [CC,jsf] = plot_contours(sparse(double(full(caiman_data.cnm_A))),cnm_image,cnm_plot_options,1,[],[],[1 1 1]);
 colormap(gray)

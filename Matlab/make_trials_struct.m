@@ -22,7 +22,7 @@ this_norm_trials = 1:tot_num_trials;
 func = @(x)func_fristresponse(x,withold_win_start,reward_win_end);
 for i = 1:num_fd
     this_fd = fd_names{i};
-    if isfield(behavior_data.results{1},this_fd)
+    if isfield(behavior_data.results{2},this_fd)
         this_data = cell(1,tot_num_trials);
         
         if strcmp(this_fd,'firstresponse') 
