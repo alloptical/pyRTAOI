@@ -1,7 +1,5 @@
 pyRTAOI DURING TEXUTRE TASK 
-ZZ 2019
-(unfinished)
-
+Zihui Zhang 2019
 -- Power Check --
 
 	Start PrairieView rev40 (in pyRTAOI-rig folder)
