@@ -1,0 +1,12 @@
+Tue Oct 01 14:09:30 2019  [ERROR]: Message Logged using C++ Interface, Log level: LOG_ERROR
+Tue Oct 01 14:12:29 2019  [ERROR]: Message Logged using C++ Interface, Log level: LOG_ERROR
+Logging ostringstream using C++ Interface
+Tue Oct 01 14:12:32 2019  [ERROR]: 000000005DF8C44A	Logger created000000005DF8C44A
+Tue Oct 01 14:13:42 2019  [ERROR]: Message Logged using C++ Interface, Log level: LOG_ERROR
+Logging ostringstream using C++ Interface
+Tue Oct 01 14:13:42 2019  [ERROR]: 000000005DF8C44A	Logger created000000005DF8C44A
+Tue Oct 01 14:33:29 2019  [ERROR]: Holoblink Message Logged, Log level: LOG_ERROR
+Tue Oct 01 14:39:53 2019  [ERROR]: Holoblink Message Logged, Log level: LOG_ERROR
+Tue Oct 01 14:40:45 2019  [ERROR]: Holoblink Message Logged, Log level: LOG_ERROR
+Tue Oct 01 14:41:45 2019  [ERROR]: Holoblink Message Logged, Log level: LOG_ERROR
+Tue Oct 01 14:53:58 2019  [INFO]: Holoblink logger message

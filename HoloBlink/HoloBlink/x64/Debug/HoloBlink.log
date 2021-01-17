@@ -1,0 +1,11 @@
+﻿  HoloBlink.cpp
+c:\data\zoe\vsprojects\holoblink\holoblink\holoblink.h(9): warning C4067: unexpected tokens following preprocessor directive - expected a newline
+C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\include\xutility(2132): warning C4996: 'std::_Copy_impl': Function call with parameters that may be unsafe - this call relies on the caller to check that the passed values are correct. To disable this warning, use -D_SCL_SECURE_NO_WARNINGS. See documentation on how to use Visual C++ 'Checked Iterators'
+          C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\include\xutility(2113) : see declaration of 'std::_Copy_impl'
+          HoloBlink.cpp(857) : see reference to function template instantiation '_OutIt std::copy<float*,float*>(_InIt,_InIt,_OutIt)' being compiled
+          with
+          [
+              _OutIt=float *
+  ,            _InIt=float *
+          ]
+  HoloBlink.vcxproj -> C:\Data\Zoe\VSprojects\HoloBlink\x64\Debug\HoloBlink.exe
