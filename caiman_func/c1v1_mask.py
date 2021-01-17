@@ -37,7 +37,6 @@ pl.figure(); pl.imshow(np.squeeze(calcium_img), cmap='gray')
 
 from caiman.base.rois import extract_binary_masks_from_structural_channel, nf_match_neurons_in_binary_masks
 
-
 d1, d2 = opsin_img.shape[-2:]
 
 A1, mr1 = extract_binary_masks_from_structural_channel(opsin_img, gSig=7, min_area_size=100, min_hole_size=15) 
@@ -56,4 +55,51 @@ from cv2 import bitwise_and
 
 inter = bitwise_and(mask1, mask2)
 pl.figure();pl.imshow(inter)
+
+#%% Compare detected cells with the c1v1 mask
+
+# Convert A from onacid to numpy array
+if issparse(A):
+    A = np.array(A.todense())
+else:
+    A = np.array(A)
+
+
+from cv2 import bitwise_and
+
+onacid_mask = (deepcopy(A)>0).astype('int')  # binarise the onacid output mask
+opsin_mask = mask1
+
+cell_ok = []
+overlap_ratio = []
+
+dims = d1,d2
+
+for cell in range(onacid_mask.shape[-1]):
+    cell_mask = (np.reshape(onacid_mask[:,cell], dims, order='F'))
+    mask_inx = np.where(cell_mask==1)
+    cell_pix = sum(sum(cell_mask == 1))
+    
+    inter = bitwise_and(opsin_mask, cell_mask)
+    inter_pix = sum(sum(inter))
+    overlap = inter_pix/cell_pix
+    overlap_ratio.append(overlap)
+    
+    thresh = 0.7
+    if overlap <= thresh:
+        onacid_mask[:,cell][onacid_mask[:,cell] == 1] = -3
+        
+    cell_ok.append(overlap > thresh)
+    
+#    cell_mask[cell_mask > 1e-10] = 1  # binarise the masks
+#    check = cell_mask in mask1
+    print('cell ' + str(cell) + ' : ' + str(overlap>thresh))
+
+no_opsin = cnm2.N - sum(cell_ok)
+
+# visualise all comps
+summed_A = np.hstack((A1, onacid_mask))
+summed_mask = np.reshape(np.array(summed_A.sum(axis=1)), dims, order='F')
+pl.figure();pl.imshow(summed_mask)
+pl.colorbar()
 

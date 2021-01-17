@@ -1,3 +1,0 @@
-K = 20, during init 19 cells were found
-
-also changed the way cells are plotted, not sure if previous plots were 100% correct then

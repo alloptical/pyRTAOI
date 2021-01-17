@@ -1,6 +1,0 @@
-init with K = 20, 19 cells detected
-no new cells added during onacid
-
-traces look okay-ish but different from C_on
-
-cell 1: can see quite big differences

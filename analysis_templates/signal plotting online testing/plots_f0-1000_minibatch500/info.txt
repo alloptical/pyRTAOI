@@ -1,5 +1,0 @@
-same as plot_f0-1000 folder but with minibatch_shape = 500
-
-also very slow, both init and onacid
-only 8 cells detected instead of 19! (K=3)
-many shapes inside roi buffer v strange too

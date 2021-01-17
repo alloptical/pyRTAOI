@@ -1,4 +1,0 @@
-K = 3,
-36 cells detected
-keeping suff_stat at 5 and mbs at 100 (default settings)
-2500 frames

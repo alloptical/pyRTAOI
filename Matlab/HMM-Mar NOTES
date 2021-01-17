@@ -1,0 +1,52 @@
+MAR model:
+	predict the multichannel signal value at each time point as a linear combination of signal values at previous time points
+
+Viterbi path:
+	the most likely sequence of states
+	This is conceptually different to the state time course, which instead relates to the sequence of states that are individually the most probable
+	The Viterbi path is a not-probabilistic assignment - each time point a categorical assignment to one and only one state
+
+Number of states K:
+	fix the maximum number, and then the Bayesian inference process can discard some of them if there is insufficient evidence to support their presence in the data. 
+	The free energy, a quantity that approximates the model evidence, can also be used to choose K.
+	an information criterion, not a biological one
+
+
+TO DO:
+
+1. Algorithm:
+	hmm-mar usese forward-backward, need to change to forward only
+
+2. likelihood estimation:
+	this is done by obslike.m
+
+	need to make an online version of this -  estimate for current time point t
+
+	- done a draft in get_current_gamma
+
+	
+
+	regressed = ones(1,num_channels);
+
+
+	ltpi = sum(regressed)/2 * log(2*pi);
+    ldetWishB=0.5*logdet(hmm.Omega.Gam_rate(regressed,regressed));
+    PsiWish_alphasum=0;
+    for n=1:sum(regressed)
+        PsiWish_alphasum=PsiWish_alphasum+psi(hmm.Omega.Gam_shape/2+0.5-n/2); 
+    end
+    PsiWish_alphasum=PsiWish_alphasum*0.5;
+    C = hmm.Omega.Gam_shape * hmm.Omega.Gam_irate
+    NormWishtrace = 0.5 * sum(sum(C .* hmm.state(k).W.S_W));
+
+    meand = hmm.state(k).W.Mu_W(:,regressed);
+	d = residuals(:,regressed) - meand;
+	Cd = C(regressed,regressed) * d'
+	dist = 0;
+    for n=1:sum(regressed)
+        dist = dist-0.5*d(:,n).*Cd(n,:)';
+    end
+
+	L(k)= - ltpi - ldetWishB + PsiWish_alphasum + dist - NormWishtrace;
+
+	L = exp(L);
