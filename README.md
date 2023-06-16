@@ -34,3 +34,23 @@ On SLM control PC:
 You can setup experiment parameters in the GUI and save into configuration files. Before running pyRTAOI, start the microscope control (PrairieView) and SLM control software (Holobink). Then start pyRTAOI, connect to PrairieView and Holoblink, load your configuration file, and start all-optical experiments.<br/>
 
 See ‘Demo_ClosedLoopAllOpticalTexture’ for detailed steps for running a closed-loop all-optical experiment during beheviour.
+
+
+## Developers
+* Zihui Zhang (UCL, Stanford)
+* Patrycja Dzialecka (UCL, Imperial College London)
+
+## License
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2
+of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
