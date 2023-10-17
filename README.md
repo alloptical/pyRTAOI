@@ -1,5 +1,5 @@
 # Introduction
-A python-based real-time all-optical interface (pyRTAOI) for closed-loop control of neural activity.<br/> 
+A python-based real-time all-optical interface (**pyRTAOI**) for closed-loop control of neural activity.<br/> 
 
 The software integrates a calcium imaging analysis toolbox (CaImAn, Giovannucci et al., 2019, https://github.com/flatironinstitute/CaImAn), a custom hologram control software (HoloBlink in this repository) with a two-photon microscope control system (Prairie View, Bruker Corporation). Photostimulation can be delivered to pre-defined or online-detected ensembles of neurons based on the calcium activity recorded from a single neuron or population of neurons. It also provides users with access to real-time motion-corrected and denoised imaging frames, manual curation and selection of ROIs for readout and stimulation, configuration of photostimulation and sensory stimulation protocols (e.g. laser power, frequency, amplitude, duration, etc.), automatic photostimulation and imaging laser alignment check, direct control of relevant parameters settings in CaImAn and the Prairie View microscope system.<br/>
  
@@ -15,17 +15,18 @@ The software integrates a calcium imaging analysis toolbox (CaImAn, Giovannucci 
 
 # Installation notes
 On microscope control PC:<br/>
-*	Install Prairie View 5.4 (tested with rev40)<br/>
-*	Install Python and CaImAn following instructions in https://github.com/flatironinstitute/CaImAn.<br/>
+*	Install Prairie View 5.4 (tested with rev40).<br/>
+*	Install Python (Conda package) and CaImAn following instructions in https://github.com/flatironinstitute/CaImAn.<br/>
+* Install Python dependencies: nidaqwx, pyqtgraph, scikit-image (skimage; tested with version 0.14.0), numpy (tested with version 1.16.0).<br/>
 *	Install NI-DAQmx (tested with version 15.5)<br/>
-*	Install CUDA toolkit 8.0<br/>
+*	Install CUDA toolkit 8.0.<br/>
 *	Download pyRTAOI. Change the NI device ID and TCP/IP address (PV_IP, PV_PORT, BLINK_IP and BLINK_PORT).<br/>
 *	(Optional, if using pyRTAOI to trigger photostimuli) connect an analog voltage output (tested with PCI-6713, National Instruments) to the photostimulation trigger input.<br/>
 
 On SLM control PC:
-*	Install Visual Studio 2013 (with Service Pack 1)<br/>
-*	Install CUDA toolkit 8.0<br/>
-*	Install Measurement Studio (version 15) for Visual Studio 2013<br/>
+*	Install Visual Studio 2013 (with Service Pack 1).<br/>
+*	Install CUDA toolkit 8.0.<br/>
+*	Install Measurement Studio (version 15) for Visual Studio 2013.<br/>
 *	Install NI-DAQmx (tested with version 15.5).<br/>
 *	Download folder 'HoloBlink'. Change the NI device ID. Rebuild the solution.<br/>
 *	Connect an analog voltage output (tested with PCI-6713, National Instruments) to the photostimulation trigger input and AOM voltage control port.<br/>
@@ -34,6 +35,13 @@ On SLM control PC:
 You can setup experiment parameters in the GUI and save into configuration files. Before running pyRTAOI, start the microscope control (PrairieView) and SLM control software (Holobink). Then start pyRTAOI, connect to PrairieView and Holoblink, load your configuration file, and start all-optical experiments.<br/>
 
 See ‘Demo_ClosedLoopAllOpticalTexture’ for detailed steps for running a closed-loop all-optical experiment during beheviour.
+
+**To start pyRTAOI**:
+
+```
+conda activate caiman # activate virtual environment
+python pyRTAOI.py # open GUI
+```
 
 
 ## Developers
