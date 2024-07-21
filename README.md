@@ -5,6 +5,9 @@ A python-based real-time all-optical interface (**pyRTAOI**) for closed-loop con
 The software integrates a calcium imaging analysis toolbox (CaImAn, Giovannucci et al., 2019, https://github.com/flatironinstitute/CaImAn), a custom hologram control software (HoloBlink in this repository) with a two-photon microscope control system (Prairie View, Bruker Corporation). Holographic photostimulation can be delivered to pre-defined or online-detected ensembles of neurons based on the calcium activity recorded from a single neuron or population of neurons. It also provides users with access to real-time motion-corrected and denoised imaging frames, manual curation and selection of ROIs for readout and stimulation, configuration of photostimulation and sensory stimulation protocols (e.g. laser power, frequency, amplitude, duration, etc.), automatic photostimulation and imaging laser alignment check, direct control of relevant parameters settings in CaImAn and the Prairie View microscope system.<br/>
  <img width="1287" alt="pyRTAOIscreenshot" src="https://github.com/user-attachments/assets/1342b6df-3d86-43d7-ac66-5bc129f87cf4">
 
+ 
+<img width="745" alt="HoloblinkScreenshot" src="https://github.com/user-attachments/assets/449b3fd5-1d19-43b9-902f-446b5d3870f5">
+
 # System requirements
 * Software has been tested on a Windows 10 desktop with microscope control system (PrairieView, rev40, Bruker Corporation).<br/>
 * Software platforms used in the package include: Python 3.6 (with PyQt5), Visual Studio 2013 (64 bit, with Qt 5.9) and MATLAB (2017b).<br/>
