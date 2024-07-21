@@ -1,8 +1,8 @@
-# pyRTAOI-rig
+# pyRTAOI
 # Introduction
 A python-based real-time all-optical interface (**pyRTAOI**) for closed-loop control of neural activity.<br/> 
 
-The software integrates a calcium imaging analysis toolbox (CaImAn, Giovannucci et al., 2019, https://github.com/flatironinstitute/CaImAn), a custom hologram control software (HoloBlink in this repository) with a two-photon microscope control system (Prairie View, Bruker Corporation). Photostimulation can be delivered to pre-defined or online-detected ensembles of neurons based on the calcium activity recorded from a single neuron or population of neurons. It also provides users with access to real-time motion-corrected and denoised imaging frames, manual curation and selection of ROIs for readout and stimulation, configuration of photostimulation and sensory stimulation protocols (e.g. laser power, frequency, amplitude, duration, etc.), automatic photostimulation and imaging laser alignment check, direct control of relevant parameters settings in CaImAn and the Prairie View microscope system.<br/>
+The software integrates a calcium imaging analysis toolbox (CaImAn, Giovannucci et al., 2019, https://github.com/flatironinstitute/CaImAn), a custom hologram control software (HoloBlink in this repository) with a two-photon microscope control system (Prairie View, Bruker Corporation). Holographic photostimulation can be delivered to pre-defined or online-detected ensembles of neurons based on the calcium activity recorded from a single neuron or population of neurons. It also provides users with access to real-time motion-corrected and denoised imaging frames, manual curation and selection of ROIs for readout and stimulation, configuration of photostimulation and sensory stimulation protocols (e.g. laser power, frequency, amplitude, duration, etc.), automatic photostimulation and imaging laser alignment check, direct control of relevant parameters settings in CaImAn and the Prairie View microscope system.<br/>
  
 ![pyRTAOI_screenshot](https://github.com/alloptical/pyRTAOI/blob/master/screenshots/Screenshot2020.PNG)
 
