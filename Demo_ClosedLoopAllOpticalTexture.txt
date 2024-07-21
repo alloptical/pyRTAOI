@@ -1,3 +1,5 @@
+---- Steps for running a closed-loop all-optical experiments during texture discrimination behavior ----
+Zihui Zhang 2021
 1.	Imaging-photostimulation calibration check
 This step aims to burn spirals in an fluorescent slide to check co-alignment of imaging and photostimulation beams before running an experiment.
 •	Start PrairieView, start Markpoint
@@ -47,4 +49,4 @@ You can load different experimental configurations or setup your own. Here is ho
 •	Click 'Update Params' (make sure HoloBlink updates)
 •	Change t-series frames accordingly in PrairieView and run mark points.
 •	Click Run
-Note: you can abort the session and anytime by abort the acquisition in PrairieView. pyRTAOI will stop the processing threads and save out result files automatically when no more frames are available in buffer. 
+Note: you can abort the session at anytime by aborting the acquisition in PrairieView. pyRTAOI will stop the processing threads and save out result files automatically when no more frames are available in buffer. 
