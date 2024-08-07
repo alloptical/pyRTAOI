@@ -25,6 +25,9 @@ TO DO    log this to Notes ToDo_log when it's done and tested
 test timing on rig
 log data for offline anaysis - keep checking if everything is saved out
 
+
+
+Authors: Zihui Zhang, Patrycja Dzialecka
 '''
 #%% imports
 import sys
