@@ -5,11 +5,20 @@
  opencv  (pip install .whl) : https://www.lfd.uci.edu/~gohlke/pythonlibs/#opencv (caiman installs it)
  nidaqwx (pip install)
  pyqtgraph (pip install)
-
- note: skimage 0.14.0 requires numpy before 1.17.0 -use numpy 1.16.0
+ (note: skimage 0.14.0 requires numpy before 1.17.0 -use numpy 1.16.0)
 
 Authors: Zihui Zhang, Patrycja Dzialecka
 
+DataStream object: 
+    organize raw data from microscope into an image (using GPU to average samples for each pixel) and put it in a processing queue,'qbuffer'
+ImageSaver object:
+    read images from 'qbuffer' and save it into a multi-page Tiff file
+Photostimer object:
+    send target coordinates and stimulation power to 'HoloBlink' (the custom SLM hologram control software) via a bLink object (see bLink.py), 'bl'
+Worker object: 
+    execute online image processing (in 'work'): get an image in 'qbuffer' and feed into CaImAn object, 'cnm2'
+    get neuron signal trace and footprint from cnm2 and trigger photostmiulation according to protocol index (PHOTO_PROTO_INX)
+    
 '''
 #%% imports
 import sys
@@ -75,7 +84,6 @@ import matplotlib
 matplotlib.use('QT5Agg', force=True) # Ensure using PyQt5 backend
 import matplotlib.pyplot as plt
 import pylab as pl
-
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.widgets import Slider
