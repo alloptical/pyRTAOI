@@ -6,28 +6,10 @@
  nidaqwx (pip install)
  pyqtgraph (pip install)
 
- skimage 0.14.0 requires numpy before 1.17.0 -use numpy 1.16.0
-
-SPYDER HAS NO AUTOSAVE FUNCTION!  (only autosaves when script is run)
-CAREFUL WHEN USING 'REPLACE ALL' - IT WILL QUIT, WITHOUT SAVING!!
-
-UPDATE REV40 PV SETTINGS MAX VOLTAGE FOR PHOTOSTIM CONTROL!!!
-
-TO DO    log this to Notes ToDo_log when it's done and tested
-
-1. use different decoders for two texture types (need to update matlab as well) - done
-2. photostimulate the opposite ensemble in a random subset of putative correct trials
-
-4. temporally save a sequence of phase masks in holoblink, display on slm on command
-7. seed cell detection by cell masks from previous recordings
-
-
-test timing on rig
-log data for offline anaysis - keep checking if everything is saved out
-
-
+ note: skimage 0.14.0 requires numpy before 1.17.0 -use numpy 1.16.0
 
 Authors: Zihui Zhang, Patrycja Dzialecka
+
 '''
 #%% imports
 import sys
