@@ -16,6 +16,10 @@ The software integrates a calcium imaging analysis toolbox (CaImAn, Giovannucci 
 * NVIDIA GPUs have been tested for raw data preprocessing and hologram calculation (CUDA8.0, NVDIA GeForce GTX 1080Ti).<br/>
 * Analog voltage outputs are generated using NI-DAQmx (device used: PCI-6713, National Instruments).<br/>
 
+Packages required for post-hoc analysis in MATLAB:
+* dPCA: https://github.com/machenslab/dPCA
+* CaImAn: https://github.com/flatironinstitute/CaImAn-MATLAB.<br/>
+
 # Installation notes
 On microscope control PC:<br/>
 *	Install Prairie View 5.4 (tested with rev40).<br/>
